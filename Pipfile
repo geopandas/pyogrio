@@ -1,0 +1,20 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+cython = "*"
+setuptools = "*"
+pylint = "*"
+black = "==19.3b0"
+wheel = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-benchmark = "*"
+
+[packages]
+numpy = "*"
+
+[requires]
+python_version = "3.8"

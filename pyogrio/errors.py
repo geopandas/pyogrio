@@ -1,0 +1,3 @@
+
+class DriverError(Exception):
+    pass

@@ -1,0 +1,1 @@
+cdef void* ogr_open(const char *path_c, int mode, drivers, options) except NULL

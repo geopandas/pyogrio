@@ -1,0 +1,10 @@
+*.c
+*.pyc
+*.pyd
+*.so
+
+*/__pycache__/*
+build/*
+*.egg-info/*
+
+Pipfile.lock
