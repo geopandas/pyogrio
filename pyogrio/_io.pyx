@@ -2,15 +2,19 @@
 
 TODO:
 * better handling of drivers
-* numpy types for fields
+* select fields
+* handle null field values
+* handle date / time fields
 """
 
+from datetime import datetime
 import locale
 import logging
 
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
 
+cimport cython
 import numpy as np
 cimport numpy as np
 
@@ -28,7 +32,6 @@ log = logging.getLogger(__name__)
 cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
 
 
-
 # TODO: port drivers from fiona::drvsupport.py
 
 # driver:mode
@@ -44,18 +47,18 @@ DRIVERS = {
 # Mapping of OGR integer field types to Python field type names.
 # TODO: numpy types
 FIELD_TYPES = [
-    'int32', # 'int32',        # OFTInteger, Simple 32bit integer
+    'int32',        # OFTInteger, Simple 32bit integer
     None,           # OFTIntegerList, List of 32bit integers, not supported
-    'float64', # 'float',        # OFTReal, Double Precision floating point
+    'float64',      # OFTReal, Double Precision floating point
     None,           # OFTRealList, List of doubles, not supported
-    'object', # 'str',          # OFTString, String of UTF-8 chars
+    'object',          # OFTString, String of UTF-8 chars
     None,           # OFTStringList, Array of strings, not supported
     None,           # OFTWideString, deprecated, not supported
     None,           # OFTWideStringList, deprecated, not supported
     'object', # 'bytes',        # OFTBinary, Raw Binary data
-    'datetime64[D]', # 'date',         # OFTDate, Date
-    'object', # 'time',         # OFTTime, Time, NOTE: not directly supported in numpy
-    'datetime64[s]', # 'datetime',     # OFTDateTime, Date and Time
+    'datetime64[D]',# OFTDate, Date
+    None,       # OFTTime, Time, NOTE: not directly supported in numpy
+    'datetime64[s]',# OFTDateTime, Date and Time
     'int64',        # OFTInteger64, Single 64bit integer
     None            # OFTInteger64List, List of 64bit integers, not supported
 ]
@@ -218,8 +221,8 @@ cdef get_fields(void *ogr_layer, encoding):
 
     Returns
     -------
-    ndarray(n, 2)
-        array of pairs of name, numpy dtype
+    ndarray(n, 4)
+        array of index, ogr type, name, numpy type
     """
     cdef int i
     cdef int field_count
@@ -238,8 +241,9 @@ cdef get_fields(void *ogr_layer, encoding):
 
     field_count = OGR_FD_GetFieldCount(ogr_featuredef)
 
-    fields = np.empty(shape=(field_count, 2), dtype=np.object)
-    view = fields[:,:]
+    fields = np.empty(shape=(field_count, 4), dtype=np.object)
+    fields_view = fields[:,:]
+
     for i in range(field_count):
         ogr_fielddef = OGR_FD_GetFieldDefn(ogr_featuredef, i)
         if ogr_fielddef == NULL:
@@ -258,26 +262,40 @@ cdef get_fields(void *ogr_layer, encoding):
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
             continue
 
-        view[i,0] = field_name
-        view[i,1] = np_type
+        fields_view[i,0] = i
+        fields_view[i,1] = field_type
+        fields_view[i,2] = field_name
+        fields_view[i,3] = np_type
 
     return fields
 
 
-cdef get_features(void *ogr_layer, uint8_t read_geometry):
-    cdef void * ogr_feature
-    cdef void * ogr_geometry
-    cdef char * wkb
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry, ):
+    cdef void * ogr_feature = NULL
+    cdef void * ogr_geometry = NULL
+    cdef char * wkb = NULL
+    cdef int i
+    cdef int j
+    cdef int success
+    cdef int field_index
     cdef int count
-    cdef int wkb_length
+    cdef int ret_length
+    cdef unsigned char *bin_value
+    cdef int year = 0
+    cdef int month = 0
+    cdef int day = 0
+    cdef int hour = 0
+    cdef int minute = 0
+    cdef int second = 0
+    cdef int timezone = 0
+
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
 
     count = OGR_L_GetFeatureCount(ogr_layer, 1)
-
-    # index = np.empty(shape(count, ), dtype='uint')
-    # index_view = index[:]
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
@@ -286,7 +304,16 @@ cdef get_features(void *ogr_layer, uint8_t read_geometry):
     else:
         geometries = None
 
-    # TODO: fields
+    field_iter = range(fields.shape[0])
+    field_indexes = fields[:,0]
+    field_ogr_types = fields[:,1]
+
+    field_data = [
+        np.empty(shape=(count, ),
+        dtype=fields[field_index,3]) for field_index in field_indexes
+    ]
+
+    field_data_view = [field_data[field_index][:] for field_index in field_indexes]
 
     for i in range(count):
         ogr_feature = OGR_L_GetNextFeature(ogr_layer)
@@ -302,23 +329,55 @@ cdef get_features(void *ogr_layer, uint8_t read_geometry):
 
             else:
                 try:
-                    wkb_length = OGR_G_WkbSize(ogr_geometry)
-                    # wkb = <char*>malloc(sizeof(char)*OGR_G_WkbSize(ogr_geometry))
-                    wkb = <char*>malloc(sizeof(char)*wkb_length)
-                    err = OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
-                    if err:
-                        raise ValueError("Failed to export geometry to WKB")
-
-                    geom_view[i] = wkb[:wkb_length]
+                    ret_length = OGR_G_WkbSize(ogr_geometry)
+                    wkb = <char*>malloc(sizeof(char)*ret_length)
+                    OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
+                    geom_view[i] = wkb[:ret_length]
 
                 finally:
                     free(wkb)
 
-    return (geometries,)
+        for j in field_iter:
+            field_index = field_indexes[j]
+            field_type = field_ogr_types[j]
+            data = field_data_view[j]
+
+            # TODO: handle null values
+            if field_type == OFTInteger:
+                data[i] = OGR_F_GetFieldAsInteger(ogr_feature, field_index)
+
+            elif field_type == OFTInteger64:
+                data[i] = OGR_F_GetFieldAsInteger64(ogr_feature, field_index)
+
+            elif field_type == OFTReal:
+                data[i] = OGR_F_GetFieldAsDouble(ogr_feature, field_index)
+
+            elif field_type == OFTString:
+                value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
+                data[i] = value
+
+            elif field_type == OFTBinary:
+                bin_value = OGR_F_GetFieldAsBinary(ogr_feature, field_index, &ret_length)
+                data[i] = bin_value[:ret_length]
+
+            elif field_type == OFTDateTime or field_type == OFTDate:
+                success = OGR_F_GetFieldAsDateTime(
+                    ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
+
+                if not success:
+                    data[i] = None
+
+                elif field_type == OFTDate:
+                    data[i] = datetime.date(year, month, day).isoformat()
+
+                elif field_type == OFTDateTime:
+                    data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
+
+    return (geometries, field_data)
 
 
 
-def ogr_read(path, layer=None, encoding=None, geometry=True, **kwargs):
+def ogr_read(path, layer=None, encoding=None, read_geometry=True, **kwargs):
     cdef const char *path_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
@@ -360,12 +419,12 @@ def ogr_read(path, layer=None, encoding=None, geometry=True, **kwargs):
     meta = {
         'crs': crs,
         'encoding': encoding,
-        'fields': fields,
+        'fields': fields[:,2:],
         'geometry': geometry_type
     }
 
     # FIXME:
-    geometries = get_features(ogr_layer, geometry)[0]
+    geometries, field_data = get_features(ogr_layer, fields, encoding, read_geometry)
 
 
     if ogr_dataset != NULL:
@@ -375,7 +434,8 @@ def ogr_read(path, layer=None, encoding=None, geometry=True, **kwargs):
 
     return (
         meta,
-        geometries
+        geometries,
+        field_data
     )
 
 
