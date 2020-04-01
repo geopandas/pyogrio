@@ -98,6 +98,18 @@ cdef extern from "ogr_core.h":
 
 cdef extern from "ogr_api.h":
     void *  OGR_Dr_Open (void *driver, const char *path, int bupdate)
+    const char *  OGR_L_GetName (void *layer)
+    void *  OGR_L_GetSpatialRef (void *layer)
+
+cdef extern from "ogr_srs_api.h":
+
+    ctypedef void * OGRSpatialReferenceH
+
+    int     OSRAutoIdentifyEPSG (OGRSpatialReferenceH srs)
+    const char * OSRGetAuthorityName (OGRSpatialReferenceH srs, const char *key)
+    const char * OSRGetAuthorityCode (OGRSpatialReferenceH srs, const char *key)
+    int     OSRExportToWkt (OGRSpatialReferenceH srs, char **params)
+
 
 
 cdef extern from "gdal.h":
@@ -125,3 +137,7 @@ cdef extern from "cpl_string.h":
     char ** CSLSetNameValue (char **list, const char *name, const char *value)
     void CSLDestroy (char **list)
     char ** CSLAddString(char **list, const char *string)
+
+cdef extern from "cpl_conv.h":
+    void *  CPLMalloc (size_t)
+    void    CPLFree (void *ptr)

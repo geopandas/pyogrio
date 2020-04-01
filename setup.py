@@ -4,8 +4,10 @@ import shutil
 import subprocess
 import sys
 
-from setuptools import setup
 from Cython.Build import cythonize
+from Cython.Distutils import build_ext
+from setuptools import setup
+from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.extension import Extension
 
 
@@ -60,6 +62,17 @@ else:
             ext_options["extra_link_args"].append(entry)
 
 
+# Get numpy include directory without importing numpy at top level here
+# from: https://stackoverflow.com/a/42163080
+class CustomBuildExtCommand(build_ext):
+    def run(self):
+        import numpy
+
+        self.include_dirs.append(numpy.get_include())
+        # Call original build_ext command
+        build_ext.run(self)
+
+
 setup(
     name="pyogrio",
     version="0.1.0",
@@ -71,9 +84,11 @@ setup(
     description="Vectorized vector I/O using GDAL",
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
-    install_requires=[numpy],
+    python_requires=">=3",
+    install_requires=["numpy"],
     tests_require=["pytest", "pytest-cov", "pytest-benchmark"],
     include_package_data=True,
+    cmdclass={"build_ext": CustomBuildExtCommand},
     ext_modules=cythonize(
         [
             Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),

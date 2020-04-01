@@ -1,4 +1,4 @@
-from pyogrio._io import ogr_read
+from pyogrio._io import ogr_read, ogr_list_layers
 
 
 def read(path, columns=None):
@@ -8,3 +8,7 @@ def read(path, columns=None):
 
 def write(path, meta, data, driver=None):
     raise NotImplementedError("Not built!")
+
+
+def list_layers(path):
+    return ogr_list_layers(path)
