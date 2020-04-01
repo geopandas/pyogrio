@@ -92,6 +92,7 @@ setup(
     ext_modules=cythonize(
         [
             Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
+            Extension("pyogrio._geometry", ["pyogrio/_geometry.pyx"], **ext_options),
             Extension("pyogrio._io", ["pyogrio/_io.pyx"], **ext_options),
             Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
         ],

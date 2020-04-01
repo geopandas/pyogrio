@@ -98,8 +98,31 @@ cdef extern from "ogr_core.h":
 
 cdef extern from "ogr_api.h":
     void *  OGR_Dr_Open (void *driver, const char *path, int bupdate)
+    const char * OGR_Dr_GetName (void *driver)
+
+    long    OGR_F_GetFID (void *feature)
+    void *  OGR_F_GetGeometryRef (void *feature)
+
+    void *  OGR_FD_Create (char *name)
+    int     OGR_FD_GetFieldCount (void *featuredefn)
+    void *  OGR_FD_GetFieldDefn (void *featuredefn, int n)
+    int     OGR_FD_GetGeomType (void *featuredefn)
+
+    char *  OGR_Fld_GetNameRef (void *fielddefn)
+    int     OGR_Fld_GetPrecision (void *fielddefn)
+    int     OGR_Fld_GetType (void *fielddefn)
+    int     OGR_Fld_GetWidth (void *fielddefn)
+
+    void    OGR_G_ExportToWkb (void *geometry, int endianness, char *buffer)
+    int     OGR_G_WkbSize (void *geometry)
+
     const char *  OGR_L_GetName (void *layer)
     void *  OGR_L_GetSpatialRef (void *layer)
+    int     OGR_L_TestCapability (void *layer, char *name)
+    void *  OGR_L_GetLayerDefn (void *layer)
+    void *  OGR_L_GetNextFeature (void *layer)
+    void    OGR_L_ResetReading (void *layer)
+    int     OGR_L_GetFeatureCount (void *layer, int m)
 
 cdef extern from "ogr_srs_api.h":
 
@@ -114,7 +137,7 @@ cdef extern from "ogr_srs_api.h":
 
 cdef extern from "gdal.h":
     void GDALAllRegister()
-    char * GDALVersionInfo (char *pszRequest)
+    char * GDALGetDatasetDriver (void * hDataset)
     void * GDALGetDriverByName(const char * pszName)
     void * GDALOpenEx(const char * pszFilename,
                       unsigned int nOpenFlags,
@@ -130,6 +153,7 @@ cdef extern from "gdal.h":
     void * GDALDatasetGetLayer(void * hDS, int iLayer)
     void * GDALDatasetGetLayerByName(void * hDS, char * pszName)
     void GDALClose(void * hDS)
+    char * GDALVersionInfo (char *pszRequest)
 
 
 cdef extern from "cpl_string.h":

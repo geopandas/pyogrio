@@ -1,0 +1,1 @@
+cdef str get_geometry_type(void *ogr_layer)

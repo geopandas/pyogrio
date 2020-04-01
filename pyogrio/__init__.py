@@ -3,7 +3,7 @@ from pyogrio._io import ogr_read, ogr_list_layers
 
 def read(path, columns=None):
 
-    ogr_read(path)
+    return ogr_read(path)
 
 
 def write(path, meta, data, driver=None):
