@@ -7,7 +7,7 @@ TODO:
 * handle date / time fields
 """
 
-from datetime import datetime
+import datetime
 import locale
 import logging
 
@@ -424,7 +424,12 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, **kwargs):
     }
 
     # FIXME:
-    geometries, field_data = get_features(ogr_layer, fields, encoding, read_geometry)
+    geometries, field_data = get_features(
+        ogr_layer,
+        fields,
+        encoding,
+        read_geometry=read_geometry and geometry_type is not None
+    )
 
 
     if ogr_dataset != NULL:

@@ -66,11 +66,15 @@ else:
 # from: https://stackoverflow.com/a/42163080
 class CustomBuildExtCommand(build_ext):
     def run(self):
-        import numpy
+        try:
+            import numpy
 
-        self.include_dirs.append(numpy.get_include())
-        # Call original build_ext command
-        build_ext.run(self)
+            self.include_dirs.append(numpy.get_include())
+            # Call original build_ext command
+            build_ext.run(self)
+
+        except ImportError:
+            pass
 
 
 setup(
@@ -87,6 +91,7 @@ setup(
     python_requires=">=3",
     install_requires=["numpy"],
     tests_require=["pytest", "pytest-cov", "pytest-benchmark"],
+    extras_require={"pandas": ["pandas"], "pygeos": ["pygeos"]},
     include_package_data=True,
     cmdclass={"build_ext": CustomBuildExtCommand},
     ext_modules=cythonize(

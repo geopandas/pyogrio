@@ -24,7 +24,7 @@ GEOMETRY_TYPES = {
     #15: 'PolyhedralSurface',
     #16: 'TIN',
     #17: 'Triangle',
-    100: 'None',
+    100: None,
     101: 'LinearRing',
     0x80000001: '3D Point',
     0x80000002: '3D LineString',

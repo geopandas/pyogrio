@@ -1,9 +1,10 @@
 from pyogrio._io import ogr_read, ogr_list_layers
+from pyogrio.pandas import read_dataframe
 
 
-def read(path, columns=None):
+def read(path, layer=None, columns=None):
 
-    return ogr_read(path)
+    return ogr_read(str(path), layer, columns)
 
 
 def write(path, meta, data, driver=None):
