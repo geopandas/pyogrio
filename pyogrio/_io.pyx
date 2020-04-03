@@ -151,18 +151,16 @@ cdef get_crs(void *ogr_layer):
     try:
         ogr_crs = exc_wrap_pointer(OGR_L_GetSpatialRef(ogr_layer))
     except NullPointerError:
+
         # no coordinate system defined
-        log.debug("No CRS defined")
+        print("No CRS defined")
         return None
 
+    # If CRS can be decoded to an EPSG code, use that.
+    # The following pointers will be NULL if it cannot be decoded.
     retval = OSRAutoIdentifyEPSG(ogr_crs)
-    try:
-        authority_key = <const char *>exc_wrap_pointer(<void *>OSRGetAuthorityName(ogr_crs, NULL))
-        authority_val = <const char *>exc_wrap_pointer(<void *>OSRGetAuthorityCode(ogr_crs, NULL))
-
-    except CPLE_BaseError as exc:
-        log.debug("{}".format(exc))
-        return None
+    authority_key = <const char *>OSRGetAuthorityName(ogr_crs, NULL)
+    authority_val = <const char *>OSRGetAuthorityCode(ogr_crs, NULL)
 
     if authority_key != NULL and authority_val != NULL:
         key = get_string(authority_key)
