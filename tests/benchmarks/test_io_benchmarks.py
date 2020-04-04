@@ -6,7 +6,7 @@ from pyogrio import read, list_layers
 
 def fiona_read(path):
     with fiona.open(path) as src:
-        features = list(src)
+        list(src)
 
 
 @pytest.mark.benchmark(group="list-layers")
