@@ -12,4 +12,4 @@ def write(path, meta, data, driver=None):
 
 
 def list_layers(path):
-    return ogr_list_layers(path)
+    return ogr_list_layers(str(path))

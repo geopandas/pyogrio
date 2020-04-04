@@ -183,7 +183,7 @@ cdef get_crs(void *ogr_layer):
 cdef detect_encoding(void *ogr_dataset, void *ogr_layer):
     """Attempt to detect the encoding of the layer.
     If it supports UTF-8, use that.
-    If it is a shapefile, it must be ISO-8859-1.
+    If it is a shapefile, it must otherwise be ISO-8859-1.
 
     Parameters
     ----------

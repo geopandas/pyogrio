@@ -8,3 +8,5 @@ build/*
 *.egg-info/*
 
 Pipfile.lock
+
+tests/fixtures/
