@@ -482,18 +482,16 @@ def ogr_list_layers(str path):
 
     layer_count = GDALDatasetGetLayerCount(ogr_dataset)
 
-    layer_names = np.empty(shape=(layer_count, ), dtype=np.object)
-    view = layer_names[:]
+    data = np.empty(shape=(layer_count, 2), dtype=np.object)
+    data_view = data[:]
     for i in range(layer_count):
         ogr_layer = GDALDatasetGetLayer(ogr_dataset, i)
-        ogr_name = OGR_L_GetName(ogr_layer)
 
-        name = get_string(ogr_name)
-        # layer_names[i] = name
-        view[i] = name
+        data_view[i, 0] = get_string(OGR_L_GetName(ogr_layer))
+        data_view[i, 1] = get_geometry_type(ogr_layer)
 
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
     ogr_dataset = NULL
 
-    return layer_names
+    return data

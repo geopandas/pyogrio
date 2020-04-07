@@ -3,7 +3,6 @@ from pyogrio.pandas import read_dataframe
 
 
 def read(path, layer=None, columns=None):
-
     return ogr_read(str(path), layer, columns)
 
 

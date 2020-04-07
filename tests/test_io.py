@@ -1,11 +1,27 @@
 from pathlib import Path
+from numpy import array_equal
 
 from pyogrio import read, list_layers
 
 
-def test_list_layers(naturalearth_lowres, naturalearth_modres):
-    assert list_layers(naturalearth_lowres) == ["ne_110m_admin_0_countries"]
-    assert list_layers(naturalearth_modres) == ["ne_10m_admin_0_countries"]
+def test_list_layers(naturalearth_lowres, naturalearth_modres, nhd_wbd, nhd_hr):
+    assert array_equal(
+        list_layers(naturalearth_lowres), [["ne_110m_admin_0_countries", "Polygon"]]
+    )
+
+    assert array_equal(
+        list_layers(naturalearth_modres), [["ne_10m_admin_0_countries", "Polygon"]]
+    )
+
+    wbd_layers = list_layers(nhd_wbd)
+    assert len(wbd_layers) == 20
+    assert array_equal(wbd_layers[7], ["WBDLine", "MultiLineString"])
+    assert array_equal(wbd_layers[8], ["WBDHU8", "MultiPolygon"])
+
+    hr_layers = list_layers(nhd_hr)
+    assert len(hr_layers) == 75
+    assert array_equal(hr_layers[54], ["NHDArea", "2.5D MultiPolygon"])
+    assert array_equal(hr_layers[55], ["NHDFlowline", "Measured 3D MultiLineString"])
 
 
 def test_read(naturalearth_lowres):
