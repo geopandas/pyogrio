@@ -108,6 +108,7 @@ cdef extern from "ogr_api.h":
     int OGR_F_GetFieldAsInteger (void *feature, int n)
     long OGR_F_GetFieldAsInteger64 (void *feature, int n)
     char *  OGR_F_GetFieldAsString (void *feature, int n)
+    int     OGR_F_IsFieldSetAndNotNull (void *feature, int n)
 
     void *  OGR_FD_Create (char *name)
     int     OGR_FD_GetFieldCount (void *featuredefn)
@@ -118,7 +119,6 @@ cdef extern from "ogr_api.h":
     int     OGR_Fld_GetPrecision (void *fielddefn)
     int     OGR_Fld_GetType (void *fielddefn)
     int     OGR_Fld_GetWidth (void *fielddefn)
-
 
     void    OGR_G_ExportToWkb (void *geometry, int endianness, char *buffer)
     int     OGR_G_WkbSize (void *geometry)

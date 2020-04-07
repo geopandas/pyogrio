@@ -110,6 +110,14 @@ def test_read_wkb(naturalearth_lowres):
     assert df.geometry.iloc[0][:6] == b"\x01\x06\x00\x00\x00\x03"
 
 
+def test_null_io(naturalearth_modres):
+    df = read_dataframe(naturalearth_modres, read_geometry=False)
+
+    # make sure that Null values are preserved
+    assert df.NAME_ZH.isnull().max() == True
+    assert df.loc[df.NAME_ZH.isnull()].NAME_ZH.iloc[0] == None
+
+
 def test_read_pygeos(naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres, as_pygeos=True)
     assert isinstance(df.geometry.iloc[0], pygeos.Geometry)

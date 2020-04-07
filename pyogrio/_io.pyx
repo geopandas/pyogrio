@@ -13,6 +13,7 @@ import logging
 
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
+from libc.string cimport strlen
 
 cimport cython
 import numpy as np
@@ -151,9 +152,8 @@ cdef get_crs(void *ogr_layer):
     try:
         ogr_crs = exc_wrap_pointer(OGR_L_GetSpatialRef(ogr_layer))
     except NullPointerError:
-
-        # no coordinate system defined
-        print("No CRS defined")
+        # No coordinate system defined.
+        # This is expected and valid for nonspatial tables.
         return None
 
     # If CRS can be decoded to an EPSG code, use that.
@@ -246,6 +246,8 @@ cdef get_fields(void *ogr_layer, encoding):
         ogr_fielddef = OGR_FD_GetFieldDefn(ogr_featuredef, i)
         if ogr_fielddef == NULL:
             raise ValueError("Null field definition")
+
+
 
         field_name = get_string(OGR_Fld_GetNameRef(ogr_fielddef), encoding=encoding)
 
@@ -340,7 +342,27 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
             field_type = field_ogr_types[j]
             data = field_data_view[j]
 
-            # TODO: handle null values
+            isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
+            if isnull:
+                # print('field is unset / null', field_type, field_index)
+                if field_type in (OFTInteger, OFTInteger64, OFTReal):
+                    # print('dtype', data.dtype)
+                    if data.dtype in (np.int32, np.int64):
+                        # have to cast to float to hold NaN values
+                        field_data[j] = field_data[j].astype(np.float64)
+                        field_data_view[j] = field_data[j][:]
+                        field_data_view[j][i] = np.nan
+                    else:
+                        data[i] = np.nan
+
+                elif field_type in ( OFTDate, OFTDateTime):
+                    data[i] = np.datetime64('NaT')
+
+                else:
+                    data[i] = None
+
+                continue
+
             if field_type == OFTInteger:
                 data[i] = OGR_F_GetFieldAsInteger(ogr_feature, field_index)
 
@@ -351,6 +373,8 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
                 data[i] = OGR_F_GetFieldAsDouble(ogr_feature, field_index)
 
             elif field_type == OFTString:
+                v = OGR_F_GetFieldAsString(ogr_feature, field_index)
+
                 value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
                 data[i] = value
 
@@ -363,7 +387,7 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
                     ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
 
                 if not success:
-                    data[i] = None
+                    data[i] = np.datetime64('NaT')
 
                 elif field_type == OFTDate:
                     data[i] = datetime.date(year, month, day).isoformat()
@@ -414,14 +438,6 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, **kwargs):
 
     geometry_type = get_geometry_type(ogr_layer)
 
-    meta = {
-        'crs': crs,
-        'encoding': encoding,
-        'fields': fields[:,2:],
-        'geometry': geometry_type
-    }
-
-    # FIXME:
     geometries, field_data = get_features(
         ogr_layer,
         fields,
@@ -429,6 +445,17 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, **kwargs):
         read_geometry=read_geometry and geometry_type is not None
     )
 
+    # update field types if NULL values were encountered
+    for field_index in range(fields.shape[0]):
+        fields[field_index, 3] = field_data[field_index].dtype
+
+
+    meta = {
+        'crs': crs,
+        'encoding': encoding,
+        'fields': fields[:,2],
+        'geometry': geometry_type
+    }
 
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)

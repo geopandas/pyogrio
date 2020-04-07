@@ -29,7 +29,7 @@ def read_dataframe(path, read_geometry=True, as_pygeos=False, **kwargs):
         str(path), read_geometry=read_geometry, **kwargs
     )
 
-    columns = meta["fields"][:, 0].tolist()
+    columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
 
     if geometry is not None and read_geometry:

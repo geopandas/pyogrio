@@ -30,8 +30,19 @@ for additional dependencies.
 
 Run `python setup.py develop` to build the extensions in Cython.
 
-Test datasets are downloaded from [Natural Earth](https://www.naturalearthdata.com/downloads/)
-and placed into `tests/fixtures/datasets` (each gets its own folder).
+Test datasets are downloaded and placed into `tests/fixtures/datasets` (each gets its own folder):
+
+[Natural Earth](https://www.naturalearthdata.com/downloads/):
+
+-   [Admin 0 (countries) at 1:110m](https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/110m/cultural/ne_110m_admin_0_countries.zip)
+-   [Admin 0 (countries at 1:10m)](https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_0_countries.zip)
+-   [Admin 1 (states / provinces) at 1:110m](https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/110m/cultural/ne_110m_admin_1_states_provinces.zip)
+-   [Admin 1 (states / provinces) at 1:10m](https://www.naturalearthdata.com/http//www.naturalearthdata.com/download/10m/cultural/ne_10m_admin_1_states_provinces.zip)
+
+Hydrography:
+
+-   [Watershed boundaries](https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/WBD/HU2/GDB/WBD_17_HU2_GDB.zip)
+-   [Flowlines, waterbodies, etc](https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHDPlusHR/Beta/GDB/NHDPLUS_H_1704_HU4_GDB.zip)
 
 ## Examples
 
@@ -60,7 +71,7 @@ By default, the first layer of a given data source is read unless a specific lay
 {
     "crs": <EPSG code or WKT string>,
     "encoding": <"UTF-8" if designated as such by data source, otherwise "ISO-8859-1" if a Shapefile, or determined from the system encoding or passed in by user>,
-    "fields": <ndarray of shape (n, 2), pairs of field name and numpy dtype>,
+    "fields": <ndarray of field names>,
     "geometry": <GeoJSON geometry type name, e.g., "Polygon">
 }
 ```
@@ -74,8 +85,8 @@ By default, the first layer of a given data source is read unless a specific lay
     'crs': 'EPSG:4326',
     'encoding': 'UTF-8',
     'fields': array([
-        ['featurecla', 'object'],
-        ['scalerank', 'int32'],
+        'featurecla',
+        'scalerank',
         ...<many more>
     ], dtype=object),
     'geometry': 'Polygon'
@@ -103,6 +114,16 @@ If you have `pygeos` available, you can convert to `pygeos` geometry objects:
 ```
 df = pyogrio.read_dataframe('tests/fixtures/datasets/ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp', as_pygeos=True)
 ```
+
+### Null values
+
+Some data sources support NULL or otherwise unset field values. These cannot be properly
+stored into the ndarray for certain types. If NULL or unset values are encountered,
+the following occurs:
+
+-   If the field is a string type, NULL values are represented as None
+-   If the field is an integer type (np.int32, np.int64), the field data are re-cast to np.float64 values, and NULL values are represented as np.nan
+-   If the field is a date or datetime type, the field is set as np.datetime64('NaT')
 
 ### Write to a vector data source
 
