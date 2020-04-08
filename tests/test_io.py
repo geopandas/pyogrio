@@ -133,3 +133,12 @@ def test_read(naturalearth_lowres):
 
     # quick test that WKB is a Polygon type
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+def test_vsi_read_layers(naturalearth_modres_vsi):
+    assert array_equal(
+        list_layers(naturalearth_modres_vsi), [["ne_10m_admin_0_countries", "Polygon"]]
+    )
+
+    meta, geometry, fields = read(naturalearth_modres_vsi)
+    assert geometry.shape == (255,)
