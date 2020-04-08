@@ -4,36 +4,6 @@ from pyogrio.errors import UnsupportedGeometryTypeError
 
 
 # Mapping of OGR integer geometry types to GeoJSON type names.
-# GEOMETRY_TYPES = {
-#     0: 'Unknown',
-#     1: 'Point',
-#     2: 'LineString',
-#     3: 'Polygon',
-#     4: 'MultiPoint',
-#     5: 'MultiLineString',
-#     6: 'MultiPolygon',
-#     7: 'GeometryCollection',
-#     # Unsupported types.
-#     #8: 'CircularString',
-#     #9: 'CompoundCurve',
-#     #10: 'CurvePolygon',
-#     #11: 'MultiCurve',
-#     #12: 'MultiSurface',
-#     #13: 'Curve',
-#     #14: 'Surface',
-#     #15: 'PolyhedralSurface',
-#     #16: 'TIN',
-#     #17: 'Triangle',
-#     100: None,
-#     101: 'LinearRing',
-#     0x80000001: '3D Point',
-#     0x80000002: '3D LineString',
-#     0x80000003: '3D Polygon',
-#     0x80000004: '3D MultiPoint',
-#     0x80000005: '3D MultiLineString',
-#     0x80000006: '3D MultiPolygon',
-#     0x80000007: '3D GeometryCollection'
-# }
 
 GEOMETRY_TYPES = {
     wkbUnknown: 'Unknown',
@@ -77,8 +47,6 @@ GEOMETRY_TYPES = {
     -2147483642: '2.5D MultiPolygon',
     -2147483641: '2.5D GeometryCollection',
 }
-
-
 
 
 cdef str get_geometry_type(void *ogr_layer):

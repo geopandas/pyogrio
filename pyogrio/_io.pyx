@@ -399,10 +399,13 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
 
 
 
-def ogr_read(path, layer=None, encoding=None, read_geometry=True, **kwargs):
+def ogr_read(path, layer=None, encoding=None, read_geometry=True, columns=None, **kwargs):
     cdef const char *path_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
+
+    # Force linear approximations in all cases
+    OGRSetNonLinearGeometriesEnabledFlag(0)
 
     path_b = path.encode('utf-8')
     path_c = path_b

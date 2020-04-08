@@ -14,6 +14,8 @@ def read_dataframe(path, read_geometry=True, as_pygeos=False, **kwargs):
         if True and OGR data source includes geometry, will read geometry into "geometry" column.
     as_pygeos : bool, optional (default False)
         if True, geometry will be converted from WKB to pygeos geometry objects.
+    kwargs : dict
+        see pyogrio.read() for kwargs
 
     Returns
     -------

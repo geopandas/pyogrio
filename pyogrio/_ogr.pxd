@@ -131,6 +131,9 @@ cdef extern from "ogr_api.h":
     void    OGR_L_ResetReading (void *layer)
     int     OGR_L_GetFeatureCount (void *layer, int m)
 
+    void    OGRSetNonLinearGeometriesEnabledFlag (int bFlag)
+    int     OGRGetNonLinearGeometriesEnabledFlag ()
+
 cdef extern from "ogr_srs_api.h":
 
     ctypedef void * OGRSpatialReferenceH
