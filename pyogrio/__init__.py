@@ -1,4 +1,4 @@
-from pyogrio._io import ogr_read, ogr_list_layers
+from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers
 from pyogrio.pandas import read_dataframe
 
 
@@ -20,8 +20,11 @@ def read(path, layer=None, encoding=None, columns=None, read_geometry=True):
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
-    columns : list-like, optional
-        List of column names to import from the data source.
+    columns : list-like, optional (default: all columns)
+        List of column names to import from the data source.  Column names must
+        exactly match the names in the data source, and will be returned in
+        the order they occur in the data source.  To avoid reading any columns,
+        pass an empty list-like.
     read_geometry : bool, optional (default: True)
         If True, will read geometry into WKB.  If False, geometry will be None.
 
@@ -32,10 +35,49 @@ def read(path, layer=None, encoding=None, columns=None, read_geometry=True):
         an ndarray of geometry objects or None (if data source does not include
         geometry or read_geometry is False), a tuple of ndarrays for each field
         in the data layer.
+
+        Meta is: {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry": "<geometry type>"
+        }
     """
+
     return ogr_read(
-        str(path), layer=layer, encoding=encoding, columns=columns, to_linear=to_linear
+        str(path),
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
     )
+
+
+def read_info(path, layer=None, encoding=None):
+    """Read information about an OGR data source.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+    layer : [type], optional (default: None)
+        name or index of layer in data source
+    encoding : [type], optional (default: None)
+        If present, will be used as the encoding for reading string values from
+        the data source, unless encoding can be inferred directly from the data
+        source.
+
+    Returns
+    -------
+    dict
+        {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry": "<geometry type>",
+            "features": <feature count>
+        }
+    """
+    return ogr_read_info(str(path), layer=layer, encoding=encoding)
 
 
 def write(path, meta, data, driver=None):

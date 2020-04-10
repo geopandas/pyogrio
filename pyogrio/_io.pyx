@@ -3,8 +3,7 @@
 TODO:
 * better handling of drivers
 * select fields
-* handle null field values
-* handle date / time fields
+* handle FID / OBJECTID
 """
 
 import datetime
@@ -46,7 +45,6 @@ DRIVERS = {
 }
 
 # Mapping of OGR integer field types to Python field type names.
-# TODO: numpy types
 FIELD_TYPES = [
     'int32',        # OFTInteger, Simple 32bit integer
     None,           # OFTIntegerList, List of 32bit integers, not supported
@@ -56,9 +54,9 @@ FIELD_TYPES = [
     None,           # OFTStringList, Array of strings, not supported
     None,           # OFTWideString, deprecated, not supported
     None,           # OFTWideStringList, deprecated, not supported
-    'object', # 'bytes',        # OFTBinary, Raw Binary data
+    'object',       #  OFTBinary, Raw Binary data
     'datetime64[D]',# OFTDate, Date
-    None,       # OFTTime, Time, NOTE: not directly supported in numpy
+    None,           # OFTTime, Time, NOTE: not directly supported in numpy
     'datetime64[s]',# OFTDateTime, Date and Time
     'int64',        # OFTInteger64, Single 64bit integer
     None            # OFTInteger64List, List of 64bit integers, not supported
@@ -68,8 +66,7 @@ FIELD_TYPES = [
 def get_string(char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *
 
-    IMPORTANT: the char * must still be freed
-    by the caller.
+    IMPORTANT: the char * must still be freed by the caller.
 
     Parameters
     ----------
@@ -91,8 +88,11 @@ cdef void* ogr_open(const char* path_c, int mode, drivers, options) except NULL:
     cdef void* ogr_driver = NULL
     cdef char **open_opts = NULL
 
-    # TODO: move to env?
+    # Register all drivers
     GDALAllRegister()
+
+    # Force linear approximations in all cases
+    OGRSetNonLinearGeometriesEnabledFlag(0)
 
     flags = GDAL_OF_VECTOR | GDAL_OF_VERBOSE_ERROR
     if mode == 1:
@@ -131,6 +131,34 @@ cdef void* ogr_open(const char* path_c, int mode, drivers, options) except NULL:
         CSLDestroy(open_opts)
 
 
+cdef void* get_ogr_layer(void * ogr_dataset, layer):
+    """Open OGR layer by index or name.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+    layer : str or int
+        name or index of layer
+
+    Returns
+    -------
+    pointer to OGR layer
+    """
+    if isinstance(layer, str):
+        name_b = layer.encode('utf-8')
+        name_c = name_b
+        ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
+
+    elif isinstance(layer, int):
+        ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
+
+    if ogr_layer == NULL:
+        raise ValueError(f"Layer '{layer}' could not be opened")
+
+    return ogr_layer
+
+
+
 
 cdef get_crs(void *ogr_layer):
     """Read CRS from layer as EPSG:<code> if available or WKT.
@@ -151,6 +179,7 @@ cdef get_crs(void *ogr_layer):
 
     try:
         ogr_crs = exc_wrap_pointer(OGR_L_GetSpatialRef(ogr_layer))
+
     except NullPointerError:
         # No coordinate system defined.
         # This is expected and valid for nonspatial tables.
@@ -207,8 +236,7 @@ cdef detect_encoding(void *ogr_dataset, void *ogr_layer):
     return None
 
 
-# TODO: ignore fields?
-cdef get_fields(void *ogr_layer, encoding):
+cdef get_fields(void *ogr_layer, str encoding):
     """Get field names and types for layer.
 
     Parameters
@@ -228,11 +256,6 @@ cdef get_fields(void *ogr_layer, encoding):
     cdef void *ogr_fielddef = NULL
     cdef const char *key_c
 
-    # if self.collection.ignore_fields:
-    #     ignore_fields = self.collection.ignore_fields
-    # else:
-    #     ignore_fields = set()
-
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
     if ogr_featuredef == NULL:
         raise ValueError("Null feature definition")
@@ -247,13 +270,7 @@ cdef get_fields(void *ogr_layer, encoding):
         if ogr_fielddef == NULL:
             raise ValueError("Null field definition")
 
-
-
         field_name = get_string(OGR_Fld_GetNameRef(ogr_fielddef), encoding=encoding)
-
-    #     # TODO:
-    #     if name in ignore_fields:
-    #         continue
 
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
@@ -272,7 +289,7 @@ cdef get_fields(void *ogr_layer, encoding):
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry, ):
+cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry):
     cdef void * ogr_feature = NULL
     cdef void * ogr_geometry = NULL
     cdef char * wkb = NULL
@@ -304,16 +321,17 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
     else:
         geometries = None
 
-    field_iter = range(fields.shape[0])
+
+    field_iter = range(fields.shape[0]) # This might be wrong
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
 
     field_data = [
         np.empty(shape=(count, ),
-        dtype=fields[field_index,3]) for field_index in field_indexes
+        dtype=fields[field_index,3]) for field_index in field_iter
     ]
 
-    field_data_view = [field_data[field_index][:] for field_index in field_indexes]
+    field_data_view = [field_data[field_index][:] for field_index in field_iter]
 
     for i in range(count):
         ogr_feature = OGR_L_GetNextFeature(ogr_layer)
@@ -399,13 +417,10 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
 
 
 
-def ogr_read(path, layer=None, encoding=None, read_geometry=True, columns=None, **kwargs):
+def ogr_read(str path, object layer=None, object encoding=None, int read_geometry=True, object columns=None, **kwargs):
     cdef const char *path_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
-
-    # Force linear approximations in all cases
-    OGRSetNonLinearGeometriesEnabledFlag(0)
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -439,6 +454,12 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, columns=None, 
 
     fields = get_fields(ogr_layer, encoding)
 
+    if columns is not None:
+        # Fields are matched exactly by name, duplicates are dropped.
+        # Find index of each field into fields
+        idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
+        fields = fields[idx, :]
+
     geometry_type = get_geometry_type(ogr_layer)
 
     geometries, field_data = get_features(
@@ -448,15 +469,10 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, columns=None, 
         read_geometry=read_geometry and geometry_type is not None
     )
 
-    # update field types if NULL values were encountered
-    for field_index in range(fields.shape[0]):
-        fields[field_index, 3] = field_data[field_index].dtype
-
-
     meta = {
         'crs': crs,
         'encoding': encoding,
-        'fields': fields[:,2],
+        'fields': fields[:,2], # return only names
         'geometry': geometry_type
     }
 
@@ -464,12 +480,62 @@ def ogr_read(path, layer=None, encoding=None, read_geometry=True, columns=None, 
         GDALClose(ogr_dataset)
     ogr_dataset = NULL
 
-
     return (
         meta,
         geometries,
         field_data
     )
+
+
+def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
+    cdef const char *path_c = NULL
+    cdef void *ogr_dataset = NULL
+    cdef void *ogr_layer = NULL
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    # layer defaults to index 0
+    if layer is None:
+        layer = 0
+
+    # all DRIVERS support read
+    ogr_dataset = ogr_open(path_c, 0, DRIVERS, kwargs)
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
+
+
+    # if isinstance(layer, str):
+    #     name_b = layer.encode('utf-8')
+    #     name_c = name_b
+    #     ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
+
+    # elif isinstance(layer, int):
+    #     ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
+
+    # if ogr_layer == NULL:
+    #     raise ValueError(f"Layer '{layer}' could not be opened")
+
+    # Encoding is derived from the dataset, from the user, or from the system locale
+    encoding = (
+        detect_encoding(ogr_dataset, ogr_layer)
+        or encoding
+        or locale.getpreferredencoding()
+    )
+
+    meta = {
+        'crs': get_crs(ogr_layer),
+        'encoding': encoding,
+        'fields': get_fields(ogr_layer, encoding)[:,2], # return only names
+        'geometry': get_geometry_type(ogr_layer),
+        'features': OGR_L_GetFeatureCount(ogr_layer, 1)
+    }
+
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+    ogr_dataset = NULL
+
+    return meta
+
 
 
 def ogr_list_layers(str path):

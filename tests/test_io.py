@@ -1,7 +1,8 @@
 from pathlib import Path
+import numpy as np
 from numpy import array_equal
 
-from pyogrio import read, list_layers
+from pyogrio import read, read_info, list_layers
 
 
 def test_list_layers(naturalearth_lowres, naturalearth_modres, nhd_wbd, nhd_hr):
@@ -30,6 +31,7 @@ def test_read(naturalearth_lowres):
     assert meta["crs"] == "EPSG:4326"
     assert meta["geometry"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (94,)
 
     assert meta["fields"].tolist() == [
         "featurecla",
@@ -142,3 +144,40 @@ def test_vsi_read_layers(naturalearth_modres_vsi):
 
     meta, geometry, fields = read(naturalearth_modres_vsi)
     assert geometry.shape == (255,)
+
+
+def test_read_no_geometry(naturalearth_lowres):
+    meta, geometry, fields = read(naturalearth_lowres, read_geometry=False)
+
+    assert geometry is None
+
+
+def test_read_columns(naturalearth_lowres):
+    # read no columns or geometry
+    meta, geometry, fields = read(naturalearth_lowres, columns=[], read_geometry=False)
+    assert geometry is None
+    assert len(fields) == 0
+    array_equal(meta["fields"], np.empty(shape=(0, 4), dtype="object"))
+
+    columns = ["NAME", "NAME_LONG"]
+    meta, geometry, fields = read(
+        naturalearth_lowres, columns=columns, read_geometry=False
+    )
+    array_equal(meta["fields"], columns)
+
+    # Repeats should be dropped
+    columns = ["NAME", "NAME_LONG", "NAME"]
+    meta, geometry, fields = read(
+        naturalearth_lowres, columns=columns, read_geometry=False
+    )
+    array_equal(meta["fields"], columns[:2])
+
+
+def test_read_info(naturalearth_lowres):
+    meta = read_info(naturalearth_lowres)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry"] == "Polygon"
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (94,)
+    assert meta["features"] == 177

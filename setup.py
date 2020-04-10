@@ -20,9 +20,6 @@ def read_response(cmd):
 
 
 ext_options = {
-    # GDAL 2.4.x requires C++11
-    # "language": ["c++"],
-    # "extra_compile_args": ["-std=c++11"],
     "include_dirs": [],
     "library_dirs": [],
     "libraries": [],

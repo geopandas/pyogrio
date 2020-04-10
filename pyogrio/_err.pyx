@@ -190,7 +190,7 @@ cdef inline object exc_check():
 
 cdef void *exc_wrap_pointer(void *ptr) except NULL:
     """Wrap a GDAL/OGR function that returns GDALDatasetH etc (void *)
-    Raises an exception if a non-fatal error has be set.
+    Raises an exception if a non-fatal error has be set or if pointer is NULL.
     """
     if ptr == NULL:
         exc = exc_check()
@@ -200,3 +200,4 @@ cdef void *exc_wrap_pointer(void *ptr) except NULL:
             # null pointer was passed, but no error message from GDAL
             raise NullPointerError(-1, -1, "NULL pointer error")
     return ptr
+
