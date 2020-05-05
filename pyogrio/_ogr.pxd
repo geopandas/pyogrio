@@ -120,7 +120,7 @@ cdef extern from "ogr_api.h":
     int     OGR_Fld_GetType (void *fielddefn)
     int     OGR_Fld_GetWidth (void *fielddefn)
 
-    void    OGR_G_ExportToWkb (void *geometry, int endianness, char *buffer)
+    void    OGR_G_ExportToWkb (void *geometry, int endianness, unsigned char *buffer)
     int     OGR_G_WkbSize (void *geometry)
 
     const char *  OGR_L_GetName (void *layer)
@@ -134,6 +134,8 @@ cdef extern from "ogr_api.h":
     void    OGRSetNonLinearGeometriesEnabledFlag (int bFlag)
     int     OGRGetNonLinearGeometriesEnabledFlag ()
 
+    int     OGRReleaseDataSource (void *datasource)
+
 cdef extern from "ogr_srs_api.h":
 
     ctypedef void * OGRSpatialReferenceH
@@ -143,10 +145,44 @@ cdef extern from "ogr_srs_api.h":
     const char * OSRGetAuthorityCode (OGRSpatialReferenceH srs, const char *key)
     int     OSRExportToWkt (OGRSpatialReferenceH srs, char **params)
 
+    int     OSRSetFromUserInput(OGRSpatialReferenceH srs, const char *pszDef)
+    OGRSpatialReferenceH  OSRNewSpatialReference (char *wkt)
+    void    OSRRelease (OGRSpatialReferenceH srs)
+
 
 
 cdef extern from "gdal.h":
+    ctypedef enum GDALDataType:
+        GDT_Unknown
+        GDT_Byte
+        GDT_UInt16
+        GDT_Int16
+        GDT_UInt32
+        GDT_Int32
+        GDT_Float32
+        GDT_Float64
+        GDT_CInt16
+        GDT_CInt32
+        GDT_CFloat32
+        GDT_CFloat64
+        GDT_TypeCount
+
     void GDALAllRegister()
+
+    void * GDALCreate(void * hDriver,
+                      const char * pszFilename,
+                      int nXSize,
+                      int     nYSize,
+                      int     nBands,
+                      GDALDataType eBandType,
+                      char ** papszOptions)
+    void * GDALDatasetCreateLayer(void * hDS,
+                                  const char * pszName,
+                                  void * hSpatialRef,
+                                  int eType,
+                                  char ** papszOptions)
+    int GDALDatasetDeleteLayer(void * hDS, int iLayer)
+
     char * GDALGetDatasetDriver (void * hDataset)
     void * GDALGetDriverByName(const char * pszName)
     void * GDALOpenEx(const char * pszFilename,

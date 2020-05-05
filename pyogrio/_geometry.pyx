@@ -37,8 +37,13 @@ GEOMETRY_TYPES = {
     wkbMultiLineString25D: '2.5D MultiLineString',
     wkbMultiPolygon25D: '2.5D MultiPolygon',
     wkbGeometryCollection25D: '2.5D GeometryCollection',
+}
 
-    # 2.5D also represented using negative numbers not enumerated above
+GEOMETRY_TYPE_CODES = {v:k for k, v in GEOMETRY_TYPES.items()}
+
+
+# 2.5D also represented using negative numbers not enumerated above
+GEOMETRY_TYPES.update({
     -2147483647: '2.5D Point',
     -2147483646: '2.5D LineString',
     -2147483645: '2.5D Polygon',
@@ -46,7 +51,7 @@ GEOMETRY_TYPES = {
     -2147483643: '2.5D MultiLineString',
     -2147483642: '2.5D MultiPolygon',
     -2147483641: '2.5D GeometryCollection',
-}
+})
 
 
 cdef str get_geometry_type(void *ogr_layer):
@@ -74,3 +79,21 @@ cdef str get_geometry_type(void *ogr_layer):
         raise UnsupportedGeometryTypeError(ogr_type)
 
     return GEOMETRY_TYPES[ogr_type]
+
+
+cdef int get_geometry_type_code(str geometry_type):
+    """Get geometry type code for string geometry type.
+
+    Parameters
+    ----------
+    geometry_type : str
+
+    Returns
+    -------
+    int
+        geometry type code
+    """
+    if geometry_type not in GEOMETRY_TYPE_CODES:
+        raise UnsupportedGeometryTypeError(geometry_type)
+
+    return GEOMETRY_TYPE_CODES[geometry_type]

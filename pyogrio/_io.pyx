@@ -6,9 +6,13 @@ TODO:
 * handle FID / OBJECTID
 """
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
+
 import datetime
 import locale
 import logging
+import os
 
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
@@ -21,8 +25,8 @@ cimport numpy as np
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
 from pyogrio._err import CPLE_BaseError, NullPointerError
-from pyogrio._geometry cimport get_geometry_type
-from pyogrio.errors import DriverError
+from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
+from pyogrio.errors import CRSError, DriverError, DriverIOError
 
 
 
@@ -158,8 +162,6 @@ cdef void* get_ogr_layer(void * ogr_dataset, layer):
     return ogr_layer
 
 
-
-
 cdef get_crs(void *ogr_layer):
     """Read CRS from layer as EPSG:<code> if available or WKT.
 
@@ -292,7 +294,7 @@ cdef get_fields(void *ogr_layer, str encoding):
 cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry):
     cdef void * ogr_feature = NULL
     cdef void * ogr_geometry = NULL
-    cdef char * wkb = NULL
+    cdef unsigned char *wkb = NULL
     cdef int i
     cdef int j
     cdef int success
@@ -348,7 +350,7 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
             else:
                 try:
                     ret_length = OGR_G_WkbSize(ogr_geometry)
-                    wkb = <char*>malloc(sizeof(char)*ret_length)
+                    wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
                     OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
                     geom_view[i] = wkb[:ret_length]
 
@@ -391,8 +393,6 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
                 data[i] = OGR_F_GetFieldAsDouble(ogr_feature, field_index)
 
             elif field_type == OFTString:
-                v = OGR_F_GetFieldAsString(ogr_feature, field_index)
-
                 value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
                 data[i] = value
 
@@ -414,7 +414,6 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
                     data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
 
     return (geometries, field_data)
-
 
 
 def ogr_read(str path, object layer=None, object encoding=None, int read_geometry=True, object columns=None, **kwargs):
@@ -503,18 +502,6 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     ogr_dataset = ogr_open(path_c, 0, DRIVERS, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
-
-    # if isinstance(layer, str):
-    #     name_b = layer.encode('utf-8')
-    #     name_c = name_b
-    #     ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
-
-    # elif isinstance(layer, int):
-    #     ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
-
-    # if ogr_layer == NULL:
-    #     raise ValueError(f"Layer '{layer}' could not be opened")
-
     # Encoding is derived from the dataset, from the user, or from the system locale
     encoding = (
         detect_encoding(ogr_dataset, ogr_layer)
@@ -535,7 +522,6 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     ogr_dataset = NULL
 
     return meta
-
 
 
 def ogr_list_layers(str path):
@@ -564,3 +550,175 @@ def ogr_list_layers(str path):
     ogr_dataset = NULL
 
     return data
+
+
+# NOTE: all modes are write-only
+# some data sources have multiple layers
+cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
+    cdef void *ogr_driver = NULL
+    cdef void *ogr_dataset = NULL
+
+    # Get the driver
+    try:
+        ogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver_c))
+
+    except NullPointerError:
+        raise DriverError("Data source driver could not be created: {}".format(driver_c.decode("utf-8")))
+
+    except CPLE_BaseError as exc:
+        raise DriverError(str(exc))
+
+    # Create the dataset
+    try:
+        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, NULL))
+
+    except NullPointerError:
+        raise DriverError("Failed to create dataset with driver: {} {}".format(path_c.decode("utf-8"), driver_c.decode("utf-8")))
+
+    except CPLE_BaseError as exc:
+        raise DriverError(str(exc))
+
+    return ogr_dataset
+
+
+# TODO: handle updateable data sources, like GPKG
+# TODO: set geometry and field data as memory views?
+def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI Shapefile",
+    str crs=None, str geometry_type=None, str encoding=None, **kwargs):
+
+    cdef const char *path_c = NULL
+    cdef const char *layer_c = NULL
+    cdef const char *driver_c = NULL
+    cdef const char *crs_c = NULL
+    cdef const char *encoding_c = NULL
+    cdef char **options = NULL
+    cdef const char *ogr_name = NULL
+    cdef void *ogr_dataset = NULL
+    cdef void *ogr_layer = NULL
+    cdef OGRSpatialReferenceH ogr_crs = NULL
+    cdef int layer_idx = -1
+    cdef int geometry_code
+    cdef int err = 0
+
+    path_b = path.encode('UTF-8')
+    path_c = path_b
+
+    driver_b = driver.encode('UTF-8')
+    driver_c = driver_b
+
+    if not layer:
+        layer = os.path.splitext(os.path.split(path)[1])[0]
+
+    layer_b = layer.encode('UTF-8')
+    layer_c = layer_b
+
+    # if shapefile or GeoJSON, always delete first
+    # for other types, check if we can create layers
+    # GPKG might be the only multi-layer writeable type.  TODO: check this
+    if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq') and os.path.exists(path):
+        os.unlink(path)
+
+    # TODO: invert this: if exists then try to update it, if that doesn't work then always create
+    if os.path.exists(path):
+        try:
+            ogr_dataset = ogr_open(path_c, 1, DRIVERS, None)
+
+            # If layer exists, delete it.
+            for i in range(GDALDatasetGetLayerCount(ogr_dataset)):
+                name = OGR_L_GetName(GDALDatasetGetLayer(ogr_dataset, i))
+                if layer == name.decode('UTF-8'):
+                    layer_idx = i
+                    break
+
+            if layer_idx >= 0:
+                GDALDatasetDeleteLayer(ogr_dataset, layer_idx)
+
+        except DriverError:
+            # open failed, so create from scratch
+            # force delete it first
+            os.unlink(path)
+            ogr_dataset = NULL
+
+    # either it didn't exist or could not open it in write mode
+    if ogr_dataset == NULL:
+        ogr_dataset = ogr_create(path_c, driver_c)
+
+
+    # Create the CRS
+    if crs:
+        crs_b = crs.encode('UTF-8')
+        crs_c = crs_b
+
+        try:
+            ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
+            err = OSRSetFromUserInput(ogr_crs, crs_c)
+            if err:
+                raise CRSError("Could not set CRS: {}".format(crs_c.decode('utf-8')))
+
+            # TODO: on GDAL < 3, use OSRFixup()?
+
+        except CPLE_BaseError as exc:
+            OGRReleaseDataSource(ogr_dataset)
+            OSRRelease(ogr_crs)
+            raise CRSError("Could not set CRS: {}".format(exc))
+
+    # NOTE: Fiona only appears to set encoding for shapefiles
+    if not encoding:
+        if driver == 'ESRI Shapefile':
+            encoding = 'ISO-8859-1'
+        else:
+            encoding = locale.getpreferredencoding()
+
+    encoding_b = encoding.upper().encode('UTF-8')
+    encoding_c = encoding_b
+    options = CSLSetNameValue(NULL, "ENCODING", encoding_c)
+
+    # Setup other layer creation options
+    for k, v in kwargs.items():
+        if v is None:
+            continue
+
+        k = k.upper().encode('UTF-8')
+
+        if isinstance(v, bool):
+            v = ('ON' if v else 'OFF').encode('utf-8')
+        else:
+            v = str(v).encode('utf-8')
+
+        options = CSLAddNameValue(options, <const char *>k, <const char *>v)
+
+
+    # Get geometry type
+    geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+
+    try:
+        ogr_layer = exc_wrap_pointer(
+                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                        <OGRwkbGeometryType>geometry_code, options))
+
+    except Exception as exc:
+        OGRReleaseDataSource(ogr_dataset)
+        ogr_dataset = NULL
+        raise DriverIOError(u"{}".format(exc))
+
+    finally:
+        if ogr_crs != NULL:
+            OSRRelease(ogr_crs)
+
+        if options != NULL:
+            CSLDestroy(<char**>options)
+
+
+    # create the fields
+
+
+
+    if ogr_crs != NULL:
+        OSRRelease(ogr_crs)
+
+    if options != NULL:
+        CSLDestroy(<char**>options)
+
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+    ogr_dataset = NULL
