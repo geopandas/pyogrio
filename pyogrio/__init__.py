@@ -1,4 +1,4 @@
-from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers
+from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
 from pyogrio.pandas import read_dataframe
 
 
@@ -80,8 +80,30 @@ def read_info(path, layer=None, encoding=None):
     return ogr_read_info(str(path), layer=layer, encoding=encoding)
 
 
-def write(path, meta, data, driver=None):
-    raise NotImplementedError("Not built!")
+def write(
+    path,
+    geometry,
+    geometry_type,
+    field_data,
+    fields,
+    layer=None,
+    driver="ESRI Shapefile",
+    crs=None,
+    encoding=None,
+    **kwargs
+):
+    ogr_write(
+        path,
+        layer=layer,
+        driver=driver,
+        geometry=geometry,
+        geometry_type=geometry_type,
+        field_data=field_data,
+        fields=fields,
+        crs=crs,
+        encoding=encoding,
+        **kwargs
+    )
 
 
 def list_layers(path):

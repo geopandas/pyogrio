@@ -201,3 +201,16 @@ cdef void *exc_wrap_pointer(void *ptr) except NULL:
             raise NullPointerError(-1, -1, "NULL pointer error")
     return ptr
 
+
+cdef int exc_wrap_int(int err) except -1:
+    """Wrap a GDAL/OGR function that returns CPLErr or OGRErr (int)
+    Raises an exception if a non-fatal error has be set.
+    """
+    if err:
+        exc = exc_check()
+        if exc:
+            raise exc
+        else:
+            # no error message from GDAL
+            raise CPLE_BaseError(-1, -1, "Unspecified OGR / GDAL error")
+    return err

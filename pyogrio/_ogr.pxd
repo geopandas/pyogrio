@@ -1,7 +1,7 @@
 # from fiona::ogrext3.pxd
 
 cdef extern from "ogr_core.h":
-
+    ctypedef int OGRFieldSubType
     ctypedef int OGRErr
 
     ctypedef enum OGRwkbGeometryType:
@@ -115,14 +115,24 @@ cdef extern from "ogr_api.h":
     void *  OGR_FD_GetFieldDefn (void *featuredefn, int n)
     int     OGR_FD_GetGeomType (void *featuredefn)
 
+    void *  OGR_Fld_Create (char *name, OGRFieldType fieldtype)
+    void    OGR_Fld_Destroy (void *fielddefn)
     char *  OGR_Fld_GetNameRef (void *fielddefn)
     int     OGR_Fld_GetPrecision (void *fielddefn)
+    OGRFieldSubType OGR_Fld_GetSubType(void *fielddefn)
     int     OGR_Fld_GetType (void *fielddefn)
     int     OGR_Fld_GetWidth (void *fielddefn)
+    void    OGR_Fld_Set (void *fielddefn, char *name, int fieldtype, int width, int precision, int justification)
+    void    OGR_Fld_SetPrecision (void *fielddefn, int n)
+    void    OGR_Fld_SetWidth (void *fielddefn, int n)
+
+    void    OGR_Fld_SetSubType(void *fielddefn, OGRFieldSubType subtype)
 
     void    OGR_G_ExportToWkb (void *geometry, int endianness, unsigned char *buffer)
     int     OGR_G_WkbSize (void *geometry)
 
+    OGRErr  OGR_L_CreateFeature (void *layer, void *feature)
+    OGRErr  OGR_L_CreateField (void *layer, void *fielddefn, int flexible)
     const char *  OGR_L_GetName (void *layer)
     void *  OGR_L_GetSpatialRef (void *layer)
     int     OGR_L_TestCapability (void *layer, char *name)

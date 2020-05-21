@@ -54,7 +54,7 @@ FIELD_TYPES = [
     None,           # OFTIntegerList, List of 32bit integers, not supported
     'float64',      # OFTReal, Double Precision floating point
     None,           # OFTRealList, List of doubles, not supported
-    'object',          # OFTString, String of UTF-8 chars
+    'object',       # OFTString, String of UTF-8 chars
     None,           # OFTStringList, Array of strings, not supported
     None,           # OFTWideString, deprecated, not supported
     None,           # OFTWideStringList, deprecated, not supported
@@ -581,10 +581,106 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
     return ogr_dataset
 
 
+cdef void * create_crs(str crs):
+    cdef char *crs_c = NULL
+    cdef void *ogr_crs = NULL
+
+    if not crs:
+        return NULL
+
+    crs_b = crs.encode('UTF-8')
+    crs_c = crs_b
+
+    try:
+        ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
+        err = OSRSetFromUserInput(ogr_crs, crs_c)
+        if err:
+            raise CRSError("Could not set CRS: {}".format(crs_c.decode('utf-8')))
+
+        # TODO: on GDAL < 3, use OSRFixup()?
+
+    except CPLE_BaseError as exc:
+        OSRRelease(ogr_crs)
+        raise CRSError("Could not set CRS: {}".format(exc))
+
+    return ogr_crs
+
+
+
+cdef void * create_field(char *name, np.dtype dtype):
+    cdef void *ogr_fielddef = NULL
+    cdef OGRFieldType field_type = OFTString  # TODO: better fallback
+    width = 1
+
+    dtype2ogr = {
+        'int8': OFTInteger,  # TODO: OFSTInt16
+        'int16': OFTInteger,  # TODO: OFSTInt16
+        'int32': OFTInteger,
+        'int': OFTInteger64,
+        'int64': OFTInteger64,
+        # unsigned ints have to be converted to ints
+        # values may get truncated for 64 bit unit types?
+        'uint8': OFTInteger,
+        'uint16': OFTInteger,
+        'uint32': OFTInteger64,  # upcasting to avoid truncation
+        'uint': OFTInteger64,
+        'uint64': OFTInteger64,
+
+        'float': OFTReal,
+        'float32': OFTReal,  # TODO: OFSTFloat32
+        'float64': OFTReal
+    }
+
+    if dtype in dtype2ogr:
+        field_type = dtype2ogr[dtype.name]
+
+    # Determine field type from ndarray values
+    elif dtype == np.dtype('O'):
+        # Object type is ambiguous: could be a string or binary data
+        # TODO: handle binary or other types
+        # for now fall back to string (same as Geopandas)
+        field_type = OFTString
+        # Convert to unicode string then take itemsize
+        # TODO: better implementation of this
+        # width = values.astype(np.unicode_).dtype.itemsize // 4
+        # DO WE NEED WIDTH HERE?
+
+
+    elif dtype.type is np.unicode_ or dtype.type is np.string_:
+        field_type = OFTString
+        width = int(dtype.itemsize // 4)
+
+
+    # TODO: date types, bool: OFSTBoolean
+
+    # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
+
+
+    ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name, field_type))
+
+    if width:
+        OGR_Fld_SetWidth(ogr_fielddef, width)
+
+
+
+    # key_bytes = key.encode(encoding)
+    # cogr_fielddefn = exc_wrap_pointer(OGR_Fld_Create(key_bytes, <OGRFieldType>field_type))
+    # if width:
+    #     OGR_Fld_SetWidth(cogr_fielddefn, width)
+    # if precision:
+    #     OGR_Fld_SetPrecision(cogr_fielddefn, precision)
+    # if field_subtype != OFSTNone:
+    #     # subtypes are new in GDAL 2.x, ignored in 1.x
+    #     set_field_subtype(cogr_fielddefn, field_subtype)
+    # exc_wrap_int(OGR_L_CreateField(self.cogr_layer, cogr_fielddefn, 1))
+
+    return ogr_fielddef
+
+
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
-def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI Shapefile",
-    str crs=None, str geometry_type=None, str encoding=None, **kwargs):
+def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
+    str crs, str geometry_type, str encoding, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -595,10 +691,17 @@ def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI S
     cdef const char *ogr_name = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
+    cdef void *ogr_fielddef = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
     cdef int geometry_code
     cdef int err = 0
+
+
+    if len(field_data) != len(fields):
+        raise ValueError("field_data and fields must be same length")
+
+    print(f"Creating output path:{path} layer:{layer} driver:{driver} crs:{crs}")
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -643,25 +746,16 @@ def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI S
     if ogr_dataset == NULL:
         ogr_dataset = ogr_create(path_c, driver_c)
 
+    ### Create the CRS
+    try:
+        ogr_crs = create_crs(crs)
 
-    # Create the CRS
-    if crs:
-        crs_b = crs.encode('UTF-8')
-        crs_c = crs_b
+    except Exception as exc:
+        OGRReleaseDataSource(ogr_dataset)
+        raise exc
 
-        try:
-            ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
-            err = OSRSetFromUserInput(ogr_crs, crs_c)
-            if err:
-                raise CRSError("Could not set CRS: {}".format(crs_c.decode('utf-8')))
 
-            # TODO: on GDAL < 3, use OSRFixup()?
-
-        except CPLE_BaseError as exc:
-            OGRReleaseDataSource(ogr_dataset)
-            OSRRelease(ogr_crs)
-            raise CRSError("Could not set CRS: {}".format(exc))
-
+    ### Create options
     # NOTE: Fiona only appears to set encoding for shapefiles
     if not encoding:
         if driver == 'ESRI Shapefile':
@@ -688,9 +782,12 @@ def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI S
         options = CSLAddNameValue(options, <const char *>k, <const char *>v)
 
 
-    # Get geometry type
+    ### Get geometry type
+    # TODO: this is brittle for 3D / ZM / M types
     geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+    print(f"Got geometry code: {geometry_code} for type: {geometry_type}")
 
+    ### Create the layer
     try:
         ogr_layer = exc_wrap_pointer(
                     GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
@@ -699,20 +796,47 @@ def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI S
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
         ogr_dataset = NULL
-        raise DriverIOError(u"{}".format(exc))
+        raise DriverIOError(exc.encode('UTF-8'))
 
     finally:
         if ogr_crs != NULL:
             OSRRelease(ogr_crs)
+            ogr_crs = NULL
 
         if options != NULL:
             CSLDestroy(<char**>options)
+            options = NULL
 
 
-    # create the fields
+    ### Create the fields
+    for i in range(len(field_data)):
+        name_b = fields[i].encode(encoding)
+        try:
+            ogr_fielddef = create_field(name_b, field_data[i].dtype)
+
+        except:
+            OGRReleaseDataSource(ogr_dataset)
+            ogr_dataset = NULL
+            # TODO: SchemaError?
+            raise ValueError(f"Error creating field '{fields[i]}' from field_data")
+
+        try:
+            exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+
+        except:
+            OGRReleaseDataSource(ogr_dataset)
+            ogr_dataset = NULL
+            # TODO: SchemaError?
+            raise ValueError(f"Error adding field '{fields[i]}' to layer")
+
+        finally:
+            if ogr_fielddef != NULL:
+                OGR_Fld_Destroy(ogr_fielddef)
+
+    print("Created fields")
 
 
-
+    ### Final cleanup
     if ogr_crs != NULL:
         OSRRelease(ogr_crs)
 
@@ -721,4 +845,3 @@ def ogr_write(str path, geometry, field_data, str layer=None, str driver="ESRI S
 
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
-    ogr_dataset = NULL
