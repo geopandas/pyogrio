@@ -2,25 +2,6 @@
 from enum import IntEnum
 
 
-
-cdef extern from "cpl_error.h":
-
-
-    ctypedef enum CPLErr:
-        CE_None
-        CE_Debug
-        CE_Warning
-        CE_Failure
-        CE_Fatal
-
-    int CPLGetLastErrorNo()
-    const char* CPLGetLastErrorMsg()
-    int CPLGetLastErrorType()
-    void CPLErrorReset()
-
-
-
-
 # CPL Error types as an enum.
 class GDALError(IntEnum):
     none = CE_None
@@ -28,8 +9,6 @@ class GDALError(IntEnum):
     warning = CE_Warning
     failure = CE_Failure
     fatal = CE_Fatal
-
-
 
 
 

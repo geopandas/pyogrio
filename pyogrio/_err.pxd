@@ -1,5 +1,18 @@
-
 # ported from fiona::_err.pxd
+
+cdef extern from "cpl_error.h":
+    ctypedef enum CPLErr:
+        CE_None
+        CE_Debug
+        CE_Warning
+        CE_Failure
+        CE_Fatal
+
+    int CPLGetLastErrorNo()
+    const char* CPLGetLastErrorMsg()
+    int CPLGetLastErrorType()
+    void CPLErrorReset()
+
 
 cdef extern from "ogr_core.h":
     ctypedef int OGRErr

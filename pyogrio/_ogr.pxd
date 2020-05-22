@@ -100,6 +100,9 @@ cdef extern from "ogr_api.h":
     void *  OGR_Dr_Open (void *driver, const char *path, int bupdate)
     const char * OGR_Dr_GetName (void *driver)
 
+    void *  OGR_F_Create (void *featuredefn)
+    void    OGR_F_Destroy (void *feature)
+
     long    OGR_F_GetFID (void *feature)
     void *  OGR_F_GetGeometryRef (void *feature)
     unsigned char * OGR_F_GetFieldAsBinary(void *feature, int n, int *s)
@@ -109,6 +112,13 @@ cdef extern from "ogr_api.h":
     long OGR_F_GetFieldAsInteger64 (void *feature, int n)
     char *  OGR_F_GetFieldAsString (void *feature, int n)
     int     OGR_F_IsFieldSetAndNotNull (void *feature, int n)
+    void    OGR_F_SetFieldDateTime (void *feature, int n, int y, int m, int d, int hh, int mm, int ss, int tz)
+    void    OGR_F_SetFieldDouble (void *feature, int n, double value)
+    void    OGR_F_SetFieldInteger (void *feature, int n, int value)
+    void    OGR_F_SetFieldString (void *feature, int n, char *value)
+    void    OGR_F_SetFieldBinary (void *feature, int n, int l, unsigned char *value)
+    void    OGR_F_SetFieldNull (void *feature, int n)  # new in GDAL 2.2
+    OGRErr  OGR_F_SetGeometryDirectly (void *feature, void *geometry)
 
     void *  OGR_FD_Create (char *name)
     int     OGR_FD_GetFieldCount (void *featuredefn)
@@ -128,7 +138,10 @@ cdef extern from "ogr_api.h":
 
     void    OGR_Fld_SetSubType(void *fielddefn, OGRFieldSubType subtype)
 
+    void *  OGR_G_CreateGeometry (int wkbtypecode)
+    void    OGR_G_DestroyGeometry (void *geometry)
     void    OGR_G_ExportToWkb (void *geometry, int endianness, unsigned char *buffer)
+    OGRErr    OGR_G_ImportFromWkb (void *geometry, unsigned char *bytes, int nbytes)
     int     OGR_G_WkbSize (void *geometry)
 
     OGRErr  OGR_L_CreateFeature (void *layer, void *feature)
@@ -177,6 +190,11 @@ cdef extern from "gdal.h":
         GDT_CFloat64
         GDT_TypeCount
 
+    int GDAL_OF_UPDATE
+    int GDAL_OF_READONLY
+    int GDAL_OF_VECTOR
+    int GDAL_OF_VERBOSE_ERROR
+
     void GDALAllRegister()
 
     void * GDALCreate(void * hDriver,
@@ -201,14 +219,14 @@ cdef extern from "gdal.h":
                       const char *const *papszOpenOptions,
                       const char *const *papszSiblingFiles
                       )
-    int GDAL_OF_UPDATE
-    int GDAL_OF_READONLY
-    int GDAL_OF_VECTOR
-    int GDAL_OF_VERBOSE_ERROR
+
+    void GDALClose(void * hDS)
     int GDALDatasetGetLayerCount(void * hds)
     void * GDALDatasetGetLayer(void * hDS, int iLayer)
     void * GDALDatasetGetLayerByName(void * hDS, char * pszName)
-    void GDALClose(void * hDS)
+    OGRErr GDALDatasetStartTransaction (void * hDataset, int bForce)
+    OGRErr GDALDatasetCommitTransaction (void * hDataset)
+    OGRErr GDALDatasetRollbackTransaction (void * hDataset)
     char * GDALVersionInfo (char *pszRequest)
 
 

@@ -764,3 +764,104 @@ cdef class WritingSession(Session):
 
         gdal_flush_cache(cogr_ds)
         log.debug("Flushed data source cache")
+
+cdef class OGRFeatureBuilder:
+
+    """Builds an OGR Feature from a Fiona feature mapping.
+    Allocates one OGR Feature which should be destroyed by the caller.
+    Borrows a layer definition from the collection.
+    """
+
+    cdef void * build(self, feature, collection) except NULL:
+        cdef void *cogr_geometry = NULL
+        cdef const char *string_c = NULL
+        cdef WritingSession session
+        session = collection.session
+        cdef void *cogr_layer = session.cogr_layer
+        if cogr_layer == NULL:
+            raise ValueError("Null layer")
+        cdef void *cogr_featuredefn = OGR_L_GetLayerDefn(cogr_layer)
+        if cogr_featuredefn == NULL:
+            raise ValueError("Null feature definition")
+        cdef void *cogr_feature = OGR_F_Create(cogr_featuredefn)
+        if cogr_feature == NULL:
+            raise ValueError("Null feature")
+
+        if feature['geometry'] is not None:
+            cogr_geometry = OGRGeomBuilder().build(
+                                feature['geometry'])
+        OGR_F_SetGeometryDirectly(cogr_feature, cogr_geometry)
+
+        # OGR_F_SetFieldString takes encoded strings ('bytes' in Python 3).
+        encoding = session._get_internal_encoding()
+
+        for key, value in feature['properties'].items():
+            ogr_key = session._schema_mapping[key]
+
+            schema_type = normalize_field_type(collection.schema['properties'][key])
+
+            key_bytes = strencode(ogr_key, encoding)
+            key_c = key_bytes
+            i = OGR_F_GetFieldIndex(cogr_feature, key_c)
+            if i < 0:
+                continue
+
+            # Special case: serialize dicts to assist OGR.
+            if isinstance(value, dict):
+                value = json.dumps(value)
+
+            # Continue over the standard OGR types.
+            if isinstance(value, integer_types):
+                if schema_type == 'int32':
+                    OGR_F_SetFieldInteger(cogr_feature, i, value)
+                else:
+                    OGR_F_SetFieldInteger64(cogr_feature, i, value)
+
+            elif isinstance(value, float):
+                OGR_F_SetFieldDouble(cogr_feature, i, value)
+            elif (isinstance(value, string_types)
+            and schema_type in ['date', 'time', 'datetime']):
+                if schema_type == 'date':
+                    y, m, d, hh, mm, ss, ff = parse_date(value)
+                elif schema_type == 'time':
+                    y, m, d, hh, mm, ss, ff = parse_time(value)
+                else:
+                    y, m, d, hh, mm, ss, ff = parse_datetime(value)
+                OGR_F_SetFieldDateTime(
+                    cogr_feature, i, y, m, d, hh, mm, ss, 0)
+            elif (isinstance(value, datetime.date)
+            and schema_type == 'date'):
+                y, m, d = value.year, value.month, value.day
+                OGR_F_SetFieldDateTime(
+                    cogr_feature, i, y, m, d, 0, 0, 0, 0)
+            elif (isinstance(value, datetime.datetime)
+            and schema_type == 'datetime'):
+                y, m, d = value.year, value.month, value.day
+                hh, mm, ss = value.hour, value.minute, value.second
+                OGR_F_SetFieldDateTime(
+                    cogr_feature, i, y, m, d, hh, mm, ss, 0)
+            elif (isinstance(value, datetime.time)
+            and schema_type == 'time'):
+                hh, mm, ss = value.hour, value.minute, value.second
+                OGR_F_SetFieldDateTime(
+                    cogr_feature, i, 0, 0, 0, hh, mm, ss, 0)
+            elif isinstance(value, bytes) and schema_type == "bytes":
+                string_c = value
+                OGR_F_SetFieldBinary(cogr_feature, i, len(value),
+                    <unsigned char*>string_c)
+            elif isinstance(value, string_types):
+                value_bytes = strencode(value, encoding)
+                string_c = value_bytes
+                OGR_F_SetFieldString(cogr_feature, i, string_c)
+            elif value is None:
+                set_field_null(cogr_feature, i)
+            else:
+                raise ValueError("Invalid field type %s" % type(value))
+        return cogr_feature
+
+
+cdef _deleteOgrFeature(void *cogr_feature):
+    """Delete an OGR feature"""
+    if cogr_feature is not NULL:
+        OGR_F_Destroy(cogr_feature)
+    cogr_feature = NULL

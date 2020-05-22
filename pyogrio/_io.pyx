@@ -26,20 +26,23 @@ from pyogrio._ogr cimport *
 from pyogrio._err cimport *
 from pyogrio._err import CPLE_BaseError, NullPointerError
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
-from pyogrio.errors import CRSError, DriverError, DriverIOError
+from pyogrio.errors import CRSError, DriverError, DriverIOError, TransactionError
 
 
 
 log = logging.getLogger(__name__)
 
-
+### Constants
 cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
+OGRERR_FAILURE = 6
 
 
-# TODO: port drivers from fiona::drvsupport.py
 
+### Drivers
 # driver:mode
 # minimally ported from fiona::drvsupport.py
+# TODO: port drivers from fiona::drvsupport.py
+# TODO: port drivers from fiona::drvsupport.py
 DRIVERS = {
     "ESRI Shapefile": "raw",
     "GeoJSON": "raw",
@@ -83,6 +86,29 @@ def get_string(char *c_str, str encoding="UTF-8"):
     """
     py_str = c_str
     return py_str.decode(encoding)
+
+
+cdef int start_transaction(void *ogr_dataset, int force) except 1:
+    cdef int err = GDALDatasetStartTransaction(ogr_dataset, force)
+    if err == OGRERR_FAILURE:
+        raise TransactionError("Failed to start transaction")
+
+    return 0
+
+
+cdef int commit_transaction(void *ogr_dataset) except 1:
+    cdef int err = GDALDatasetCommitTransaction(ogr_dataset)
+    if err == OGRERR_FAILURE:
+        raise TransactionError("Failed to commit transaction")
+
+    return 0
+
+cdef int rollback_transaction(void *ogr_dataset) except 1:
+    cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
+    if err == OGRERR_FAILURE:
+        raise TransactionError("Failed to rollback transaction")
+
+    return 0
 
 
 # ported from fiona::_shim22.pyx::gdal_open_vector
@@ -691,15 +717,29 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef const char *ogr_name = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
+    cdef void *ogr_feature = NULL
+    cdef void *ogr_geometry = NULL
+    cdef void *ogr_featuredef = NULL
     cdef void *ogr_fielddef = NULL
+    cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
     cdef int geometry_code
     cdef int err = 0
-
+    cdef int i = 0
+    cdef int num_records = len(geometry)
 
     if len(field_data) != len(fields):
         raise ValueError("field_data and fields must be same length")
+
+    if len(field_data):
+        num_records = len(field_data[0])
+        for i in range(1, len(field_data)):
+            if len(field_data[i]) != num_records:
+                raise ValueError("field_data arrays must be same length")
+
+            if len(field_data[i]) != num_records:
+                raise ValueError("field_data arrays must be same length as geometry array")
 
     print(f"Creating output path:{path} layer:{layer} driver:{driver} crs:{crs}")
 
@@ -833,15 +873,74 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             if ogr_fielddef != NULL:
                 OGR_Fld_Destroy(ogr_fielddef)
 
-    print("Created fields")
+
+    ### Create the features
+    ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+
+    start_transaction(ogr_dataset, 0)
+    for i in range(num_records):
+        try:
+            # create the feature
+            ogr_feature = OGR_F_Create(ogr_featuredef)
+            if ogr_feature == NULL:
+                raise DriverIOError(f"Could not create feature at index {i}")
+
+            # create the geometry based on specific WKB type (there might be mixed types in geometries)
+            # TODO: geometry must not be null or errors
+            wkb = geometry[i]
+            wkbtype = bytearray(wkb)[1]
+            ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
+            if ogr_geometry == NULL:
+                raise ValueError(f"Could not create geometry at index {i} for WKB type {wkbtype})")
+
+            # import the WKB
+            wkb_buffer = wkb
+            err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
+            if err:
+                if ogr_geometry != NULL:
+                    OGR_G_DestroyGeometry(ogr_geometry)
+                    ogr_geometry = NULL
+                raise ValueError(f"Could not create geometry from WKB at index {i}")
+
+            # Set the geometry on the feature
+            # this assumes ownership of the geometry and it's cleanup
+            err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
+            if err:
+                raise RuntimeError(f"Could not set geometry for feature at index {i}")
+
+
+            # Set field values
+            # TODO: set field values
+
+            # Add feature to the layer
+            err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
+            if err:
+                raise RuntimeError(f"Could not add feature to layer at index {i}")
+
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
+
+    print(f"Created {num_records} records" )
+
+
+        # ogr_feature = OGRFeatureBuilder().build(record, collection)
+
+        # ogr_feature = OGR_G_ImportFromWkb (geom, unsigned char *bytes, int nbytes)
+        # err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
+        # if err:
+        #     raise DriverIOError(f"Failed to write record {index}")
+
+        # _deleteOgrFeature(ogr_feature)
+
+    #     # stuff happens...
+    # TODO: periodically commit the transaction
+
+
+    commit_transaction(ogr_dataset)
 
 
     ### Final cleanup
-    if ogr_crs != NULL:
-        OSRRelease(ogr_crs)
-
-    if options != NULL:
-        CSLDestroy(<char**>options)
-
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
