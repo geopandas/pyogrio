@@ -51,7 +51,8 @@ DRIVERS = {
     "OpenFileGDB": "r",
 }
 
-# Mapping of OGR integer field types to Python field type names.
+# Mapping of OGR integer field types to Python field type names
+# (index in array is the integer field type)
 FIELD_TYPES = [
     'int32',        # OFTInteger, Simple 32bit integer
     None,           # OFTIntegerList, List of 32bit integers, not supported
@@ -68,6 +69,31 @@ FIELD_TYPES = [
     'int64',        # OFTInteger64, Single 64bit integer
     None            # OFTInteger64List, List of 64bit integers, not supported
 ]
+
+# Mapping of numpy ndarray dtypes to (field type, subtype)
+DTYPE_OGR_FIELD_TYPES = {
+    'int8': (OFTInteger, OFSTInt16),
+    'int16': (OFTInteger, OFSTInt16),
+    'int32': (OFTInteger, OFSTNone),
+    'int': (OFTInteger64, OFSTNone),
+    'int64': (OFTInteger64, OFSTNone),
+    # unsigned ints have to be converted to ints; these are converted
+    # to the next largest integer size
+    'uint8': (OFTInteger, OFSTInt16),
+    'uint16': (OFTInteger, OFSTNone),
+    'uint32': (OFTInteger64, OFSTNone),
+    # TODO: these might get truncated, check maximum value and raise error
+    'uint': (OFTInteger64, OFSTNone),
+    'uint64': (OFTInteger64, OFSTNone),
+
+    'float32': (OFTReal,OFSTFloat32),
+    'float': (OFTReal, OFSTNone),
+    'float64': (OFTReal, OFSTNone)
+
+    # TODO: bool
+}
+
+
 
 
 def get_string(char *c_str, str encoding="UTF-8"):
@@ -633,74 +659,42 @@ cdef void * create_crs(str crs):
 
 
 
-cdef void * create_field(char *name, np.dtype dtype):
-    cdef void *ogr_fielddef = NULL
-    cdef OGRFieldType field_type = OFTString  # TODO: better fallback
-    width = 1
+cdef infer_field_types(list dtypes):
+    cdef int field_type = 0
+    cdef int field_subtype = 0
+    cdef int width = 0
+    cdef int precision = 0
 
-    dtype2ogr = {
-        'int8': OFTInteger,  # TODO: OFSTInt16
-        'int16': OFTInteger,  # TODO: OFSTInt16
-        'int32': OFTInteger,
-        'int': OFTInteger64,
-        'int64': OFTInteger64,
-        # unsigned ints have to be converted to ints
-        # values may get truncated for 64 bit unit types?
-        'uint8': OFTInteger,
-        'uint16': OFTInteger,
-        'uint32': OFTInteger64,  # upcasting to avoid truncation
-        'uint': OFTInteger64,
-        'uint64': OFTInteger64,
+    field_types = np.zeros(shape=(len(dtypes), 4), dtype=np.int)
+    field_types_view = field_types[:]
 
-        'float': OFTReal,
-        'float32': OFTReal,  # TODO: OFSTFloat32
-        'float64': OFTReal
-    }
+    for i in range(len(dtypes)):
+        dtype = dtypes[i]
 
-    if dtype in dtype2ogr:
-        field_type = dtype2ogr[dtype.name]
+        if dtype.name in DTYPE_OGR_FIELD_TYPES:
+            field_type, field_subtype = DTYPE_OGR_FIELD_TYPES[dtype.name]
+            field_types_view[i, 0] = field_type
+            field_types_view[i, 1] = field_subtype
 
-    # Determine field type from ndarray values
-    elif dtype == np.dtype('O'):
-        # Object type is ambiguous: could be a string or binary data
-        # TODO: handle binary or other types
-        # for now fall back to string (same as Geopandas)
-        field_type = OFTString
-        # Convert to unicode string then take itemsize
-        # TODO: better implementation of this
-        # width = values.astype(np.unicode_).dtype.itemsize // 4
-        # DO WE NEED WIDTH HERE?
+        # Determine field type from ndarray values
+        elif dtype == np.dtype('O'):
+            # Object type is ambiguous: could be a string or binary data
+            # TODO: handle binary or other types
+            # for now fall back to string (same as Geopandas)
+            field_types_view[i, 0] = OFTString
+            # Convert to unicode string then take itemsize
+            # TODO: better implementation of this
+            # width = values.astype(np.unicode_).dtype.itemsize // 4
+            # DO WE NEED WIDTH HERE?
 
+        elif dtype.type is np.unicode_ or dtype.type is np.string_:
+            field_types_view[i, 0] = OFTString
+            field_types_view[i, 2] = int(dtype.itemsize // 4)
 
-    elif dtype.type is np.unicode_ or dtype.type is np.string_:
-        field_type = OFTString
-        width = int(dtype.itemsize // 4)
+        else:
+            raise NotImplementedError(f"ftype is not supported {dtype.name}")
 
-
-    # TODO: date types, bool: OFSTBoolean
-
-    # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
-
-
-    ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name, field_type))
-
-    if width:
-        OGR_Fld_SetWidth(ogr_fielddef, width)
-
-
-
-    # key_bytes = key.encode(encoding)
-    # cogr_fielddefn = exc_wrap_pointer(OGR_Fld_Create(key_bytes, <OGRFieldType>field_type))
-    # if width:
-    #     OGR_Fld_SetWidth(cogr_fielddefn, width)
-    # if precision:
-    #     OGR_Fld_SetPrecision(cogr_fielddefn, precision)
-    # if field_subtype != OFSTNone:
-    #     # subtypes are new in GDAL 2.x, ignored in 1.x
-    #     set_field_subtype(cogr_fielddefn, field_subtype)
-    # exc_wrap_int(OGR_L_CreateField(self.cogr_layer, cogr_fielddefn, 1))
-
-    return ogr_fielddef
+    return field_types
 
 
 # TODO: handle updateable data sources, like GPKG
@@ -728,16 +722,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef int err = 0
     cdef int i = 0
     cdef int num_records = len(geometry)
+    cdef int num_fields = len(field_data) if field_data else 0
 
     if len(field_data) != len(fields):
         raise ValueError("field_data and fields must be same length")
 
-    if len(field_data):
-        num_records = len(field_data[0])
+    if num_fields:
         for i in range(1, len(field_data)):
-            if len(field_data[i]) != num_records:
-                raise ValueError("field_data arrays must be same length")
-
             if len(field_data[i]) != num_records:
                 raise ValueError("field_data arrays must be same length as geometry array")
 
@@ -849,12 +840,28 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
 
     ### Create the fields
-    for i in range(len(field_data)):
+    field_types = infer_field_types([field.dtype for field in field_data])
+    for i in range(num_fields):
+        field_type, field_subtype, width, precision = field_types[i]
+
         name_b = fields[i].encode(encoding)
         try:
-            ogr_fielddef = create_field(name_b, field_data[i].dtype)
+            ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
+
+            # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
+            if field_type != OFSTNone:
+                OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
+
+            if field_type:
+                OGR_Fld_SetWidth(ogr_fielddef, width)
+
+            # TODO: set precision
 
         except:
+            if ogr_fielddef != NULL:
+                OGR_Fld_Destroy(ogr_fielddef)
+                ogr_fielddef = NULL
+
             OGRReleaseDataSource(ogr_dataset)
             ogr_dataset = NULL
             # TODO: SchemaError?
@@ -908,9 +915,35 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             if err:
                 raise RuntimeError(f"Could not set geometry for feature at index {i}")
 
-
             # Set field values
             # TODO: set field values
+            for field_idx in range(num_fields):
+                field_value = field_data[field_idx][i]
+                field_type = field_types[field_idx][0]
+
+                if field_value is None:
+                    OGR_F_SetFieldNull(ogr_feature, field_idx)
+
+                elif field_type == OFTString:
+                    # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
+                    value_b = field_value.encode("UTF-8")
+                    OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
+
+                elif field_type == OFTInteger:
+                    OGR_F_SetFieldInteger(ogr_feature, field_idx, field_value)
+
+                elif field_type == OFTInteger64:
+                    OGR_F_SetFieldInteger64(ogr_feature, field_idx, field_value)
+
+                elif field_type == OFTReal:
+                    OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
+
+                else:
+                    # This should never happen, it should be caught above
+                    raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")
+
+
+
 
             # Add feature to the layer
             err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
@@ -924,18 +957,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
     print(f"Created {num_records} records" )
 
-
-        # ogr_feature = OGRFeatureBuilder().build(record, collection)
-
-        # ogr_feature = OGR_G_ImportFromWkb (geom, unsigned char *bytes, int nbytes)
-        # err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
-        # if err:
-        #     raise DriverIOError(f"Failed to write record {index}")
-
-        # _deleteOgrFeature(ogr_feature)
-
-    #     # stuff happens...
-    # TODO: periodically commit the transaction
+    # TODO: periodically commit the transaction while creating features above
 
 
     commit_transaction(ogr_dataset)

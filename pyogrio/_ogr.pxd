@@ -1,8 +1,14 @@
 # from fiona::ogrext3.pxd
 
 cdef extern from "ogr_core.h":
-    ctypedef int OGRFieldSubType
     ctypedef int OGRErr
+
+    # Field subtype values
+    ctypedef int OGRFieldSubType
+    cdef int OFSTNone = 0
+    cdef int OFSTBoolean = 1
+    cdef int OFSTInt16 = 2
+    cdef int OFSTFloat32 = 3
 
     ctypedef enum OGRwkbGeometryType:
         wkbUnknown
@@ -115,6 +121,7 @@ cdef extern from "ogr_api.h":
     void    OGR_F_SetFieldDateTime (void *feature, int n, int y, int m, int d, int hh, int mm, int ss, int tz)
     void    OGR_F_SetFieldDouble (void *feature, int n, double value)
     void    OGR_F_SetFieldInteger (void *feature, int n, int value)
+    void    OGR_F_SetFieldInteger64 (void *feature, int n, long long value)
     void    OGR_F_SetFieldString (void *feature, int n, char *value)
     void    OGR_F_SetFieldBinary (void *feature, int n, int l, unsigned char *value)
     void    OGR_F_SetFieldNull (void *feature, int n)  # new in GDAL 2.2

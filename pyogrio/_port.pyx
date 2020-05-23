@@ -865,3 +865,27 @@ cdef _deleteOgrFeature(void *cogr_feature):
     if cogr_feature is not NULL:
         OGR_F_Destroy(cogr_feature)
     cogr_feature = NULL
+
+
+    def _get_internal_encoding(self):
+        """Determine the encoding to use when use OGR_F functions
+        Parameters
+        ----------
+        None
+        Returns
+        -------
+        str
+        Notes
+        -----
+        If the layer implements RFC 23 support for UTF-8, the return
+        value will be 'utf-8' and callers can be certain that this is
+        correct.  If the layer does not have the OLC_STRINGSASUTF8
+        capability marker, it is not possible to know exactly what the
+        internal encoding is and this method returns best guesses. That
+        means ISO-8859-1 for shapefiles and the locale's preferred
+        encoding for other formats such as CSV files.
+        """
+        if OGR_L_TestCapability(self.cogr_layer, OLC_STRINGSASUTF8):
+            return 'utf-8'
+        else:
+            return self._fileencoding or self._get_fallback_encoding()
