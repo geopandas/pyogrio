@@ -142,6 +142,7 @@ Compared to `fiona`:
 Compared to `geopandas` in native `shapely` objects, converting data frame here to `pygeos` objects:
 
 -   6.5 - 16.5x faster reading of data into geometry-backed data frames
+-   15 - 26x faster writing of GeoDataFrames to shapefile / geopackage
 
 ## Assumptions
 

@@ -8,7 +8,7 @@ After installing geopandas, reinstall shapely via:
 import geopandas as gp
 import pytest
 
-from pyogrio import read_dataframe
+from pyogrio.pandas import read_dataframe
 
 
 @pytest.mark.benchmark(group="read-pandas-modres-admin0")

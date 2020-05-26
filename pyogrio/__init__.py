@@ -1,7 +1,6 @@
 import warnings
 
 from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
-from pyogrio.pandas import read_dataframe
 
 
 def read(path, layer=None, encoding=None, columns=None, read_geometry=True):

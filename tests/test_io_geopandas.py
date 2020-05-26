@@ -1,10 +1,16 @@
-import pygeos
+import os
+import pandas as pd
+import geopandas as gp
+from pandas.testing import assert_frame_equal
 
-from pyogrio.pandas import read_dataframe
+from pyogrio import list_layers
+from pyogrio.geopandas import read_dataframe, write_dataframe
 
 
-def test_read_wkb(naturalearth_lowres):
+def test_read_dataframe(naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
+
+    assert isinstance(df, gp.GeoDataFrame)
 
     assert df.crs == "EPSG:4326"
     assert len(df) == 177
@@ -106,11 +112,34 @@ def test_read_wkb(naturalearth_lowres):
         "geometry",
     ]
 
-    # quick test that WKB is a Polygon type
-    assert df.geometry.iloc[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+    assert df.geometry.iloc[0].type == "MultiPolygon"
 
 
-def test_null_io(naturalearth_modres):
+def test_read_no_geometry(naturalearth_modres):
+    df = read_dataframe(naturalearth_modres, read_geometry=False)
+    assert isinstance(df, pd.DataFrame)
+    assert not isinstance(df, gp.GeoDataFrame)
+
+
+def test_read_layer(nhd_hr):
+    layers = list_layers(nhd_hr)
+    # The first layer is read by default
+    df = read_dataframe(nhd_hr, read_geometry=False)
+    df2 = read_dataframe(nhd_hr, layer=layers[0][0], read_geometry=False)
+    assert_frame_equal(df, df2)
+
+    # Reading a specific layer should return that layer.
+    # Detected here by a known column.
+    df = read_dataframe(nhd_hr, layer="WBDHU2", read_geometry=False)
+    assert "HUC2" in df.columns
+
+
+def test_read_datetime(nhd_hr):
+    df = read_dataframe(nhd_hr)
+    assert df.ExternalIDEntryDate.dtype.name == "datetime64[ns]"
+
+
+def test_read_null_values(naturalearth_modres):
     df = read_dataframe(naturalearth_modres, read_geometry=False)
 
     # make sure that Null values are preserved
@@ -118,6 +147,8 @@ def test_null_io(naturalearth_modres):
     assert df.loc[df.NAME_ZH.isnull()].NAME_ZH.iloc[0] == None
 
 
-def test_read_pygeos(naturalearth_lowres):
-    df = read_dataframe(naturalearth_lowres, as_pygeos=True)
-    assert isinstance(df.geometry.iloc[0], pygeos.Geometry)
+def test_write_dataframe(tmpdir, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.shp")
+    write_dataframe(df, filename)
