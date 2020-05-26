@@ -1,8 +1,11 @@
+import json
+import os
 from pathlib import Path
+
 import numpy as np
 from numpy import array_equal
 
-from pyogrio import read, read_info, list_layers
+from pyogrio import read, read_info, list_layers, write
 
 
 def test_list_layers(naturalearth_lowres, naturalearth_modres, nhd_wbd, nhd_hr):
@@ -29,7 +32,7 @@ def test_read(naturalearth_lowres):
     meta, geometry, fields = read(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry"] == "Polygon"
+    assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (94,)
 
@@ -177,7 +180,55 @@ def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry"] == "Polygon"
+    assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (94,)
     assert meta["features"] == 177
+
+
+def test_write(tmpdir, naturalearth_lowres):
+    meta, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.shp")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+    for ext in (".dbf", ".prj"):
+        assert os.path.exists(filename.replace(".shp", ext))
+
+
+def test_write_gpkg(tmpdir, naturalearth_lowres):
+    meta, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    assert os.path.exists(filename)
+
+
+def test_write_geojson(tmpdir, naturalearth_lowres):
+    meta, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.json")
+    write(filename, geometry, field_data, driver="GeoJSON", **meta)
+
+    assert os.path.exists(filename)
+
+    data = json.loads(open(filename).read())
+
+    assert data["type"] == "FeatureCollection"
+    assert data["name"] == "test"
+    assert "crs" in data
+    assert len(data["features"]) == len(geometry)
+    assert not len(
+        set(meta["fields"]).difference(data["features"][0]["properties"].keys())
+    )
+
+
+def test_write_geojsonseq(tmpdir, naturalearth_lowres):
+    meta, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.json")
+    write(filename, geometry, field_data, driver="GeoJSONSeq", **meta)
+
+    assert os.path.exists(filename)

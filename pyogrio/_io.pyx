@@ -524,7 +524,7 @@ def ogr_read(str path, object layer=None, object encoding=None, int read_geometr
         'crs': crs,
         'encoding': encoding,
         'fields': fields[:,2], # return only names
-        'geometry': geometry_type
+        'geometry_type': geometry_type
     }
 
     if ogr_dataset != NULL:
@@ -565,7 +565,7 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
         'crs': get_crs(ogr_layer),
         'encoding': encoding,
         'fields': get_fields(ogr_layer, encoding)[:,2], # return only names
-        'geometry': get_geometry_type(ogr_layer),
+        'geometry_type': get_geometry_type(ogr_layer),
         'features': OGR_L_GetFeatureCount(ogr_layer, 1)
     }
 
@@ -796,7 +796,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
     encoding_b = encoding.upper().encode('UTF-8')
     encoding_c = encoding_b
-    options = CSLSetNameValue(NULL, "ENCODING", encoding_c)
+    options = CSLSetNameValue(options, "ENCODING", encoding_c)
 
     # Setup other layer creation options
     for k, v in kwargs.items():
@@ -943,8 +943,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")
 
 
-
-
             # Add feature to the layer
             err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
             if err:
@@ -955,9 +953,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
+        # TODO: periodically commit the transaction while creating features above
+
     print(f"Created {num_records} records" )
 
-    # TODO: periodically commit the transaction while creating features above
 
 
     commit_transaction(ogr_dataset)

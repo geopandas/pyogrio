@@ -1,3 +1,5 @@
+import warnings
+
 from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
 from pyogrio.pandas import read_dataframe
 
@@ -83,15 +85,27 @@ def read_info(path, layer=None, encoding=None):
 def write(
     path,
     geometry,
-    geometry_type,
     field_data,
     fields,
     layer=None,
     driver="ESRI Shapefile",
+    # derived from meta if roundtrip
+    geometry_type=None,
     crs=None,
     encoding=None,
     **kwargs
 ):
+
+    if geometry_type is None:
+        raise ValueError("geometry_type must be provided")
+
+    if crs is None:
+        warnings.warn(
+            "'crs' was not provided.  The output dataset will not have "
+            "projection information defined and may not be usable in other "
+            "systems."
+        )
+
     ogr_write(
         path,
         layer=layer,

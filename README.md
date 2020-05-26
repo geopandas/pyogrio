@@ -89,7 +89,7 @@ By default, the first layer of a given data source is read unless a specific lay
         'scalerank',
         ...<many more>
     ], dtype=object),
-    'geometry': 'Polygon'
+    'geometry_type': 'Polygon'
 }
 >>> geometry.shape
 (177, )
@@ -137,6 +137,7 @@ Compared to `fiona`:
 
 -   1.6x faster listing of layers in single-layer data source
 -   1.6x - 5x faster reading of small data sources (Natural Earth 10m and 110m Admin 0 and Admin 1 levels)
+-   9 - 14x faster writing of small data sources
 
 Compared to `geopandas` in native `shapely` objects, converting data frame here to `pygeos` objects:
 
