@@ -180,7 +180,7 @@ cdef extern from "ogr_srs_api.h":
     int     OSRAutoIdentifyEPSG (OGRSpatialReferenceH srs)
     const char * OSRGetAuthorityName (OGRSpatialReferenceH srs, const char *key)
     const char * OSRGetAuthorityCode (OGRSpatialReferenceH srs, const char *key)
-    int     OSRExportToWkt (OGRSpatialReferenceH srs, char **params)
+    OGRErr  OSRExportToWkt (OGRSpatialReferenceH srs, char **params)
 
     int     OSRSetFromUserInput(OGRSpatialReferenceH srs, const char *pszDef)
     OGRSpatialReferenceH  OSRNewSpatialReference (char *wkt)

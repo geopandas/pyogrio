@@ -1,5 +1,7 @@
 import os
 
+from pyproj.enums import WktVersion
+
 from pyogrio import read, write
 
 
@@ -82,7 +84,12 @@ def write_dataframe(
 
     crs = None
     if geometry.crs:
-        crs = geometry.crs.to_wkt()
+        # TODO: this may need to be WKT1, due to issues
+        # if possible use EPSG codes instead
+        if geometry.crs.srs:
+            crs = geometry.crs.srs
+        else:
+            crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 
     write(
         path,

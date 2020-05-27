@@ -659,12 +659,9 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
     return ogr_dataset
 
 
-cdef void * create_crs(str crs):
+cdef void * create_crs(str crs) except NULL:
     cdef char *crs_c = NULL
     cdef void *ogr_crs = NULL
-
-    if not crs:
-        return NULL
 
     crs_b = crs.encode('UTF-8')
     crs_c = crs_b
@@ -673,7 +670,7 @@ cdef void * create_crs(str crs):
         ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
-            raise CRSError("Could not set CRS: {}".format(crs_c.decode('utf-8')))
+            raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8')))
 
         # TODO: on GDAL < 3, use OSRFixup()?
 
@@ -802,12 +799,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         ogr_dataset = ogr_create(path_c, driver_c)
 
     ### Create the CRS
-    try:
-        ogr_crs = create_crs(crs)
+    if crs is not None:
+        try:
+            ogr_crs = create_crs(crs)
 
-    except Exception as exc:
-        OGRReleaseDataSource(ogr_dataset)
-        raise exc
+        except Exception as exc:
+            OGRReleaseDataSource(ogr_dataset)
+            raise exc
 
 
     ### Create options
