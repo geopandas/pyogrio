@@ -3,7 +3,15 @@ import warnings
 from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
 
 
-def read(path, layer=None, encoding=None, columns=None, read_geometry=True):
+def read(
+    path,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    skip_features=0,
+    max_features=None,
+):
     """Read OGR data source.
 
     IMPORTANT: non-linear geometry types (e.g., MultiSurface) are converted
@@ -51,6 +59,8 @@ def read(path, layer=None, encoding=None, columns=None, read_geometry=True):
         encoding=encoding,
         columns=columns,
         read_geometry=read_geometry,
+        skip_features=skip_features,
+        max_features=max_features or 0,
     )
 
 

@@ -343,7 +343,8 @@ cdef get_fields(void *ogr_layer, str encoding):
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry):
+cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry,
+                  int skip_features, int max_features):
     cdef void * ogr_feature = NULL
     cdef void * ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
@@ -367,6 +368,12 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
     OGR_L_ResetReading(ogr_layer)
 
     count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if skip_features > 0:
+        count = count - skip_features
+        OGR_L_SetNextByIndex(ogr_layer, skip_features)
+
+    if max_features > 0:
+        count = max_features
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
@@ -401,6 +408,10 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
 
             else:
                 try:
+                    # if geometry has M values, these need to be removed first
+                    if (OGR_G_IsMeasured(ogr_geometry)):
+                        OGR_G_SetMeasured(ogr_geometry, 0)
+
                     ret_length = OGR_G_WkbSize(ogr_geometry)
                     wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
                     OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
@@ -468,10 +479,11 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
     return (geometries, field_data)
 
 
-def ogr_read(str path, object layer=None, object encoding=None, int read_geometry=True, object columns=None, **kwargs):
+def ogr_read(str path, object layer=None, object encoding=None, int read_geometry=True, object columns=None, int skip_features=0, int max_features=0, **kwargs):
     cdef const char *path_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
+    cdef int feature_count = 0
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -493,6 +505,18 @@ def ogr_read(str path, object layer=None, object encoding=None, int read_geometr
 
     if ogr_layer == NULL:
         raise ValueError(f"Layer '{layer}' could not be opened")
+
+
+    # validate skip_features, max_features
+    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if skip_features < 0 or skip_features >= feature_count:
+        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+
+    if max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
+
+    if max_features > feature_count:
+        max_features = feature_count
 
     crs = get_crs(ogr_layer)
 
@@ -517,7 +541,9 @@ def ogr_read(str path, object layer=None, object encoding=None, int read_geometr
         ogr_layer,
         fields,
         encoding,
-        read_geometry=read_geometry and geometry_type is not None
+        read_geometry=read_geometry and geometry_type is not None,
+        skip_features=skip_features,
+        max_features=max_features
     )
 
     meta = {
@@ -732,8 +758,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             if len(field_data[i]) != num_records:
                 raise ValueError("field_data arrays must be same length as geometry array")
 
-    print(f"Creating output path:{path} layer:{layer} driver:{driver} crs:{crs}")
-
     path_b = path.encode('UTF-8')
     path_c = path_b
 
@@ -815,8 +839,8 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
     ### Get geometry type
     # TODO: this is brittle for 3D / ZM / M types
+    # TODO: fail on M / ZM types
     geometry_code = get_geometry_type_code(geometry_type or "Unknown")
-    print(f"Got geometry code: {geometry_code} for type: {geometry_type}")
 
     ### Create the layer
     try:
@@ -896,6 +920,8 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             # TODO: geometry must not be null or errors
             wkb = geometry[i]
             wkbtype = bytearray(wkb)[1]
+            # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
+            # use "little" if the first byte == 1
             ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
             if ogr_geometry == NULL:
                 raise ValueError(f"Could not create geometry at index {i} for WKB type {wkbtype})")

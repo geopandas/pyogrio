@@ -1,6 +1,6 @@
 import os
 
-from pyogrio._io import ogr_read, ogr_write
+from pyogrio import read, write
 
 
 def read_dataframe(path, read_geometry=True, **kwargs):
@@ -36,7 +36,7 @@ def read_dataframe(path, read_geometry=True, **kwargs):
     if not os.path.exists(path):
         raise ValueError(f"'{path}' does not exist")
 
-    meta, geometry, field_data = ogr_read(path, **kwargs)
+    meta, geometry, field_data = read(path, **kwargs)
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
@@ -84,10 +84,10 @@ def write_dataframe(
     if geometry.crs:
         crs = geometry.crs.to_wkt()
 
-    ogr_write(
+    write(
         path,
-        layer,
-        driver,
+        layer=layer,
+        driver=driver,
         geometry=to_wkb(geometry.values),
         field_data=field_data,
         fields=fields,

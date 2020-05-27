@@ -1,3 +1,4 @@
+import warnings
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
 from pyogrio.errors import UnsupportedGeometryTypeError
@@ -16,6 +17,8 @@ GEOMETRY_TYPES = {
     wkbGeometryCollection: 'GeometryCollection',
     wkbNone: None,
     wkbLinearRing: 'LinearRing',
+    # WARNING: Measured types are not supported in GEOS and downstream uses
+    # these are stripped automatically to their corresponding 2D / 3D types
     wkbPointM: 'PointM',
     wkbLineStringM: 'Measured LineString',
     wkbPolygonM: 'Measured Polygon',
@@ -67,7 +70,7 @@ cdef str get_geometry_type(void *ogr_layer):
         geometry type
     """
     cdef void *cogr_featuredef = NULL
-    cdef int ogr_type
+    cdef OGRwkbGeometryType ogr_type
 
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
     if ogr_featuredef == NULL:
@@ -77,6 +80,18 @@ cdef str get_geometry_type(void *ogr_layer):
 
     if ogr_type not in GEOMETRY_TYPES:
         raise UnsupportedGeometryTypeError(ogr_type)
+
+    if OGR_GT_HasM(ogr_type):
+        original_type = GEOMETRY_TYPES[ogr_type]
+
+        # Downgrade the type to 2D / 3D
+        ogr_type = OGR_GT_SetModifier(ogr_type, OGR_GT_HasZ(ogr_type), 0)
+
+        # TODO: review; this might be annoying...
+        warnings.warn(
+            "Measured (M) geometry types are not supported.  M  values are "
+            f"stripped during reading. Original type '{original_type}' "
+            f"is converted to '{GEOMETRY_TYPES[ogr_type]}'")
 
     return GEOMETRY_TYPES[ogr_type]
 

@@ -130,7 +130,7 @@ cdef extern from "ogr_api.h":
     void *  OGR_FD_Create (char *name)
     int     OGR_FD_GetFieldCount (void *featuredefn)
     void *  OGR_FD_GetFieldDefn (void *featuredefn, int n)
-    int     OGR_FD_GetGeomType (void *featuredefn)
+    OGRwkbGeometryType     OGR_FD_GetGeomType (void *featuredefn)
 
     void *  OGR_Fld_Create (char *name, OGRFieldType fieldtype)
     void    OGR_Fld_Destroy (void *fielddefn)
@@ -148,8 +148,14 @@ cdef extern from "ogr_api.h":
     void *  OGR_G_CreateGeometry (int wkbtypecode)
     void    OGR_G_DestroyGeometry (void *geometry)
     void    OGR_G_ExportToWkb (void *geometry, int endianness, unsigned char *buffer)
-    OGRErr    OGR_G_ImportFromWkb (void *geometry, unsigned char *bytes, int nbytes)
+    OGRErr  OGR_G_ImportFromWkb (void *geometry, unsigned char *bytes, int nbytes)
     int     OGR_G_WkbSize (void *geometry)
+    int     OGR_G_IsMeasured(void *geometry)
+    void    OGR_G_SetMeasured(void *geometry, int isMeasured)
+
+    int     OGR_GT_HasM(OGRwkbGeometryType eType)
+    int     OGR_GT_HasZ(OGRwkbGeometryType eType)
+    OGRwkbGeometryType  OGR_GT_SetModifier(OGRwkbGeometryType eType, int setZ, int setM)
 
     OGRErr  OGR_L_CreateFeature (void *layer, void *feature)
     OGRErr  OGR_L_CreateField (void *layer, void *fielddefn, int flexible)
@@ -159,6 +165,7 @@ cdef extern from "ogr_api.h":
     void *  OGR_L_GetLayerDefn (void *layer)
     void *  OGR_L_GetNextFeature (void *layer)
     void    OGR_L_ResetReading (void *layer)
+    OGRErr  OGR_L_SetNextByIndex(void *layer, int nIndex)
     int     OGR_L_GetFeatureCount (void *layer, int m)
 
     void    OGRSetNonLinearGeometriesEnabledFlag (int bFlag)
