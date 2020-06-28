@@ -35,7 +35,8 @@ def read_dataframe(path, read_geometry=True, **kwargs):
 
     path = str(path)
 
-    if not os.path.exists(path):
+    # TODO: better validate VSI sources
+    if not "/vsizip" in path.lower() and not os.path.exists(path):
         raise ValueError(f"'{path}' does not exist")
 
     meta, geometry, field_data = read(path, **kwargs)
@@ -58,6 +59,8 @@ def write_dataframe(
 ):
     import geopandas as gp
     from geopandas.array import to_wkb
+
+    path = str(path)
 
     if not isinstance(df, gp.GeoDataFrame):
         raise ValueError("'df' must be a GeoDataFrame")
@@ -86,8 +89,9 @@ def write_dataframe(
     if geometry.crs:
         # TODO: this may need to be WKT1, due to issues
         # if possible use EPSG codes instead
-        if geometry.crs.srs:
-            crs = geometry.crs.srs
+        epsg = geometry.crs.to_epsg()
+        if epsg:
+            crs = f"EPSG:{epsg}"
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 

@@ -25,7 +25,8 @@ def test_list_layers(naturalearth_lowres, naturalearth_modres, nhd_wbd, nhd_hr):
     hr_layers = list_layers(nhd_hr)
     assert len(hr_layers) == 75
     assert array_equal(hr_layers[54], ["NHDArea", "2.5D MultiPolygon"])
-    assert array_equal(hr_layers[55], ["NHDFlowline", "Measured 3D MultiLineString"])
+    # Measured 3D is downgraded to 2.5D during read
+    assert array_equal(hr_layers[55], ["NHDFlowline", "2.5D MultiLineString"])
 
 
 def test_read(naturalearth_lowres):
@@ -176,6 +177,29 @@ def test_read_columns(naturalearth_lowres):
     array_equal(meta["fields"], columns[:2])
 
 
+def test_read_skip_features(naturalearth_lowres):
+    expected_geometry, expected_fields = read(naturalearth_lowres)[1:]
+    geometry, fields = read(naturalearth_lowres, skip_features=10)[1:]
+
+    assert len(geometry) == len(expected_geometry) - 10
+    assert len(fields[0]) == len(expected_fields[0]) - 10
+
+    assert np.array_equal(geometry, expected_geometry[10:])
+    # Last field has more variable data
+    assert np.array_equal(fields[-1], expected_fields[-1][10:])
+
+
+def test_read_max_features(naturalearth_lowres):
+    expected_geometry, expected_fields = read(naturalearth_lowres)[1:]
+    geometry, fields = read(naturalearth_lowres, max_features=2)[1:]
+
+    assert len(geometry) == 2
+    assert len(fields[0]) == 2
+
+    assert np.array_equal(geometry, expected_geometry[:2])
+    assert np.array_equal(fields[-1], expected_fields[-1][:2])
+
+
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
@@ -232,3 +256,4 @@ def test_write_geojsonseq(tmpdir, naturalearth_lowres):
     write(filename, geometry, field_data, driver="GeoJSONSeq", **meta)
 
     assert os.path.exists(filename)
+

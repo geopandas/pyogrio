@@ -2,6 +2,7 @@
 
 TODO:
 * better handling of drivers
+* better handling of encoding
 * select fields
 * handle FID / OBJECTID
 """
@@ -13,6 +14,7 @@ import datetime
 import locale
 import logging
 import os
+import warnings
 
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
@@ -383,7 +385,7 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
         geometries = None
 
 
-    field_iter = range(fields.shape[0]) # This might be wrong
+    field_iter = range(fields.shape[0])
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
 
@@ -506,17 +508,22 @@ def ogr_read(str path, object layer=None, object encoding=None, int read_geometr
     if ogr_layer == NULL:
         raise ValueError(f"Layer '{layer}' could not be opened")
 
-
-    # validate skip_features, max_features
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if skip_features < 0 or skip_features >= feature_count:
-        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+    if feature_count == 0:
+        warnings.warn(f"Layer '{layer}' in dataset at '{path}' does not have any features to read")
+        skip_features = 0
+        max_features = 0
 
-    if max_features < 0:
-        raise ValueError("'max_features' must be >= 0")
+    else:
+        # validate skip_features, max_features
+        if skip_features < 0 or skip_features >= feature_count:
+            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
 
-    if max_features > feature_count:
-        max_features = feature_count
+        if max_features < 0:
+            raise ValueError("'max_features' must be >= 0")
+
+        if max_features > feature_count:
+            max_features = feature_count
 
     crs = get_crs(ogr_layer)
 
@@ -714,8 +721,10 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
+        # TODO: datetime types
+
         else:
-            raise NotImplementedError(f"ftype is not supported {dtype.name}")
+            raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
 
     return field_types
 
@@ -809,16 +818,19 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
 
     ### Create options
-    # NOTE: Fiona only appears to set encoding for shapefiles
     if not encoding:
-        if driver == 'ESRI Shapefile':
-            encoding = 'ISO-8859-1'
-        else:
-            encoding = locale.getpreferredencoding()
+        # TODO: should encoding default to shapefile standard if not set?
+        # if driver == 'ESRI Shapefile':
+        #     encoding = 'ISO-8859-1'
 
-    encoding_b = encoding.upper().encode('UTF-8')
-    encoding_c = encoding_b
-    options = CSLSetNameValue(options, "ENCODING", encoding_c)
+        encoding = locale.getpreferredencoding()
+
+    if driver == 'ESRI Shapefile':
+        # Fiona only sets encoding for shapefiles; other drivers do not support
+        # encoding as an option.
+        encoding_b = encoding.upper().encode('UTF-8')
+        encoding_c = encoding_b
+        options = CSLSetNameValue(options, "ENCODING", encoding_c)
 
     # Setup other layer creation options
     for k, v in kwargs.items():
