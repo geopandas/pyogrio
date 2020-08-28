@@ -223,6 +223,15 @@ writing (above):
 > write_dataframe(df, '/tmp/test.shp', driver="GPKG")
 ```
 
+### Raw numpy-oriented I/O
+
+see `pyogrio.raw` for numpy-oriented read / write interfaces to OGR data sources.
+
+This may be useful for you if you want to work with the underlying arrays of
+WKB geometries and field values outside of a `GeoDataFrame`.
+
+NOTE: this may be migrated to an internal API in a future release.
+
 ## Known issues
 
 `pyogrio` supports reading / writing data layers with a defined encoding. However,

@@ -15,6 +15,7 @@ pytest-benchmark = "*"
 
 [packages]
 numpy = "*"
+geopandas = "~=0.8"
 
 [requires]
 python_version = "3.8"

@@ -65,7 +65,15 @@ def read_dataframe(
     if not "/vsizip" in path.lower() and not os.path.exists(path):
         raise ValueError(f"'{path}' does not exist")
 
-    meta, geometry, field_data = read(path, **kwargs)
+    meta, geometry, field_data = read(
+        path,
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
+        skip_features=skip_features,
+        max_features=max_features,
+    )
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
