@@ -2,10 +2,18 @@ import os
 
 from pyproj.enums import WktVersion
 
-from pyogrio import read, write
+from pyogrio.raw import read, write
 
 
-def read_dataframe(path, read_geometry=True, **kwargs):
+def read_dataframe(
+    path,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    skip_features=0,
+    max_features=None,
+):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or `read_geometry` is False,
     a DataFrame will be returned.
@@ -16,14 +24,32 @@ def read_dataframe(path, read_geometry=True, **kwargs):
     ----------
     path : str
         path to file
-    read_geometry : bool (default: True)
-        If False, geometry will not be read, and a DataFrame will be returned instead.
-    kwargs : dict
-        see pyogrio.read() for kwargs
+    layer : int or str, optional (default: first layer)
+        If an integer is provided, it corresponds to the index of the layer
+        with the data source.  If a string is provided, it must match the name
+        of the layer in the data source.  Defaults to first layer in data source.
+    encoding : str, optional (default: None)
+        If present, will be used as the encoding for reading string values from
+        the data source, unless encoding can be inferred directly from the data
+        source.
+    columns : list-like, optional (default: all columns)
+        List of column names to import from the data source.  Column names must
+        exactly match the names in the data source, and will be returned in
+        the order they occur in the data source.  To avoid reading any columns,
+        pass an empty list-like.
+    read_geometry : bool, optional (default: True)
+        If True, will read geometry into a GeoSeries.  If False, a Pandas DataFrame
+        will be returned instead.
+    skip_features : int, optional (default: 0)
+        Number of features to skip from the beginning of the file before returning
+        features.  Must be less than the total number of features in the file.
+    max_features : int, optional (default: None)
+        Number of features to read from the file.  Must be less than the total
+        number of features in the file minus skip_features (if used).
 
     Returns
     -------
-    GeoDataFrame or DataFrame
+    GeoDataFrame or DataFrame (if no geometry is present)
     """
     try:
         import pandas as pd

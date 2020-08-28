@@ -5,28 +5,9 @@ from pathlib import Path
 import numpy as np
 from numpy import array_equal
 
-from pyogrio import read, read_info, list_layers, write
 
-
-def test_list_layers(naturalearth_lowres, naturalearth_modres, nhd_wbd, nhd_hr):
-    assert array_equal(
-        list_layers(naturalearth_lowres), [["ne_110m_admin_0_countries", "Polygon"]]
-    )
-
-    assert array_equal(
-        list_layers(naturalearth_modres), [["ne_10m_admin_0_countries", "Polygon"]]
-    )
-
-    wbd_layers = list_layers(nhd_wbd)
-    assert len(wbd_layers) == 20
-    assert array_equal(wbd_layers[7], ["WBDLine", "MultiLineString"])
-    assert array_equal(wbd_layers[8], ["WBDHU8", "MultiPolygon"])
-
-    hr_layers = list_layers(nhd_hr)
-    assert len(hr_layers) == 75
-    assert array_equal(hr_layers[54], ["NHDArea", "2.5D MultiPolygon"])
-    # Measured 3D is downgraded to 2.5D during read
-    assert array_equal(hr_layers[55], ["NHDFlowline", "2.5D MultiLineString"])
+from pyogrio import list_layers
+from pyogrio.raw import read, write
 
 
 def test_read(naturalearth_lowres):
@@ -198,16 +179,6 @@ def test_read_max_features(naturalearth_lowres):
 
     assert np.array_equal(geometry, expected_geometry[:2])
     assert np.array_equal(fields[-1], expected_fields[-1][:2])
-
-
-def test_read_info(naturalearth_lowres):
-    meta = read_info(naturalearth_lowres)
-
-    assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
-    assert meta["encoding"] == "UTF-8"
-    assert meta["fields"].shape == (94,)
-    assert meta["features"] == 177
 
 
 def test_write(tmpdir, naturalearth_lowres):

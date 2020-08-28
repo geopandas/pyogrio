@@ -3,10 +3,16 @@ import os
 import fiona
 import pytest
 
-from pyogrio import read, list_layers, write
+from pyogrio.raw import read, write
 
 
 def fiona_read(path, layer=None):
+    """Read records from OGR data source using Fiona.
+
+    Note: Fiona returns different information than pyogrio and we have to
+    use a list here to force reading from Fiona's records generator -
+    both of which incur a slight performance penalty.
+    """
     with fiona.open(path, layer=layer) as src:
         list(src)
 
@@ -15,36 +21,6 @@ def fiona_write(path, records, **kwargs):
     with fiona.open(path, "w", **kwargs) as out:
         for record in records:
             out.write(record)
-
-
-@pytest.mark.benchmark(group="list-layers-single")
-def test_list_layers_lowres(naturalearth_lowres, benchmark):
-    benchmark(list_layers, naturalearth_lowres)
-
-
-@pytest.mark.benchmark(group="list-layers-single")
-def test_list_layers_modres(naturalearth_modres, benchmark):
-    benchmark(list_layers, naturalearth_modres)
-
-
-@pytest.mark.benchmark(group="list-layers-single")
-def test_list_layers_fiona_lowres(naturalearth_lowres, benchmark):
-    benchmark(fiona.listlayers, naturalearth_lowres)
-
-
-@pytest.mark.benchmark(group="list-layers-single")
-def test_list_layers_fiona_modres(naturalearth_modres, benchmark):
-    benchmark(fiona.listlayers, naturalearth_modres)
-
-
-@pytest.mark.benchmark(group="list-layers-multi")
-def test_list_layers_multi(nhd_hr, benchmark):
-    benchmark(list_layers, nhd_hr)
-
-
-@pytest.mark.benchmark(group="list-layers-multi")
-def test_list_layers_fiona_multi(nhd_hr, benchmark):
-    benchmark(fiona.listlayers, nhd_hr)
 
 
 @pytest.mark.benchmark(group="read-lowres")

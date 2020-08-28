@@ -19,7 +19,7 @@ def test_read_dataframe_benchmark_lowres(naturalearth_lowres, benchmark):
 
 
 @pytest.mark.benchmark(group="read-geopandas-lowres-admin0")
-def test_read_benchmark_geopandas_lowres(naturalearth_lowres, benchmark):
+def test_read_dataframe_benchmark_geopandas_lowres(naturalearth_lowres, benchmark):
     benchmark(gp.read_file, naturalearth_lowres)
 
 
@@ -34,7 +34,7 @@ def test_read_dataframe_benchmark_vsi_modres(naturalearth_modres_vsi, benchmark)
 
 
 @pytest.mark.benchmark(group="read-geopandas-modres-admin0")
-def test_read_benchmark_geopandas_modres(naturalearth_modres, benchmark):
+def test_read_dataframe_benchmark_geopandas_modres(naturalearth_modres, benchmark):
     benchmark(gp.read_file, naturalearth_modres)
 
 
@@ -44,7 +44,7 @@ def test_read_dataframe_benchmark_modres1(naturalearth_modres1, benchmark):
 
 
 @pytest.mark.benchmark(group="read-geopandas-modres-admin1")
-def test_read_benchmark_geopandas_modres1(naturalearth_modres1, benchmark):
+def test_read_dataframe_benchmark_geopandas_modres1(naturalearth_modres1, benchmark):
     benchmark(gp.read_file, naturalearth_modres1)
 
 
@@ -54,7 +54,7 @@ def test_read_dataframe_benchmark_nhd_hr(nhd_hr, benchmark):
 
 
 @pytest.mark.benchmark(group="read-geopandas-nhd_hr")
-def test_read_benchmark_geopandas_nhd_hr(nhd_hr, benchmark):
+def test_read_dataframe_benchmark_geopandas_nhd_hr(nhd_hr, benchmark):
     benchmark(gp.read_file, nhd_hr, layer="NHDFlowline")
 
 

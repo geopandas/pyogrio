@@ -187,13 +187,17 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
 
     df = read_dataframe(filename)
 
-    # Coordinates are not precisely equal when written to JSON
-    # dtypes do not necessarily round-trip precisely through JSON
-    is_json = driver in ("GeoJSON", "GeoJSONSeq")
+    if driver != "GeoJSONSeq":
+        # GeoJSONSeq driver I/O reorders features and / or vertices, and does
+        # not support roundtrip comparison
 
-    assert_geodataframe_equal(
-        df, expected, check_less_precise=is_json, check_dtype=not is_json
-    )
+        # Coordinates are not precisely equal when written to JSON
+        # dtypes do not necessarily round-trip precisely through JSON
+        is_json = driver == "GeoJSON"
+
+        assert_geodataframe_equal(
+            df, expected, check_less_precise=is_json, check_dtype=not is_json
+        )
 
 
 def test_write_dataframe_nhd(tmpdir, nhd_hr):

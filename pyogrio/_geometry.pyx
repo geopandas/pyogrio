@@ -89,7 +89,7 @@ cdef str get_geometry_type(void *ogr_layer):
 
         # TODO: review; this might be annoying...
         warnings.warn(
-            "Measured (M) geometry types are not supported.  M  values are "
+            "Measured (M) geometry types are not supported.  M values are "
             f"stripped during reading. Original type '{original_type}' "
             f"is converted to '{GEOMETRY_TYPES[ogr_type]}'")
 
