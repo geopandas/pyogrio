@@ -345,8 +345,15 @@ cdef get_fields(void *ogr_layer, str encoding):
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_geometry,
-                  int skip_features, int max_features):
+cdef get_features(
+    void *ogr_layer,
+    object[:,:] fields,
+    encoding,
+    uint8_t read_geometry,
+    uint8_t force_2d,
+    int skip_features,
+    int max_features):
+
     cdef void * ogr_feature = NULL
     cdef void * ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
@@ -413,6 +420,9 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
                     # if geometry has M values, these need to be removed first
                     if (OGR_G_IsMeasured(ogr_geometry)):
                         OGR_G_SetMeasured(ogr_geometry, 0)
+
+                    if force_2d and OGR_G_Is3D(ogr_geometry):
+                        OGR_G_Set3D(ogr_geometry, 0)
 
                     ret_length = OGR_G_WkbSize(ogr_geometry)
                     wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
@@ -481,7 +491,17 @@ cdef get_features(void *ogr_layer, object[:,:] fields, encoding, uint8_t read_ge
     return (geometries, field_data)
 
 
-def ogr_read(str path, object layer=None, object encoding=None, int read_geometry=True, object columns=None, int skip_features=0, int max_features=0, **kwargs):
+def ogr_read(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    **kwargs):
+
     cdef const char *path_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
@@ -549,8 +569,9 @@ def ogr_read(str path, object layer=None, object encoding=None, int read_geometr
         fields,
         encoding,
         read_geometry=read_geometry and geometry_type is not None,
+        force_2d=force_2d,
         skip_features=skip_features,
-        max_features=max_features
+        max_features=max_features,
     )
 
     meta = {

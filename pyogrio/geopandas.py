@@ -11,6 +11,7 @@ def read_dataframe(
     encoding=None,
     columns=None,
     read_geometry=True,
+    force_2d=False,
     skip_features=0,
     max_features=None,
 ):
@@ -40,6 +41,9 @@ def read_dataframe(
     read_geometry : bool, optional (default: True)
         If True, will read geometry into a GeoSeries.  If False, a Pandas DataFrame
         will be returned instead.
+    force_2d : bool, optional (default: False)
+        If the geometry has Z values, setting this to True will cause those to
+        be ignored and 2D geometries to be returned
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
@@ -71,6 +75,7 @@ def read_dataframe(
         encoding=encoding,
         columns=columns,
         read_geometry=read_geometry,
+        force_2d=force_2d,
         skip_features=skip_features,
         max_features=max_features,
     )

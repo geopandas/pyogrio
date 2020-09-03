@@ -128,6 +128,14 @@ def test_read_no_geometry(naturalearth_modres):
     assert not isinstance(df, gp.GeoDataFrame)
 
 
+def test_read_force_2d(nhd_hr):
+    df = read_dataframe(nhd_hr, layer="NHDFlowline", max_features=1)
+    assert df.iloc[0].geometry.has_z
+
+    df = read_dataframe(nhd_hr, layer="NHDFlowline", force_2d=True, max_features=1)
+    assert not df.iloc[0].geometry.has_z
+
+
 def test_read_layer(nhd_hr):
     layers = list_layers(nhd_hr)
     # The first layer is read by default (NOTE: first layer has no features)

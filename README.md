@@ -173,6 +173,18 @@ to `False`:
 253    -99
 ```
 
+You can force a 3D dataset to 2D using `force_2d`:
+
+```python
+> df = read_dataframe('has_3d.shp')
+> df.iloc[0].geometry.has_z
+True
+
+> df = read_dataframe('has_3d.shp', force_2d=True)
+> df.iloc[0].geometry.has_z
+False
+```
+
 Any read operation which does not include a geometry column, either by reading
 from a nonspatial data layer or by omitting the geometry column above, returns
 a `Pandas` `DataFrame`.
