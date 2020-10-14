@@ -88,11 +88,12 @@ DTYPE_OGR_FIELD_TYPES = {
     'uint': (OFTInteger64, OFSTNone),
     'uint64': (OFTInteger64, OFSTNone),
 
+    # bool is handled as integer with boolean subtype
+    'bool': (OFTInteger, OFSTBoolean),
+
     'float32': (OFTReal,OFSTFloat32),
     'float': (OFTReal, OFSTNone),
     'float64': (OFTReal, OFSTNone)
-
-    # TODO: bool
 }
 
 
