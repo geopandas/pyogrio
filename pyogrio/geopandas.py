@@ -94,7 +94,7 @@ def read_dataframe(
 
 # TODO: handle index properly
 def write_dataframe(
-    df, path, layer=None, driver="ESRI Shapefile", encoding=None, **kwargs
+    df, path, layer=None, driver=None, encoding=None, **kwargs
 ):
     import geopandas as gp
     from geopandas.array import to_wkb

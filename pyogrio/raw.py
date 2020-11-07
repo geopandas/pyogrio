@@ -1,6 +1,14 @@
 import warnings
+import os
 
 from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+
+
+DRIVERS = {
+    ".gpkg": "GPKG",
+    ".shp": "ESRI Shapefile",
+    ".json": "GeoJSON"
+}
 
 
 def read(
@@ -81,7 +89,7 @@ def write(
     field_data,
     fields,
     layer=None,
-    driver="ESRI Shapefile",
+    driver=None,
     # derived from meta if roundtrip
     geometry_type=None,
     crs=None,
@@ -91,6 +99,17 @@ def write(
 
     if geometry_type is None:
         raise ValueError("geometry_type must be provided")
+
+    if driver is None:
+        # try to infer driver from path
+        parts = os.path.splitext(path)
+        if len(parts) != 2:
+            raise ValueError(f"Could not infer driver from path: {path}; please specify driver explicitly")
+
+        ext = parts[1].lower()
+        driver = DRIVERS.get(ext, None)
+        if driver is None:
+            raise ValueError(f"Could not infer driver from path: {path}; please specify driver explicitly")
 
     if crs is None:
         warnings.warn(
