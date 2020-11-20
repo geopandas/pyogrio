@@ -174,6 +174,10 @@ def test_read_where(naturalearth_lowres):
     assert len(df) == 1
     assert df.iloc[0].ISO_A3 == "CAN"
 
+    df = read_dataframe(naturalearth_lowres, where="ISO_A3 IN ('CAN', 'USA', 'MEX')")
+    assert len(df) == 3
+    assert len(set(df.ISO_A3.unique()).difference(['CAN', 'USA', 'MEX'])) == 0
+
     # should return items within range
     df = read_dataframe(
         naturalearth_lowres, where="POP_EST >= 10000000 AND POP_EST < 100000000"
