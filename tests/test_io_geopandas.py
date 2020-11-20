@@ -164,6 +164,34 @@ def test_read_null_values(naturalearth_modres):
     assert df.loc[df.NAME_ZH.isnull()].NAME_ZH.iloc[0] == None
 
 
+def test_read_where(naturalearth_lowres):
+    # empty filter should return full set of records
+    df = read_dataframe(naturalearth_lowres, where="")
+    assert len(df) == 177
+
+    # should return singular item
+    df = read_dataframe(naturalearth_lowres, where="ISO_A3 = 'CAN'")
+    assert len(df) == 1
+    assert df.iloc[0].ISO_A3 == "CAN"
+
+    # should return items within range
+    df = read_dataframe(
+        naturalearth_lowres, where="POP_EST >= 10000000 AND POP_EST < 100000000"
+    )
+    assert len(df) == 75
+    assert df.POP_EST.min() >= 10000000
+    assert df.POP_EST.max() < 100000000
+
+    # should match no items
+    df = read_dataframe(naturalearth_lowres, where="ISO_A3 = 'INVALID'")
+    assert len(df) == 0
+
+
+def test_read_where_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="Invalid SQL"):
+        read_dataframe(naturalearth_lowres, where="invalid")
+
+
 # def test_write_dataframe(tmpdir, naturalearth_lowres):
 #     expected = read_dataframe(naturalearth_lowres)
 

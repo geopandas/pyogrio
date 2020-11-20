@@ -8,6 +8,7 @@ build/*
 *.egg-info/*
 .benchmarks/*
 .pytest_cache/*
+pip-wheel-metadata/*
 
 Pipfile.lock
 

@@ -36,8 +36,6 @@ log = logging.getLogger(__name__)
 
 ### Constants
 cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
-OGRERR_FAILURE = 6
-
 
 
 ### Drivers
@@ -55,6 +53,7 @@ DRIVERS = {
 
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
+# TODO: incorporate field subtypes if available from OGR
 FIELD_TYPES = [
     'int32',        # OFTInteger, Simple 32bit integer
     None,           # OFTIntegerList, List of 32bit integers, not supported
@@ -501,9 +500,12 @@ def ogr_read(
     object columns=None,
     int skip_features=0,
     int max_features=0,
+    object where=None,
     **kwargs):
 
+    cdef int err = 0
     cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
     cdef void *ogr_dataset = NULL
     cdef void *ogr_layer = NULL
     cdef int feature_count = 0
@@ -528,6 +530,14 @@ def ogr_read(
 
     if ogr_layer == NULL:
         raise ValueError(f"Layer '{layer}' could not be opened")
+
+    # Apply the attribute filter
+    if where is not None and where != "":
+        where_b = where.encode('utf-8')
+        where_c = where_b
+        err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+        if err != OGRERR_NONE:
+            raise ValueError(f"Invalid SQL query for layer '{layer}': {where}")
 
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
     if feature_count == 0:

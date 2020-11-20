@@ -14,6 +14,7 @@ def read_dataframe(
     force_2d=False,
     skip_features=0,
     max_features=None,
+    where=None
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or `read_geometry` is False,
@@ -50,6 +51,11 @@ def read_dataframe(
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
+    where : str, optional (default: None)
+        Where clause to filter features in layer by attribute values.  Uses a
+        restricted form of SQL WHERE clause, defined here:
+        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
 
     Returns
     -------
@@ -78,6 +84,7 @@ def read_dataframe(
         force_2d=force_2d,
         skip_features=skip_features,
         max_features=max_features,
+        where=where
     )
 
     columns = meta["fields"].tolist()

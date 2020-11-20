@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 from numpy import array_equal
-
+import pytest
 
 from pyogrio import list_layers
 from pyogrio.raw import read, write
@@ -179,6 +179,38 @@ def test_read_max_features(naturalearth_lowres):
 
     assert np.array_equal(geometry, expected_geometry[:2])
     assert np.array_equal(fields[-1], expected_fields[-1][:2])
+
+
+def test_read_where(naturalearth_lowres):
+    # empty filter should return full set of records
+    geometry, fields = read(naturalearth_lowres, where="")[1:]
+    assert len(geometry) == 177
+    assert len(fields) == 94
+    assert len(fields[0]) == 177
+
+    # should return singular item
+    geometry, fields = read(naturalearth_lowres, where="ISO_A3 = 'CAN'")[1:]
+    assert len(geometry) == 1
+    assert len(fields) == 94
+    assert len(fields[0]) == 1
+    assert fields[4] == "CAN"
+
+    # should return items within range
+    geometry, fields = read(
+        naturalearth_lowres, where="POP_EST >= 10000000 AND POP_EST < 100000000"
+    )[1:]
+    assert len(geometry) == 75
+    assert min(fields[35]) >= 10000000
+    assert max(fields[35]) < 100000000
+
+    # should match no items
+    geometry, fields = read(naturalearth_lowres, where="ISO_A3 = 'INVALID'")[1:]
+    assert len(geometry) == 0
+
+
+def test_read_where_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="Invalid SQL"):
+        read(naturalearth_lowres, where="invalid")
 
 
 def test_write(tmpdir, naturalearth_lowres):

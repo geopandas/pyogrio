@@ -2,6 +2,9 @@
 
 cdef extern from "ogr_core.h":
     ctypedef int OGRErr
+    ctypedef void* OGRDataSourceH
+    ctypedef void* OGRGeometryH
+    ctypedef void* OGRLayerH
 
     # Field subtype values
     ctypedef int OGRFieldSubType
@@ -101,7 +104,6 @@ cdef extern from "ogr_core.h":
         OFTMaxType
 
 
-
 cdef extern from "ogr_api.h":
     void *  OGR_Dr_Open (void *driver, const char *path, int bupdate)
     const char * OGR_Dr_GetName (void *driver)
@@ -167,6 +169,7 @@ cdef extern from "ogr_api.h":
     void *  OGR_L_GetLayerDefn (void *layer)
     void *  OGR_L_GetNextFeature (void *layer)
     void    OGR_L_ResetReading (void *layer)
+    OGRErr  OGR_L_SetAttributeFilter(OGRLayerH hLayer, const char* pszQuery)
     OGRErr  OGR_L_SetNextByIndex(void *layer, int nIndex)
     int     OGR_L_GetFeatureCount (void *layer, int m)
 
