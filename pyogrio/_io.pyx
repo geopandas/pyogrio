@@ -994,7 +994,16 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
                 elif field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
-                    value_b = field_value.encode("UTF-8")
+                    try:
+                        # this will fail for strings mixed with nans
+                        value_b = field_value.encode("UTF-8")
+
+                    except AttributeError:
+                        raise ValueError(f"Could not encode value '{field_value}' in field '{fields[field_idx]}' to string")
+
+                    except Exception:
+                        raise
+
                     OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
                 elif field_type == OFTInteger:
