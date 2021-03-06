@@ -12,7 +12,7 @@ jobs:
 
       - name: Install packages
         run: |
-          apt-get install -y python3-pip
+          apt-get update && apt-get install -y python3-pip
 
       - name: Install Python Dependencies
         run: |
