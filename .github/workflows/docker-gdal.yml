@@ -16,10 +16,13 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          python -m pip install -e . [dev,pandas,pygeos]
+          sudo -H python -m pip install -U pip
+          sudo -H python -m pip install -U wheel
+          sudo -H python -m pip install -e .[dev]
 
       - name: Print Environment
         run: |
+          echo "python --version"
           echo "python -m pip freeze"
 
       - name: Test with pytest
