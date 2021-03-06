@@ -16,9 +16,9 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          sudo -H python -m pip install -U pip
-          sudo -H python -m pip install -U wheel
-          sudo -H python -m pip install -e .[dev]
+          python -m pip install --no-cache-dir -U pip
+          python -m pip install --no-cache-dir -U wheel
+          python -m pip install --no-cache-dir -e .[dev]
 
       - name: Print Environment
         run: |
