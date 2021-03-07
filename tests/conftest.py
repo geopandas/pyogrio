@@ -1,4 +1,7 @@
 from pathlib import Path
+from zipfile import ZipFile, ZIP_DEFLATED
+
+from geopandas.datasets import get_path
 
 import pytest
 
@@ -8,40 +11,18 @@ data_dir = Path(__file__).parent.resolve() / "fixtures/datasets"
 
 @pytest.fixture(scope="session")
 def naturalearth_lowres():
-    return data_dir / "ne_110m_admin_0_countries/ne_110m_admin_0_countries.shp"
+    return Path(get_path("naturalearth_lowres"))
 
 
-@pytest.fixture(scope="session")
-def naturalearth_modres():
-    return data_dir / "ne_10m_admin_0_countries/ne_10m_admin_0_countries.shp"
+@pytest.fixture(scope="function")
+def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
+    """Wrap naturalearth_lowres as a zip file for vsi tests"""
 
+    path = tmp_path / f"{naturalearth_lowres.name}.zip"
+    with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
+        # out.write(naturalearth_lowres, naturalearth_lowres.name)
+        for ext in ["dbf", "prj", "shp", "shx"]:
+            filename = f"{naturalearth_lowres.stem}.{ext}"
+            out.write(naturalearth_lowres.parent / filename, filename)
 
-@pytest.fixture(scope="session")
-def naturalearth_modres_vsi():
-    path = data_dir / "ne_10m_admin_0_countries.zip/ne_10m_admin_0_countries"
-    return f"/vsizip/{path}"
-
-
-@pytest.fixture(scope="session")
-def naturalearth_lowres1():
-    return (
-        data_dir
-        / "ne_110m_admin_1_states_provinces/ne_110m_admin_1_states_provinces.shp"
-    )
-
-
-@pytest.fixture(scope="session")
-def naturalearth_modres1():
-    return (
-        data_dir / "ne_10m_admin_1_states_provinces/ne_10m_admin_1_states_provinces.shp"
-    )
-
-
-@pytest.fixture(scope="session")
-def nhd_wbd():
-    return data_dir / "WBD_17_HU2_GDB/WBD_17_HU2_GDB.gdb"
-
-
-@pytest.fixture(scope="session")
-def nhd_hr():
-    return data_dir / "NHDPLUS_H_1704_HU4_GDB/NHDPLUS_H_1704_HU4_GDB.gdb"
+    return f"/vsizip/{path}/{naturalearth_lowres.name}"
