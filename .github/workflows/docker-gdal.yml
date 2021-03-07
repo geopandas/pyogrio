@@ -18,12 +18,12 @@ jobs:
         run: |
           python -m pip install --no-cache-dir -U pip
           python -m pip install --no-cache-dir -U wheel
-          python -m pip install --no-cache-dir -e .[dev]
+          python -m pip install --no-cache-dir --no-build-isolation -e .[dev] -v
 
       - name: Print Environment
         run: |
-          echo "python --version"
-          echo "python -m pip freeze"
+          echo python --version
+          echo python -m pip freeze
 
       - name: Test with pytest
         run: |
