@@ -40,8 +40,10 @@ if "clean" in sys.argv:
 else:
     # Get libraries, etc from gdal-config
     print("sys.path:", sys.path)
+    print("env vars to python:", os.environ)
     flags = ["cflags", "libs", "version"]
     gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
+    print(f"Using gdal-config at: {gdal_config} to get GDAL config options")
     config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
     GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
