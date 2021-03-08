@@ -38,15 +38,25 @@ if "clean" in sys.argv:
             entry.unlink()
 
 else:
-    # Get libraries, etc from gdal-config
-    print("sys.path:", sys.path)
-    print("env vars to python:", os.environ)
-    flags = ["cflags", "libs", "version"]
-    gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
-    print(f"Using gdal-config at: {gdal_config} to get GDAL config options")
-    config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
+    try:
+        # Get libraries, etc from gdal-config (not available on Windows)
+        flags = ["cflags", "libs", "version"]
+        gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
+        print(f"Using gdal-config at: {gdal_config} to get GDAL config options")
+        config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
-    GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
+        GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
+
+    except Exception as e:
+        if sys.platform == "win32":
+            # try to get GDAL version from command line
+            if 'GDAL_VERSION' in os.environ:
+                GDAL_VERSION = os.environ['GDAL_VERSION']
+            else:
+                raise ValueError("GDAL_VERSION must be provided as an environment variable")
+
+        else:
+            raise e
 
     if not GDAL_VERSION > MIN_GDAL_VERSION:
         sys.exit("GDAL must be >= 2.4.x")
