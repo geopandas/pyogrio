@@ -79,7 +79,7 @@ jobs:
           echo "GITHUB_ENV"
           Get-Content -Path $env:GITHUB_ENV
           echo "PATH"
-          Get-Content -Path $env:PATH
+          $env:Path
 
       - name: Install Python dependencies
         run: |
