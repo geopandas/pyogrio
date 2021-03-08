@@ -1,0 +1,104 @@
+# derived from Fiona: https://github.com/Toblerity/Fiona
+name: Windows Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }} / GDAL ${{ matrix.GDAL_VERSION }}
+    runs-on: windows-2019
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # - python: 3.6
+          #   GDAL_VERSION: 2.4.4
+          #   GIS_INTERNALS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3.zip
+          #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3-libs.zip
+          #   allow_failure: false
+
+          # - python: 3.8
+          #   GDAL_VERSION: 3.0.4
+          #   GIS_INTERNALS: release-1911-x64-gdal-3-0-4-mapserver-7-4-3.zip
+          #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-0-4-mapserver-7-4-3-libs.zip
+          #   allow_failure: false
+
+          # - python: 3.8
+          #   GDAL_VERSION: 3.1.4
+          #   GIS_INTERNALS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1.zip
+          #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1-libs.zip
+          #   allow_failure: false
+
+          - python: 3.9
+            GDAL_VERSION: 3.2.1
+            GIS_INTERNALS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2.zip
+            GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2-libs.zip
+            allow_failure: false
+
+    env:
+      GDAL_VERSION: ${{ matrix.GDAL_VERSION }}
+      GIS_INTERNALS: ${{ matrix.GIS_INTERNALS }}
+      GIS_INTERNALS_LIBS: ${{ matrix.GIS_INTERNALS_LIBS }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache GDAL binaries
+        uses: actions/cache@v2
+        with:
+          path: C:\gdal
+          key: ${{ runner.os }}-gdal-${{ matrix.GDAL_VERSION }}
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Set env variables
+        run: |
+          echo "C:\\gdal\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "GDAL_DATA=C:\\gdal\\bin\\gdal-data" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
+          if ($env:GDAL_VERSION -ge '3.0.0') { echo "PROJ_LIB=C:\\gdal\\bin\\proj6\\share" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append }
+          echo "GITHUB_PATH"
+          Get-Content -Path $env:GITHUB_PATH
+          echo ""
+          echo "GITHUB_ENV"
+          Get-Content -Path $env:GITHUB_ENV
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Download GDAL
+        run: |
+          # Only download if not already cached
+          if (!(test-path C:\gdal)) {
+            curl http://download.gisinternals.com/sdk/downloads/$env:GIS_INTERNALS --output gdalbin.zip
+            Expand-Archive -LiteralPath gdalbin.zip -DestinationPath C:\gdal
+            curl http://download.gisinternals.com/sdk/downloads/$env:GIS_INTERNALS_LIBS --output gdallibs.zip
+            Expand-Archive -LiteralPath gdallibs.zip -DestinationPath C:\gdal
+            Get-ChildItem -Path C:\gdal
+          }
+      - name: Install Python dependencies
+        run: |
+          python -m pip install -U pip wheel
+          python -m pip install cython~=0.29 numpy~=1.19
+          python -m pip install pytest pytest-cov
+
+      - name: Build pyogrio
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        run: |
+          python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-build-isolation -e .
+      - name: Copy DLLs
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        run: |
+          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
+          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs" -Recurse
+          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
+          Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
+      - name: Print Environment
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        run: |
+          python -m pip freeze
+      - name: pytest
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        run: |
+          pytest --cov=pyogrio --cov-report term-missing tests

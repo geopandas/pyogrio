@@ -1,4 +1,4 @@
-name: Test Python package using Docker GDAL
+name: Docker GDAL Test
 
 on: [push, pull_request]
 
@@ -25,9 +25,8 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          python3 -m pip install --no-cache-dir -U pip
-          python3 -m pip install --no-cache-dir -U wheel
-          python3 -m pip install cython~=0.29
+          python3 -m pip install --no-cache-dir -U pip wheel
+          python3 -m pip install --no-cache-dir cython~=0.29
           python3 -m pip install --no-cache-dir --no-build-isolation -e .[dev,test]
 
       - name: Print Environment
@@ -37,4 +36,4 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest --cov=pyogrio tests
+          pytest --cov=pyogrio --cov-report term-missing tests
