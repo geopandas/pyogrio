@@ -39,6 +39,7 @@ if "clean" in sys.argv:
 
 else:
     # Get libraries, etc from gdal-config
+    print("sys.path:", sys.path)
     flags = ["cflags", "libs", "version"]
     gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
     config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
