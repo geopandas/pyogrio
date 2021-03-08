@@ -1,8 +1,6 @@
-from pathlib import Path
 import json
 import os
 
-import geopandas as gp
 import numpy as np
 from numpy import array_equal
 import pytest
@@ -20,7 +18,11 @@ def test_read(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
 
     assert meta["fields"].tolist() == [
-        'pop_est', 'continent', 'name', 'iso_a3', 'gdp_md_est'
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
     ]
 
     assert len(fields) == 5
@@ -32,7 +34,7 @@ def test_read(naturalearth_lowres):
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
     assert array_equal(
-        list_layers(naturalearth_lowres_vsi), [[Path(gp.datasets.get_path('naturalearth_lowres')).stem, "Polygon"]]
+        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
     )
 
     meta, geometry, fields = read(naturalearth_lowres_vsi)
@@ -112,11 +114,9 @@ def test_read_where(naturalearth_lowres):
     assert max(fields[0]) < 100000000
 
     # should match no items
-    with pytest.warns(UserWarning) as w:
+    with pytest.warns(UserWarning, match="does not have any features to read") as w:
         geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'INVALID'")[1:]
         assert len(geometry) == 0
-        assert len(w) == 1
-        assert 'does not have any features to read' in w[0].message.args[0]
 
 
 def test_read_where_invalid(naturalearth_lowres):

@@ -39,42 +39,52 @@ def test_read_no_geometry(naturalearth_lowres):
     assert not isinstance(df, gp.GeoDataFrame)
 
 
-# def test_read_force_2d(nhd_hr):
-#     df = read_dataframe(nhd_hr, layer="NHDFlowline", max_features=1)
-#     assert df.iloc[0].geometry.has_z
+def test_read_force_2d(test_fgdb_vsi):
+    with pytest.warns(
+        UserWarning, match=r"Measured \(M\) geometry types are not supported"
+    ):
+        df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
+        assert df.iloc[0].geometry.has_z
 
-#     df = read_dataframe(nhd_hr, layer="NHDFlowline", force_2d=True, max_features=1)
-#     assert not df.iloc[0].geometry.has_z
-
-
-# def test_read_layer(nhd_hr):
-#     layers = list_layers(nhd_hr)
-#     # The first layer is read by default (NOTE: first layer has no features)
-#     df = read_dataframe(nhd_hr, read_geometry=False, max_features=1)
-#     df2 = read_dataframe(
-#         nhd_hr, layer=layers[0][0], read_geometry=False, max_features=1
-#     )
-#     assert_frame_equal(df, df2)
-
-#     # Reading a specific layer should return that layer.
-#     # Detected here by a known column.
-#     df = read_dataframe(nhd_hr, layer="WBDHU2", read_geometry=False, max_features=1)
-#     assert "HUC2" in df.columns
+        df = read_dataframe(
+            test_fgdb_vsi, layer="test_lines", force_2d=True, max_features=1
+        )
+        assert not df.iloc[0].geometry.has_z
 
 
-# def test_read_datetime(nhd_hr):
-#     df = read_dataframe(nhd_hr, max_features=1)
-#     assert df.ExternalIDEntryDate.dtype.name == "datetime64[ns]"
+@pytest.mark.filterwarnings("ignore: Measured")
+def test_read_layer(test_fgdb_vsi):
+    layers = list_layers(test_fgdb_vsi)
+    # The first layer is read by default (NOTE: first layer has no features)
+    df = read_dataframe(test_fgdb_vsi, read_geometry=False, max_features=1)
+    df2 = read_dataframe(
+        test_fgdb_vsi, layer=layers[0][0], read_geometry=False, max_features=1
+    )
+    assert_frame_equal(df, df2)
+
+    # Reading a specific layer should return that layer.
+    # Detected here by a known column.
+    df = read_dataframe(
+        test_fgdb_vsi, layer="test_lines", read_geometry=False, max_features=1
+    )
+    assert "RIVER_MILE" in df.columns
 
 
-# def test_read_null_values(naturalearth_lowres):
-#     df = read_dataframe(naturalearth_lowres, read_geometry=False)
-
-#     # make sure that Null values are preserved
-#     assert df.NAME_ZH.isnull().max() == True
-#     assert df.loc[df.NAME_ZH.isnull()].NAME_ZH.iloc[0] == None
+@pytest.mark.filterwarnings("ignore: Measured")
+def test_read_datetime(test_fgdb_vsi):
+    df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
+    assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
+def test_read_null_values(test_fgdb_vsi):
+    df = read_dataframe(test_fgdb_vsi, read_geometry=False)
+
+    # make sure that Null values are preserved
+    assert df.SEGMENT_NAME.isnull().max() == True
+    assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] == None
+
+
+@pytest.mark.filterwarnings("ignore: Layer")
 def test_read_where(naturalearth_lowres):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres, where="")
@@ -107,18 +117,6 @@ def test_read_where_invalid(naturalearth_lowres):
         read_dataframe(naturalearth_lowres, where="invalid")
 
 
-# def test_write_dataframe(tmpdir, naturalearth_lowres):
-#     expected = read_dataframe(naturalearth_lowres)
-
-#     filename = os.path.join(str(tmpdir), "test.shp")
-#     write_dataframe(expected, filename)
-
-#     assert os.path.exists(filename)
-
-#     df = read_dataframe(filename)
-#     assert_geodataframe_equal(df, expected)
-
-
 @pytest.mark.parametrize(
     "driver,ext",
     [
@@ -149,14 +147,4 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
         assert_geodataframe_equal(
             df, expected, check_less_precise=is_json, check_dtype=not is_json
         )
-
-
-# def test_write_dataframe_nhd(tmpdir, nhd_hr):
-#     df = read_dataframe(nhd_hr, layer="NHDFlowline", max_features=2)
-
-#     # Datetime not currently supported
-#     df = df.drop(columns="FDate")
-
-#     filename = os.path.join(str(tmpdir), "test.shp")
-#     write_dataframe(df, filename)
 

@@ -19,7 +19,7 @@ jobs:
           python -m pip install --no-cache-dir -U pip
           python -m pip install --no-cache-dir -U wheel
           python -m pip install cython==0.29.21 numpy==1.19.5
-          python -m pip install --no-cache-dir --no-build-isolation -e .[dev] -v
+          python -m pip install --no-cache-dir --no-build-isolation -e .[dev,test]
 
       - name: Print Environment
         run: |
@@ -28,4 +28,4 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest --cov=pyogrio
+          pytest --cov=pyogrio tests

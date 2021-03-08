@@ -88,7 +88,9 @@ setup(
     python_requires=">=3",
     install_requires=["numpy", "geopandas"],
     extras_require={
-        "dev": ["Cython", "pygeos", "fiona", "pytest", "pytest-cov", "pytest-benchmark"]
+        "dev": ["Cython", "pygeos"],
+        "test": ["pytest", "pytest-cov"],
+        "benchmark": ["fiona", "pytest-benchmark"]
     },
     include_package_data=True,
     cmdclass={"build_ext": CustomBuildExtCommand},
