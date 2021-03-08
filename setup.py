@@ -46,30 +46,36 @@ else:
 
         GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
 
+        ext_options["include_dirs"] = [
+            entry[2:] for entry in config["cflags"].split(" ")
+        ]
+
+        for entry in config["libs"].split(" "):
+            if entry.startswith("-L"):
+                ext_options["library_dirs"].append(entry[2:])
+            elif entry.startswith("-l"):
+                ext_options["libraries"].append(entry[2:])
+            else:
+                ext_options["extra_link_args"].append(entry)
+
     except Exception as e:
         if sys.platform == "win32":
             # try to get GDAL version from command line
-            if 'GDAL_VERSION' in os.environ:
-                GDAL_VERSION = tuple(int(i) for i in os.environ.get('GDAL_VERSION', '').split('.'))
+            if "GDAL_VERSION" in os.environ:
+                GDAL_VERSION = tuple(
+                    int(i) for i in os.environ.get("GDAL_VERSION", "").split(".")
+                )
 
             else:
-                raise ValueError("GDAL_VERSION must be provided as an environment variable")
+                raise ValueError(
+                    "GDAL_VERSION must be provided as an environment variable"
+                )
 
         else:
             raise e
 
     if not GDAL_VERSION > MIN_GDAL_VERSION:
         sys.exit("GDAL must be >= 2.4.x")
-
-    ext_options["include_dirs"] = [entry[2:] for entry in config["cflags"].split(" ")]
-
-    for entry in config["libs"].split(" "):
-        if entry.startswith("-L"):
-            ext_options["library_dirs"].append(entry[2:])
-        elif entry.startswith("-l"):
-            ext_options["libraries"].append(entry[2:])
-        else:
-            ext_options["extra_link_args"].append(entry)
 
 
 # Get numpy include directory without importing numpy at top level here
@@ -103,7 +109,7 @@ setup(
     extras_require={
         "dev": ["Cython", "pygeos"],
         "test": ["pytest", "pytest-cov"],
-        "benchmark": ["fiona", "pytest-benchmark"]
+        "benchmark": ["fiona", "pytest-benchmark"],
     },
     include_package_data=True,
     cmdclass={"build_ext": CustomBuildExtCommand},
