@@ -84,7 +84,7 @@ jobs:
           python -m pip install -U pip wheel
           python -m pip install cython~=0.29 numpy~=1.19
           python -m pip install pygeos shapely
-          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-use-pep517
+          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
           python -c "import fiona; print(fiona.__gdal_version__);"
           Get-ChildItem -Path c:\hostedtoolcache\windows\python\3.9.1\x64\lib\site-packages\fiona\
           python -m pip install pyproj
