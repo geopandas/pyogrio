@@ -84,6 +84,7 @@ jobs:
           python -m pip install -U pip wheel
           python -m pip install cython~=0.29 numpy~=1.19
           python -m pip install pygeos shapely
+          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
           python -m pip install geopandas~=0.9
           python -m pip install pytest pytest-cov
 
