@@ -84,7 +84,11 @@ jobs:
           python -m pip install -U pip wheel
           python -m pip install cython~=0.29 numpy~=1.19
           python -m pip install pygeos shapely
-          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
+          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-use-pep517
+          python -c "import fiona; print(fiona.__gdal_version__);"
+          Get-ChildItem -Path c:\hostedtoolcache\windows\python\3.9.1\x64\lib\site-packages\fiona\
+          python -m pip install pyproj
+          python -c "import pyproj; print(pyproj.__proj_version__)"
           python -m pip install geopandas~=0.9
           python -m pip install pytest pytest-cov
 
@@ -92,6 +96,7 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install
+          python -c "import pyogrio"
       - name: Copy DLLs
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
