@@ -68,11 +68,7 @@ jobs:
       - name: Set env variables
         run: |
           echo "Print env from GH"
-          echo $env:GDAL_DATA
-          echo $env:PROJ_LIB
           echo "C:\\gdal\\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "GDAL_DATA=C:\\gdal\\bin\\gdal-data" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
-          if ($env:GDAL_VERSION -ge '3.0.0') { echo "PROJ_LIB=C:\\gdal\\bin\\proj6\\share" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append }
           echo "GITHUB_PATH"
           Get-Content -Path $env:GITHUB_PATH
           echo ""
@@ -87,21 +83,28 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install -U pip wheel
+          echo "Install Cython and numpy (build deps)"
           python -m pip install cython~=0.29 numpy~=1.19
-          python -m pip install pygeos shapely
+          echo "Install pygeos, shapely, pyproj (required for geopandas)"
+          python -m pip install pygeos shapely pyproj
+          echo ""
+          echo "Install fiona from source (required for geopandas)"
           python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
+          echo "Print fiona GDAL version"
           python -c "import fiona; print(fiona.__gdal_version__);"
+          echo "List fiona folder"
           Get-ChildItem -Path c:\hostedtoolcache\windows\python\3.9.1\x64\lib\site-packages\fiona\
-          python -m pip install pyproj
-          python -c "import pyproj; print(pyproj.__proj_version__)"
+          echo ""
+          echo "Install geopandas"
           python -m pip install geopandas~=0.9
+          echo "Install test dependencies"
           python -m pip install pytest pytest-cov
 
       - name: Build pyogrio
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        # python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install
         run: |
-          python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install
-          python -c "import pyogrio"
+          python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-use-pep517 -e .
       - name: Copy DLLs
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
@@ -113,6 +116,9 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           python -m pip freeze
+      - name: Check module status
+        run: |
+          python -c "import pyogrio"
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
