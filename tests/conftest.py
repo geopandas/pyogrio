@@ -1,6 +1,7 @@
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
+import fiona
 from geopandas.datasets import get_path
 import pytest
 

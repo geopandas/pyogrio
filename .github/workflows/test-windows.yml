@@ -90,9 +90,8 @@ jobs:
 
       - name: Build pyogrio
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
-        # python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-use-pep517 -e .
         run: |
-          python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install
+          python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install --no-deps
       - name: Copy DLLs
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
