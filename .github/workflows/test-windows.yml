@@ -41,6 +41,7 @@ jobs:
       GIS_INTERNALS_LIBS: ${{ matrix.GIS_INTERNALS_LIBS }}
       GDAL_DATA: "C:\\gdal\\bin\\gdal-data"
       PROJ_LIB: "C:\\gdal\\bin\\proj6\\share"
+      GITHUB_PATH: "c:\\gdal\\bin"
 
     steps:
       - uses: actions/checkout@v2
@@ -63,14 +64,10 @@ jobs:
             curl http://download.gisinternals.com/sdk/downloads/$env:GIS_INTERNALS_LIBS --output gdallibs.zip
             Expand-Archive -LiteralPath gdallibs.zip -DestinationPath C:\gdal
             Get-ChildItem -Path C:\gdal
+            Get-ChildItem -Path C:\gdal\bin
+            Get-ChildItem -Path C:\gdal\bin\gdal-data
+            Get-ChildItem -Path C:\gdal\bin\proj6\share
           }
-
-      - name: Set env variables
-        run: |
-          echo "Print env from GH"
-          echo "C:/gdal/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "GITHUB_PATH"
-          Get-Content -Path $env:GITHUB_PATH
 
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v2
@@ -114,8 +111,13 @@ jobs:
         run: |
           python -m pip freeze
       - name: Check module status
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
+          Get-ChildItem -Path D:\a\pyogrio\pyogrio\pyogrio
           python -c "import pyogrio"
+      - name: Print DLLs required
+        run: |
+          dumpbin /dependents D:\a\pyogrio\pyogrio\pyogrio\_io.pyd
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
