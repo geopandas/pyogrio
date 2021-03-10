@@ -2,11 +2,9 @@ import os
 import sys
 
 
-print("Incoming PATH: ", os.environ['PATH'])
-
-
 # Debug if DLLs are actually found
 if sys.platform == "win32":
+    print("Incoming PATH: ", os.environ['PATH'])
     import ctypes
     import imp
     for module in ['_err', '_geometry', '_io', '_ogr']:
