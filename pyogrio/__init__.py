@@ -14,7 +14,7 @@ if sys.platform == "win32":
         try:
             _, pathname = imp.find_module(f"pyogrio.{module}")
         except:
-            print("ERROR: could not find module pyogrio.{module}")
+            print(f"ERROR: could not find module pyogrio.{module}")
 
         dll = f"{module}.cp39-win_amd64.pyd"
         print(f"Trying to load {dll}")

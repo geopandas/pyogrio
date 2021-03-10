@@ -123,11 +123,11 @@ jobs:
         continue-on-error: true
         run: |
           echo "Depencies of GDAL DLL"
-          dumpbin /dependents c:\gdal\bin\gdal302.dll
+          link /dump /dependents c:\gdal\bin\gdal302.dll
           echo ""
           echo "Dependencies of PYD files"
-          dumpbin /dependents D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
-          dumpbin /dependents D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
+          link /dump /dependents D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+          link /dump /dependents D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
 
       - name: Check module status
         continue-on-error: true
