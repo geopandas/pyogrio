@@ -104,7 +104,7 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         # python setup.py build_ext -IC:\gdal\include -lgdal_i -LC:\gdal\lib install
         run: |
-          python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-use-pep517 -e .
+          python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
 
       - name: Copy DLLs
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
@@ -123,17 +123,17 @@ jobs:
         continue-on-error: true
         run: |
           echo "figure out link args"
-          link --help
+          link.exe --help
           echo ""
           echo "Dependencies of GDAL DLL"
-          link /dump /all c:\gdal\bin\gdal302.dll
+          link.exe /dump /all c:\gdal\bin\gdal302.dll
           echo ""
           echo "Dependencies of PYD files"
-          link /dump /all D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
-          link /dump /all D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
+          link.exe /dump /all D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+          link.exe /dump /all D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
           echo ""
           echo "Try to use dumpbin instead"
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           dumpbin /DEPENDENTS c:\gdal\bin\gdal302.dll
           dumpbin /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
 
