@@ -4,14 +4,26 @@ import shutil
 import subprocess
 import sys
 
-from Cython.Build import cythonize
-from Cython.Distutils import build_ext
+from distutils import log
 from setuptools import setup
-from setuptools.command.build_ext import build_ext as _build_ext
 from setuptools.extension import Extension
+import versioneer
+
+# import Cython if available
+try:
+    from Cython.Build import cythonize
+    from Cython.Distutils import build_ext as _build_ext
+except ImportError:
+    cythonize = None
+    _build_ext = None
 
 
+MIN_PYTHON_VERSION = (3, 6, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
+
+
+if sys.version_info < MIN_PYTHON_VERSION:
+    raise RuntimeError("Python >= 3.6 is required")
 
 
 # Get GDAL config from gdal-config command
@@ -25,6 +37,7 @@ ext_options = {
     "libraries": [],
     "extra_link_args": [],
 }
+ext_modules = []
 
 
 # setuptools clean does not cleanup Cython artifacts
@@ -38,6 +51,9 @@ if "clean" in sys.argv:
             entry.unlink()
 
 else:
+    if cythonize is None:
+        raise ImportError("Cython is required to build from source")
+
     try:
         # Get libraries, etc from gdal-config (not available on Windows)
         flags = ["cflags", "libs", "version"]
@@ -61,15 +77,18 @@ else:
     except Exception as e:
         if sys.platform == "win32":
             # try to get GDAL version from command line
-            if "GDAL_VERSION" in os.environ:
-                GDAL_VERSION = tuple(
-                    int(i) for i in os.environ.get("GDAL_VERSION", "").split(".")
-                )
-
-            else:
+            # Note: additional command-line parameters required to point to GDAL
+            if not "GDAL_VERSION":
                 raise ValueError(
                     "GDAL_VERSION must be provided as an environment variable"
                 )
+            GDAL_VERSION = tuple(
+                int(i) for i in os.environ.get("GDAL_VERSION", "").split(".")
+            )
+
+            log.info(
+                "Building on Windows requires extra options to setup.py to locate GDAL files."
+            )
 
         else:
             raise e
@@ -78,24 +97,37 @@ else:
         sys.exit("GDAL must be >= 2.4.x")
 
 
-# Get numpy include directory without importing numpy at top level here
-# from: https://stackoverflow.com/a/42163080
-class CustomBuildExtCommand(build_ext):
-    def run(self):
-        try:
-            import numpy
+    ext_modules = cythonize(
+        [
+            Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
+            Extension("pyogrio._geometry", ["pyogrio/_geometry.pyx"], **ext_options),
+            Extension("pyogrio._io", ["pyogrio/_io.pyx"], **ext_options),
+            Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
+        ],
+        compiler_directives={"language_level": "3"},
+    )
 
-            self.include_dirs.append(numpy.get_include())
-            # Call original build_ext command
-            build_ext.run(self)
+    # Get numpy include directory without importing numpy at top level here
+    # from: https://stackoverflow.com/a/42163080
+    class build_ext(_build_ext):
+        def run(self):
+            try:
+                import numpy
+                self.include_dirs.append(numpy.get_include())
+                # Call original build_ext command
+                _build_ext.run(self)
 
-        except ImportError:
-            pass
+            except ImportError:
+                pass
 
+
+version = versioneer.get_version()
+cmdclass = versioneer.get_cmdclass()
+cmdclass["build_ext"] = build_ext
 
 setup(
     name="pyogrio",
-    version="0.1.0",
+    version=version,
     packages=["pyogrio"],
     url="https://github.com/brendan-ward/pyogrio",
     license="MIT",
@@ -104,22 +136,14 @@ setup(
     description="Vectorized spatial vector file format I/O using GDAL/OGR",
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
-    python_requires=">=3",
-    install_requires=["numpy", "geopandas"],
+    python_requires=">=3.6",
+    install_requires=["numpy", "pygeos", "geopandas"],
     extras_require={
-        "dev": ["Cython", "pygeos"],
+        "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
-        "benchmark": ["fiona", "pytest-benchmark"],
+        "benchmark": ["pytest-benchmark"],
     },
     include_package_data=True,
-    cmdclass={"build_ext": CustomBuildExtCommand},
-    ext_modules=cythonize(
-        [
-            Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
-            Extension("pyogrio._geometry", ["pyogrio/_geometry.pyx"], **ext_options),
-            Extension("pyogrio._io", ["pyogrio/_io.pyx"], **ext_options),
-            Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
-        ],
-        compiler_directives={"language_level": "3"},
-    ),
+    cmdclass=cmdclass,
+    ext_modules=ext_modules,
 )
