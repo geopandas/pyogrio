@@ -122,10 +122,8 @@ jobs:
       - name: Print DLLs required
         continue-on-error: true
         run: |
-          echo "figure out link args"
-          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe" --help
-          echo ""
           echo "Dependencies of GDAL DLL"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe" /dump /dependents c:\gdal\bin\gdal302.dll
           "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe" /dump /all c:\gdal\bin\gdal302.dll
           echo ""
           echo "Dependencies of PYD files"
@@ -136,7 +134,6 @@ jobs:
           Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC"
           Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools"
           Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64"
-
 
       - name: Check module status
         continue-on-error: true
