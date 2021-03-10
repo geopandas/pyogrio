@@ -33,6 +33,12 @@ if sys.platform == "win32":
     with os.add_dll_directory("c:/gdal/bin"):
         try:
             ctypes.WinDLL('gdal302.dll')
+            print("Successfully loaded GDAL, now trying to load core")
+            try:
+                from pyogrio.core import list_layers, read_info
+            except:
+                print("ERROR: couldn't load core after loading GDAL")
+
         except:
             print("ERROR: could not load GDAL DLL even after setting DLL directory")
             print("Error was: ", sys.exc_info()[0])
