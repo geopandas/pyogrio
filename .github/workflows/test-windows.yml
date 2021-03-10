@@ -128,13 +128,15 @@ jobs:
           Get-ChildItem -Path "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64"
           echo ""
           echo "Dependencies of GDAL DLL"
-          C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /DEPENDENTS c:\gdal\bin\gdal302.dll
-          C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL c:\gdal\bin\gdal302.dll
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /DEPENDENTS c:\gdal\bin\gdal302.dll"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL c:\gdal\bin\gdal302.dll"
           echo ""
           echo "Dependencies of PYD files"
-          C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
-          C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\link.exe /DUMP /ALL D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd"
           echo ""
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe /DEPENDENTS c:\gdal\bin\gdal302.dll"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd"
 
       - name: Check module status
         continue-on-error: true
