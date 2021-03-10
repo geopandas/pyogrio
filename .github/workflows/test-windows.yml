@@ -122,12 +122,21 @@ jobs:
       - name: Print DLLs required
         continue-on-error: true
         run: |
-          echo "Depencies of GDAL DLL"
-          link /dump /dependents c:\gdal\bin\gdal302.dll
+          echo "figure out link args"
+          link --help
+          echo ""
+          echo "Dependencies of GDAL DLL"
+          link /dump /all c:\gdal\bin\gdal302.dll
           echo ""
           echo "Dependencies of PYD files"
-          link /dump /dependents D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
-          link /dump /dependents D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
+          link /dump /all D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+          link /dump /all D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
+          echo ""
+          echo "Try to use dumpbin instead"
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          dumpbin /DEPENDENTS c:\gdal\bin\gdal302.dll
+          dumpbin /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+
 
       - name: Check module status
         continue-on-error: true
