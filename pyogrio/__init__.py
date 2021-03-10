@@ -9,20 +9,24 @@ print("Incoming PATH: ", os.environ['PATH'])
 if sys.platform == "win32":
     import ctypes
     import imp
-    for dll in ['_err.pyd', '_geometry.pyd', '_io.pyd', '_ogr.pyd']:
-        print(f"Trying to find module {dll}")
+    for module in ['_err', '_geometry', '_io', '_ogr']:
+        print(f"Trying to find module pyogrio.{module}")
         try:
-            _, pathname = imp.find_module(dll)
+            _, pathname = imp.find_module(f"pyogrio.{module}")
         except:
-            print("ERROR: could not find module {dll}")
+            print("ERROR: could not find module pyogrio.{module}")
 
+        dll = f"{module}.cp39-win_amd64.pyd"
         print(f"Trying to load {dll}")
         try:
             ctypes.WinDLL(dll)
         except:
             print(f"ERROR: unable to load DLL {dll}")
 
-
+    try:
+        ctypes.WinDLL('gdal302.dll')
+    except:
+        print("ERROR: could not load GDAL DLL")
 
 
 
