@@ -13,6 +13,7 @@ if sys.platform == "win32":
             _, pathname = imp.find_module(f"pyogrio.{module}")
         except:
             print(f"ERROR: could not find module pyogrio.{module}")
+            print("Error was: ", sys.exc_info()[0])
 
         dll = f"{module}.cp39-win_amd64.pyd"
         print(f"Trying to load {dll}")
@@ -20,12 +21,21 @@ if sys.platform == "win32":
             ctypes.WinDLL(dll)
         except:
             print(f"ERROR: unable to load DLL {dll}")
+            print("Error was: ", sys.exc_info()[0])
 
     try:
         ctypes.WinDLL('gdal302.dll')
     except:
         print("ERROR: could not load GDAL DLL")
+        print("Error was: ", sys.exc_info()[0])
 
+    # Try again after setting dll directory
+    with os.add_dll_directory("c:/gdal/bin"):
+        try:
+            ctypes.WinDLL('gdal302.dll')
+        except:
+            print("ERROR: could not load GDAL DLL even after setting DLL directory")
+            print("Error was: ", sys.exc_info()[0])
 
 
 
