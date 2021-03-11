@@ -1,7 +1,10 @@
 from numpy import array_equal
 import pytest
 
+
+print("Loading pyogrio in test_raw_io")
 from pyogrio import list_layers, read_info
+
 
 
 def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, naturalearth_cities, test_fgdb_vsi):

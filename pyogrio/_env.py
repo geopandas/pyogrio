@@ -16,8 +16,9 @@ if platform.system() == "Windows" and sys.version_info >= (3, 8):
     # if loading of extension modules fails, search for gdal dll directory
     try:
         import pyogrio._io
+        print("Failed to load pyogrio._io by default, will now search for GDAL")
 
-    except ImportError as e:
+    except ImportError:
         for path in os.getenv("PATH", "").split(os.pathsep):
             if list(Path(path).glob("gdal*.dll")):
                 print(f"Found GDAL at {path}")

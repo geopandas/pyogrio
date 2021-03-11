@@ -3,9 +3,13 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
+print("Loading pyogrio in conftest")
+import pyogrio
+print("Loaded pyogrio", dir(pyogrio))
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
+    print("Loading Fiona")
     # Fiona is required by geopandas, need to load it after setting DLL search path
     import fiona
     print("Fiona GDAL version", fiona.__gdal_version__)
