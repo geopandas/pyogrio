@@ -38,7 +38,7 @@ class GDALEnv(object):
             import pyogrio._io
     """
 
-    def __enter(self):
+    def __enter__(self):
         if gdal_dll_dir:
             self.dll_dir = os.add_dll_directory(gdal_dll_dir)
             print(f"Added GDAL DLL directory {gdal_dll_dir}")
