@@ -19,7 +19,7 @@ if platform.system() == "Windows" and sys.version_info >= (3, 8):
 
     except ImportError as e:
         for path in os.getenv("PATH", "").split(os.pathsep):
-            if Path(path).glob("gdal*.dll"):
+            if list(Path(path).glob("gdal*.dll")):
                 print(f"Found GDAL at {path}")
                 gdal_dll_dir = path
                 break
