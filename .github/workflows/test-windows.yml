@@ -132,9 +132,13 @@ jobs:
         continue-on-error: true
         run: |
           Get-ChildItem -Path D:\a\pyogrio\pyogrio\pyogrio
-          python -c "import pyogrio"
+          echo "Attempt to load pyogrio"
+          python -c "import pyogrio; print(dir(pyogrio))"
+          echo ""
+          echo "Attempt to load Cython module"
+          python -c "import pyogrio._io"
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          pytest --cov=pyogrio --cov-report term-missing tests
+          python -m pytest --cov=pyogrio --cov-report term-missing tests
