@@ -8,6 +8,8 @@ from pyogrio._env import GDALEnv
 with GDALEnv():
     # Fiona is required by geopandas, need to load it after setting DLL search path
     import fiona
+    print("Fiona GDAL version", fiona.__gdal_version__)
+
     from geopandas.datasets import get_path
 
 

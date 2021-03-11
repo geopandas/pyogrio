@@ -5,6 +5,7 @@ from pyogrio._env import GDALEnv
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    print("Successfully imported pyogrio._io")
 
 
 DRIVERS = {

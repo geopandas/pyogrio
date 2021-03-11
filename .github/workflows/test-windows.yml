@@ -141,4 +141,4 @@ jobs:
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          python -m pytest --cov=pyogrio --cov-report term-missing tests
+          python -m pytest --cov=pyogrio --cov-report term-missing
