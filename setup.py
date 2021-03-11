@@ -15,11 +15,12 @@ try:
     from Cython.Distutils import build_ext as _build_ext
 except ImportError:
     cythonize = None
-    _build_ext = None
 
 
 MIN_PYTHON_VERSION = (3, 6, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
+
+build_ext = None
 
 
 if sys.version_info < MIN_PYTHON_VERSION:

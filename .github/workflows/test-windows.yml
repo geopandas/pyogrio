@@ -136,7 +136,7 @@ jobs:
           python -c "import pyogrio; print(dir(pyogrio))"
           echo ""
           echo "Attempt to load Cython module"
-          python -c "import pyogrio._io"
+          python -c "from pyogrio._io import ogr_list_layers, ogr_read_info"
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}

@@ -1,13 +1,14 @@
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 
+import pytest
+
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
+    # Fiona is required by geopandas, need to load it after setting DLL search path
     import fiona
-
-from geopandas.datasets import get_path
-import pytest
+    from geopandas.datasets import get_path
 
 
 data_dir = Path(__file__).parent.resolve() / "fixtures"
