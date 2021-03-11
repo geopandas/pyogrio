@@ -142,6 +142,7 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           echo "Manually execute conftest.py"
-          python -m tests/conftest.py
+          python tests/conftest.py
+          echo ""
           echo "Now execute tests"
           python -m pytest -sv --cov=pyogrio --cov-report term-missing
