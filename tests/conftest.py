@@ -1,16 +1,11 @@
-import os
 from pathlib import Path
-import sys
 from zipfile import ZipFile, ZIP_DEFLATED
 
-if sys.platform == "win32":
-    # GDAL DLLs are copied to ".libs" folder; make sure this is on the PATH
-    libdir = str(Path(__file__) / ".libs")
-    os.environ["PATH"] = os.environ["PATH"] + ";" + libdir
+from pyogrio._env import GDALEnv
 
-print("Path: ", os.environ['PATH'])
+with GDALEnv():
+    import fiona
 
-import fiona
 from geopandas.datasets import get_path
 import pytest
 

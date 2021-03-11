@@ -1,4 +1,7 @@
-from pyogrio._io import ogr_list_layers, ogr_read_info
+from pyogrio._env import GDALEnv
+
+with GDALEnv():
+    from pyogrio._io import ogr_list_layers, ogr_read_info
 
 
 def list_layers(path):

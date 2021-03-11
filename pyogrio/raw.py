@@ -1,7 +1,10 @@
 import warnings
 import os
 
-from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+from pyogrio._env import GDALEnv
+
+with GDALEnv():
+    from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
 
 
 DRIVERS = {
