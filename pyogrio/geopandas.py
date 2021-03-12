@@ -2,6 +2,7 @@ import os
 
 from pyproj.enums import WktVersion
 
+from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
 
@@ -62,9 +63,10 @@ def read_dataframe(
     GeoDataFrame or DataFrame (if no geometry is present)
     """
     try:
-        import pandas as pd
-        import geopandas as gp
-        from geopandas.array import from_wkb
+        with GDALEnv():
+            import pandas as pd
+            import geopandas as gp
+            from geopandas.array import from_wkb
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
@@ -103,8 +105,12 @@ def read_dataframe(
 def write_dataframe(
     df, path, layer=None, driver=None, encoding=None, **kwargs
 ):
-    import geopandas as gp
-    from geopandas.array import to_wkb
+    try:
+        with GDALEnv():
+            import geopandas as gp
+            from geopandas.array import to_wkb
+    except ImportError:
+        raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
     path = str(path)
 
