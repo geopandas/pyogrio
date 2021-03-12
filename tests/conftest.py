@@ -3,9 +3,16 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
+import pygeos
+print("pygeos GEOS version", pygeos.geos_version_string)
+import shapely.geos
+print("Shapely GEOS version", shapely.geos.geos_version_string)
+
+
 print("Loading pyogrio in conftest")
 import pyogrio
-print("Loaded pyogrio", dir(pyogrio))
+print("Loaded pyogrio")
+
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
@@ -14,10 +21,7 @@ with GDALEnv():
     import fiona
     print("Fiona GDAL version", fiona.__gdal_version__)
 
-import pygeos
-print("pygeos GEOS version", pygeos.geos_version_string)
-import shapely.geos
-print("Shapely GEOS version", shapely.geos.geos_version_string)
+
 
 from geopandas.datasets import get_path
 

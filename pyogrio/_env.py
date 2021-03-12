@@ -38,14 +38,16 @@ class GDALEnv(object):
         with GDALEnv():
             import pyogrio._io
     """
+    def __init__(self):
+        self.dll_dir = None
 
     def __enter__(self):
         if gdal_dll_dir:
             self.dll_dir = os.add_dll_directory(gdal_dll_dir)
             print(f"Added GDAL DLL directory {gdal_dll_dir}")
-        else:
-            self.dll_dir = None
 
     def __exit__(self, *args):
-        if self.dll_dir:
+        print("__exit__ called")
+        if self.dll_dir is not None:
+            print("Removing GDAL DLL directory")
             self.dll_dir.close()
