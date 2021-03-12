@@ -1,23 +1,16 @@
 from numpy import array_equal
 import pytest
 
-
-print("Loading pyogrio in test_raw_io")
 from pyogrio import list_layers, read_info
 
 
-
-def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, naturalearth_cities, test_fgdb_vsi):
+def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi):
     assert array_equal(
         list_layers(naturalearth_lowres), [["naturalearth_lowres", "Polygon"]]
     )
 
     assert array_equal(
         list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
-    )
-
-    assert array_equal(
-        list_layers(naturalearth_cities), [["naturalearth_cities", "Point"]]
     )
 
     # Measured 3D is downgraded to 2.5D during read

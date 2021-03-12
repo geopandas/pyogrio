@@ -1,12 +1,20 @@
 import os
 import pandas as pd
-import geopandas as gp
 from pandas.testing import assert_frame_equal
-from geopandas.testing import assert_geodataframe_equal
 import pytest
 
 from pyogrio import list_layers
 from pyogrio.geopandas import read_dataframe, write_dataframe
+
+try:
+    import geopandas as gp
+    from geopandas.testing import assert_geodataframe_equal
+    has_geopandas = True
+except ImportError:
+    has_geopandas = False
+
+
+pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
 
 def test_read_dataframe(naturalearth_lowres):

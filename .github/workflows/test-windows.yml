@@ -62,10 +62,6 @@ jobs:
             Expand-Archive -LiteralPath gdalbin.zip -DestinationPath C:\gdal
             curl http://download.gisinternals.com/sdk/downloads/$env:GIS_INTERNALS_LIBS --output gdallibs.zip
             Expand-Archive -LiteralPath gdallibs.zip -DestinationPath C:\gdal
-            Get-ChildItem -Path C:\gdal
-            Get-ChildItem -Path C:\gdal\bin
-            Get-ChildItem -Path C:\gdal\bin\gdal-data
-            Get-ChildItem -Path C:\gdal\bin\proj6\share
           }
 
       - name: Set env variables
@@ -86,29 +82,8 @@ jobs:
           echo "Install Cython and numpy (build deps)"
           python -m pip install cython~=0.29 numpy~=1.19
           echo ""
-          echo "Install pygeos from source  (required for geopandas)"
-          python -m pip install pygeos --no-binary pygeos --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
-          echo ""
-          echo "Print pygeos GEOS version"
-          python -c "import pygeos; print(pygeos.geos_version_string)"
-          echo ""
-          echo "Install shapely from source (required for geopandas)"
-          python -m pip install shapely --no-binary shapely --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
-          echo ""
-          echo "print shapely GEOS version"
-          python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
-          echo ""
-          echo "try with explicit dll path"
-          python -c "import os; os.add_dll_directory('c:/gdal/bin'); import shapely.geos; print(shapely.geos.geos_version_string);"
-          echo ""
-          echo "Install fiona from source (required for geopandas)"
-          python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
-          echo ""
-          echo "Print fiona GDAL version"
-          python -c "import os; os.add_dll_directory('c:/gdal/bin');import fiona; print(fiona.__gdal_version__);"
-          echo ""
-          echo "Install geopandas"
-          python -m pip install geopandas~=0.9
+          echo "Install pandas"
+          python -m pip install pandas
           echo "Install test dependencies"
           python -m pip install pytest pytest-cov
 
@@ -117,28 +92,18 @@ jobs:
         run: |
           python -m pip install --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
 
-      - name: Copy DLLs
-        continue-on-error: ${{ matrix.allow_failure == 'true' }}
-        run: |
-          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
-          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs" -Recurse
-          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
-          Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
+      # - name: Copy DLLs
+      #   continue-on-error: ${{ matrix.allow_failure == 'true' }}
+      #   run: |
+      #     mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
+      #     Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs" -Recurse
+      #     mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
+      #     Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
 
       - name: Print Environment
         continue-on-error: true
         run: |
           python -m pip freeze
-
-      - name: Print DLLs required
-        continue-on-error: true
-        run: |
-          echo "Dependencies of GDAL DLL"
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe" /DEPENDENTS c:\gdal\bin\gdal302.dll
-          echo ""
-          echo "Dependencies of PYD files"
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe" /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe" /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_ogr.cp39-win_amd64.pyd
 
       - name: Check module status
         continue-on-error: true
@@ -149,9 +114,6 @@ jobs:
       - name: Test dep imports in test
         continue-on-error: true
         run: |
-          echo ""
-          echo "print shapely GEOS version"
-          python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
           echo "Manually execute conftest.py"
           python tests/conftest.py
 

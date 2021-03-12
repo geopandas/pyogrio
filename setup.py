@@ -138,11 +138,12 @@ setup(
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
     python_requires=">=3.6",
-    install_requires=["numpy", "pygeos", "geopandas"],
+    install_requires=["numpy", "pandas"],
     extras_require={
         "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
         "benchmark": ["pytest-benchmark"],
+        "geopandas": ["pygeos", "geopandas"]
     },
     include_package_data=True,
     cmdclass=cmdclass,
