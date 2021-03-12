@@ -13,10 +13,10 @@ with GDALEnv():
     # Fiona is required by geopandas, need to load it after setting DLL search path
     import fiona
     print("Fiona GDAL version", fiona.__gdal_version__)
-    import shapely.geos
-    print("Shapely GEOS version", shapely.geos.geos_version_string)
     import pygeos
     print("pygeos GEOS version", pygeos.geos_version_string)
+    import shapely.geos
+    print("Shapely GEOS version", shapely.geos.geos_version_string)
 
     from geopandas.datasets import get_path
 

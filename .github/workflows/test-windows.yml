@@ -80,15 +80,6 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-        # echo "Install pygeos from source  (required for geopandas)"
-        # python -m pip install pygeos --no-binary pygeos --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
-        # echo "Print pygeos GEOS version"
-        # python -c "import pygeos; print(pygeos.geos_version_string)"
-        # echo ""
-        # echo "Install shapely from source (required for geopandas)"
-        # python -m pip install shapely --no-binary shapely --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
-        # echo "Print shapely GEOS version"
-
       - name: Install Python dependencies
         run: |
           python -m pip install -U pip wheel
@@ -151,6 +142,9 @@ jobs:
       - name: Test dep imports in test
         continue-on-error: true
         run: |
+          echo ""
+          echo "print shapely GEOS version"
+          python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
           echo "Manually execute conftest.py"
           python tests/conftest.py
 
