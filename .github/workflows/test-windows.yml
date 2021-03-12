@@ -85,8 +85,15 @@ jobs:
           python -m pip install -U pip wheel
           echo "Install Cython and numpy (build deps)"
           python -m pip install cython~=0.29 numpy~=1.19
-          echo "Install pygeos, shapely, pyproj (required by geopandas)"
-          python -m pip install shapely pygeos pyproj
+          echo ""
+          echo "Install pygeos from source  (required for geopandas)"
+          python -m pip install pygeos --no-binary pygeos --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
+          echo ""
+          echo "Print pygeos GEOS version"
+          python -c "import pygeos; print(pygeos.geos_version_string)"
+          echo ""
+          echo "Install shapely from source (required for geopandas)"
+          python -m pip install shapely --no-binary shapely --no-build-isolation --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgeos_c" --install-option="-LC:\gdal\lib"
           echo ""
           echo "print shapely GEOS version"
           python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
