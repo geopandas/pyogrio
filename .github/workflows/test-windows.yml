@@ -96,12 +96,16 @@ jobs:
           python -m pip install cython~=0.29 numpy~=1.19
           echo "Install pygeos, shapely, pyproj (required by geopandas)"
           python -m pip install shapely pygeos pyproj
+          echo ""
           echo "print shapely GEOS version"
           python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
+          echo ""
           echo "try with explicit dll path"
           python -c "import os; os.add_dll_directory('c:/gdal/bin'); import shapely.geos; print(shapely.geos.geos_version_string);"
+          echo ""
           echo "Install fiona from source (required for geopandas)"
           python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
+          echo ""
           echo "Print fiona GDAL version"
           python -c "import os; os.add_dll_directory('c:/gdal/bin');import fiona; print(fiona.__gdal_version__);"
           echo ""
