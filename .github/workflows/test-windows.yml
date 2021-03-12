@@ -11,11 +11,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - python: 3.6
-          #   GDAL_VERSION: 2.4.4
-          #   GIS_INTERNALS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3.zip
-          #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3-libs.zip
-          #   allow_failure: false
+          - python: 3.6
+            GDAL_VERSION: 2.4.4
+            GIS_INTERNALS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3.zip
+            GIS_INTERNALS_LIBS: release-1911-x64-gdal-2-4-4-mapserver-7-4-3-libs.zip
+            allow_failure: false
 
           # - python: 3.8
           #   GDAL_VERSION: 3.0.4
@@ -23,11 +23,11 @@ jobs:
           #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-0-4-mapserver-7-4-3-libs.zip
           #   allow_failure: false
 
-          # - python: 3.8
-          #   GDAL_VERSION: 3.1.4
-          #   GIS_INTERNALS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1.zip
-          #   GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1-libs.zip
-          #   allow_failure: false
+          - python: 3.8
+            GDAL_VERSION: 3.1.4
+            GIS_INTERNALS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1.zip
+            GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-1-4-mapserver-7-6-1-libs.zip
+            allow_failure: false
 
           - python: 3.9
             GDAL_VERSION: 3.2.1
@@ -94,20 +94,16 @@ jobs:
           python -m pip install -U pip wheel
           echo "Install Cython and numpy (build deps)"
           python -m pip install cython~=0.29 numpy~=1.19
-          python -m pip install shapely pygeos
+          echo "Install pygeos, shapely, pyproj (required by geopandas)"
+          python -m pip install shapely pygeos pyproj
+          echo "print shapely GEOS version"
           python -c "import shapely.geos; print(shapely.geos.geos_version_string);"
           echo "try with explicit dll path"
           python -c "import os; os.add_dll_directory('c:/gdal/bin'); import shapely.geos; print(shapely.geos.geos_version_string);"
-          echo ""
-          echo "Install pyproj"
-          python -m pip install pyproj
-          echo ""
           echo "Install fiona from source (required for geopandas)"
           python -m pip install fiona --no-binary fiona --install-option=build_ext --install-option="-IC:\gdal\include" --install-option="-lgdal_i" --install-option="-LC:\gdal\lib"
           echo "Print fiona GDAL version"
-          python -c "import fiona; print(fiona.__gdal_version__);"
-          echo "List fiona folder"
-          Get-ChildItem -Path c:\hostedtoolcache\windows\python\3.9.1\x64\lib\site-packages\fiona\
+          python -c "import os; os.add_dll_directory('c:/gdal/bin');import fiona; print(fiona.__gdal_version__);"
           echo ""
           echo "Install geopandas"
           python -m pip install geopandas~=0.9
@@ -145,18 +141,16 @@ jobs:
       - name: Check module status
         continue-on-error: true
         run: |
-          Get-ChildItem -Path D:\a\pyogrio\pyogrio\pyogrio
-          echo "Attempt to load pyogrio"
-          python -c "import pyogrio; print(dir(pyogrio))"
-          echo ""
-          echo "Attempt to load Cython module"
+          echo "Attempt to load pyogrio Cython module"
           python -c "from pyogrio._io import ogr_list_layers, ogr_read_info"
+
+      - name: Test dep imports in test
+        continue-on-error: true
+        run: |
+          echo "Manually execute conftest.py"
+          python tests/conftest.py
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          echo "Manually execute conftest.py"
-          python tests/conftest.py
-          echo ""
-          echo "Now execute tests"
           python -m pytest -sv --cov=pyogrio --cov-report term-missing
