@@ -132,10 +132,16 @@ jobs:
       - name: Test dep imports in test
         continue-on-error: true
         run: |
-          echo "Manually execute conftest.py"
+          echo "Manually execute test scripts to test imports"
           python tests/conftest.py
+          echo ""
+          python tests/test_core.py
+          echo ""
+          python tests/test_raw_io.py
+          echo ""
+          python tests/test_geopandas.py
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          python -m pytest -sv --cov=pyogrio --cov-report term-missing
+          python -m pytest -sv

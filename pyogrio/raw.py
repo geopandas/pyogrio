@@ -5,14 +5,11 @@ from pyogrio._env import GDALEnv
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
-    print("Successfully imported pyogrio._io")
+
+    print("Successfully imported pyogrio._io in raw.py")
 
 
-DRIVERS = {
-    ".gpkg": "GPKG",
-    ".shp": "ESRI Shapefile",
-    ".json": "GeoJSON"
-}
+DRIVERS = {".gpkg": "GPKG", ".shp": "ESRI Shapefile", ".json": "GeoJSON"}
 
 
 def read(
@@ -24,7 +21,7 @@ def read(
     force_2d=False,
     skip_features=0,
     max_features=None,
-    where=None
+    where=None,
 ):
     """Read OGR data source.
 
@@ -90,7 +87,7 @@ def read(
         force_2d=force_2d,
         skip_features=skip_features,
         max_features=max_features or 0,
-        where=where
+        where=where,
     )
 
 
@@ -105,7 +102,7 @@ def write(
     geometry_type=None,
     crs=None,
     encoding=None,
-    **kwargs
+    **kwargs,
 ):
 
     if geometry_type is None:
@@ -115,12 +112,16 @@ def write(
         # try to infer driver from path
         parts = os.path.splitext(path)
         if len(parts) != 2:
-            raise ValueError(f"Could not infer driver from path: {path}; please specify driver explicitly")
+            raise ValueError(
+                f"Could not infer driver from path: {path}; please specify driver explicitly"
+            )
 
         ext = parts[1].lower()
         driver = DRIVERS.get(ext, None)
         if driver is None:
-            raise ValueError(f"Could not infer driver from path: {path}; please specify driver explicitly")
+            raise ValueError(
+                f"Could not infer driver from path: {path}; please specify driver explicitly"
+            )
 
     if crs is None:
         warnings.warn(
@@ -139,5 +140,5 @@ def write(
         fields=fields,
         crs=crs,
         encoding=encoding,
-        **kwargs
+        **kwargs,
     )

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import platform
 import shutil
 import subprocess
 import sys
@@ -76,7 +77,7 @@ else:
                 ext_options["extra_link_args"].append(entry)
 
     except Exception as e:
-        if sys.platform == "win32":
+        if platform.system() == "Windows":
             # try to get GDAL version from command line
             # Note: additional command-line parameters required to point to GDAL
             if not "GDAL_VERSION":
@@ -97,7 +98,6 @@ else:
     if not GDAL_VERSION > MIN_GDAL_VERSION:
         sys.exit("GDAL must be >= 2.4.x")
 
-
     ext_modules = cythonize(
         [
             Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
@@ -114,6 +114,7 @@ else:
         def run(self):
             try:
                 import numpy
+
                 self.include_dirs.append(numpy.get_include())
                 # Call original build_ext command
                 _build_ext.run(self)
@@ -143,7 +144,7 @@ setup(
         "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
         "benchmark": ["pytest-benchmark"],
-        "geopandas": ["pygeos", "geopandas"]
+        "geopandas": ["pygeos", "geopandas"],
     },
     include_package_data=True,
     cmdclass=cmdclass,
