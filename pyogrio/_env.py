@@ -13,8 +13,9 @@ gdal_dll_dir = None
 
 
 if platform.system() == "Windows" and sys.version_info >= (3, 8):
-    # if loading of extension modules fails, search for gdal dll directory
+
     print("attempting to load module, gdal_dll_dir:", gdal_dll_dir)
+    # if loading of extension modules fails, search for gdal dll directory
     try:
         import pyogrio._io
 

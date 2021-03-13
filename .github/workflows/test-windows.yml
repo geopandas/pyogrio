@@ -139,9 +139,9 @@ jobs:
           echo ""
           python tests/test_raw_io.py
           echo ""
-          python tests/test_geopandas.py
+          python tests/test_geopandas_io.py
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          python -m pytest -sv
+          python -m pytest -sv pyogrio/tests
