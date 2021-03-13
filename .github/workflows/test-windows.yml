@@ -80,6 +80,8 @@ jobs:
 
       - name: Install Python dependencies
         run: |
+          python -m pip freeze
+          echo ""
           python -m pip install -U pip wheel
           echo "Install Cython and numpy (build deps)"
           python -m pip install cython~=0.29 numpy~=1.19
@@ -135,13 +137,23 @@ jobs:
           echo "Manually execute test scripts to test imports"
           python tests/conftest.py
           echo ""
-          python tests/test_core.py
+          python pyogrio/tests/test_core.py
           echo ""
-          python tests/test_raw_io.py
+          python pyogrio/tests/test_raw_io.py
           echo ""
-          python tests/test_geopandas_io.py
+          python pyogrio/tests/test_geopandas_io.py
 
       - name: pytest
+        continue-on-error: true
+        run: |
+          python -m pytest -sv --import-mode=append pyogrio/tests
+
+      - name: pytest2
+        continue-on-error: true
+        run: |
+          python -m pytest -sv --import-mode=prepend pyogrio/tests
+
+      - name: pytest3
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          python -m pytest -sv pyogrio/tests
+          python -m pytest -sv --import-mode=importlib pyogrio/tests
