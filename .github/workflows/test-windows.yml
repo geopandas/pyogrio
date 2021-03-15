@@ -125,18 +125,18 @@ jobs:
           & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.28.29333\bin\HostX86\x64\dumpbin.exe" /IMPORTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
 
       - name: Check module status
-        continue-on-error: true
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           echo "Attempt to load pyogrio Cython module"
           python -c "from pyogrio._io import ogr_list_layers, ogr_read_info"
 
       - name: Win32 manual tests
-        continue-on-error: true
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           echo "Manually execute tests"
           python pyogrio/tests/win32.py
 
       - name: pytest
-        continue-on-error: ${{ matrix.allow_failure == 'true' }}
+        continue-on-error: true # currently always fails on windows due to corrupt environment
         run: |
           python -m pytest -sv pyogrio/tests
