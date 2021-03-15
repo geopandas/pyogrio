@@ -33,7 +33,7 @@ jobs:
             GDAL_VERSION: 3.2.1
             GIS_INTERNALS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2.zip
             GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2-libs.zip
-            allow_failure: true
+            allow_failure: false
 
     env:
       GDAL_VERSION: ${{ matrix.GDAL_VERSION }}
@@ -137,6 +137,6 @@ jobs:
           python pyogrio/tests/win32.py
 
       - name: pytest
-        continue-on-error: true # currently always fails on windows due to corrupt environment
+        continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           python -m pytest -sv pyogrio/tests
