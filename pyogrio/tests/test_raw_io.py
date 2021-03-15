@@ -1,6 +1,5 @@
 import json
 import os
-from pathlib import Path
 
 import numpy as np
 from numpy import array_equal
@@ -16,119 +15,30 @@ def test_read(naturalearth_lowres):
     assert meta["crs"] == "EPSG:4326"
     assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
-    assert meta["fields"].shape == (94,)
+    assert meta["fields"].shape == (5,)
 
     assert meta["fields"].tolist() == [
-        "featurecla",
-        "scalerank",
-        "LABELRANK",
-        "SOVEREIGNT",
-        "SOV_A3",
-        "ADM0_DIF",
-        "LEVEL",
-        "TYPE",
-        "ADMIN",
-        "ADM0_A3",
-        "GEOU_DIF",
-        "GEOUNIT",
-        "GU_A3",
-        "SU_DIF",
-        "SUBUNIT",
-        "SU_A3",
-        "BRK_DIFF",
-        "NAME",
-        "NAME_LONG",
-        "BRK_A3",
-        "BRK_NAME",
-        "BRK_GROUP",
-        "ABBREV",
-        "POSTAL",
-        "FORMAL_EN",
-        "FORMAL_FR",
-        "NAME_CIAWF",
-        "NOTE_ADM0",
-        "NOTE_BRK",
-        "NAME_SORT",
-        "NAME_ALT",
-        "MAPCOLOR7",
-        "MAPCOLOR8",
-        "MAPCOLOR9",
-        "MAPCOLOR13",
-        "POP_EST",
-        "POP_RANK",
-        "GDP_MD_EST",
-        "POP_YEAR",
-        "LASTCENSUS",
-        "GDP_YEAR",
-        "ECONOMY",
-        "INCOME_GRP",
-        "WIKIPEDIA",
-        "FIPS_10_",
-        "ISO_A2",
-        "ISO_A3",
-        "ISO_A3_EH",
-        "ISO_N3",
-        "UN_A3",
-        "WB_A2",
-        "WB_A3",
-        "WOE_ID",
-        "WOE_ID_EH",
-        "WOE_NOTE",
-        "ADM0_A3_IS",
-        "ADM0_A3_US",
-        "ADM0_A3_UN",
-        "ADM0_A3_WB",
-        "CONTINENT",
-        "REGION_UN",
-        "SUBREGION",
-        "REGION_WB",
-        "NAME_LEN",
-        "LONG_LEN",
-        "ABBREV_LEN",
-        "TINY",
-        "HOMEPART",
-        "MIN_ZOOM",
-        "MIN_LABEL",
-        "MAX_LABEL",
-        "NE_ID",
-        "WIKIDATAID",
-        "NAME_AR",
-        "NAME_BN",
-        "NAME_DE",
-        "NAME_EN",
-        "NAME_ES",
-        "NAME_FR",
-        "NAME_EL",
-        "NAME_HI",
-        "NAME_HU",
-        "NAME_ID",
-        "NAME_IT",
-        "NAME_JA",
-        "NAME_KO",
-        "NAME_NL",
-        "NAME_PL",
-        "NAME_PT",
-        "NAME_RU",
-        "NAME_SV",
-        "NAME_TR",
-        "NAME_VI",
-        "NAME_ZH",
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
     ]
 
-    assert len(fields) == 94
+    assert len(fields) == 5
     assert len(geometry) == len(fields[0])
 
     # quick test that WKB is a Polygon type
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
 
 
-def test_vsi_read_layers(naturalearth_modres_vsi):
+def test_vsi_read_layers(naturalearth_lowres_vsi):
     assert array_equal(
-        list_layers(naturalearth_modres_vsi), [["ne_10m_admin_0_countries", "Polygon"]]
+        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
     )
 
-    meta, geometry, fields = read(naturalearth_modres_vsi)
-    assert geometry.shape == (255,)
+    meta, geometry, fields = read(naturalearth_lowres_vsi)
+    assert geometry.shape == (177,)
 
 
 def test_read_no_geometry(naturalearth_lowres):
@@ -185,27 +95,28 @@ def test_read_where(naturalearth_lowres):
     # empty filter should return full set of records
     geometry, fields = read(naturalearth_lowres, where="")[1:]
     assert len(geometry) == 177
-    assert len(fields) == 94
+    assert len(fields) == 5
     assert len(fields[0]) == 177
 
     # should return singular item
-    geometry, fields = read(naturalearth_lowres, where="ISO_A3 = 'CAN'")[1:]
+    geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'CAN'")[1:]
     assert len(geometry) == 1
-    assert len(fields) == 94
+    assert len(fields) == 5
     assert len(fields[0]) == 1
-    assert fields[4] == "CAN"
+    assert fields[3] == "CAN"
 
     # should return items within range
     geometry, fields = read(
         naturalearth_lowres, where="POP_EST >= 10000000 AND POP_EST < 100000000"
     )[1:]
     assert len(geometry) == 75
-    assert min(fields[35]) >= 10000000
-    assert max(fields[35]) < 100000000
+    assert min(fields[0]) >= 10000000
+    assert max(fields[0]) < 100000000
 
     # should match no items
-    geometry, fields = read(naturalearth_lowres, where="ISO_A3 = 'INVALID'")[1:]
-    assert len(geometry) == 0
+    with pytest.warns(UserWarning, match="does not have any features to read") as w:
+        geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'INVALID'")[1:]
+        assert len(geometry) == 0
 
 
 def test_read_where_invalid(naturalearth_lowres):

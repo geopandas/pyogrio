@@ -1,7 +1,6 @@
 import os
 
-from pyproj.enums import WktVersion
-
+from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
 
@@ -14,7 +13,7 @@ def read_dataframe(
     force_2d=False,
     skip_features=0,
     max_features=None,
-    where=None
+    where=None,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or `read_geometry` is False,
@@ -62,9 +61,10 @@ def read_dataframe(
     GeoDataFrame or DataFrame (if no geometry is present)
     """
     try:
-        import pandas as pd
-        import geopandas as gp
-        from geopandas.array import from_wkb
+        with GDALEnv():
+            import pandas as pd
+            import geopandas as gp
+            from geopandas.array import from_wkb
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
@@ -84,7 +84,7 @@ def read_dataframe(
         force_2d=force_2d,
         skip_features=skip_features,
         max_features=max_features,
-        where=where
+        where=where,
     )
 
     columns = meta["fields"].tolist()
@@ -100,11 +100,17 @@ def read_dataframe(
 
 
 # TODO: handle index properly
-def write_dataframe(
-    df, path, layer=None, driver=None, encoding=None, **kwargs
-):
-    import geopandas as gp
-    from geopandas.array import to_wkb
+def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
+    try:
+        with GDALEnv():
+            import geopandas as gp
+            from geopandas.array import to_wkb
+
+            # if geopandas is available so is pyproj
+            from pyproj.enums import WktVersion
+
+    except ImportError:
+        raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
     path = str(path)
 

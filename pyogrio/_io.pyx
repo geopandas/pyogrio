@@ -377,6 +377,10 @@ cdef get_features(
     OGR_L_ResetReading(ogr_layer)
 
     count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if count < 0:
+        # sometimes this comes back as -1 if there is an error with the where clause, etc
+        count = 0
+
     if skip_features > 0:
         count = count - skip_features
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
@@ -536,12 +540,16 @@ def ogr_read(
         where_b = where.encode('utf-8')
         where_c = where_b
         err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+        # WARNING: GDAL does not raise this error for GPKG but instead only
+        # logs to stderr
         if err != OGRERR_NONE:
             raise ValueError(f"Invalid SQL query for layer '{layer}': {where}")
 
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if feature_count == 0:
+    if feature_count <= 0:
+        # the count comes back as -1 if the where clause above is invalid but not rejected as error
         warnings.warn(f"Layer '{layer}' in dataset at '{path}' does not have any features to read")
+        feature_count = 0
         skip_features = 0
         max_features = 0
 

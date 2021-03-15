@@ -2,14 +2,18 @@
 *.pyc
 *.pyd
 *.so
+*.dll
 
 */__pycache__/*
 build/*
 *.egg-info/*
 .benchmarks/*
+.coverage
 .pytest_cache/*
 pip-wheel-metadata/*
 
 Pipfile.lock
 
-tests/fixtures/
+benchmarks/fixtures/*
+
+.libs
