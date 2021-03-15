@@ -133,17 +133,11 @@ jobs:
           echo "Attempt to load pyogrio Cython module"
           python -c "from pyogrio._io import ogr_list_layers, ogr_read_info"
 
-      - name: Test dep imports in test
+      - name: Win32 manual tests
         continue-on-error: true
         run: |
-          echo "Manually execute test scripts to test imports"
-          python tests/conftest.py
-          echo ""
-          python pyogrio/tests/test_core.py
-          echo ""
-          python pyogrio/tests/test_raw_io.py
-          echo ""
-          python pyogrio/tests/test_geopandas_io.py
+          echo "Manually execute tests"
+          python pyogrio/tests/win32.py
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
