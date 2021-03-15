@@ -33,7 +33,7 @@ jobs:
             GDAL_VERSION: 3.2.1
             GIS_INTERNALS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2.zip
             GIS_INTERNALS_LIBS: release-1911-x64-gdal-3-2-1-mapserver-7-6-2-libs.zip
-            allow_failure: false
+            allow_failure: true
 
     env:
       GDAL_VERSION: ${{ matrix.GDAL_VERSION }}
@@ -41,7 +41,6 @@ jobs:
       GIS_INTERNALS_LIBS: ${{ matrix.GIS_INTERNALS_LIBS }}
       GDAL_DATA: "C:\\gdal\\bin\\gdal-data"
       PROJ_LIB: "C:\\gdal\\bin\\proj6\\share"
-      PYTHONFAULTHANDLER: "true"
 
     steps:
       - uses: actions/checkout@v2
@@ -136,11 +135,6 @@ jobs:
         run: |
           echo "Manually execute tests"
           python pyogrio/tests/win32.py
-
-      - name: pytest (not module)
-        continue-on-error: true
-        run: |
-          pytest -sv pyogrio/tests
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
