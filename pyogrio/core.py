@@ -3,8 +3,6 @@ from pyogrio._env import GDALEnv
 with GDALEnv():
     from pyogrio._io import ogr_list_layers, ogr_read_info
 
-    print("Successfully imported pyogrio._io in core.py")
-
 
 def list_layers(path):
     """List layers available in an OGR data source.
