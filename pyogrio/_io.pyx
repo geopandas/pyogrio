@@ -41,8 +41,6 @@ cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
 ### Drivers
 # driver:mode
 # minimally ported from fiona::drvsupport.py
-# TODO: port drivers from fiona::drvsupport.py
-# TODO: port drivers from fiona::drvsupport.py
 DRIVERS = {
     "ESRI Shapefile": "raw",
     "GeoJSON": "raw",
@@ -1040,7 +1038,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
         # TODO: periodically commit the transaction while creating features above
 
-    print(f"Created {num_records} records" )
+    print(f"Created {num_records:,} records" )
 
 
 

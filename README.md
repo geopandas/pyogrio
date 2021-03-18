@@ -8,32 +8,96 @@ data sources, such as ESRI Shapefile, GeoPackage, and GeoJSON. This converts to
 
 WARNING: this is an early version and the API is subject to substantial change.
 
-### Comparison to Fiona
-
-[`Fiona`](https://github.com/Toblerity/Fiona) is a full-featured Python library
-for working with OGR vector data sources. It is **awesome**, has highly-dedicated
-maintainers and contributors, and exposes more functionality than `pyogrio` ever will.
-This project would not be possible without `Fiona` having come first.
-
-`pyogrio` is an experimental approach that uses a vectorized (array-oriented)
-approach for reading and writing spatial vector file formats, which enables faster
-I/O operations. It borrows from the internal mechanics and lessons learned of
-`Fiona`.
-
-`Fiona` is a general purpose spatial format I/O library that is used within many
-projects in the Python ecosystem. In contrast, `pyogrio` specifically targets
-`GeoPandas` as an attempt to reduce the number of data transformations currently
-required to read / write data between `GeoPandas` `GeoDataFrame`s and spatial
-file formats using `Fiona` (the current default in GeoPandas).
-
 ## Requirements
 
-Supports Python 3.8 and GDAL 2.4.x
-(versions of GDAL > 2.4.x may work, prior versions will not be supported)
+Supports Python 3.6 - 3.9 and GDAL 2.4.x - 3.2.x
+(prior versions will not be supported)
 
-Requires GeoPandas >= 0.8 with `pygeos` enabled.
+Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
 
-We plan to support newer versions of GDAL in future releases.
+## Installation
+
+### Conda-forge
+
+This package is available on [conda-forge](https://anaconda.org/conda-forge/pyogrio)
+for Linux and MacOS. Windows is not yet supported.
+
+```bash
+conda install -c conda-forge pyogrio
+```
+
+This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
+raw I/O support and `geopandas`, `pygeos` and their dependencies for GeoDataFrame
+I/O support.
+
+### PyPi
+
+This package is not yet available on PyPi because it involves compiled binary
+dependencies. We are planning to release this package on PyPi for Linux and MacOS.
+We are unlikely to release Windows packages on PyPi in the near future due to
+the complexity of packaging binary packages for Windows.
+
+### Common installation errors
+
+A driver error resulting from a `NULL` pointer exception like this:
+
+```
+pyogrio._err.NullPointerError: NULL pointer error
+
+During handling of the above exception, another exception occurred:
+...
+pyogrio.errors.DriverError: Data source driver could not be created: GPKG
+```
+
+Is likely the result of a collision in underlying GDAL versions between `fiona`
+(included in `geopandas`) and the GDAL version needed here. To get around it,
+uninstall `fiona` then reinstall to use system GDAL:
+
+```bash
+pip uninstall fiona
+pip install fiona --no-binary fiona
+```
+
+Then restart your interpreter.
+
+## Development
+
+Clone this repository to a local folder.
+
+Install an appropriate distribution of GDAL for your system. `gdal-config` must
+be on your system path.
+
+Building `pyogrio` requires requires `Cython`, `numpy`, and `pandas`.
+
+Run `python setup.py develop` to build the extensions in Cython.
+
+Tests are run using `pytest`:
+
+```bash
+pytest pyogrio/tests
+```
+
+### Windows
+
+Install GDAL from an appropriate provider of Windows binaries. We've heard that
+the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
+
+To build on Windows, you need to provide additional command-line parameters
+because the location of the GDAL binaries and headers cannot be automatically
+determined.
+
+Assuming GDAL is installed to `c:\GDAL`, you can build as follows:
+
+```bash
+python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
+```
+
+The location of the GDAL DLLs must be on your system `PATH`.
+
+Also see `.github/test-windows.yml` for additional ideas if you run into problems.
+
+Windows is minimally tested; we are currently unable to get automated tests
+working on our Windows CI.
 
 ## Supported vector formats:
 
@@ -136,6 +200,8 @@ the first layer unless `layer` is specified using layer name or index.
 254  Admin-0 country  ...  POLYGON ((117.75389 15.15437, 117.75569 15.151...
 ```
 
+#### Subsets
+
 You can read a subset of columns by including the `columns` parameter. This
 only affects non-geometry columns:
 
@@ -154,40 +220,6 @@ only affects non-geometry columns:
 253    -99  POLYGON ((-78.63707 15.86209, -78.64041 15.864...
 254    -99  POLYGON ((117.75389 15.15437, 117.75569 15.151...
 ```
-
-You can omit the geometry from a spatial data layer by setting `read_geometry`
-to `False`:
-
-```python
-> read_dataframe('ne_10m_admin_0_countries.shp', columns=['ISO_A3'], read_geometry=False)
-    ISO_A3
-0      IDN
-1      MYS
-2      CHL
-3      BOL
-4      PER
-..     ...
-250    MAC
-251    -99
-252    -99
-253    -99
-```
-
-You can force a 3D dataset to 2D using `force_2d`:
-
-```python
-> df = read_dataframe('has_3d.shp')
-> df.iloc[0].geometry.has_z
-True
-
-> df = read_dataframe('has_3d.shp', force_2d=True)
-> df.iloc[0].geometry.has_z
-False
-```
-
-Any read operation which does not include a geometry column, either by reading
-from a nonspatial data layer or by omitting the geometry column above, returns
-a `Pandas` `DataFrame`.
 
 You can read a subset of features using `skip_features` and `max_features`.
 
@@ -213,6 +245,53 @@ processes:
 read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10, max_features=10)
 ```
 
+### Filtering records
+
+You can use the `where` parameter to define a GDAL SQL-compatible query against
+the records in the dataset:
+
+```python
+read_dataframe('ne_10m_admin_0_countries.shp', where="POP_EST >= 10000000 AND POP_EST < 100000000")
+```
+
+### Ignoring geometry
+
+You can omit the geometry from a spatial data layer by setting `read_geometry`
+to `False`:
+
+```python
+> read_dataframe('ne_10m_admin_0_countries.shp', columns=['ISO_A3'], read_geometry=False)
+    ISO_A3
+0      IDN
+1      MYS
+2      CHL
+3      BOL
+4      PER
+..     ...
+250    MAC
+251    -99
+252    -99
+253    -99
+```
+
+Any read operation which does not include a geometry column, either by reading
+from a nonspatial data layer or by omitting the geometry column above, returns
+a `Pandas` `DataFrame`.
+
+### Forcing 2D
+
+You can force a 3D dataset to 2D using `force_2d`:
+
+```python
+> df = read_dataframe('has_3d.shp')
+> df.iloc[0].geometry.has_z
+True
+
+> df = read_dataframe('has_3d.shp', force_2d=True)
+> df.iloc[0].geometry.has_z
+False
+```
+
 #### Null values
 
 Some data sources support NULL or otherwise unset field values. These cannot be properly
@@ -234,6 +313,12 @@ writing (above):
 > from pyogrio import write_dataframe
 > write_dataframe(df, '/tmp/test.shp', driver="GPKG")
 ```
+
+The appropriate driver is also inferred automatically (where possible) from the
+extension of the filename:
+`.shp`: `ESRI Shapefile`
+`.gpkg`: `GPKG`
+`.json`: `GeoJSON`
 
 ### Raw numpy-oriented I/O
 
@@ -258,9 +343,6 @@ error messages.
 Date fields are not currently supported properly. These will be supported in
 a future release.
 
-The entire `GeoDataFrame` is written at once. Incremental writes or appends to
-existing data sources are not supported.
-
 ## How it works
 
 `pyogrio` internally uses a numpy-oriented approach in Cython to read
@@ -273,37 +355,26 @@ All records are read into memory, which may be problematic for very large data
 sources. You can use `skip_features` / `max_features` to read smaller parts of
 the file at a time.
 
-## Installation / development
+The entire `GeoDataFrame` is written at once. Incremental writes or appends to
+existing data sources are not supported.
 
-Clone this repository to a local folder.
+## Comparison to Fiona
 
-Right now, this requires system GDAL 2.4. See `install_extras` in the `setup.py`
-for additional dependencies.
+[`Fiona`](https://github.com/Toblerity/Fiona) is a full-featured Python library
+for working with OGR vector data sources. It is **awesome**, has highly-dedicated
+maintainers and contributors, and exposes more functionality than `pyogrio` ever will.
+This project would not be possible without `Fiona` having come first.
 
-Run `python setup.py develop` to build the extensions in Cython.
+`pyogrio` is an experimental approach that uses a vectorized (array-oriented)
+approach for reading and writing spatial vector file formats, which enables faster
+I/O operations. It borrows from the internal mechanics and lessons learned of
+`Fiona`.
 
-## Common errors
-
-A driver error resulting from a `NULL` pointer exception like this:
-
-```
-pyogrio._err.NullPointerError: NULL pointer error
-
-During handling of the above exception, another exception occurred:
-...
-pyogrio.errors.DriverError: Data source driver could not be created: GPKG
-```
-
-Is likely the result of a collision in underlying GDAL versions between `fiona`
-(included in `geopandas`) and the GDAL version needed here. To get around it,
-uninstall `fiona` then reinstall to use system GDAL:
-
-```
-pip uninstall fiona
-pip install fiona --no-binary fiona
-```
-
-Then restart your interpreter.
+`Fiona` is a general purpose spatial format I/O library that is used within many
+projects in the Python ecosystem. In contrast, `pyogrio` specifically targets
+`GeoPandas` as an attempt to reduce the number of data transformations currently
+required to read / write data between `GeoPandas` `GeoDataFrame`s and spatial
+file formats using `Fiona` (the current default in GeoPandas).
 
 ## Credits
 

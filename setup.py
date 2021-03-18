@@ -139,7 +139,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
     python_requires=">=3.6",
-    install_requires=["numpy", "pandas"],
+    install_requires=["numpy"],
     extras_require={
         "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
