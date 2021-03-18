@@ -247,12 +247,15 @@ read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10, max_features=10
 
 ### Filtering records
 
-You can use the `where` parameter to define a GDAL SQL-compatible query against
+You can use the `where` parameter to define a GDAL-compatible SQL WHERE query against
 the records in the dataset:
 
 ```python
 read_dataframe('ne_10m_admin_0_countries.shp', where="POP_EST >= 10000000 AND POP_EST < 100000000")
 ```
+
+See [GDAL docs](https://gdal.org/api/vector_c_api.html#_CPPv424OGR_L_SetAttributeFilter9OGRLayerHPKc)
+for more information about restrictions of the `where` expression.
 
 ### Ignoring geometry
 
@@ -368,7 +371,8 @@ This project would not be possible without `Fiona` having come first.
 `pyogrio` is an experimental approach that uses a vectorized (array-oriented)
 approach for reading and writing spatial vector file formats, which enables faster
 I/O operations. It borrows from the internal mechanics and lessons learned of
-`Fiona`.
+`Fiona`. It uses a stateless approach to reading or writing data; all data
+are read or written in a single pass.
 
 `Fiona` is a general purpose spatial format I/O library that is used within many
 projects in the Python ecosystem. In contrast, `pyogrio` specifically targets
@@ -378,7 +382,8 @@ file formats using `Fiona` (the current default in GeoPandas).
 
 ## Credits
 
--   Adapted from [fiona](https://github.com/Toblerity/Fiona)
--   Inspired by [fiona PR](https://github.com/Toblerity/Fiona/pull/540/files)
+This project is made possible by the tremendous efforts of the GDAL, Fiona, and
+Geopandas communities.
 
-Right now, this borrows heavily from implementations in Fiona.
+-   Core I/O methods and supporting functions adapted from [Fiona](https://github.com/Toblerity/Fiona)
+-   Inspired by [Fiona PR](https://github.com/Toblerity/Fiona/pull/540/files)
