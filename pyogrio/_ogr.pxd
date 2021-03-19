@@ -228,6 +228,7 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_SetAttributeFilter(OGRLayerH hLayer, const char* pszQuery)
     OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
     int                     OGR_L_GetFeatureCount(OGRLayerH layer, int m)
+    void                    OGR_L_SetSpatialFilterRect(OGRLayerH layer, double xmin, double ymin, double xmax, double ymax)
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()

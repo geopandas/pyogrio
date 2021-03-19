@@ -20,6 +20,7 @@ def read(
     skip_features=0,
     max_features=None,
     where=None,
+    bbox=None,
 ):
     """Read OGR data source.
 
@@ -59,6 +60,9 @@ def read(
         restricted form of SQL WHERE clause, defined here:
         http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
         Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+    bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
+        If present, will be used to filter records whose geometry intersects this
+        box.  This must be in the same CRS as the dataset.
 
     Returns
     -------
@@ -86,6 +90,7 @@ def read(
         skip_features=skip_features,
         max_features=max_features or 0,
         where=where,
+        bbox=bbox,
     )
 
 

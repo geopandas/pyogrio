@@ -11,6 +11,8 @@
 -   Addition of `force_2d` parameter to `read` and `read_dataframe` to force
     coordinates to always be returned as 2 dimensional, dropping the 3rd dimension
     if present.
+-   Addition of `bbox` parameter to `read` and `read_dataframe` to select only
+    the features in the dataset that intersect the bbox.
 
 ## 0.1.0
 

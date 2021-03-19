@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 import pytest
@@ -9,6 +11,7 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 try:
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
+
     has_geopandas = True
 except ImportError:
     has_geopandas = False
@@ -123,6 +126,23 @@ def test_read_where(naturalearth_lowres):
 def test_read_where_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="Invalid SQL"):
         read_dataframe(naturalearth_lowres, where="invalid")
+
+
+@pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
+def test_read_bbox_invalid(naturalearth_lowres, bbox):
+    with pytest.raises(ValueError, match="Invalid bbox"):
+        read_dataframe(naturalearth_lowres, bbox=bbox)
+
+
+def test_read_bbox(naturalearth_lowres):
+    # should return no features
+    with pytest.warns(UserWarning, match="does not have any features to read"):
+        df = read_dataframe(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))
+        assert len(df) == 0
+
+    df = read_dataframe(naturalearth_lowres, bbox=(-140, 20, -100, 40))
+    assert len(df) == 2
+    assert np.array_equal(df.iso_a3, ["USA", "MEX"])
 
 
 @pytest.mark.parametrize(

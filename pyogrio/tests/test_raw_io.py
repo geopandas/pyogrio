@@ -114,7 +114,7 @@ def test_read_where(naturalearth_lowres):
     assert max(fields[0]) < 100000000
 
     # should match no items
-    with pytest.warns(UserWarning, match="does not have any features to read") as w:
+    with pytest.warns(UserWarning, match="does not have any features to read"):
         geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'INVALID'")[1:]
         assert len(geometry) == 0
 
@@ -122,6 +122,25 @@ def test_read_where(naturalearth_lowres):
 def test_read_where_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="Invalid SQL"):
         read(naturalearth_lowres, where="invalid")
+
+
+@pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
+def test_read_bbox_invalid(naturalearth_lowres, bbox):
+    with pytest.raises(ValueError, match="Invalid bbox"):
+        read(naturalearth_lowres, bbox=bbox)
+
+
+def test_read_bbox(naturalearth_lowres):
+    # should return no features
+    with pytest.warns(UserWarning, match="does not have any features to read"):
+        geometry, fields = read(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))[1:]
+
+    assert len(geometry) == 0
+
+    geometry, fields = read(naturalearth_lowres, bbox=(-140, 20, -100, 40))[1:]
+
+    assert len(geometry) == 2
+    assert np.array_equal(fields[3], ["USA", "MEX"])
 
 
 def test_write(tmpdir, naturalearth_lowres):

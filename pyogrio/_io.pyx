@@ -502,6 +502,7 @@ def ogr_read(
     int skip_features=0,
     int max_features=0,
     object where=None,
+    tuple bbox=None,
     **kwargs):
 
     cdef int err = 0
@@ -510,6 +511,7 @@ def ogr_read(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
+    cdef double xmin, ymin, xmax, ymax
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -541,6 +543,15 @@ def ogr_read(
         # logs to stderr
         if err != OGRERR_NONE:
             raise ValueError(f"Invalid SQL query for layer '{layer}': {where}")
+
+    # Apply the spatial filter
+    if bbox is not None:
+        if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
+            raise ValueError(f"Invalid bbox: {bbox}")
+
+        xmin, ymin, xmax, ymax = bbox
+        OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
+
 
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
     if feature_count <= 0:

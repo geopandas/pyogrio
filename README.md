@@ -245,7 +245,7 @@ processes:
 read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10, max_features=10)
 ```
 
-### Filtering records
+### Filtering records by attribute value
 
 You can use the `where` parameter to define a GDAL-compatible SQL WHERE query against
 the records in the dataset:
@@ -256,6 +256,17 @@ read_dataframe('ne_10m_admin_0_countries.shp', where="POP_EST >= 10000000 AND PO
 
 See [GDAL docs](https://gdal.org/api/vector_c_api.html#_CPPv424OGR_L_SetAttributeFilter9OGRLayerHPKc)
 for more information about restrictions of the `where` expression.
+
+### Filtering records by spatial extent
+
+You can use the `bbox` parameter to select only those features that intersect
+with the bbox.
+
+```python
+read_dataframe('ne_10m_admin_0_countries.shp', bbox=(-140, 20, -100, 40))
+```
+
+Note: the `bbox` values must be in the same CRS as the dataset.
 
 ### Ignoring geometry
 
