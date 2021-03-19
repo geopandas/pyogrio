@@ -480,9 +480,7 @@ cdef get_features(
 
             isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
             if isnull:
-                # print('field is unset / null', field_type, field_index)
                 if field_type in (OFTInteger, OFTInteger64, OFTReal):
-                    # print('dtype', data.dtype)
                     if data.dtype in (np.int32, np.int64):
                         # have to cast to float to hold NaN values
                         field_data[j] = field_data[j].astype(np.float64)

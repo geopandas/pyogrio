@@ -361,6 +361,30 @@ WKB geometries and field values outside of a `GeoDataFrame`.
 
 NOTE: this may be migrated to an internal API in a future release.
 
+## Limitations
+
+### Measured geometries
+
+Measured geometry types are not supported for reading or writing. These are not
+supported by the GEOS library and cannot be converted to geometry objects in
+GeoDataFrames.
+
+These are automatically downgraded to their 2.5D (x,y, single z) equivalent and
+a warning is raised.
+
+To ignore this warning:
+
+```python
+import warnings
+warnings.filterwarnings("ignore", message=".*Measured \(M\) geometry types are not supported.*")
+```
+
+### Curvilinear, triangle, TIN, and surface geometries
+
+These geometry types are not currently supported. These are automatically
+converted to their linear approximation when reading geometries from the data
+layer.
+
 ## Known issues
 
 `pyogrio` supports reading / writing data layers with a defined encoding. However,
