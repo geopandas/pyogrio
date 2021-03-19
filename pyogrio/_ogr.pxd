@@ -7,6 +7,9 @@ cdef extern from "cpl_conv.h":
     void*   CPLMalloc(size_t)
     void    CPLFree(void *ptr)
 
+    const char* CPLGetConfigOption(const char* key, const char* value)
+    void        CPLSetConfigOption(const char* key, const char* value)
+
 
 cdef extern from "cpl_error.h":
     ctypedef enum CPLErr:

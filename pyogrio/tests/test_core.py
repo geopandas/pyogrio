@@ -1,7 +1,12 @@
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, read_info
+from pyogrio import (
+    list_layers,
+    read_info,
+    set_gdal_config_options,
+    get_gdal_config_option,
+)
 
 
 def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi):
@@ -37,3 +42,26 @@ def test_read_info(naturalearth_lowres):
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
     assert meta["features"] == 177
+
+
+@pytest.mark.parametrize(
+    "name,value,expected",
+    [
+        ("CPL_DEBUG", "ON", True),
+        ("CPL_DEBUG", True, True),
+        ("CPL_DEBUG", "OFF", False),
+        ("CPL_DEBUG", False, False),
+    ],
+)
+def test_set_config_options(name, value, expected):
+    set_gdal_config_options({name: value})
+    actual = get_gdal_config_option(name)
+    assert actual == expected
+
+
+def test_reset_config_options():
+    set_gdal_config_options({"foo": "bar"})
+    assert get_gdal_config_option("foo") == b"bar"
+
+    set_gdal_config_options({"foo": None})
+    assert get_gdal_config_option("foo") is None

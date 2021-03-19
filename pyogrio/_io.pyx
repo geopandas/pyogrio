@@ -126,12 +126,52 @@ cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
 
     return 0
 
+
 cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
     cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
     if err == OGRERR_FAILURE:
         raise TransactionError("Failed to rollback transaction")
 
     return 0
+
+
+cpdef set_gdal_config_options(dict options):
+    for name, value in options.items():
+        name_b = name.encode('utf-8')
+        name_c = name_b
+
+        # None is a special case; this is used to clear the previous value
+        if value is None:
+            CPLSetConfigOption(<const char*>name_c, NULL)
+            continue
+
+        # normalize bool to ON/OFF
+        if isinstance(value, bool):
+            value_b = b'ON' if value else b'OFF'
+        else:
+            value_b = str(value).encode('utf-8')
+
+        value_c = value_b
+        CPLSetConfigOption(<const char*>name_c, <const char*>value_c)
+
+
+cpdef get_gdal_config_option(str name):
+    name_b = name.encode('utf-8')
+    name_c = name_b
+    value = CPLGetConfigOption(<const char*>name_c, NULL)
+
+    if not value:
+        return None
+
+    if value.isdigit():
+        return int(value)
+
+    if value == b'ON':
+        return True
+    if value == b'OFF':
+        return False
+
+    return value
 
 
 # ported from fiona::_shim22.pyx::gdal_open_vector

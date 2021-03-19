@@ -60,7 +60,7 @@ def read(
         restricted form of SQL WHERE clause, defined here:
         http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
         Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
-    bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
+    bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.
 

@@ -1,6 +1,6 @@
 # pyogrio - Vectorized spatial vector file format I/O using GDAL/OGR
 
-This provides an _experimental_
+This provides a
 [GeoPandas](https://github.com/geopandas/geopandas)-oriented API to OGR vector
 data sources, such as ESRI Shapefile, GeoPackage, and GeoJSON. This converts to
 / from `GeoPandas` `GeoDataFrame`s when the data source includes geometry and `Pandas`
@@ -333,6 +333,16 @@ extension of the filename:
 `.shp`: `ESRI Shapefile`
 `.gpkg`: `GPKG`
 `.json`: `GeoJSON`
+
+### Configuration options
+
+It is possible to set [GDAL configuration options](https://trac.osgeo.org/gdal/wiki/ConfigOptions) for an entire session:
+
+```python
+set_gdal_config_options({"CPL_DEBUG": True})
+```
+
+`True` / `False` values are automatically converted to `'ON'` / `'OFF'`.
 
 ### Raw numpy-oriented I/O
 

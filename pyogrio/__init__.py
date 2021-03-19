@@ -1,4 +1,9 @@
-from pyogrio.core import list_layers, read_info
+from pyogrio.core import (
+    list_layers,
+    read_info,
+    set_gdal_config_options,
+    get_gdal_config_option,
+)
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio._version import get_versions
 

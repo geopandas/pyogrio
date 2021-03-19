@@ -1,7 +1,12 @@
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
-    from pyogrio._io import ogr_list_layers, ogr_read_info
+    from pyogrio._io import (
+        ogr_list_layers,
+        ogr_read_info,
+        set_gdal_config_options as _set_gdal_config_options,
+        get_gdal_config_option as _get_gdal_config_option,
+    )
 
 
 def list_layers(path):
@@ -51,3 +56,42 @@ def read_info(path, layer=None, encoding=None):
         }
     """
     return ogr_read_info(str(path), layer=layer, encoding=encoding)
+
+
+def set_gdal_config_options(options):
+    """Set GDAL configuration options.
+
+    Options are listed here: https://trac.osgeo.org/gdal/wiki/ConfigOptions
+
+    No error is raised if invalid option names are provided.
+
+    These options are applied for an entire session rather than for individual
+    functions.
+
+    Parameters
+    ----------
+    options : dict
+        If present, provides a mapping of option name / value pairs for GDAL
+        configuration options.  True / False are normalized to 'ON' / 'OFF'.
+        A value of None for a config option can be used to clear out a previously
+        set value.
+    """
+
+    _set_gdal_config_options(options)
+
+
+def get_gdal_config_option(name):
+    """Get the value for a GDAL configuration option.
+
+    Parameters
+    ----------
+    name : str
+        name of the option to retrive
+
+    Returns
+    -------
+    value of the option or None if not set
+        'ON' / 'OFF' are normalized to True / False.
+    """
+
+    return _get_gdal_config_option(name)

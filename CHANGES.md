@@ -13,6 +13,8 @@
     if present.
 -   Addition of `bbox` parameter to `read` and `read_dataframe` to select only
     the features in the dataset that intersect the bbox.
+-   Addition of `set_gdal_config_options` to set GDAL configuration options and
+    `get_gdal_config_option` to get a GDAL configuration option.
 
 ## 0.1.0
 
