@@ -1,13 +1,12 @@
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
 """IO support for OGR vector data sources
 
 TODO:
 * better handling of drivers
 * better handling of encoding
-* select fields
 * handle FID / OBJECTID
 """
-
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 
 import datetime
@@ -94,8 +93,6 @@ DTYPE_OGR_FIELD_TYPES = {
 }
 
 
-
-
 def get_string(char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *
 
@@ -114,7 +111,7 @@ def get_string(char *c_str, str encoding="UTF-8"):
     return py_str.decode(encoding)
 
 
-cdef int start_transaction(void *ogr_dataset, int force) except 1:
+cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
     cdef int err = GDALDatasetStartTransaction(ogr_dataset, force)
     if err == OGRERR_FAILURE:
         raise TransactionError("Failed to start transaction")
@@ -122,14 +119,14 @@ cdef int start_transaction(void *ogr_dataset, int force) except 1:
     return 0
 
 
-cdef int commit_transaction(void *ogr_dataset) except 1:
+cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
     cdef int err = GDALDatasetCommitTransaction(ogr_dataset)
     if err == OGRERR_FAILURE:
         raise TransactionError("Failed to commit transaction")
 
     return 0
 
-cdef int rollback_transaction(void *ogr_dataset) except 1:
+cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
     cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
     if err == OGRERR_FAILURE:
         raise TransactionError("Failed to rollback transaction")
@@ -187,7 +184,7 @@ cdef void* ogr_open(const char* path_c, int mode, drivers, options) except NULL:
         CSLDestroy(open_opts)
 
 
-cdef void* get_ogr_layer(void * ogr_dataset, layer):
+cdef OGRLayerH get_ogr_layer(void * ogr_dataset, layer):
     """Open OGR layer by index or name.
 
     Parameters
@@ -200,6 +197,8 @@ cdef void* get_ogr_layer(void * ogr_dataset, layer):
     -------
     pointer to OGR layer
     """
+    cdef OGRLayerH ogr_layer = NULL
+
     if isinstance(layer, str):
         name_b = layer.encode('utf-8')
         name_c = name_b
@@ -214,7 +213,7 @@ cdef void* get_ogr_layer(void * ogr_dataset, layer):
     return ogr_layer
 
 
-cdef get_crs(void *ogr_layer):
+cdef str get_crs(OGRLayerH ogr_layer):
     """Read CRS from layer as EPSG:<code> if available or WKT.
 
     Parameters
@@ -263,7 +262,7 @@ cdef get_crs(void *ogr_layer):
         return wkt
 
 
-cdef detect_encoding(void *ogr_dataset, void *ogr_layer):
+cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """Attempt to detect the encoding of the layer.
     If it supports UTF-8, use that.
     If it is a shapefile, it must otherwise be ISO-8859-1.
@@ -290,7 +289,7 @@ cdef detect_encoding(void *ogr_dataset, void *ogr_layer):
     return None
 
 
-cdef get_fields(void *ogr_layer, str encoding):
+cdef get_fields(OGRLayerH ogr_layer, str encoding):
     """Get field names and types for layer.
 
     Parameters
@@ -306,8 +305,8 @@ cdef get_fields(void *ogr_layer, str encoding):
     """
     cdef int i
     cdef int field_count
-    cdef void *ogr_featuredef = NULL
-    cdef void *ogr_fielddef = NULL
+    cdef OGRFeatureDefnH ogr_featuredef = NULL
+    cdef OGRFieldDefnH fielddef = NULL
     cdef const char *key_c
 
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
@@ -344,7 +343,7 @@ cdef get_fields(void *ogr_layer, str encoding):
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
 cdef get_features(
-    void *ogr_layer,
+    OGRLayerH ogr_layer,
     object[:,:] fields,
     encoding,
     uint8_t read_geometry,
@@ -361,7 +360,7 @@ cdef get_features(
     cdef int field_index
     cdef int count
     cdef int ret_length
-    cdef unsigned char *bin_value
+    cdef GByte *bin_value
     cdef int year = 0
     cdef int month = 0
     cdef int day = 0
@@ -508,8 +507,8 @@ def ogr_read(
     cdef int err = 0
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
-    cdef void *ogr_dataset = NULL
-    cdef void *ogr_layer = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
 
     path_b = path.encode('utf-8')
@@ -611,8 +610,8 @@ def ogr_read(
 
 def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     cdef const char *path_c = NULL
-    cdef void *ogr_dataset = NULL
-    cdef void *ogr_layer = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -650,8 +649,8 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
 def ogr_list_layers(str path):
     cdef const char *path_c = NULL
     cdef const char *ogr_name = NULL
-    cdef void *ogr_dataset = NULL
-    cdef void *ogr_layer = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -679,7 +678,7 @@ def ogr_list_layers(str path):
 # some data sources have multiple layers
 cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
     cdef void *ogr_driver = NULL
-    cdef void *ogr_dataset = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
 
     # Get the driver
     try:
@@ -779,12 +778,12 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef const char *encoding_c = NULL
     cdef char **options = NULL
     cdef const char *ogr_name = NULL
-    cdef void *ogr_dataset = NULL
-    cdef void *ogr_layer = NULL
-    cdef void *ogr_feature = NULL
-    cdef void *ogr_geometry = NULL
-    cdef void *ogr_featuredef = NULL
-    cdef void *ogr_fielddef = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRFeatureDefnH ogr_featuredef = NULL
+    cdef OGRFieldDefnH fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
@@ -990,7 +989,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 raise RuntimeError(f"Could not set geometry for feature at index {i}")
 
             # Set field values
-            # TODO: set field values
             for field_idx in range(num_fields):
                 field_value = field_data[field_idx][i]
                 field_type = field_types[field_idx][0]
@@ -1022,7 +1020,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 else:
-                    # This should never happen, it should be caught above
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")
 
 
@@ -1036,14 +1033,9 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
-        # TODO: periodically commit the transaction while creating features above
-
-    print(f"Created {num_records:,} records" )
-
-
-
     commit_transaction(ogr_dataset)
 
+    log.info(f"Created {num_records:,} records" )
 
     ### Final cleanup
     if ogr_dataset != NULL:

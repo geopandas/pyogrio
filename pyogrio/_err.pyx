@@ -1,6 +1,8 @@
 # ported from fiona::_err.pyx
 from enum import IntEnum
 
+from pyogrio._ogr cimport *
+
 
 # CPL Error types as an enum.
 class GDALError(IntEnum):
