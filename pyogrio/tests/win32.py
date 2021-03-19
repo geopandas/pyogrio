@@ -21,7 +21,6 @@ if platform.system() == "Windows":
 
     from pyogrio.tests.test_raw_io import (
         test_read,
-        test_vsi_read_layers,
         test_read_no_geometry,
         test_read_columns,
         test_read_skip_features,
@@ -31,7 +30,6 @@ if platform.system() == "Windows":
         test_write,
         test_write_gpkg,
         test_write_geojson,
-        test_write_geojsonseq,
     )
 
     try:
@@ -87,8 +85,3 @@ if platform.system() == "Windows":
         except Exception as ex:
             print(ex)
 
-    with TemporaryDirectory() as tmpdir:
-        try:
-            test_write_geojsonseq(tmpdir, naturalearth_lowres)
-        except Exception as ex:
-            print(ex)
