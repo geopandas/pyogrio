@@ -75,9 +75,9 @@ def read_dataframe(
 
     path = str(path)
 
-    # TODO: better validate VSI sources
-    if not "/vsizip" in path.lower() and not os.path.exists(path):
-        raise ValueError(f"'{path}' does not exist")
+    if not "://" in path:
+        if not "/vsizip" in path.lower() and not os.path.exists(path):
+            raise ValueError(f"'{path}' does not exist")
 
     meta, geometry, field_data = read(
         path,
