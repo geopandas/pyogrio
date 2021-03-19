@@ -2,11 +2,37 @@ from numpy import array_equal
 import pytest
 
 from pyogrio import (
+    list_drivers,
     list_layers,
     read_info,
     set_gdal_config_options,
     get_gdal_config_option,
 )
+
+
+def test_list_drivers():
+    all_drivers = list_drivers()
+
+    # verify that the core drivers are present
+    for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
+        assert name in all_drivers
+
+    assert all_drivers["ESRI Shapefile"] == "rw"
+    assert all_drivers["OpenFileGDB"] == "r"
+
+    drivers = list_drivers(read=True)
+    expected = {k: v for k, v in all_drivers.items() if v.startswith("r")}
+    assert len(drivers) == len(expected)
+
+    drivers = list_drivers(write=True)
+    expected = {k: v for k, v in all_drivers.items() if v.endswith("w")}
+    assert len(drivers) == len(expected)
+
+    drivers = list_drivers(read=True, write=True)
+    expected = {
+        k: v for k, v in all_drivers.items() if v.startswith("r") and v.endswith("w")
+    }
+    assert len(drivers) == len(expected)
 
 
 def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi):
@@ -61,7 +87,7 @@ def test_set_config_options(name, value, expected):
 
 def test_reset_config_options():
     set_gdal_config_options({"foo": "bar"})
-    assert get_gdal_config_option("foo") == b"bar"
+    assert get_gdal_config_option("foo") == "bar"
 
     set_gdal_config_options({"foo": None})
     assert get_gdal_config_option("foo") is None

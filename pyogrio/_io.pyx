@@ -25,7 +25,7 @@ cimport numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
-from pyogrio._err import CPLE_BaseError, NullPointerError
+from pyogrio._err import CPLE_BaseError, CPLE_NotSupportedError, NullPointerError
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
 from pyogrio.errors import CRSError, DriverError, DriverIOError, TransactionError
 
@@ -37,16 +37,6 @@ log = logging.getLogger(__name__)
 cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
 
 
-### Drivers
-# driver:mode
-# minimally ported from fiona::drvsupport.py
-DRIVERS = {
-    "ESRI Shapefile": "raw",
-    "GeoJSON": "raw",
-    "GeoJSONSeq": "rw",
-    "GPKG": "raw",
-    "OpenFileGDB": "r",
-}
 
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
@@ -93,23 +83,6 @@ DTYPE_OGR_FIELD_TYPES = {
 }
 
 
-def get_string(char *c_str, str encoding="UTF-8"):
-    """Get Python string from a char *
-
-    IMPORTANT: the char * must still be freed by the caller.
-
-    Parameters
-    ----------
-    c_str : char *
-    encoding : str, optional (default: UTF-8)
-
-    Returns
-    -------
-    Python string
-    """
-    py_str = c_str
-    return py_str.decode(encoding)
-
 
 cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
     cdef int err = GDALDatasetStartTransaction(ogr_dataset, force)
@@ -135,47 +108,9 @@ cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
     return 0
 
 
-cpdef set_gdal_config_options(dict options):
-    for name, value in options.items():
-        name_b = name.encode('utf-8')
-        name_c = name_b
-
-        # None is a special case; this is used to clear the previous value
-        if value is None:
-            CPLSetConfigOption(<const char*>name_c, NULL)
-            continue
-
-        # normalize bool to ON/OFF
-        if isinstance(value, bool):
-            value_b = b'ON' if value else b'OFF'
-        else:
-            value_b = str(value).encode('utf-8')
-
-        value_c = value_b
-        CPLSetConfigOption(<const char*>name_c, <const char*>value_c)
-
-
-cpdef get_gdal_config_option(str name):
-    name_b = name.encode('utf-8')
-    name_c = name_b
-    value = CPLGetConfigOption(<const char*>name_c, NULL)
-
-    if not value:
-        return None
-
-    if value.isdigit():
-        return int(value)
-
-    if value == b'ON':
-        return True
-    if value == b'OFF':
-        return False
-
-    return value
-
 
 # ported from fiona::_shim22.pyx::gdal_open_vector
-cdef void* ogr_open(const char* path_c, int mode, drivers, options) except NULL:
+cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     cdef void* ogr_dataset = NULL
     cdef char **ogr_drivers = NULL
     cdef void* ogr_driver = NULL
@@ -193,21 +128,10 @@ cdef void* ogr_open(const char* path_c, int mode, drivers, options) except NULL:
     else:
         flags |= GDAL_OF_READONLY
 
-    # TODO: specific driver support may not be needed
-    # for name in drivers:
-    #     name_b = name.encode()
-    #     name_c = name_b
-    #     ogr_driver = GDALGetDriverByName(name_c)
-    #     if ogr_driver != NULL:
-    #         ogr_drivers = CSLAddString(ogr_drivers, name_c)
-
     # TODO: other open opts from fiona
     open_opts = CSLAddNameValue(open_opts, "VALIDATE_OPEN_OPTIONS", "NO")
 
     try:
-        # When GDAL complains that file is not a supported file format, it is
-        # most likely because we didn't call GDALAllRegister() prior to getting here
-
         ogr_dataset = exc_wrap_pointer(
             GDALOpenEx(path_c, flags, <const char *const *>ogr_drivers, <const char *const *>open_opts, NULL)
         )
@@ -558,8 +482,7 @@ def ogr_read(
     if layer is None:
         layer = 0
 
-    # all DRIVERS support read
-    ogr_dataset = ogr_open(path_c, 0, DRIVERS, kwargs)
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
 
     if isinstance(layer, str):
         name_b = layer.encode('utf-8')
@@ -669,8 +592,7 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     if layer is None:
         layer = 0
 
-    # all DRIVERS support read
-    ogr_dataset = ogr_open(path_c, 0, DRIVERS, kwargs)
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     # Encoding is derived from the dataset, from the user, or from the system locale
@@ -704,7 +626,7 @@ def ogr_list_layers(str path):
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    ogr_dataset = ogr_open(path_c, 0, DRIVERS, None)
+    ogr_dataset = ogr_open(path_c, 0, None)
 
     layer_count = GDALDatasetGetLayerCount(ogr_dataset)
 
@@ -734,7 +656,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
         ogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver_c))
 
     except NullPointerError:
-        raise DriverError("Data source driver could not be created: {}".format(driver_c.decode("utf-8")))
+        raise DriverError(f"Data source driver could not be created: {driver_c.decode('utf-8')}")
 
     except CPLE_BaseError as exc:
         raise DriverError(str(exc))
@@ -744,7 +666,10 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
         ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, NULL))
 
     except NullPointerError:
-        raise DriverError("Failed to create dataset with driver: {} {}".format(path_c.decode("utf-8"), driver_c.decode("utf-8")))
+        raise DriverError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}")
+
+    except CPLE_NotSupportedError as exc:
+        raise DriverError(f"Driver {driver_c.decode('utf-8')} does not support write functionality") from None
 
     except CPLE_BaseError as exc:
         raise DriverError(str(exc))
@@ -871,7 +796,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     # TODO: invert this: if exists then try to update it, if that doesn't work then always create
     if os.path.exists(path):
         try:
-            ogr_dataset = ogr_open(path_c, 1, DRIVERS, None)
+            ogr_dataset = ogr_open(path_c, 1, None)
 
             # If layer exists, delete it.
             for i in range(GDALDatasetGetLayerCount(ogr_dataset)):

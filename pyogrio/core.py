@@ -1,15 +1,45 @@
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
-    from pyogrio._ogr import get_gdal_version
-    from pyogrio._io import (
-        ogr_list_layers,
-        ogr_read_info,
+    from pyogrio._ogr import (
+        get_gdal_version,
+        get_gdal_version_string,
+        ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
     )
+    from pyogrio._io import ogr_list_layers, ogr_read_info
 
     __gdal_version__ = get_gdal_version()
+    __gdal_version_string__ = get_gdal_version_string()
+
+
+def list_drivers(read=False, write=False):
+    """List drivers available in GDAL.
+
+    Parameters
+    ----------
+    read: bool, optional (default: False)
+        If True, will only return drivers that are known to support read capabilities.
+    write: bool, optional (default: False)
+        If True, will only return drivers that are known to support write capabilities.
+
+    Returns
+    -------
+    dict
+        Mapping of driver name to file mode capabilities: "r": read, "w": write.
+        Drivers that are available but with unknown support are marked with "?"
+    """
+
+    drivers = ogr_list_drivers()
+
+    if read:
+        drivers = {k: v for k, v in drivers.items() if v.startswith("r")}
+
+    if write:
+        drivers = {k: v for k, v in drivers.items() if v.endswith("w")}
+
+    return drivers
 
 
 def list_layers(path):

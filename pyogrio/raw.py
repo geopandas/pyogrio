@@ -134,7 +134,7 @@ def write(
         )
 
     ogr_write(
-        path,
+        str(path),
         layer=layer,
         driver=driver,
         geometry=geometry,

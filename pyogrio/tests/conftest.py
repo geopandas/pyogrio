@@ -3,7 +3,19 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
+from pyogrio import __gdal_version_string__, __version__, list_drivers
+
+
 data_dir = Path(__file__).parent.resolve() / "fixtures"
+
+
+def pytest_report_header(config):
+    drivers = ", ".join(sorted(list(list_drivers(read=True).keys())))
+    return (
+        f"pyogrio {__version__}\n"
+        f"GDAL {__gdal_version_string__}\n"
+        f"Supported drivers: {drivers}"
+    )
 
 
 @pytest.fixture(scope="session")

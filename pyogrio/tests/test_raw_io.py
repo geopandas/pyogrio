@@ -5,8 +5,9 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers
+from pyogrio import list_layers, list_drivers
 from pyogrio.raw import read, write
+from pyogrio.errors import DriverError
 
 
 def test_read(naturalearth_lowres):
@@ -182,11 +183,39 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
-def test_write_geojsonseq(tmpdir, naturalearth_lowres):
+@pytest.mark.parametrize(
+    "driver",
+    [
+        driver
+        for driver in list_drivers(write=True)
+        if not driver in ("ESRI Shapefile", "GPKG", "GeoJSON")
+    ],
+)
+def test_write_supported(tmpdir, naturalearth_lowres, driver):
+    """Test drivers not specifically tested above"""
+    meta, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
+
+    # note: naturalearth_lowres contains mixed polygons / multipolygons, which
+    # are not supported in mixed form for all drivers.  To get around this here
+    # we take the first record only.
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = tmpdir / "test"
+    write(
+        filename,
+        geometry[:1],
+        field_data=[f[:1] for f in field_data],
+        driver=driver,
+        **meta
+    )
+
+    assert filename.exists()
+
+
+def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.json")
-    write(filename, geometry, field_data, driver="GeoJSONSeq", **meta)
+    filename = os.path.join(str(tmpdir), "test.fgdb")
 
-    assert os.path.exists(filename)
-
+    with pytest.raises(DriverError, match="does not support write functionality"):
+        write(filename, geometry, field_data, driver="OpenFileGDB", **meta)

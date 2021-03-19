@@ -132,9 +132,6 @@ exception_map = {
 }
 
 
-
-
-
 cdef inline object exc_check():
     """Checks GDAL error stack for fatal or non-fatal errors
     Returns

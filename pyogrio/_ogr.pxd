@@ -164,6 +164,9 @@ cdef extern from "ogr_srs_api.h":
 
 
 cdef extern from "ogr_api.h":
+    int             OGRGetDriverCount()
+    OGRSFDriverH    OGRGetDriver(int)
+
     OGRDataSourceH  OGR_Dr_Open(OGRSFDriverH driver, const char *path, int bupdate)
     const char*     OGR_Dr_GetName(OGRSFDriverH driver)
 
@@ -298,3 +301,6 @@ cdef extern from "gdal.h":
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
     const char*     GDALVersionInfo(const char *pszRequest)
+
+
+cdef get_string(const char *c_str, str encoding=*)
