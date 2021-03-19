@@ -344,6 +344,14 @@ set_gdal_config_options({"CPL_DEBUG": True})
 
 `True` / `False` values are automatically converted to `'ON'` / `'OFF'`.
 
+### GDAL version
+
+You can display the GDAL version that pyogrio was compiled against by
+
+```python
+pyogrio.__gdal_version__
+```
+
 ### Raw numpy-oriented I/O
 
 see `pyogrio.raw` for numpy-oriented read / write interfaces to OGR data sources.

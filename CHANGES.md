@@ -15,6 +15,7 @@
     the features in the dataset that intersect the bbox.
 -   Addition of `set_gdal_config_options` to set GDAL configuration options and
     `get_gdal_config_option` to get a GDAL configuration option.
+-   Addition of `pyogrio.__gdal_version__` to return GDAL version tuple.
 
 ## 0.1.0
 

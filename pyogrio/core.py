@@ -1,12 +1,15 @@
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
+    from pyogrio._ogr import get_gdal_version
     from pyogrio._io import (
         ogr_list_layers,
         ogr_read_info,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
     )
+
+    __gdal_version__ = get_gdal_version()
 
 
 def list_layers(path):
