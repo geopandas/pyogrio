@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.2.0 (unreleased)
+## 0.2.0
 
 ### Major enhancements
 
@@ -18,6 +18,7 @@
 -   Addition of `pyogrio.__gdal_version__` attribute to return GDAL version tuple
     and `__gdal_version_string__` to return string version.
 -   Addition of `list_drivers` function to list all available GDAL drivers.
+-   Addition of read and write support for `FlatGeobuf` driver when available in GDAL.
 
 ## 0.1.0
 

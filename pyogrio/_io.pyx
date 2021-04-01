@@ -787,10 +787,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     layer_b = layer.encode('UTF-8')
     layer_c = layer_b
 
-    # if shapefile or GeoJSON, always delete first
+    # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
     # GPKG might be the only multi-layer writeable type.  TODO: check this
-    if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq') and os.path.exists(path):
+    if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq', 'FlatGeobuf') and os.path.exists(path):
         os.unlink(path)
 
     # TODO: invert this: if exists then try to update it, if that doesn't work then always create

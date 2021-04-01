@@ -163,6 +163,10 @@ information.
 You can certainly try to read or write using unsupported drivers that are
 available in your installation, but you may encounter errors.
 
+Note: different drivers have different tolerance for mixed geometry types, e.g.,
+MultiPolygon and Polygon in the same dataset. You will get exceptions if you
+attempt to write mixed geometries to a driver that doesn't support them.
+
 ### Listing layers
 
 To list layers available in a data source:

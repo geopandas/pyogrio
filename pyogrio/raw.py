@@ -7,7 +7,12 @@ with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
 
 
-DRIVERS = {".gpkg": "GPKG", ".shp": "ESRI Shapefile", ".json": "GeoJSON"}
+DRIVERS = {
+    ".gpkg": "GPKG",
+    ".shp": "ESRI Shapefile",
+    ".json": "GeoJSON",
+    ".fgb": "FlatGeobuf",
+}
 
 
 def read(
