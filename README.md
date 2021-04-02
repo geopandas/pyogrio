@@ -20,7 +20,7 @@ Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enable
 ### Conda-forge
 
 This package is available on [conda-forge](https://anaconda.org/conda-forge/pyogrio)
-for Linux and MacOS. Windows is not yet supported.
+for Linux, MacOS, and Windows.
 
 ```bash
 conda install -c conda-forge pyogrio
@@ -92,7 +92,13 @@ Assuming GDAL is installed to `c:\GDAL`, you can build as follows:
 python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
+`GDAL_VERSION` environment variable must be if the version cannot be autodetected
+using `gdalinfo.exe` (must be on your system `PATH` in order for this to work).
+
 The location of the GDAL DLLs must be on your system `PATH`.
+
+`--no-use-pep517` is required in order to pass additional options to the build
+backend (see https://github.com/pypa/pip/issues/5771).
 
 Also see `.github/test-windows.yml` for additional ideas if you run into problems.
 
