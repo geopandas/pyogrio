@@ -89,9 +89,10 @@ else:
                 try:
                     gdalinfo_path = None
                     for path in os.getenv("PATH", "").split(os.pathsep):
-                        matches = list(Path(path).glob("gdalinfo*"))
+                        matches = list(Path(path).glob("**/gdalinfo*"))
                         if matches:
                             gdalinfo_path = matches[0]
+                            break
 
                     if gdalinfo_path:
                         print(f"Found gdalinfo at {gdalinfo_path}")
@@ -108,12 +109,11 @@ else:
                         "Could not obtain version by executing 'gdalinfo --version'"
                     )
 
-            if gdal_version_str:
-                GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
-
-            else:
+            if not gdal_version_str:
                 print("GDAL_VERSION must be provided as an environment variable")
                 sys.exit(1)
+
+            GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
 
             log.info(
                 "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
