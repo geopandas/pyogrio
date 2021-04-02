@@ -85,12 +85,20 @@ else:
             gdal_version_str = os.environ.get("GDAL_VERSION", "")
             if not gdal_version_str:
                 # attempt to execute gdalinfo to find GDAL version
+                # Note: gdalinfo must be on the PATH
                 try:
-                    raw_version = read_response(["gdalinfo", "--version"]) or ""
-                    # gdal_version_str = raw_version.split(',')[0].split(' ')[1]
-                    m = re.search("\d+\.\d+\.\d+", raw_version)
-                    if m:
-                        gdal_version_str = m.group()
+                    gdalinfo_path = None
+                    for path in os.getenv("PATH", "").split(os.pathsep):
+                        matches = list(Path(path).glob("gdalinfo*"))
+                        if matches:
+                            gdalinfo_path = matches[0]
+
+                    if gdalinfo_path:
+                        raw_version = read_response([gdalinfo_path, "--version"]) or ""
+                        # gdal_version_str = raw_version.split(',')[0].split(' ')[1]
+                        m = re.search("\d+\.\d+\.\d+", raw_version)
+                        if m:
+                            gdal_version_str = m.group()
 
                 except:
                     log.warn(
