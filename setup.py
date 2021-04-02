@@ -94,11 +94,14 @@ else:
                             gdalinfo_path = matches[0]
 
                     if gdalinfo_path:
+                        print(f"Found gdalinfo at {gdalinfo_path}")
                         raw_version = read_response([gdalinfo_path, "--version"]) or ""
                         # gdal_version_str = raw_version.split(',')[0].split(' ')[1]
                         m = re.search("\d+\.\d+\.\d+", raw_version)
                         if m:
                             gdal_version_str = m.group()
+                    else:
+                        print("Unable to find gdalinfo")
 
                 except:
                     log.warn(
@@ -109,9 +112,8 @@ else:
                 GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
 
             else:
-                raise ValueError(
-                    "GDAL_VERSION must be provided as an environment variable"
-                )
+                print("GDAL_VERSION must be provided as an environment variable")
+                sys.exit(1)
 
             log.info(
                 "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
