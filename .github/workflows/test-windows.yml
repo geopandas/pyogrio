@@ -36,7 +36,7 @@ jobs:
             allow_failure: false
 
     env:
-      GDAL_VERSION: ${{ matrix.GDAL_VERSION }}
+      # NOTE: GDAL_VERSION is obtained automatically by setup.py using gdalinfo.exe
       GIS_INTERNALS: ${{ matrix.GIS_INTERNALS }}
       GIS_INTERNALS_LIBS: ${{ matrix.GIS_INTERNALS_LIBS }}
       GDAL_DATA: "C:\\gdal\\bin\\gdal-data"

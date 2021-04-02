@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -78,18 +79,44 @@ else:
 
     except Exception as e:
         if platform.system() == "Windows":
-            # try to get GDAL version from command line
-            # Note: additional command-line parameters required to point to GDAL
-            if not "GDAL_VERSION":
-                raise ValueError(
-                    "GDAL_VERSION must be provided as an environment variable"
-                )
-            GDAL_VERSION = tuple(
-                int(i) for i in os.environ.get("GDAL_VERSION", "").split(".")
-            )
+            # Note: additional command-line parameters required to point to GDAL;
+            # see the README.
+
+            gdal_version_str = os.environ.get("GDAL_VERSION", "")
+            if not gdal_version_str:
+                # attempt to execute gdalinfo to find GDAL version
+                # Note: gdalinfo must be on the PATH
+                try:
+                    gdalinfo_path = None
+                    for path in os.getenv("PATH", "").split(os.pathsep):
+                        matches = list(Path(path).glob("**/gdalinfo*"))
+                        if matches:
+                            gdalinfo_path = matches[0]
+                            break
+
+                    if gdalinfo_path:
+                        print(f"Found gdalinfo at {gdalinfo_path}")
+                        raw_version = read_response([gdalinfo_path, "--version"]) or ""
+                        # gdal_version_str = raw_version.split(',')[0].split(' ')[1]
+                        m = re.search("\d+\.\d+\.\d+", raw_version)
+                        if m:
+                            gdal_version_str = m.group()
+                    else:
+                        print("Unable to find gdalinfo")
+
+                except:
+                    log.warn(
+                        "Could not obtain version by executing 'gdalinfo --version'"
+                    )
+
+            if not gdal_version_str:
+                print("GDAL_VERSION must be provided as an environment variable")
+                sys.exit(1)
+
+            GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
 
             log.info(
-                "Building on Windows requires extra options to setup.py to locate GDAL files."
+                "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
             )
 
         else:

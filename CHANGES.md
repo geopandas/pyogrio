@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Unreleased changes
+
+### Major enhancements
+
+-   Auto-discovery of `GDAL_VERSION` on Windows, if `gdalinfo.exe` is discoverable
+    on the `PATH`.
+
 ## 0.2.0
 
 ### Major enhancements
