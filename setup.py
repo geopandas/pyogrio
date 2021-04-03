@@ -95,14 +95,10 @@ else:
                             break
 
                     if gdalinfo_path:
-                        print(f"Found gdalinfo at {gdalinfo_path}")
                         raw_version = read_response([gdalinfo_path, "--version"]) or ""
-                        # gdal_version_str = raw_version.split(',')[0].split(' ')[1]
                         m = re.search("\d+\.\d+\.\d+", raw_version)
                         if m:
                             gdal_version_str = m.group()
-                    else:
-                        print("Unable to find gdalinfo")
 
                 except:
                     log.warn(
