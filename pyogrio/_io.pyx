@@ -148,7 +148,7 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
         CSLDestroy(open_opts)
 
 
-cdef OGRLayerH get_ogr_layer(void * ogr_dataset, layer):
+cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer):
     """Open OGR layer by index or name.
 
     Parameters
@@ -302,6 +302,90 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         fields_view[i,3] = np_type
 
     return fields
+
+
+cdef apply_where_filter(OGRLayerH ogr_layer, str where):
+    """Applies where filter to layer.
+
+    WARNING: GDAL does not raise an error for GPKG when SQL query is invalid
+    but instead only logs to stderr.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    where : str
+        See http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        restricted_where for more information about valid expressions.
+
+    Raises
+    ------
+    ValueError: if SQL query is not valid
+    """
+
+    where_b = where.encode('utf-8')
+    where_c = where_b
+    err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+    # WARNING: GDAL does not raise this error for GPKG but instead only
+    # logs to stderr
+    if err != OGRERR_NONE:
+        name = OGR_L_GetName(ogr_layer)
+        raise ValueError(f"Invalid SQL query for layer '{name}': {where}")
+
+
+cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
+    """Applies spatial filter to layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    bbox: list or tuple of xmin, ymin, xmax, ymax
+
+    Raises
+    ------
+    ValueError: if bbox is not a list or tuple or does not have proper number of
+        items
+    """
+
+    if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
+        raise ValueError(f"Invalid bbox: {bbox}")
+
+    xmin, ymin, xmax, ymax = bbox
+    OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
+
+
+cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_features=0):
+    """Limit skip_features and max_features to bounds available for dataset.
+
+    This is typically performed after applying where and spatial filters, which
+    reduce the available range of features.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    skip_features : number of features to skip from beginning of available range
+    max_features : number of features to read from available range
+    """
+    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if feature_count <= 0:
+        # the count comes back as -1 if the where clause above is invalid but not rejected as error
+        name = OGR_L_GetName(ogr_layer)
+        warnings.warn(f"Layer '{name}' does not have any features to read")
+        feature_count = 0
+        skip_features = 0
+        max_features = 0
+
+    else:
+        # validate skip_features, max_features
+        if skip_features < 0 or skip_features >= feature_count:
+            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+
+        if max_features < 0:
+            raise ValueError("'max_features' must be >= 0")
+
+        if max_features > feature_count:
+            max_features = feature_count
+
+    return skip_features, max_features
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -483,55 +567,19 @@ def ogr_read(
         layer = 0
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
-
-    if isinstance(layer, str):
-        name_b = layer.encode('utf-8')
-        name_c = name_b
-        ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
-
-    elif isinstance(layer, int):
-        ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
-
-    if ogr_layer == NULL:
-        raise ValueError(f"Layer '{layer}' could not be opened")
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     # Apply the attribute filter
     if where is not None and where != "":
-        where_b = where.encode('utf-8')
-        where_c = where_b
-        err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
-        # WARNING: GDAL does not raise this error for GPKG but instead only
-        # logs to stderr
-        if err != OGRERR_NONE:
-            raise ValueError(f"Invalid SQL query for layer '{layer}': {where}")
+        apply_where_filter(ogr_layer, where)
+
 
     # Apply the spatial filter
     if bbox is not None:
-        if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
-            raise ValueError(f"Invalid bbox: {bbox}")
+        apply_spatial_filter(ogr_layer, bbox)
 
-        xmin, ymin, xmax, ymax = bbox
-        OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
-
-
-    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if feature_count <= 0:
-        # the count comes back as -1 if the where clause above is invalid but not rejected as error
-        warnings.warn(f"Layer '{layer}' in dataset at '{path}' does not have any features to read")
-        feature_count = 0
-        skip_features = 0
-        max_features = 0
-
-    else:
-        # validate skip_features, max_features
-        if skip_features < 0 or skip_features >= feature_count:
-            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
-
-        if max_features < 0:
-            raise ValueError("'max_features' must be >= 0")
-
-        if max_features > feature_count:
-            max_features = feature_count
+    # Limit feature range to available range
+    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
     crs = get_crs(ogr_layer)
 
