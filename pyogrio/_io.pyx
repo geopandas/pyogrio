@@ -399,8 +399,8 @@ cdef get_features(
     int skip_features,
     int max_features):
 
-    cdef void * ogr_feature = NULL
-    cdef void * ogr_geometry = NULL
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
     cdef int i
     cdef int j
@@ -538,6 +538,63 @@ cdef get_features(
     return (geometries, field_data)
 
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_bounds(
+    OGRLayerH ogr_layer,
+    int skip_features,
+    int max_features):
+
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGREnvelope ogr_envelope # = NULL
+    cdef int i
+    cdef int count
+
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
+
+    count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if count < 0:
+        # sometimes this comes back as -1 if there is an error with the where clause, etc
+        count = 0
+
+    if skip_features > 0:
+        count = count - skip_features
+        OGR_L_SetNextByIndex(ogr_layer, skip_features)
+
+    if max_features > 0:
+        count = max_features
+
+    fid_data = np.empty(shape=(count), dtype=np.int64)
+    fid_view = fid_data[:]
+
+    bounds_data = np.empty(shape=(4, count), dtype='float64')
+    bounds_view = bounds_data[:]
+
+    for i in range(count):
+        ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+
+        if ogr_feature == NULL:
+            raise ValueError("Failed to read feature {}".format(i))
+
+        fid_view[i] = OGR_F_GetFID(ogr_feature)
+
+        ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
+
+        if ogr_geometry == NULL:
+            bounds_view[:,i] = np.nan
+
+        else:
+            OGR_G_GetEnvelope(ogr_geometry, &ogr_envelope)
+            bounds_view[0, i] = ogr_envelope.MinX
+            bounds_view[1, i] = ogr_envelope.MinY
+            bounds_view[2, i] = ogr_envelope.MaxX
+            bounds_view[3, i] = ogr_envelope.MaxY
+
+    return fid_data, bounds_data
+
+
 def ogr_read(
     str path,
     object layer=None,
@@ -626,6 +683,51 @@ def ogr_read(
         geometries,
         field_data
     )
+
+
+def ogr_read_bounds(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    object where=None,
+    tuple bbox=None,
+    **kwargs):
+
+    cdef int err = 0
+    cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef int feature_count = 0
+    cdef double xmin, ymin, xmax, ymax
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    # layer defaults to index 0
+    if layer is None:
+        layer = 0
+
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
+
+    # Apply the attribute filter
+    if where is not None and where != "":
+        apply_where_filter(ogr_layer, where)
+
+    # Apply the spatial filter
+    if bbox is not None:
+        apply_spatial_filter(ogr_layer, bbox)
+
+    # Limit feature range to available range
+    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
+
+    return get_bounds(ogr_layer, skip_features, max_features)
 
 
 def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):

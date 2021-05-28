@@ -1,9 +1,11 @@
-from numpy import array_equal
+from numpy import array_equal, allclose
+from numpy.core.records import array
 import pytest
 
 from pyogrio import (
     list_drivers,
     list_layers,
+    read_bounds,
     read_info,
     set_gdal_config_options,
     get_gdal_config_option,
@@ -58,6 +60,71 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         # Confirm that measured 3D is downgraded to 2.5D during read
         assert array_equal(fgdb_layers[3], ["test_lines", "2.5D MultiLineString"])
         assert array_equal(fgdb_layers[6], ["test_areas", "2.5D MultiPolygon"])
+
+
+def test_read_bounds(naturalearth_lowres):
+    fids, bounds = read_bounds(naturalearth_lowres)
+    assert fids.shape == (177,)
+    assert bounds.shape == (4, 177)
+
+    assert fids[0] == 0
+    # Fiji; wraps antimeridian
+    assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_max_features(naturalearth_lowres):
+    bounds = read_bounds(naturalearth_lowres, max_features=2)[1]
+    assert bounds.shape == (4, 2)
+
+
+def test_read_bounds_skip_features(naturalearth_lowres):
+    expected_bounds = read_bounds(naturalearth_lowres, max_features=11)[1][:, 10]
+    fids, bounds = read_bounds(naturalearth_lowres, skip_features=10)
+    assert bounds.shape == (4, 167)
+    assert allclose(bounds[:, 0], expected_bounds)
+    assert fids[0] == 10
+
+
+def test_read_bounds_where_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="Invalid SQL"):
+        read_bounds(naturalearth_lowres, where="invalid")
+
+
+def test_read_bounds_where(naturalearth_lowres):
+    fids, bounds = read_bounds(naturalearth_lowres, where="iso_a3 = 'CAN'")
+    assert fids.shape == (1,)
+    assert bounds.shape == (4, 1)
+    assert fids[0] == 3
+    assert allclose(bounds[:, 0], [-140.99778, 41.675105, -52.648099, 83.23324])
+
+
+@pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
+def test_read_bounds_bbox_invalid(naturalearth_lowres, bbox):
+    with pytest.raises(ValueError, match="Invalid bbox"):
+        read_bounds(naturalearth_lowres, bbox=bbox)
+
+
+def test_read_bounds_bbox(naturalearth_lowres):
+    # should return no features
+    with pytest.warns(UserWarning, match="does not have any features to read"):
+        fids, bounds = read_bounds(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))
+
+    assert fids.shape == (0,)
+    assert bounds.shape == (4, 0)
+
+    fids, bounds = read_bounds(naturalearth_lowres, bbox=(-140, 20, -100, 40))
+
+    assert fids.shape == (2,)
+    assert array_equal(fids, [4, 27])  # USA, MEX
+
+    assert bounds.shape == (4, 2)
+    assert allclose(
+        bounds.T,
+        [
+            [-171.791111, 18.916190, -66.964660, 71.357764],
+            [-117.127760, 14.538829, -86.811982, 32.720830],
+        ],
+    )
 
 
 def test_read_info(naturalearth_lowres):

@@ -142,13 +142,18 @@ cdef extern from "ogr_core.h":
         OFSTFloat32
 
     ctypedef void* OGRDataSourceH
-    ctypedef void* OGREnvelope
     ctypedef void* OGRFeatureDefnH
     ctypedef void* OGRFieldDefnH
     ctypedef void* OGRFeatureH
     ctypedef void* OGRGeometryH
     ctypedef void* OGRLayerH
     ctypedef void* OGRSFDriverH
+
+    ctypedef struct OGREnvelope:
+        double MinX
+        double MaxX
+        double MinY
+        double MaxY
 
 
 cdef extern from "ogr_srs_api.h":
@@ -174,7 +179,7 @@ cdef extern from "ogr_api.h":
     OGRFeatureH     OGR_F_Create(OGRFeatureDefnH featuredefn)
     void            OGR_F_Destroy(OGRFeatureH feature)
 
-    long            OGR_F_GetFID(OGRFeatureH feature)
+    int            OGR_F_GetFID(OGRFeatureH feature)
     OGRGeometryH    OGR_F_GetGeometryRef(OGRFeatureH feature)
     GByte*          OGR_F_GetFieldAsBinary(OGRFeatureH feature, int n, int *s)
     int             OGR_F_GetFieldAsDateTime(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, int *s, int *z)
@@ -242,7 +247,6 @@ cdef extern from "ogr_api.h":
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
     int             OGRReleaseDataSource(OGRDataSourceH ds)
-
 
 
 cdef extern from "gdal.h":

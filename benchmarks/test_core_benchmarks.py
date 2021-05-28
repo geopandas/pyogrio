@@ -3,7 +3,7 @@ import os
 import fiona
 import pytest
 
-from pyogrio import list_layers, read_info
+from pyogrio import list_layers, read_bounds, read_info
 
 
 def fiona_read_info(path, layer=None):
@@ -44,6 +44,21 @@ def test_list_layers_multi(nhd_hr, benchmark):
 @pytest.mark.benchmark(group="list-layers-nhd-hr")
 def test_list_layers_fiona_multi(nhd_hr, benchmark):
     benchmark(fiona.listlayers, nhd_hr)
+
+
+@pytest.mark.benchmark(group="read-bounds-lowres")
+def test_read_bounds_lowres(naturalearth_lowres, benchmark):
+    benchmark(read_bounds, naturalearth_lowres)
+
+
+@pytest.mark.benchmark(group="read-bounds-modres")
+def test_read_bounds_modres(naturalearth_modres, benchmark):
+    benchmark(read_bounds, naturalearth_modres)
+
+
+@pytest.mark.benchmark(group="read-bounds-nhd-hr")
+def test_read_bounds_nhd_hr(nhd_hr, benchmark):
+    benchmark(read_bounds, nhd_hr, layer="NHDFlowline")
 
 
 @pytest.mark.benchmark(group="read-info-lowres")

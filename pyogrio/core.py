@@ -8,7 +8,7 @@ with GDALEnv():
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
     )
-    from pyogrio._io import ogr_list_layers, ogr_read_info
+    from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()
@@ -59,6 +59,51 @@ def list_layers(path):
     """
 
     return ogr_list_layers(str(path))
+
+
+def read_bounds(
+    path, layer=None, skip_features=0, max_features=None, where=None, bbox=None
+):
+    """Read bounds of each feature.
+
+    Parameters
+    ----------
+    path : pathlib.Path or str
+        data source path
+    layer : int or str, optional (default: first layer)
+        If an integer is provided, it corresponds to the index of the layer
+        with the data source.  If a string is provided, it must match the name
+        of the layer in the data source.  Defaults to first layer in data source.
+    skip_features : int, optional (default: 0)
+        Number of features to skip from the beginning of the file before returning
+        features.  Must be less than the total number of features in the file.
+    max_features : int, optional (default: None)
+        Number of features to read from the file.  Must be less than the total
+        number of features in the file minus skip_features (if used).
+    where : str, optional (default: None)
+        Where clause to filter features in layer by attribute values.  Uses a
+        restricted form of SQL WHERE clause, defined here:
+        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+    bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
+        If present, will be used to filter records whose geometry intersects this
+        box.  This must be in the same CRS as the dataset.
+
+    Returns
+    -------
+    tuple of (fids, bounds)
+        fids are global IDs read from the FID field of the dataset
+        bounds are ndarray of shape(4, n) containig xmin, ymin, xmax, ymax
+    """
+
+    return ogr_read_bounds(
+        str(path),
+        layer=layer,
+        skip_features=skip_features,
+        max_features=max_features or 0,
+        where=where,
+        bbox=bbox,
+    )
 
 
 def read_info(path, layer=None, encoding=None):
