@@ -1,7 +1,7 @@
 # derived from Fiona: https://github.com/Toblerity/Fiona
 name: Windows Test
 
-on: [push, pull_request]
+on: workflow_dispatch
 
 jobs:
   test:
