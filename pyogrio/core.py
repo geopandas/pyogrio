@@ -66,6 +66,10 @@ def read_bounds(
 ):
     """Read bounds of each feature.
 
+    This can be used to assist with spatial indexing and partitioning, in
+    order to avoid reading all features into memory.  It is roughly 2-3x faster
+    than reading the full geometry and attributes of a dataset.
+
     Parameters
     ----------
     path : pathlib.Path or str

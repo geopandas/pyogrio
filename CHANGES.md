@@ -6,6 +6,7 @@
 
 -   Auto-discovery of `GDAL_VERSION` on Windows, if `gdalinfo.exe` is discoverable
     on the `PATH`.
+-   Addition of `read_bounds` function to read the bounds of each feature.
 
 ## 0.2.0
 

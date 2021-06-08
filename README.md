@@ -372,6 +372,28 @@ extension of the filename:
 `.gpkg`: `GPKG`
 `.json`: `GeoJSON`
 
+### Reading feature bounds
+
+You can read the bounds of all or a subset of features in the dataset in order
+to create a spatial index of features without reading all underlying geometries.
+This is typically 2-3x faster than reading full feature data, but the main
+benefit is to avoid reading all feature data into memory for very large datasets.
+
+```python
+>>> from pyogrio import read_bounds
+>>> fids, bounds = read_bounds('ne_10m_admin_0_countries.shp')
+```
+
+`fids` provide the global feature id of each feature.
+`bounds` provide an ndarray of shape (4,n) with values for `xmin`, `ymin`, `xmax`, `ymax`.
+
+This function supports options to subset features from the dataset:
+
+-   `skip_features`
+-   `max_features`
+-   `where`
+-   `bbox`
+
 ### Configuration options
 
 It is possible to set [GDAL configuration options](https://trac.osgeo.org/gdal/wiki/ConfigOptions) for an entire session:
@@ -460,11 +482,11 @@ for working with OGR vector data sources. It is **awesome**, has highly-dedicate
 maintainers and contributors, and exposes more functionality than `pyogrio` ever will.
 This project would not be possible without `Fiona` having come first.
 
-`pyogrio` is an experimental approach that uses a vectorized (array-oriented)
-approach for reading and writing spatial vector file formats, which enables faster
-I/O operations. It borrows from the internal mechanics and lessons learned of
-`Fiona`. It uses a stateless approach to reading or writing data; all data
-are read or written in a single pass.
+`pyogrio` uses a vectorized (array-oriented) approach for reading and writing
+spatial vector file formats, which enables faster I/O operations. It borrows
+from the internal mechanics and lessons learned of `Fiona`. It uses a stateless
+approach to reading or writing data; all data are read or written in a single
+pass.
 
 `Fiona` is a general purpose spatial format I/O library that is used within many
 projects in the Python ecosystem. In contrast, `pyogrio` specifically targets
