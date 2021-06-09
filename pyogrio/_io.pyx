@@ -148,7 +148,7 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
         CSLDestroy(open_opts)
 
 
-cdef OGRLayerH get_ogr_layer(void * ogr_dataset, layer):
+cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer):
     """Open OGR layer by index or name.
 
     Parameters
@@ -304,6 +304,90 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     return fields
 
 
+cdef apply_where_filter(OGRLayerH ogr_layer, str where):
+    """Applies where filter to layer.
+
+    WARNING: GDAL does not raise an error for GPKG when SQL query is invalid
+    but instead only logs to stderr.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    where : str
+        See http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        restricted_where for more information about valid expressions.
+
+    Raises
+    ------
+    ValueError: if SQL query is not valid
+    """
+
+    where_b = where.encode('utf-8')
+    where_c = where_b
+    err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+    # WARNING: GDAL does not raise this error for GPKG but instead only
+    # logs to stderr
+    if err != OGRERR_NONE:
+        name = OGR_L_GetName(ogr_layer)
+        raise ValueError(f"Invalid SQL query for layer '{name}': {where}")
+
+
+cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
+    """Applies spatial filter to layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    bbox: list or tuple of xmin, ymin, xmax, ymax
+
+    Raises
+    ------
+    ValueError: if bbox is not a list or tuple or does not have proper number of
+        items
+    """
+
+    if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
+        raise ValueError(f"Invalid bbox: {bbox}")
+
+    xmin, ymin, xmax, ymax = bbox
+    OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
+
+
+cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_features=0):
+    """Limit skip_features and max_features to bounds available for dataset.
+
+    This is typically performed after applying where and spatial filters, which
+    reduce the available range of features.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    skip_features : number of features to skip from beginning of available range
+    max_features : number of features to read from available range
+    """
+    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if feature_count <= 0:
+        # the count comes back as -1 if the where clause above is invalid but not rejected as error
+        name = OGR_L_GetName(ogr_layer)
+        warnings.warn(f"Layer '{name}' does not have any features to read")
+        feature_count = 0
+        skip_features = 0
+        max_features = 0
+
+    else:
+        # validate skip_features, max_features
+        if skip_features < 0 or skip_features >= feature_count:
+            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+
+        if max_features < 0:
+            raise ValueError("'max_features' must be >= 0")
+
+        if max_features > feature_count:
+            max_features = feature_count
+
+    return skip_features, max_features
+
+
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
 cdef get_features(
@@ -315,8 +399,8 @@ cdef get_features(
     int skip_features,
     int max_features):
 
-    cdef void * ogr_feature = NULL
-    cdef void * ogr_geometry = NULL
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
     cdef int i
     cdef int j
@@ -454,6 +538,63 @@ cdef get_features(
     return (geometries, field_data)
 
 
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_bounds(
+    OGRLayerH ogr_layer,
+    int skip_features,
+    int max_features):
+
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGREnvelope ogr_envelope # = NULL
+    cdef int i
+    cdef int count
+
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
+
+    count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    if count < 0:
+        # sometimes this comes back as -1 if there is an error with the where clause, etc
+        count = 0
+
+    if skip_features > 0:
+        count = count - skip_features
+        OGR_L_SetNextByIndex(ogr_layer, skip_features)
+
+    if max_features > 0:
+        count = max_features
+
+    fid_data = np.empty(shape=(count), dtype=np.int64)
+    fid_view = fid_data[:]
+
+    bounds_data = np.empty(shape=(4, count), dtype='float64')
+    bounds_view = bounds_data[:]
+
+    for i in range(count):
+        ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+
+        if ogr_feature == NULL:
+            raise ValueError("Failed to read feature {}".format(i))
+
+        fid_view[i] = OGR_F_GetFID(ogr_feature)
+
+        ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
+
+        if ogr_geometry == NULL:
+            bounds_view[:,i] = np.nan
+
+        else:
+            OGR_G_GetEnvelope(ogr_geometry, &ogr_envelope)
+            bounds_view[0, i] = ogr_envelope.MinX
+            bounds_view[1, i] = ogr_envelope.MinY
+            bounds_view[2, i] = ogr_envelope.MaxX
+            bounds_view[3, i] = ogr_envelope.MaxY
+
+    return fid_data, bounds_data
+
+
 def ogr_read(
     str path,
     object layer=None,
@@ -483,55 +624,19 @@ def ogr_read(
         layer = 0
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
-
-    if isinstance(layer, str):
-        name_b = layer.encode('utf-8')
-        name_c = name_b
-        ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
-
-    elif isinstance(layer, int):
-        ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
-
-    if ogr_layer == NULL:
-        raise ValueError(f"Layer '{layer}' could not be opened")
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     # Apply the attribute filter
     if where is not None and where != "":
-        where_b = where.encode('utf-8')
-        where_c = where_b
-        err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
-        # WARNING: GDAL does not raise this error for GPKG but instead only
-        # logs to stderr
-        if err != OGRERR_NONE:
-            raise ValueError(f"Invalid SQL query for layer '{layer}': {where}")
+        apply_where_filter(ogr_layer, where)
+
 
     # Apply the spatial filter
     if bbox is not None:
-        if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
-            raise ValueError(f"Invalid bbox: {bbox}")
+        apply_spatial_filter(ogr_layer, bbox)
 
-        xmin, ymin, xmax, ymax = bbox
-        OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
-
-
-    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if feature_count <= 0:
-        # the count comes back as -1 if the where clause above is invalid but not rejected as error
-        warnings.warn(f"Layer '{layer}' in dataset at '{path}' does not have any features to read")
-        feature_count = 0
-        skip_features = 0
-        max_features = 0
-
-    else:
-        # validate skip_features, max_features
-        if skip_features < 0 or skip_features >= feature_count:
-            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
-
-        if max_features < 0:
-            raise ValueError("'max_features' must be >= 0")
-
-        if max_features > feature_count:
-            max_features = feature_count
+    # Limit feature range to available range
+    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
     crs = get_crs(ogr_layer)
 
@@ -578,6 +683,51 @@ def ogr_read(
         geometries,
         field_data
     )
+
+
+def ogr_read_bounds(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    object where=None,
+    tuple bbox=None,
+    **kwargs):
+
+    cdef int err = 0
+    cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef int feature_count = 0
+    cdef double xmin, ymin, xmax, ymax
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    # layer defaults to index 0
+    if layer is None:
+        layer = 0
+
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
+
+    # Apply the attribute filter
+    if where is not None and where != "":
+        apply_where_filter(ogr_layer, where)
+
+    # Apply the spatial filter
+    if bbox is not None:
+        apply_spatial_filter(ogr_layer, bbox)
+
+    # Limit feature range to available range
+    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
+
+    return get_bounds(ogr_layer, skip_features, max_features)
 
 
 def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):

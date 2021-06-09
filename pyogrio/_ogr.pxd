@@ -1,4 +1,5 @@
 # Contains declarations against GDAL / OGR API
+from libc.stdint cimport int64_t
 
 
 cdef extern from "cpl_conv.h":
@@ -149,6 +150,12 @@ cdef extern from "ogr_core.h":
     ctypedef void* OGRLayerH
     ctypedef void* OGRSFDriverH
 
+    ctypedef struct OGREnvelope:
+        double MinX
+        double MaxX
+        double MinY
+        double MaxY
+
 
 cdef extern from "ogr_srs_api.h":
     ctypedef void* OGRSpatialReferenceH
@@ -173,7 +180,7 @@ cdef extern from "ogr_api.h":
     OGRFeatureH     OGR_F_Create(OGRFeatureDefnH featuredefn)
     void            OGR_F_Destroy(OGRFeatureH feature)
 
-    long            OGR_F_GetFID(OGRFeatureH feature)
+    int64_t         OGR_F_GetFID(OGRFeatureH feature)
     OGRGeometryH    OGR_F_GetGeometryRef(OGRFeatureH feature)
     GByte*          OGR_F_GetFieldAsBinary(OGRFeatureH feature, int n, int *s)
     int             OGR_F_GetFieldAsDateTime(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, int *s, int *z)
@@ -212,12 +219,13 @@ cdef extern from "ogr_api.h":
     OGRGeometryH    OGR_G_CreateGeometry(int wkbtypecode)
     void            OGR_G_DestroyGeometry(OGRGeometryH geometry)
     void            OGR_G_ExportToWkb(OGRGeometryH geometry, int endianness, unsigned char *buffer)
+    void            OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
     OGRErr          OGR_G_ImportFromWkb(OGRGeometryH geometry, const void *bytes, int nbytes)
-    int             OGR_G_WkbSize(OGRGeometryH geometry)
     int             OGR_G_IsMeasured(OGRGeometryH geometry)
     void            OGR_G_SetMeasured(OGRGeometryH geometry, int isMeasured)
     int             OGR_G_Is3D(OGRGeometryH geometry)
     void            OGR_G_Set3D(OGRGeometryH geometry, int is3D)
+    int             OGR_G_WkbSize(OGRGeometryH geometry)
 
     int                 OGR_GT_HasM(OGRwkbGeometryType eType)
     int                 OGR_GT_HasZ(OGRwkbGeometryType eType)
@@ -240,7 +248,6 @@ cdef extern from "ogr_api.h":
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
     int             OGRReleaseDataSource(OGRDataSourceH ds)
-
 
 
 cdef extern from "gdal.h":

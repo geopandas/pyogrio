@@ -1,6 +1,7 @@
 from pyogrio.core import (
     list_drivers,
     list_layers,
+    read_bounds,
     read_info,
     set_gdal_config_options,
     get_gdal_config_option,
