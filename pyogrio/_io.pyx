@@ -856,7 +856,7 @@ cdef infer_field_types(list dtypes):
     cdef int width = 0
     cdef int precision = 0
 
-    field_types = np.zeros(shape=(len(dtypes), 4), dtype=np.int)
+    field_types = np.zeros(shape=(len(dtypes), 4), dtype=int)
     field_types_view = field_types[:]
 
     for i in range(len(dtypes)):
