@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - python==3.9.*
-  - geos==3.8.*
+  - gdal
   - numpy==1.19.*
   - numpydoc==1.1.*
   - Cython==0.29.*
