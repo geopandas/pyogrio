@@ -14,7 +14,7 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 import sphinx_rtd_theme
-import pyogrio  # noqa
+from pyogrio._version import get_versions
 
 
 autodoc_mock_imports = [
@@ -29,7 +29,7 @@ copyright = "2021, Brendan C. Ward"
 author = "Brendan C. Ward"
 
 # The full version, including alpha/beta/rc tags
-release = pyogrio.__version__
+release = get_versions()["version"]
 
 
 # -- General configuration ---------------------------------------------------
