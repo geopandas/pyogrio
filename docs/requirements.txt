@@ -1,5 +1,0 @@
-numpydoc
-sphinx_rtd_theme
-myst-parser
-sphinx
--e --no-binary ..

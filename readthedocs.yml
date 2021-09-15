@@ -4,7 +4,9 @@ formats: []
 sphinx:
   configuration: docs/source/conf.py
 
+conda:
+  environment: docs/environment.yml
+
 python:
-  version: 3
   install:
-    - requirements: docs/requirements.txt
+    - path: .
