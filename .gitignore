@@ -17,3 +17,5 @@ Pipfile.lock
 benchmarks/fixtures/*
 
 .libs
+
+docs/build

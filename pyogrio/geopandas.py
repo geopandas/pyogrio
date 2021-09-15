@@ -106,6 +106,25 @@ def read_dataframe(
 
 # TODO: handle index properly
 def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
+    """
+    Write GeoPandas GeoDataFrame to an OGR file format.
+
+    Parameters
+    ----------
+    path : str
+        path to file
+    layer :str, optional (default: None)
+        layer name
+    driver : string, optional (default: None)
+        The OGR format driver used to write the vector file. By default write_dataframe
+        attempts to infer driver from path.
+    encoding : str, optional (default: None)
+        If present, will be used as the encoding for writing string values to
+        the file.
+
+    **kwargs
+        The kwargs passed to OGR.
+    """
     try:
         with GDALEnv():
             import geopandas as gp
