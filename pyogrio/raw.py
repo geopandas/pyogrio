@@ -26,6 +26,7 @@ def read(
     max_features=None,
     where=None,
     bbox=None,
+    fids=None,
 ):
     """Read OGR data source.
 
@@ -96,6 +97,7 @@ def read(
         max_features=max_features or 0,
         where=where,
         bbox=bbox,
+        fids=fids,
     )
 
 

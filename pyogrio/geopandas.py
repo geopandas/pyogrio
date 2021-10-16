@@ -15,6 +15,7 @@ def read_dataframe(
     max_features=None,
     where=None,
     bbox=None,
+    fids=None,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or `read_geometry` is False,
@@ -90,6 +91,7 @@ def read_dataframe(
         max_features=max_features,
         where=where,
         bbox=bbox,
+        fids=fids,
     )
 
     columns = meta["fields"].tolist()
