@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 ### Constants
 cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
 cdef const char * OLCRandomRead = "RandomRead"
+cdef const char * OLCFastSetNextByIndex = "FastSetNextByIndex"
 
 
 # Mapping of OGR integer field types to Python field type names
@@ -624,6 +625,66 @@ cdef get_features_by_fid(
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_features_by_index(
+    OGRLayerH ogr_layer,
+    int[:] indices,
+    object[:,:] fields,
+    encoding,
+    uint8_t read_geometry,
+    uint8_t force_2d):
+
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef int n_fields
+    cdef int i
+    cdef int idx
+    cdef int field_index
+    cdef int count
+
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
+
+    count = len(indices)
+
+    if read_geometry:
+        geometries = np.empty(shape=(count, ), dtype='object')
+        geom_view = geometries[:]
+
+    else:
+        geometries = None
+
+    n_fields = fields.shape[0]
+    field_indexes = fields[:,0]
+    field_ogr_types = fields[:,1]
+
+    field_data = [
+        np.empty(shape=(count, ),
+        dtype=fields[field_index,3]) for field_index in range(n_fields)
+    ]
+
+    field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+
+    for i in range(count):
+        idx = indices[i]
+
+        OGR_L_SetNextByIndex(ogr_layer, idx)
+        ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+
+        if ogr_feature == NULL:
+            raise ValueError("Failed to read feature {}".format(i))
+
+        if read_geometry:
+            process_geometry(ogr_feature, i, geom_view, force_2d)
+
+        process_fields(
+            ogr_feature, i, n_fields, field_data, field_data_view, field_indexes, field_ogr_types, encoding
+        )
+
+    return (geometries, field_data)
+
+
+
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
 cdef get_bounds(
     OGRLayerH ogr_layer,
     int skip_features,
@@ -691,6 +752,7 @@ def ogr_read(
     object where=None,
     tuple bbox=None,
     object fids=None,
+    object indices=None,
     **kwargs):
 
     cdef int err = 0
@@ -717,6 +779,12 @@ def ogr_read(
                 "cannot set both 'fids' and one of 'where', 'bbox', "
                 "'skip_features' or 'max_features'")
         fids = np.asarray(fids, dtype=np.intc)
+    elif indices is not None:
+        if where is not None or bbox is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'indices' and one of 'where', 'bbox', "
+                "'skip_features' or 'max_features'")
+        indices = np.asarray(indices, dtype=np.intc)
     else:
         # Apply the attribute filter
         if where is not None and where != "":
@@ -757,6 +825,16 @@ def ogr_read(
             read_geometry=read_geometry and geometry_type is not None,
             force_2d=force_2d,
         )
+    elif indices is not None:
+        geometries, field_data = get_features_by_index(
+            ogr_layer,
+            indices,
+            fields,
+            encoding,
+            read_geometry=read_geometry and geometry_type is not None,
+            force_2d=force_2d,
+        )
+        get_features_by_index
 
     else:
         geometries, field_data = get_features(
@@ -860,7 +938,11 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
         'fields': get_fields(ogr_layer, encoding)[:,2], # return only names
         'geometry_type': get_geometry_type(ogr_layer),
         'features': OGR_L_GetFeatureCount(ogr_layer, 1),
-        'random_read': OGR_L_TestCapability(ogr_layer, OLCRandomRead),
+        "capabilities": {
+            "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
+            # "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
+            "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
+        }
     }
 
     if ogr_dataset != NULL:

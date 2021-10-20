@@ -27,6 +27,7 @@ def read(
     where=None,
     bbox=None,
     fids=None,
+    indices=None,
 ):
     """Read OGR data source.
 
@@ -98,6 +99,7 @@ def read(
         where=where,
         bbox=bbox,
         fids=fids,
+        indices=indices,
     )
 
 
