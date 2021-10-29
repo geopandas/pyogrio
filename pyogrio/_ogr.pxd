@@ -250,6 +250,11 @@ cdef extern from "ogr_api.h":
 
     int             OGRReleaseDataSource(OGRDataSourceH ds)
 
+    const char*     OLCStringsAsUTF8
+    const char*     OLCRandomRead
+    const char*     OLCFastSetNextByIndex
+    const char*     OLCFastSpatialFilter
+
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:
