@@ -606,7 +606,7 @@ cdef get_features_by_fid(
         ogr_feature = OGR_L_GetFeature(ogr_layer, fid)
 
         if ogr_feature == NULL:
-            raise ValueError("Failed to read feature {}".format(i))
+            raise ValueError("Failed to read FID {}".format(fid))
 
         if read_geometry:
             process_geometry(ogr_feature, i, geom_view, force_2d)
