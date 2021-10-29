@@ -60,6 +60,10 @@ def read_dataframe(
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.
+    fids : array-like, optional (default: None)
+        Array of integer feature id (FID) values to select. Cannot be combined
+        with other keywords to select a subset (`skip_features`, `max_features`,
+        `where` or `bbox`).
 
     Returns
     -------
