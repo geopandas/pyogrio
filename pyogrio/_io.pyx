@@ -429,8 +429,8 @@ cdef process_fields(
     cdef int j
     cdef int success
     cdef int field_index
-    cdef GByte *bin_value
     cdef int ret_length
+    cdef GByte *bin_value
     cdef int year = 0
     cdef int month = 0
     cdef int day = 0
@@ -503,7 +503,8 @@ cdef get_features(
     uint8_t read_geometry,
     uint8_t force_2d,
     int skip_features,
-    int max_features):
+    int max_features
+):
 
     cdef OGRFeatureH ogr_feature = NULL
     cdef int n_fields
@@ -554,7 +555,8 @@ cdef get_features(
             process_geometry(ogr_feature, i, geom_view, force_2d)
 
         process_fields(
-            ogr_feature, i, n_fields, field_data, field_data_view, field_indexes, field_ogr_types, encoding
+            ogr_feature, i, n_fields, field_data, field_data_view,
+            field_indexes, field_ogr_types, encoding
         )
 
     return (geometries, field_data)
@@ -568,7 +570,8 @@ cdef get_features_by_fid(
     object[:,:] fields,
     encoding,
     uint8_t read_geometry,
-    uint8_t force_2d):
+    uint8_t force_2d
+):
 
     cdef OGRFeatureH ogr_feature = NULL
     cdef int n_fields
@@ -612,7 +615,8 @@ cdef get_features_by_fid(
             process_geometry(ogr_feature, i, geom_view, force_2d)
 
         process_fields(
-            ogr_feature, i, n_fields, field_data, field_data_view, field_indexes, field_ogr_types, encoding
+            ogr_feature, i, n_fields, field_data, field_data_view,
+            field_indexes, field_ogr_types, encoding
         )
 
     return (geometries, field_data)
