@@ -708,27 +708,16 @@ def ogr_read(
     if layer is None:
         layer = 0
 
-    ogr_dataset = ogr_open(path_c, 0, kwargs)
-    ogr_layer = get_ogr_layer(ogr_dataset, layer)
-
     if fids is not None:
         if where is not None or bbox is not None or skip_features or max_features:
             raise ValueError(
-                "cannot set both 'fids' and one of 'where', 'bbox', "
+                "cannot set both 'fids' and any of 'where', 'bbox', "
                 "'skip_features' or 'max_features'"
             )
         fids = np.asarray(fids, dtype=np.intc)
-    else:
-        # Apply the attribute filter
-        if where is not None and where != "":
-            apply_where_filter(ogr_layer, where)
 
-        # Apply the spatial filter
-        if bbox is not None:
-            apply_spatial_filter(ogr_layer, bbox)
-
-        # Limit feature range to available range
-        skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     crs = get_crs(ogr_layer)
 
@@ -759,6 +748,19 @@ def ogr_read(
             force_2d=force_2d,
         )
     else:
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
+
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_spatial_filter(ogr_layer, bbox)
+
+        # Limit feature range to available range
+        skip_features, max_features = validate_feature_range(
+            ogr_layer, skip_features, max_features
+        )
+
         geometries, field_data = get_features(
             ogr_layer,
             fields,

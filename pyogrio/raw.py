@@ -72,7 +72,10 @@ def read(
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (`skip_features`, `max_features`,
-        `where` or `bbox`).
+        `where` or `bbox`). Note that the starting index is driver and file
+        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
+        still depend on the specific file). The performance of reading a large
+        number of features usings FIDs is also driver specific.
 
     Returns
     -------

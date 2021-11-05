@@ -166,6 +166,20 @@ def test_read_fids_out_of_bounds(naturalearth_lowres):
         read(naturalearth_lowres, fids=[200])
 
 
+def test_read_fids_unsupported_keywords(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], where="iso_a3 = 'CAN'")
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 40))
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], skip_features=5)
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], max_features=5)
+
+
 def test_write(tmpdir, naturalearth_lowres):
     meta, geometry, field_data = read(naturalearth_lowres)
 
