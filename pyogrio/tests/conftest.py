@@ -34,7 +34,7 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
             filename = f"{naturalearth_lowres.stem}.{ext}"
             out.write(naturalearth_lowres.parent / filename, filename)
 
-    return f"/vsizip/{path}/{naturalearth_lowres.name}"
+    return path, f"/vsizip/{path}/{naturalearth_lowres.name}"
 
 
 @pytest.fixture(scope="session")

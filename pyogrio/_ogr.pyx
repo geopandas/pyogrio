@@ -1,3 +1,6 @@
+from uuid import uuid4
+
+
 cdef get_string(const char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *
 
@@ -113,3 +116,23 @@ def ogr_list_drivers():
 
     return drivers
 
+
+def buffer_to_virtual_file(bytesbuf, ext=''):
+    """Maps a bytes buffer to a virtual file.
+    `ext` is empty or begins with a period and contains at most one period.
+    """
+
+    vsi_filename = '/vsimem/{}'.format(uuid4().hex + ext)
+
+    vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("utf8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
+
+    if vsi_handle == NULL:
+        raise OSError('failed to map buffer to file')
+    if VSIFCloseL(vsi_handle) != 0:
+        raise OSError('failed to close mapped file handle')
+
+    return vsi_filename
+
+
+def remove_virtual_file(vsi_filename):
+    return VSIUnlink(vsi_filename.encode("utf8"))

@@ -34,6 +34,7 @@ def test_read(naturalearth_lowres):
 
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
+    _, naturalearth_lowres_vsi = naturalearth_lowres_vsi
     assert array_equal(
         list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
     )
@@ -219,3 +220,49 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     with pytest.raises(DriverError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+
+def assert_equal_result(result1, result2):
+    meta1, geometry1, field_data1 = result1
+    meta2, geometry2, field_data2 = result2
+
+    assert np.array_equal(meta1["fields"], meta2["fields"])
+    # assert np.array_equal(geometry1, geometry2)
+    import pygeos
+    assert pygeos.equals_exact(
+        pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
+    ).all()
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+
+
+def test_read_from_bytes(tmpdir, naturalearth_lowres):
+    meta, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    with open(filename, "rb") as f:
+        buffer = f.read()
+
+    meta2, geometry2, field_data2 = read(buffer)
+    assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))
+
+
+    filename = os.path.join(str(tmpdir), "test.geojson")
+    write(filename, geometry, field_data, driver="GeoJSON", **meta)
+
+    with open(filename, "rb") as f:
+        buffer = f.read()
+
+    meta2, geometry2, field_data2 = read(buffer)
+    assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))
+
+
+def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
+    path, vsi_path = naturalearth_lowres_vsi
+    meta, geometry, field_data = read(vsi_path)
+
+    with open(path, "rb") as f:
+        buffer = f.read()
+
+    meta2, geometry2, field_data2 = read(buffer)
+    assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))

@@ -5,6 +5,7 @@ from pyogrio._env import GDALEnv
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    from pyogrio._ogr import buffer_to_virtual_file, remove_virtual_file
 
 
 DRIVERS = {
@@ -16,7 +17,7 @@ DRIVERS = {
 
 
 def read(
-    path,
+    path_or_buffer,
     layer=None,
     encoding=None,
     columns=None,
@@ -34,7 +35,7 @@ def read(
 
     Parameters
     ----------
-    path : pathlib.Path or str
+    path_or_buffer : pathlib.Path or str
         data source path
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
@@ -84,19 +85,36 @@ def read(
             "geometry": "<geometry type>"
         }
     """
+    from_buffer = False
+    if isinstance(path_or_buffer, bytes):
+        from_buffer = True
+        ext = ""
+        if path_or_buffer[:4].startswith(b'PK\x03\x04'):
+            ext = ".zip"
+        path = buffer_to_virtual_file(path_or_buffer, ext=ext)
+        if path_or_buffer[:4].startswith(b'PK\x03\x04'):
+            path = "/vsizip/" + path
+    else:
+        path = str(path_or_buffer)
 
-    return ogr_read(
-        str(path),
-        layer=layer,
-        encoding=encoding,
-        columns=columns,
-        read_geometry=read_geometry,
-        force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features or 0,
-        where=where,
-        bbox=bbox,
-    )
+    try:
+        result = ogr_read(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+        )
+    finally:
+        if from_buffer:
+            remove_virtual_file(path)
+
+    return result
 
 
 def write(
