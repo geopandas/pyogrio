@@ -33,10 +33,6 @@ from pyogrio.errors import CRSError, DriverError, DriverIOError, TransactionErro
 
 log = logging.getLogger(__name__)
 
-### Constants
-cdef const char * STRINGSASUTF8 = "StringsAsUTF8"
-
-
 
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
@@ -242,7 +238,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """
     cdef void *ogr_driver
 
-    if OGR_L_TestCapability(ogr_layer, STRINGSASUTF8):
+    if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     ogr_driver = GDALGetDatasetDriver(ogr_dataset)
@@ -390,23 +386,49 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef get_features(
-    OGRLayerH ogr_layer,
-    object[:,:] fields,
-    encoding,
-    uint8_t read_geometry,
-    uint8_t force_2d,
-    int skip_features,
-    int max_features):
+cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d):
 
-    cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
-    cdef int i
+    cdef int ret_length
+
+    ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
+
+    if ogr_geometry == NULL:
+        geom_view[i] = None
+    else:
+        try:
+            # if geometry has M values, these need to be removed first
+            if (OGR_G_IsMeasured(ogr_geometry)):
+                OGR_G_SetMeasured(ogr_geometry, 0)
+
+            if force_2d and OGR_G_Is3D(ogr_geometry):
+                OGR_G_Set3D(ogr_geometry, 0)
+
+            ret_length = OGR_G_WkbSize(ogr_geometry)
+            wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
+            OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
+            geom_view[i] = wkb[:ret_length]
+
+        finally:
+            free(wkb)
+
+
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef process_fields(
+    OGRFeatureH ogr_feature,
+    int i,
+    int n_fields,
+    object field_data,
+    object field_data_view, 
+    object field_indexes,
+    object field_ogr_types,
+    encoding
+):
     cdef int j
     cdef int success
     cdef int field_index
-    cdef int count
     cdef int ret_length
     cdef GByte *bin_value
     cdef int year = 0
@@ -417,6 +439,78 @@ cdef get_features(
     cdef int second = 0
     cdef int timezone = 0
 
+    for j in range(n_fields):
+        field_index = field_indexes[j]
+        field_type = field_ogr_types[j]
+        data = field_data_view[j]
+
+        isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
+        if isnull:
+            if field_type in (OFTInteger, OFTInteger64, OFTReal):
+                if data.dtype in (np.int32, np.int64):
+                    # have to cast to float to hold NaN values
+                    field_data[j] = field_data[j].astype(np.float64)
+                    field_data_view[j] = field_data[j][:]
+                    field_data_view[j][i] = np.nan
+                else:
+                    data[i] = np.nan
+
+            elif field_type in ( OFTDate, OFTDateTime):
+                data[i] = np.datetime64('NaT')
+
+            else:
+                data[i] = None
+
+            continue
+
+        if field_type == OFTInteger:
+            data[i] = OGR_F_GetFieldAsInteger(ogr_feature, field_index)
+
+        elif field_type == OFTInteger64:
+            data[i] = OGR_F_GetFieldAsInteger64(ogr_feature, field_index)
+
+        elif field_type == OFTReal:
+            data[i] = OGR_F_GetFieldAsDouble(ogr_feature, field_index)
+
+        elif field_type == OFTString:
+            value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
+            data[i] = value
+
+        elif field_type == OFTBinary:
+            bin_value = OGR_F_GetFieldAsBinary(ogr_feature, field_index, &ret_length)
+            data[i] = bin_value[:ret_length]
+
+        elif field_type == OFTDateTime or field_type == OFTDate:
+            success = OGR_F_GetFieldAsDateTime(
+                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
+
+            if not success:
+                data[i] = np.datetime64('NaT')
+
+            elif field_type == OFTDate:
+                data[i] = datetime.date(year, month, day).isoformat()
+
+            elif field_type == OFTDateTime:
+                data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
+
+
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_features(
+    OGRLayerH ogr_layer,
+    object[:,:] fields,
+    encoding,
+    uint8_t read_geometry,
+    uint8_t force_2d,
+    int skip_features,
+    int max_features
+):
+
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef int n_fields
+    cdef int i
+    cdef int field_index
+    cdef int count
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
@@ -440,17 +534,16 @@ cdef get_features(
     else:
         geometries = None
 
-
-    field_iter = range(fields.shape[0])
+    n_fields = fields.shape[0]
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
 
     field_data = [
         np.empty(shape=(count, ),
-        dtype=fields[field_index,3]) for field_index in field_iter
+        dtype=fields[field_index,3]) for field_index in range(n_fields)
     ]
 
-    field_data_view = [field_data[field_index][:] for field_index in field_iter]
+    field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
     for i in range(count):
         ogr_feature = OGR_L_GetNextFeature(ogr_layer)
@@ -459,81 +552,72 @@ cdef get_features(
             raise ValueError("Failed to read feature {}".format(i))
 
         if read_geometry:
-            ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
+            process_geometry(ogr_feature, i, geom_view, force_2d)
 
-            if ogr_geometry == NULL:
-                geom_view[i] = None
+        process_fields(
+            ogr_feature, i, n_fields, field_data, field_data_view,
+            field_indexes, field_ogr_types, encoding
+        )
 
-            else:
-                try:
-                    # if geometry has M values, these need to be removed first
-                    if (OGR_G_IsMeasured(ogr_geometry)):
-                        OGR_G_SetMeasured(ogr_geometry, 0)
+    return (geometries, field_data)
 
-                    if force_2d and OGR_G_Is3D(ogr_geometry):
-                        OGR_G_Set3D(ogr_geometry, 0)
 
-                    ret_length = OGR_G_WkbSize(ogr_geometry)
-                    wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
-                    OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
-                    geom_view[i] = wkb[:ret_length]
+@cython.boundscheck(False)  # Deactivate bounds checking
+@cython.wraparound(False)   # Deactivate negative indexing.
+cdef get_features_by_fid(
+    OGRLayerH ogr_layer,
+    int[:] fids,
+    object[:,:] fields,
+    encoding,
+    uint8_t read_geometry,
+    uint8_t force_2d
+):
 
-                finally:
-                    free(wkb)
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef int n_fields
+    cdef int i
+    cdef int fid
+    cdef int field_index
+    cdef int count
 
-        for j in field_iter:
-            field_index = field_indexes[j]
-            field_type = field_ogr_types[j]
-            data = field_data_view[j]
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
 
-            isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
-            if isnull:
-                if field_type in (OFTInteger, OFTInteger64, OFTReal):
-                    if data.dtype in (np.int32, np.int64):
-                        # have to cast to float to hold NaN values
-                        field_data[j] = field_data[j].astype(np.float64)
-                        field_data_view[j] = field_data[j][:]
-                        field_data_view[j][i] = np.nan
-                    else:
-                        data[i] = np.nan
+    count = len(fids)
 
-                elif field_type in ( OFTDate, OFTDateTime):
-                    data[i] = np.datetime64('NaT')
+    if read_geometry:
+        geometries = np.empty(shape=(count, ), dtype='object')
+        geom_view = geometries[:]
 
-                else:
-                    data[i] = None
+    else:
+        geometries = None
 
-                continue
+    n_fields = fields.shape[0]
+    field_indexes = fields[:,0]
+    field_ogr_types = fields[:,1]
 
-            if field_type == OFTInteger:
-                data[i] = OGR_F_GetFieldAsInteger(ogr_feature, field_index)
+    field_data = [
+        np.empty(shape=(count, ),
+        dtype=fields[field_index,3]) for field_index in range(n_fields)
+    ]
 
-            elif field_type == OFTInteger64:
-                data[i] = OGR_F_GetFieldAsInteger64(ogr_feature, field_index)
+    field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
-            elif field_type == OFTReal:
-                data[i] = OGR_F_GetFieldAsDouble(ogr_feature, field_index)
+    for i in range(count):
+        fid = fids[i]
 
-            elif field_type == OFTString:
-                value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
-                data[i] = value
+        ogr_feature = OGR_L_GetFeature(ogr_layer, fid)
 
-            elif field_type == OFTBinary:
-                bin_value = OGR_F_GetFieldAsBinary(ogr_feature, field_index, &ret_length)
-                data[i] = bin_value[:ret_length]
+        if ogr_feature == NULL:
+            raise ValueError("Failed to read FID {}".format(fid))
 
-            elif field_type == OFTDateTime or field_type == OFTDate:
-                success = OGR_F_GetFieldAsDateTime(
-                    ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
+        if read_geometry:
+            process_geometry(ogr_feature, i, geom_view, force_2d)
 
-                if not success:
-                    data[i] = np.datetime64('NaT')
-
-                elif field_type == OFTDate:
-                    data[i] = datetime.date(year, month, day).isoformat()
-
-                elif field_type == OFTDateTime:
-                    data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
+        process_fields(
+            ogr_feature, i, n_fields, field_data, field_data_view,
+            field_indexes, field_ogr_types, encoding
+        )
 
     return (geometries, field_data)
 
@@ -606,6 +690,7 @@ def ogr_read(
     int max_features=0,
     object where=None,
     tuple bbox=None,
+    object fids=None,
     **kwargs):
 
     cdef int err = 0
@@ -623,20 +708,16 @@ def ogr_read(
     if layer is None:
         layer = 0
 
+    if fids is not None:
+        if where is not None or bbox is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'fids' and any of 'where', 'bbox', "
+                "'skip_features' or 'max_features'"
+            )
+        fids = np.asarray(fids, dtype=np.intc)
+
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
-
-    # Apply the attribute filter
-    if where is not None and where != "":
-        apply_where_filter(ogr_layer, where)
-
-
-    # Apply the spatial filter
-    if bbox is not None:
-        apply_spatial_filter(ogr_layer, bbox)
-
-    # Limit feature range to available range
-    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
     crs = get_crs(ogr_layer)
 
@@ -657,15 +738,38 @@ def ogr_read(
 
     geometry_type = get_geometry_type(ogr_layer)
 
-    geometries, field_data = get_features(
-        ogr_layer,
-        fields,
-        encoding,
-        read_geometry=read_geometry and geometry_type is not None,
-        force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features,
-    )
+    if fids is not None:
+        geometries, field_data = get_features_by_fid(
+            ogr_layer,
+            fids,
+            fields,
+            encoding,
+            read_geometry=read_geometry and geometry_type is not None,
+            force_2d=force_2d,
+        )
+    else:
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
+
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_spatial_filter(ogr_layer, bbox)
+
+        # Limit feature range to available range
+        skip_features, max_features = validate_feature_range(
+            ogr_layer, skip_features, max_features
+        )
+
+        geometries, field_data = get_features(
+            ogr_layer,
+            fields,
+            encoding,
+            read_geometry=read_geometry and geometry_type is not None,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features,
+        )
 
     meta = {
         'crs': crs,
@@ -757,7 +861,12 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
         'encoding': encoding,
         'fields': get_fields(ogr_layer, encoding)[:,2], # return only names
         'geometry_type': get_geometry_type(ogr_layer),
-        'features': OGR_L_GetFeatureCount(ogr_layer, 1)
+        'features': OGR_L_GetFeatureCount(ogr_layer, 1),
+        "capabilities": {
+            "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
+            "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
+            "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
+        }
     }
 
     if ogr_dataset != NULL:
