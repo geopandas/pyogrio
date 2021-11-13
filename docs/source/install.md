@@ -19,14 +19,14 @@ conda install -c conda-forge pyogrio
 ```
 
 This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
-raw I/O support and `geopandas`, `pygeos` and their dependencies for GeoDataFrame
+raw I/O support and `geopandas`, `pygeos`, and their dependencies for GeoDataFrame
 I/O support.
 
 ### PyPi
 
-This package is not yet available on PyPi because it involves compiled binary
-dependencies. We are planning to release this package on PyPi for Linux and MacOS.
-We are unlikely to release Windows packages on PyPi in the near future due to
+This package is not yet available on PyPI because it involves compiled binary
+dependencies. We are planning to release this package on PyPI for Linux and MacOS.
+We are unlikely to release Windows packages on PyPI in the near future due to
 the complexity of packaging binary packages for Windows.
 
 ### Common installation errors
