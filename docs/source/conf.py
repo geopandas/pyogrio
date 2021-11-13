@@ -25,8 +25,8 @@ autodoc_mock_imports = [
 # -- Project information -----------------------------------------------------
 
 project = "pyogrio"
-copyright = "2021, Brendan C. Ward"
-author = "Brendan C. Ward"
+copyright = "2020-2021 Brendan C. Ward and pyogrio contributors"
+author = "Brendan C. Ward and pyogrio contributors"
 
 # The full version, including alpha/beta/rc tags
 release = __version__
