@@ -129,13 +129,15 @@ def read_info(path, layer=None, encoding=None):
     Returns
     -------
     dict
-        {
-            "crs": "<crs>",
-            "fields": <ndarray of field names>,
-            "encoding": "<encoding>",
-            "geometry": "<geometry type>",
-            "features": <feature count>
-        }
+        A dictionary with the following keys::
+
+            {
+                "crs": "<crs>",
+                "fields": <ndarray of field names>,
+                "encoding": "<encoding>",
+                "geometry": "<geometry type>",
+                "features": <feature count>
+            }
     """
     return ogr_read_info(str(path), layer=layer, encoding=encoding)
 
