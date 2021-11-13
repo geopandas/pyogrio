@@ -134,6 +134,7 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
     **kwargs
         The kwargs passed to OGR.
     """
+    # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
         with GDALEnv():
             import geopandas as gp
