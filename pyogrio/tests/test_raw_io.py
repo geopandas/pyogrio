@@ -144,6 +144,42 @@ def test_read_bbox(naturalearth_lowres):
     assert np.array_equal(fields[3], ["USA", "MEX"])
 
 
+def test_read_fids(naturalearth_lowres):
+    expected_geometry, expected_fields = read(naturalearth_lowres)[1:]
+    subset = [0, 10, 5]
+    
+    for fids in [subset, np.array(subset)]:
+        geometry, fields = read(naturalearth_lowres, fids=subset)[1:]
+
+        assert len(geometry) == 3
+        assert len(fields[0]) == 3
+
+        assert np.array_equal(geometry, expected_geometry[subset])
+        assert np.array_equal(fields[-1], expected_fields[-1][subset])
+
+
+def test_read_fids_out_of_bounds(naturalearth_lowres):
+    with pytest.raises(ValueError, match="Failed to read FID -1"):
+        read(naturalearth_lowres, fids=[-1])
+
+    with pytest.raises(ValueError, match="Failed to read FID 200"):
+        read(naturalearth_lowres, fids=[200])
+
+
+def test_read_fids_unsupported_keywords(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], where="iso_a3 = 'CAN'")
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 40))
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], skip_features=5)
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], max_features=5)
+
+
 def test_write(tmpdir, naturalearth_lowres):
     meta, geometry, field_data = read(naturalearth_lowres)
 

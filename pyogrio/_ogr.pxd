@@ -238,6 +238,7 @@ cdef extern from "ogr_api.h":
     int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
     OGRFeatureDefnH         OGR_L_GetLayerDefn(OGRLayerH layer)
     OGRFeatureH             OGR_L_GetNextFeature(OGRLayerH layer)
+    OGRFeatureH             OGR_L_GetFeature(OGRLayerH layer, int nFeatureId)
     void                    OGR_L_ResetReading(OGRLayerH layer)
     OGRErr                  OGR_L_SetAttributeFilter(OGRLayerH hLayer, const char* pszQuery)
     OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
@@ -248,6 +249,11 @@ cdef extern from "ogr_api.h":
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
     int             OGRReleaseDataSource(OGRDataSourceH ds)
+
+    const char*     OLCStringsAsUTF8
+    const char*     OLCRandomRead
+    const char*     OLCFastSetNextByIndex
+    const char*     OLCFastSpatialFilter
 
 
 cdef extern from "gdal.h":
