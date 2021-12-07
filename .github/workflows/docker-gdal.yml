@@ -14,7 +14,6 @@ jobs:
           - "osgeo/gdal:ubuntu-small-3.3.3" # python 3.8.10
           - "osgeo/gdal:ubuntu-small-3.2.3" # python 3.8.5
           - "osgeo/gdal:ubuntu-small-3.1.3" # python 3.8.2
-          - "osgeo/gdal:ubuntu-small-3.0.4" # python 3.6.9
 
     container:
       image: ${{ matrix.container }}
