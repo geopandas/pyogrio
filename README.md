@@ -10,7 +10,7 @@ WARNING: this is an early version and the API is subject to substantial change.
 
 ## Requirements
 
-Supports Python 3.6 - 3.9 and GDAL 2.4.x - 3.2.x
+Supports Python 3.6 - 3.9 and GDAL 3.0.x - 3.4.x
 (prior versions will not be supported)
 
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
