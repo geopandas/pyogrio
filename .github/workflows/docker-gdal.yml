@@ -31,11 +31,6 @@ jobs:
           python3 -m pip install --no-cache-dir cython~=0.29
           python3 -m pip install --no-cache-dir --no-build-isolation -e .[dev,test,geopandas]
 
-      - name: Print Environment
-        run: |
-          echo python3 --version
-          echo python3 -m pip freeze
-
       - name: Test with pytest
         run: |
           pytest --cov=pyogrio --cov-report term-missing pyogrio/tests

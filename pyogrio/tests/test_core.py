@@ -52,7 +52,8 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
     ):
         fgdb_layers = list_layers(test_fgdb_vsi)
-        assert len(fgdb_layers) == 7
+        # GDAL >= 3.4.0 includes 'another_relationship' layer
+        assert len(fgdb_layers) >= 7
 
         # Make sure that nonspatial layer has None for geometry
         assert array_equal(fgdb_layers[0], ["basetable_2", None])
