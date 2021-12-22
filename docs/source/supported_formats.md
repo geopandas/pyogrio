@@ -7,7 +7,7 @@ a wide number of vector file formats, and writing for a much smaller number.
 Please see the [list of drivers](https://gdal.org/drivers/vector/index.html) for
 more information.
 
-## Full and write support
+## Full read and write support
 
 -   [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html)
 -   [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)

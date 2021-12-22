@@ -22,7 +22,7 @@ This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
 raw I/O support and `geopandas`, `pygeos`, and their dependencies for GeoDataFrame
 I/O support.
 
-### PyPi
+### PyPI
 
 Ready-to-use (compiled) distributions are not yet available on PyPI because it
 depends on including compiled binary dependencies. We are planning to release
