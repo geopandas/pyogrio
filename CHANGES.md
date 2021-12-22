@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## Unreleased changes
+## 0.3.0
 
 ### Major enhancements
 
