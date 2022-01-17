@@ -84,7 +84,7 @@ def read_dataframe(
     path = str(path)
 
     if not "://" in path:
-        if not "/vsizip" in path.lower() and not os.path.exists(path):
+        if not "/vsi" in path.lower() and not os.path.exists(path):
             raise ValueError(f"'{path}' does not exist")
 
     meta, geometry, field_data = read(
