@@ -75,6 +75,7 @@ first layer.
   'crs': 'EPSG:4326',
   'encoding': 'UTF-8',
   'fields': array(['featurecla', 'scalerank', 'LABELRANK', ...], dtype=object),
+  'dtypes': array(['int64', 'object', 'object', 'object', 'float64'], dtype=object),
   'geometry_type': 'Polygon',
   'features': 255
 }

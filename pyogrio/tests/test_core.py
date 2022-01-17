@@ -1,5 +1,4 @@
 from numpy import array_equal, allclose
-from numpy.core.records import array
 import pytest
 
 from pyogrio import (
@@ -135,6 +134,7 @@ def test_read_info(naturalearth_lowres):
     assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
+    assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
 
 

@@ -421,7 +421,7 @@ cdef process_fields(
     int i,
     int n_fields,
     object field_data,
-    object field_data_view, 
+    object field_data_view,
     object field_indexes,
     object field_ogr_types,
     encoding
@@ -856,10 +856,13 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
         or locale.getpreferredencoding()
     )
 
+    fields = get_fields(ogr_layer, encoding)
+
     meta = {
         'crs': get_crs(ogr_layer),
         'encoding': encoding,
-        'fields': get_fields(ogr_layer, encoding)[:,2], # return only names
+        'fields': fields[:,2], # return only names
+        'dtypes': fields[:,3],
         'geometry_type': get_geometry_type(ogr_layer),
         'features': OGR_L_GetFeatureCount(ogr_layer, 1),
         "capabilities": {
@@ -948,8 +951,6 @@ cdef void * create_crs(str crs) except NULL:
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
             raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8')))
-
-        # TODO: on GDAL < 3, use OSRFixup()?
 
     except CPLE_BaseError as exc:
         OSRRelease(ogr_crs)
