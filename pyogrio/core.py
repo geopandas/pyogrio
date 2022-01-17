@@ -134,6 +134,7 @@ def read_info(path, layer=None, encoding=None):
             {
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
+                "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
                 "features": <feature count>
