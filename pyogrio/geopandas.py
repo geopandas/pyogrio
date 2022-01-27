@@ -83,16 +83,10 @@ def read_dataframe(
 
     # path = str(path)
 
-<<<<<<< HEAD
     if isinstance(path, str):
         if not "://" in path:
             if not "/vsi" in path.lower() and not os.path.exists(path):
                 raise ValueError(f"'{path}' does not exist")
-=======
-    if not "://" in path:
-        if not "/vsi" in path.lower() and not os.path.exists(path):
-            raise ValueError(f"'{path}' does not exist")
->>>>>>> upstream/main
 
     meta, geometry, field_data = read(
         path,
