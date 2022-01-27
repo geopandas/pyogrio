@@ -1,0 +1,12 @@
+version: 2
+formats: []
+
+sphinx:
+  configuration: docs/source/conf.py
+
+conda:
+  environment: docs/environment.yml
+
+python:
+  install:
+    - path: .

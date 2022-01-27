@@ -145,6 +145,27 @@ def test_read_bbox(naturalearth_lowres):
     assert np.array_equal(df.iso_a3, ["USA", "MEX"])
 
 
+def test_read_fids(naturalearth_lowres):
+    # ensure keyword is properly passed through
+    df = read_dataframe(naturalearth_lowres, fids=[0, 10, 5])
+    assert len(df) == 3
+
+
+def test_read_fids_force_2d(test_fgdb_vsi):
+    with pytest.warns(
+        UserWarning, match=r"Measured \(M\) geometry types are not supported"
+    ):
+        df = read_dataframe(test_fgdb_vsi, layer="test_lines", fids=[22])
+        assert len(df) == 1
+        assert df.iloc[0].geometry.has_z
+
+        df = read_dataframe(
+            test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22]
+        )
+        assert len(df) == 1
+        assert not df.iloc[0].geometry.has_z
+
+
 @pytest.mark.parametrize(
     "driver,ext",
     [

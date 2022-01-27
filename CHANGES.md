@@ -1,12 +1,14 @@
 # CHANGELOG
 
-## Unreleased changes
+## 0.3.0
 
 ### Major enhancements
 
 -   Auto-discovery of `GDAL_VERSION` on Windows, if `gdalinfo.exe` is discoverable
     on the `PATH`.
 -   Addition of `read_bounds` function to read the bounds of each feature.
+-   Addition of a `fids` keyword to `read` and `read_dataframe` to selectively
+    read features based on a list of the FIDs.
 
 ## 0.2.0
 

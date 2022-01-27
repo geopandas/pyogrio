@@ -27,8 +27,8 @@ def list_drivers(read=False, write=False):
     Returns
     -------
     dict
-        Mapping of driver name to file mode capabilities: "r": read, "w": write.
-        Drivers that are available but with unknown support are marked with "?"
+        Mapping of driver name to file mode capabilities: ``"r"``: read, ``"w"``: write.
+        Drivers that are available but with unknown support are marked with ``"?"``
     """
 
     drivers = ogr_list_drivers()
@@ -83,12 +83,12 @@ def read_bounds(
         features.  Must be less than the total number of features in the file.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
-        number of features in the file minus skip_features (if used).
+        number of features in the file minus ``skip_features`` (if used).
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values.  Uses a
         restricted form of SQL WHERE clause, defined here:
         http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
-        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+        Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.
@@ -97,7 +97,7 @@ def read_bounds(
     -------
     tuple of (fids, bounds)
         fids are global IDs read from the FID field of the dataset
-        bounds are ndarray of shape(4, n) containig xmin, ymin, xmax, ymax
+        bounds are ndarray of shape(4, n) containig ``xmin``, ``ymin``, ``xmax``, ``ymax``
     """
 
     return ogr_read_bounds(
@@ -113,7 +113,7 @@ def read_bounds(
 def read_info(path, layer=None, encoding=None):
     """Read information about an OGR data source.
 
-    `crs` and `geometry` will be `None` and `features` will be 0 for a
+    ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
     nonspatial layer.
 
     Parameters
@@ -129,13 +129,16 @@ def read_info(path, layer=None, encoding=None):
     Returns
     -------
     dict
-        {
-            "crs": "<crs>",
-            "fields": <ndarray of field names>,
-            "encoding": "<encoding>",
-            "geometry": "<geometry type>",
-            "features": <feature count>
-        }
+        A dictionary with the following keys::
+
+            {
+                "crs": "<crs>",
+                "fields": <ndarray of field names>,
+                "dtypes": <ndarray of field dtypes>,
+                "encoding": "<encoding>",
+                "geometry": "<geometry type>",
+                "features": <feature count>
+            }
     """
     return ogr_read_info(str(path), layer=layer, encoding=encoding)
 
@@ -154,9 +157,9 @@ def set_gdal_config_options(options):
     ----------
     options : dict
         If present, provides a mapping of option name / value pairs for GDAL
-        configuration options.  True / False are normalized to 'ON' / 'OFF'.
-        A value of None for a config option can be used to clear out a previously
-        set value.
+        configuration options.  ``True`` / ``False`` are normalized to ``'ON'``
+        / ``'OFF'``. A value of ``None`` for a config option can be used to clear out a
+        previously set value.
     """
 
     _set_gdal_config_options(options)
@@ -173,7 +176,7 @@ def get_gdal_config_option(name):
     Returns
     -------
     value of the option or None if not set
-        'ON' / 'OFF' are normalized to True / False.
+        ``'ON'`` / ``'OFF'`` are normalized to ``True`` / ``False``.
     """
 
     return _get_gdal_config_option(name)

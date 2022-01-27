@@ -15,12 +15,13 @@ def read_dataframe(
     max_features=None,
     where=None,
     bbox=None,
+    fids=None,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
-    If the data source does not have a geometry column or `read_geometry` is False,
+    If the data source does not have a geometry column or ``read_geometry`` is False,
     a DataFrame will be returned.
 
-    Requires geopandas >= 0.8.
+    Requires ``geopandas`` >= 0.8.
 
     Parameters
     ----------
@@ -55,10 +56,17 @@ def read_dataframe(
         Where clause to filter features in layer by attribute values.  Uses a
         restricted form of SQL WHERE clause, defined here:
         http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
-        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+        Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.
+    fids : array-like, optional (default: None)
+        Array of integer feature id (FID) values to select. Cannot be combined
+        with other keywords to select a subset (``skip_features``, ``max_features``,
+        ``where`` or ``bbox``). Note that the starting index is driver and file
+        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
+        still depend on the specific file). The performance of reading a large
+        number of features usings FIDs is also driver specific.
 
     Returns
     -------
@@ -75,10 +83,16 @@ def read_dataframe(
 
     # path = str(path)
 
+<<<<<<< HEAD
     if isinstance(path, str):
         if not "://" in path:
-            if not "/vsizip" in path.lower() and not os.path.exists(path):
+            if not "/vsi" in path.lower() and not os.path.exists(path):
                 raise ValueError(f"'{path}' does not exist")
+=======
+    if not "://" in path:
+        if not "/vsi" in path.lower() and not os.path.exists(path):
+            raise ValueError(f"'{path}' does not exist")
+>>>>>>> upstream/main
 
     meta, geometry, field_data = read(
         path,
@@ -91,6 +105,7 @@ def read_dataframe(
         max_features=max_features,
         where=where,
         bbox=bbox,
+        fids=fids,
     )
 
     columns = meta["fields"].tolist()
@@ -107,6 +122,26 @@ def read_dataframe(
 
 # TODO: handle index properly
 def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
+    """
+    Write GeoPandas GeoDataFrame to an OGR file format.
+
+    Parameters
+    ----------
+    path : str
+        path to file
+    layer :str, optional (default: None)
+        layer name
+    driver : string, optional (default: None)
+        The OGR format driver used to write the vector file. By default write_dataframe
+        attempts to infer driver from path.
+    encoding : str, optional (default: None)
+        If present, will be used as the encoding for writing string values to
+        the file.
+
+    **kwargs
+        The kwargs passed to OGR.
+    """
+    # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
         with GDALEnv():
             import geopandas as gp

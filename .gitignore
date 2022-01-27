@@ -5,8 +5,6 @@
 *.dll
 
 */__pycache__/*
-build/*
-*.egg-info/*
 .benchmarks/*
 .coverage
 .pytest_cache/*
@@ -17,3 +15,23 @@ Pipfile.lock
 benchmarks/fixtures/*
 
 .libs
+
+docs/build
+
+# Distribution / packaging
+.Python
+env/
+venv*/
+build/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg

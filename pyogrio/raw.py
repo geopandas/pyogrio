@@ -27,6 +27,7 @@ def read(
     max_features=None,
     where=None,
     bbox=None,
+    fids=None,
 ):
     """Read OGR data source.
 
@@ -69,6 +70,13 @@ def read(
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.
+    fids : array-like, optional (default: None)
+        Array of integer feature id (FID) values to select. Cannot be combined
+        with other keywords to select a subset (`skip_features`, `max_features`,
+        `where` or `bbox`). Note that the starting index is driver and file
+        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
+        still depend on the specific file). The performance of reading a large
+        number of features usings FIDs is also driver specific.
 
     Returns
     -------
@@ -109,6 +117,7 @@ def read(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            fids=fids,
         )
     finally:
         if from_buffer:
