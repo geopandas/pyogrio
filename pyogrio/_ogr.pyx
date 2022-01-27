@@ -120,6 +120,9 @@ def ogr_list_drivers():
 def buffer_to_virtual_file(bytesbuf, ext=''):
     """Maps a bytes buffer to a virtual file.
     `ext` is empty or begins with a period and contains at most one period.
+
+    This (and remove_virtual_file) is originally copied from the Fiona project
+    (https://github.com/Toblerity/Fiona/blob/c388e9adcf9d33e3bb04bf92b2ff210bbce452d9/fiona/ogrext.pyx#L1863-L1879)
     """
 
     vsi_filename = '/vsimem/{}'.format(uuid4().hex + ext)
