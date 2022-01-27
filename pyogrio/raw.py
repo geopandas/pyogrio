@@ -36,8 +36,8 @@ def read(
 
     Parameters
     ----------
-    path_or_buffer : pathlib.Path or str
-        data source path
+    path_or_buffer : pathlib.Path or str, or bytes buffer
+        Data source path or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -97,10 +97,11 @@ def read(
     if isinstance(path_or_buffer, bytes):
         from_buffer = True
         ext = ""
-        if path_or_buffer[:4].startswith(b'PK\x03\x04'):
+        is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
+        if is_zipped:
             ext = ".zip"
         path = buffer_to_virtual_file(path_or_buffer, ext=ext)
-        if path_or_buffer[:4].startswith(b'PK\x03\x04'):
+        if is_zipped:
             path = "/vsizip/" + path
     else:
         path = str(path_or_buffer)
