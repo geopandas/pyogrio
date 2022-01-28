@@ -19,14 +19,14 @@ except ImportError:
     cythonize = None
 
 
-MIN_PYTHON_VERSION = (3, 6, 0)
+MIN_PYTHON_VERSION = (3, 8, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 build_ext = None
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.6 is required")
+    raise RuntimeError("Python >= 3.8 is required")
 
 
 # Get GDAL config from gdal-config command
@@ -161,7 +161,7 @@ setup(
     description="Vectorized spatial vector file format I/O using GDAL/OGR",
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=["numpy"],
     extras_require={
         "dev": ["Cython"],
