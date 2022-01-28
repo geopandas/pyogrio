@@ -144,7 +144,7 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
         CSLDestroy(open_opts)
 
 
-cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer):
+cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     """Open OGR layer by index or name.
 
     Parameters

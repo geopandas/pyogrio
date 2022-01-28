@@ -81,6 +81,11 @@ def test_read_layer(test_fgdb_vsi):
     assert "RIVER_MILE" in df.columns
 
 
+def test_read_layer_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="Layer 'wrong' could not be opened"):
+        read_dataframe(naturalearth_lowres, layer="wrong")
+
+
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
