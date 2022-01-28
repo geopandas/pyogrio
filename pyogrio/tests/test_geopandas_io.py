@@ -164,9 +164,7 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert len(df) == 1
         assert df.iloc[0].geometry.has_z
 
-        df = read_dataframe(
-            test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22]
-        )
+        df = read_dataframe(test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22])
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
 
@@ -202,3 +200,23 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
             df, expected, check_less_precise=is_json, check_dtype=not is_json
         )
 
+
+@pytest.mark.parametrize(
+    "driver,ext",
+    [
+        ("ESRI Shapefile", "shp"),
+        ("GeoJSON", "geojson"),
+        ("GPKG", "gpkg"),
+    ],
+)
+def test_write_empty_dataframe(tmpdir, driver, ext):
+    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write_dataframe(expected, filename, driver=driver)
+
+    assert os.path.exists(filename)
+
+    df = read_dataframe(filename)
+
+    assert_geodataframe_equal(df, expected)

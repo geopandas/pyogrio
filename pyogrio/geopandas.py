@@ -168,8 +168,11 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
-    # TODO: validate geometry types, not all combinations are valid
-    geometry_type = geometry.type.unique()[0]
+    if not df.empty:
+        # TODO: validate geometry types, not all combinations are valid
+        geometry_type = geometry.type.unique()[0]
+    else:
+        geometry_type = "Unknown"
 
     crs = None
     if geometry.crs:
