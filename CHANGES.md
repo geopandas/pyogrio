@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 0.4.0 (in progress)
+
+### Major enhancements
+
+-   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
+-   add dtype for each field to `read_info` (#30)
+-   support writing empty GeoDataFrames (#38)
+-   attempting to read features with an out of bound FID will now raise
+    `DriverIOError` instead of `ValueError`
+
+### Bug fixes
+
+-   use dtype `object` instead of `numpy.object` to eliminate deprecation warnings (#34)
+-   raise error if layer cannot be opened (#35)
+
 ## 0.3.0
 
 ### Major enhancements

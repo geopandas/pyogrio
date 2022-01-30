@@ -7,7 +7,7 @@ import pytest
 
 from pyogrio import list_layers, list_drivers
 from pyogrio.raw import read, write
-from pyogrio.errors import DriverError
+from pyogrio.errors import DriverError, DriverIOError
 
 
 def test_read(naturalearth_lowres):
@@ -147,7 +147,7 @@ def test_read_bbox(naturalearth_lowres):
 def test_read_fids(naturalearth_lowres):
     expected_geometry, expected_fields = read(naturalearth_lowres)[1:]
     subset = [0, 10, 5]
-    
+
     for fids in [subset, np.array(subset)]:
         geometry, fields = read(naturalearth_lowres, fids=subset)[1:]
 
@@ -159,10 +159,16 @@ def test_read_fids(naturalearth_lowres):
 
 
 def test_read_fids_out_of_bounds(naturalearth_lowres):
-    with pytest.raises(ValueError, match="Failed to read FID -1"):
+    with pytest.raises(
+        DriverIOError,
+        match=r"Attempt to read shape with feature id \(-1\) out of available range",
+    ):
         read(naturalearth_lowres, fids=[-1])
 
-    with pytest.raises(ValueError, match="Failed to read FID 200"):
+    with pytest.raises(
+        DriverIOError,
+        match=r"Attempt to read shape with feature id \(200\) out of available range",
+    ):
         read(naturalearth_lowres, fids=[200])
 
 

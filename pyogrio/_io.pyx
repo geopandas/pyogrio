@@ -606,10 +606,11 @@ cdef get_features_by_fid(
     for i in range(count):
         fid = fids[i]
 
-        ogr_feature = OGR_L_GetFeature(ogr_layer, fid)
+        try:
+            ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
 
-        if ogr_feature == NULL:
-            raise ValueError("Failed to read FID {}".format(fid))
+        except CPLE_BaseError as exc:
+            raise DriverIOError(str(exc))
 
         if read_geometry:
             process_geometry(ogr_feature, i, geom_view, force_2d)
@@ -1132,7 +1133,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
         ogr_dataset = NULL
-        raise DriverIOError(exc.encode('UTF-8'))
+        raise DriverIOError(str(exc))
 
     finally:
         if ogr_crs != NULL:
