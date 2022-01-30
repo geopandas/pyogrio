@@ -96,7 +96,7 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           # mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
-          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio" -Recurse
+          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\src\pyogrio\" -Recurse
           # mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
           # Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
 
@@ -119,10 +119,10 @@ jobs:
           & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\HostX86\x64\dumpbin.exe" /EXPORTS c:\gdal\bin\gdal302.dll
           echo ""
           echo "Dependencies of PYD files"
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\HostX86\x64\dumpbin.exe" /DEPENDENTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\HostX86\x64\dumpbin.exe" /DEPENDENTS D:\a\pyogrio\pyogrio\src\pyogrio\_io.cp39-win_amd64.pyd
           echo ""
           echo "Imports from PYD files"
-          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\HostX86\x64\dumpbin.exe" /IMPORTS D:\a\pyogrio\pyogrio\pyogrio\_io.cp39-win_amd64.pyd
+          & "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.29.30133\bin\HostX86\x64\dumpbin.exe" /IMPORTS D:\a\pyogrio\pyogrio\src\pyogrio\_io.cp39-win_amd64.pyd
 
       - name: Check module status
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
@@ -134,9 +134,9 @@ jobs:
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
           echo "Manually execute tests"
-          python pyogrio/tests/win32.py
+          python src/pyogrio/tests/win32.py
 
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          pytest -sv pyogrio/tests
+          pytest -sv sr/pyogrio/tests
