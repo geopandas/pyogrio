@@ -139,4 +139,4 @@ jobs:
       - name: pytest
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          pytest -sv src/pyogrio/tests
+          python -m pytest -sv src/pyogrio/tests
