@@ -12,6 +12,9 @@ if platform.system() == "Windows":
     naturalearth_lowres = data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
     test_fgdb_vsi = f"/vsizip/{data_dir}/test_fgdb.gdb.zip"
     
+    import pyogrio
+    print(pyogrio.__path__)
+    print(pyogrio.__version__)
     import pyogrio.raw
     print(pyogrio.raw.read(naturalearth_lowres))
 
