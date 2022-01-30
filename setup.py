@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from distutils import log
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 import versioneer
 
@@ -123,10 +123,10 @@ else:
 
     ext_modules = cythonize(
         [
-            Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
-            Extension("pyogrio._geometry", ["pyogrio/_geometry.pyx"], **ext_options),
-            Extension("pyogrio._io", ["pyogrio/_io.pyx"], **ext_options),
-            Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
+            Extension("pyogrio._err", ["src/pyogrio/_err.pyx"], **ext_options),
+            Extension("pyogrio._geometry", ["src/pyogrio/_geometry.pyx"], **ext_options),
+            Extension("pyogrio._io", ["src/pyogrio/_io.pyx"], **ext_options),
+            Extension("pyogrio._ogr", ["src/pyogrio/_ogr.pyx"], **ext_options),
         ],
         compiler_directives={"language_level": "3"},
     )
@@ -153,7 +153,8 @@ cmdclass["build_ext"] = build_ext
 setup(
     name="pyogrio",
     version=version,
-    packages=["pyogrio"],
+    packages=find_packages(where="src"),
+    package_dir={"": "src"},
     url="https://github.com/brendan-ward/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
