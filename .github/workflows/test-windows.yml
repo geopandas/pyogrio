@@ -95,10 +95,10 @@ jobs:
       - name: Copy DLLs
         continue-on-error: ${{ matrix.allow_failure == 'true' }}
         run: |
-          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
-          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs" -Recurse
-          mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
-          Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
+          # mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs -Force
+          Copy-Item -Path "C:\gdal\bin\*.dll" -Destination "$env:GITHUB_WORKSPACE\pyogrio" -Recurse
+          # mkdir $env:GITHUB_WORKSPACE\pyogrio\.libs\licenses -Force
+          # Copy-Item -Path "C:\gdal\*.rtf" -Destination "$env:GITHUB_WORKSPACE\pyogrio\.libs\licenses" -Recurse
 
       - name: Print Environment
         continue-on-error: true
