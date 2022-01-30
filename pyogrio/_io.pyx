@@ -1,11 +1,6 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 """IO support for OGR vector data sources
-
-TODO:
-* better handling of drivers
-* better handling of encoding
-* handle FID / OBJECTID
 """
 
 
@@ -36,7 +31,6 @@ log = logging.getLogger(__name__)
 
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
-# TODO: incorporate field subtypes if available from OGR
 FIELD_TYPES = [
     'int32',        # OFTInteger, Simple 32bit integer
     None,           # OFTIntegerList, List of 32bit integers, not supported
@@ -104,7 +98,6 @@ cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
     return 0
 
 
-
 # ported from fiona::_shim22.pyx::gdal_open_vector
 cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     cdef void* ogr_dataset = NULL
@@ -159,16 +152,21 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     """
     cdef OGRLayerH ogr_layer = NULL
 
-    if isinstance(layer, str):
-        name_b = layer.encode('utf-8')
-        name_c = name_b
-        ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, name_c)
+    try:
+        if isinstance(layer, str):
+            name_b = layer.encode('utf-8')
+            name_c = name_b
+            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
 
-    elif isinstance(layer, int):
-        ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer)
+        elif isinstance(layer, int):
+            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
 
-    if ogr_layer == NULL:
-        raise ValueError(f"Layer '{layer}' could not be opened")
+    # GDAL does not always raise exception messages in this case
+    except NullPointerError:
+        raise DriverError(f"Layer '{layer}' could not be opened") from None
+
+    except CPLE_BaseError as exc:
+        raise DriverError(str(exc))
 
     return ogr_layer
 

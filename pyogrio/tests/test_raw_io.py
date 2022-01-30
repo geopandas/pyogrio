@@ -33,6 +33,17 @@ def test_read(naturalearth_lowres):
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
 
 
+def test_read_invalid_layer(naturalearth_lowres):
+    with pytest.raises(DriverError, match="Layer 'invalid' could not be opened"):
+        read(naturalearth_lowres, layer="invalid")
+
+    with pytest.raises(DriverError, match="Layer '-1' could not be opened"):
+        read(naturalearth_lowres, layer=-1)
+
+    with pytest.raises(DriverError, match="Layer '2' could not be opened"):
+        read(naturalearth_lowres, layer=2)
+
+
 def test_vsi_read_layers(naturalearth_lowres_vsi):
     assert array_equal(
         list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]

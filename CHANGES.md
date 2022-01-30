@@ -7,8 +7,11 @@
 -   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
 -   add dtype for each field to `read_info` (#30)
 -   support writing empty GeoDataFrames (#38)
--   attempting to read features with an out of bound FID will now raise
-    `DriverIOError` instead of `ValueError`
+-   Consolided error handling to better use GDAL error messages and specific
+    exception classes (#39):
+    -   attempting to read features with an out of bound FID will now raise
+        `DriverIOError` instead of `ValueError`
+    -   attempting to open a layer that cannot be opened will now raise `DriverError` instead of `ValueError`
 
 ### Bug fixes
 
