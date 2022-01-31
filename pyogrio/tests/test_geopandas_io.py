@@ -6,6 +6,7 @@ from pandas.testing import assert_frame_equal
 import pytest
 
 from pyogrio import list_layers
+from pyogrio.errors import DataLayerError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 
 try:
@@ -82,7 +83,7 @@ def test_read_layer(test_fgdb_vsi):
 
 
 def test_read_layer_invalid(naturalearth_lowres):
-    with pytest.raises(ValueError, match="Layer 'wrong' could not be opened"):
+    with pytest.raises(DataLayerError, match="Layer 'wrong' could not be opened"):
         read_dataframe(naturalearth_lowres, layer="wrong")
 
 
@@ -202,12 +203,7 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
 
 
 @pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("ESRI Shapefile", "shp"),
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg"),
-    ],
+    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
 )
 def test_write_empty_dataframe(tmpdir, driver, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)

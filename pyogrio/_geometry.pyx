@@ -1,7 +1,8 @@
 import warnings
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
-from pyogrio.errors import UnsupportedGeometryTypeError
+from pyogrio._err import CPLE_BaseError, NullPointerError
+from pyogrio.errors import DataLayerError, GeometryError
 
 
 # Mapping of OGR integer geometry types to GeoJSON type names.
@@ -72,14 +73,18 @@ cdef str get_geometry_type(void *ogr_layer):
     cdef void *cogr_featuredef = NULL
     cdef OGRwkbGeometryType ogr_type
 
-    ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
-    if ogr_featuredef == NULL:
-        raise ValueError("Null feature definition")
+    try:
+        ogr_featuredef = exc_wrap_pointer(OGR_L_GetLayerDefn(ogr_layer))
+    except NullPointerError:
+        raise DataLayerError("Could not get layer definition")
+
+    except CPLE_BaseError as exc:
+        raise DataLayerError(str(exc))
 
     ogr_type = OGR_FD_GetGeomType(ogr_featuredef)
 
     if ogr_type not in GEOMETRY_TYPES:
-        raise UnsupportedGeometryTypeError(ogr_type)
+        raise GeometryError(f"Geometry type is not supported: {ogr_type}")
 
     if OGR_GT_HasM(ogr_type):
         original_type = GEOMETRY_TYPES[ogr_type]
@@ -109,6 +114,6 @@ cdef int get_geometry_type_code(str geometry_type):
         geometry type code
     """
     if geometry_type not in GEOMETRY_TYPE_CODES:
-        raise UnsupportedGeometryTypeError(geometry_type)
+        raise GeometryError(f"Geometry type is not supported: {geometry_type}")
 
     return GEOMETRY_TYPE_CODES[geometry_type]

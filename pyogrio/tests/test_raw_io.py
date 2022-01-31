@@ -7,7 +7,7 @@ import pytest
 
 from pyogrio import list_layers, list_drivers
 from pyogrio.raw import read, write
-from pyogrio.errors import DriverError, DriverIOError
+from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 
 
 def test_read(naturalearth_lowres):
@@ -34,13 +34,13 @@ def test_read(naturalearth_lowres):
 
 
 def test_read_invalid_layer(naturalearth_lowres):
-    with pytest.raises(DriverError, match="Layer 'invalid' could not be opened"):
+    with pytest.raises(DataLayerError, match="Layer 'invalid' could not be opened"):
         read(naturalearth_lowres, layer="invalid")
 
-    with pytest.raises(DriverError, match="Layer '-1' could not be opened"):
+    with pytest.raises(DataLayerError, match="Layer '-1' could not be opened"):
         read(naturalearth_lowres, layer=-1)
 
-    with pytest.raises(DriverError, match="Layer '2' could not be opened"):
+    with pytest.raises(DataLayerError, match="Layer '2' could not be opened"):
         read(naturalearth_lowres, layer=2)
 
 
@@ -171,13 +171,13 @@ def test_read_fids(naturalearth_lowres):
 
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
-        DriverIOError,
+        FeatureError,
         match=r"Attempt to read shape with feature id \(-1\) out of available range",
     ):
         read(naturalearth_lowres, fids=[-1])
 
     with pytest.raises(
-        DriverIOError,
+        FeatureError,
         match=r"Attempt to read shape with feature id \(200\) out of available range",
     ):
         read(naturalearth_lowres, fids=[200])
@@ -270,5 +270,5 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     filename = os.path.join(str(tmpdir), "test.fgdb")
 
-    with pytest.raises(DriverError, match="does not support write functionality"):
+    with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
