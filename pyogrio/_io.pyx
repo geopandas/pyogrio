@@ -22,7 +22,7 @@ from pyogrio._ogr cimport *
 from pyogrio._err cimport *
 from pyogrio._err import CPLE_BaseError, CPLE_NotSupportedError, NullPointerError
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
-from pyogrio.errors import CRSError, DataSourceError, DataLayerError, FieldError, FeatureError
+from pyogrio.errors import CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
 
 
 log = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
         return ogr_dataset
 
     except NullPointerError:
-        raise DataSourceError("Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8")))
+        raise DataSourceError("Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))) from None
 
     except CPLE_BaseError as exc:
         raise DataSourceError(str(exc))
@@ -213,7 +213,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
     try:
         OSRExportToWkt(ogr_crs, &ogr_wkt)
         if ogr_wkt == NULL:
-            raise CRSError("CRS could not be extracted as WKT")
+            raise CRSError("CRS could not be extracted as WKT") from None
 
         wkt = get_string(ogr_wkt)
 
@@ -245,7 +245,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
 
     except NullPointerError:
-        raise DataLayerError(f"Could not detect encoding of layer")
+        raise DataLayerError(f"Could not detect encoding of layer") from None
 
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
@@ -281,7 +281,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         ogr_featuredef = exc_wrap_pointer(OGR_L_GetLayerDefn(ogr_layer))
 
     except NullPointerError:
-        raise DataLayerError("Could not get layer definition")
+        raise DataLayerError("Could not get layer definition") from None
 
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
@@ -296,7 +296,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
             ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
 
         except NullPointerError:
-            raise FieldError(f"Could not get field definition for field at index {i}")
+            raise FieldError(f"Could not get field definition for field at index {i}") from None
 
         except CPLE_BaseError as exc:
             raise FieldError(str(exc))
@@ -573,7 +573,7 @@ cdef get_features(
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}")
+            raise FeatureError(f"Could not read feature at index {i}") from None
 
         except CPLE_BaseError as exc:
             raise FeatureError(str(exc))
@@ -637,7 +637,7 @@ cdef get_features_by_fid(
             ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature with fid {fid}")
+            raise FeatureError(f"Could not read feature with fid {fid}") from None
 
         except CPLE_BaseError as exc:
             raise FeatureError(str(exc))
@@ -692,7 +692,7 @@ cdef get_bounds(
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}")
+            raise FeatureError(f"Could not read feature at index {i}") from None
 
         except CPLE_BaseError as exc:
             raise FeatureError(str(exc))
@@ -963,7 +963,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
         ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, NULL))
 
     except NullPointerError:
-        raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}")
+        raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}") from None
 
     except CPLE_NotSupportedError as exc:
         raise DataSourceError(f"Driver {driver_c.decode('utf-8')} does not support write functionality") from None
@@ -985,7 +985,7 @@ cdef void * create_crs(str crs) except NULL:
         ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
-            raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8')))
+            raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8'))) from None
 
     except CPLE_BaseError as exc:
         OSRRelease(ogr_crs)
@@ -1200,7 +1200,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
             OGRReleaseDataSource(ogr_dataset)
             ogr_dataset = NULL
-            raise FieldError(f"Error creating field '{fields[i]}' from field_data")
+            raise FieldError(f"Error creating field '{fields[i]}' from field_data") from None
 
         try:
             exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
@@ -1208,7 +1208,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         except:
             OGRReleaseDataSource(ogr_dataset)
             ogr_dataset = NULL
-            raise FieldError(f"Error adding field '{fields[i]}' to layer")
+            raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
 
         finally:
             if ogr_fielddef != NULL:
@@ -1224,7 +1224,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             # create the feature
             ogr_feature = OGR_F_Create(ogr_featuredef)
             if ogr_feature == NULL:
-                raise DataLayerError(f"Could not create feature at index {i}")
+                raise FeatureError(f"Could not create feature at index {i}") from None
 
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
@@ -1234,7 +1234,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             # use "little" if the first byte == 1
             ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
             if ogr_geometry == NULL:
-                raise DataLayerError(f"Could not create geometry at index {i} for WKB type {wkbtype})")
+                raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
 
             # import the WKB
             wkb_buffer = wkb
@@ -1243,13 +1243,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 if ogr_geometry != NULL:
                     OGR_G_DestroyGeometry(ogr_geometry)
                     ogr_geometry = NULL
-                raise DataLayerError(f"Could not create geometry from WKB at index {i}")
+                raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
             # Set the geometry on the feature
             # this assumes ownership of the geometry and it's cleanup
             err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
             if err:
-                raise DataLayerError(f"Could not set geometry for feature at index {i}")
+                raise GeometryError(f"Could not set geometry for feature at index {i}") from None
 
             # Set field values
             for field_idx in range(num_fields):
