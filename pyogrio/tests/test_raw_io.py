@@ -11,7 +11,7 @@ from pyogrio.errors import DriverError
 
 
 def test_read(naturalearth_lowres):
-    meta, index, geometry, fields = read(naturalearth_lowres)
+    meta, _, geometry, fields = read(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
     assert meta["geometry_type"] == "Polygon"
@@ -27,9 +27,7 @@ def test_read(naturalearth_lowres):
     ]
 
     assert len(fields) == 5
-    assert len(index) == len(fields[0])
     assert len(geometry) == len(fields[0])
-    assert index.dtype == np.int64
 
     # quick test that WKB is a Polygon type
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
@@ -75,13 +73,11 @@ def test_read_columns(naturalearth_lowres):
 
 def test_read_skip_features(naturalearth_lowres):
     expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
-    index, geometry, fields = read(naturalearth_lowres, skip_features=10)[1:]
+    geometry, fields = read(naturalearth_lowres, skip_features=10)[2:]
 
-    assert len(index) == len(geometry)
     assert len(geometry) == len(expected_geometry) - 10
     assert len(fields[0]) == len(expected_fields[0]) - 10
 
-    assert index[0] == 10
     assert np.array_equal(geometry, expected_geometry[10:])
     # Last field has more variable data
     assert np.array_equal(fields[-1], expected_fields[-1][10:])
@@ -89,9 +85,8 @@ def test_read_skip_features(naturalearth_lowres):
 
 def test_read_max_features(naturalearth_lowres):
     expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
-    index, geometry, fields = read(naturalearth_lowres, max_features=2)[1:]
+    geometry, fields = read(naturalearth_lowres, max_features=2)[2:]
 
-    assert len(index) == 2
     assert len(geometry) == 2
     assert len(fields[0]) == 2
 
@@ -152,19 +147,41 @@ def test_read_bbox(naturalearth_lowres):
 
 
 def test_read_fids(naturalearth_lowres):
-    expected_fids, expected_geometry, expected_fields = read(naturalearth_lowres)[1:]
+    expected_fids, expected_geometry, expected_fields = read(
+        naturalearth_lowres, return_fids=True
+    )[1:]
     subset = [0, 10, 5]
 
     for fids in [subset, np.array(subset)]:
-        index, geometry, fields = read(naturalearth_lowres, fids=subset)[1:]
+        index, geometry, fields = read(
+            naturalearth_lowres, fids=subset, return_fids=True
+        )[1:]
 
         assert len(fids) == 3
         assert len(geometry) == 3
         assert len(fields[0]) == 3
 
-        assert np.array_equal(fids, expected_fids[subset])
+        assert np.array_equal(index, expected_fids[subset])
         assert np.array_equal(geometry, expected_geometry[subset])
         assert np.array_equal(fields[-1], expected_fields[-1][subset])
+
+
+def test_return_fids(naturalearth_lowres):
+
+    # default is to not return fids
+    fids = read(naturalearth_lowres)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=False)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
+        1
+    ]
+    assert fids is not None
+    assert fids.dtype == np.int64
+    # Note: shapefile FIDS start at 0
+    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
 
 
 def test_read_fids_out_of_bounds(naturalearth_lowres):
@@ -190,7 +207,7 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
 
 def test_write(tmpdir, naturalearth_lowres):
-    meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
     write(filename, geometry, field_data, **meta)
@@ -201,7 +218,7 @@ def test_write(tmpdir, naturalearth_lowres):
 
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
-    meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
     write(filename, geometry, field_data, driver="GPKG", **meta)
@@ -210,7 +227,7 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
 
 
 def test_write_geojson(tmpdir, naturalearth_lowres):
-    meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.json")
     write(filename, geometry, field_data, driver="GeoJSON", **meta)
@@ -238,7 +255,7 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
     """Test drivers not specifically tested above"""
-    meta, index, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
+    meta, _, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
 
     # note: naturalearth_lowres contains mixed polygons / multipolygons, which
     # are not supported in mixed form for all drivers.  To get around this here
@@ -258,7 +275,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
 
 
 def test_write_unsupported(tmpdir, naturalearth_lowres):
-    meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.fgdb")
 

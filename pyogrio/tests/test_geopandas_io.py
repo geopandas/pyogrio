@@ -38,8 +38,6 @@ def test_read_dataframe(naturalearth_lowres):
 
     assert df.geometry.iloc[0].type == "MultiPolygon"
 
-    assert df.index.name == "fid"
-
 
 def test_read_dataframe_vsi(naturalearth_lowres_vsi):
     df = read_dataframe(naturalearth_lowres_vsi)
@@ -102,6 +100,21 @@ def test_read_null_values(test_fgdb_vsi):
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] == None
 
 
+def test_read_set_fid_index(naturalearth_lowres):
+    kwargs = {"skip_features": 2, "max_features": 2}
+
+    # default is to not set FIDs as index
+    df = read_dataframe(naturalearth_lowres, **kwargs)
+    assert np.array_equal(df.index.values, pd.RangeIndex(0, 2).values)
+
+    df = read_dataframe(naturalearth_lowres, set_fid_index=False, **kwargs)
+    assert np.array_equal(df.index.values, pd.RangeIndex(0, 2).values)
+
+    df = read_dataframe(naturalearth_lowres, set_fid_index=True, **kwargs)
+    assert df.index.name == "fid"
+    assert np.array_equal(df.index.values, np.array([2, 3], dtype=np.int64))
+
+
 @pytest.mark.filterwarnings("ignore: Layer")
 def test_read_where(naturalearth_lowres):
     # empty filter should return full set of records
@@ -154,8 +167,8 @@ def test_read_bbox(naturalearth_lowres):
 
 def test_read_fids(naturalearth_lowres):
     # ensure keyword is properly passed through
-    fids = np.array([0, 10, 5], dtype="uint64")
-    df = read_dataframe(naturalearth_lowres, fids=fids)
+    fids = np.array([0, 10, 5], dtype=np.int64)
+    df = read_dataframe(naturalearth_lowres, fids=fids, set_fid_index=True)
     assert len(df) == 3
     assert np.array_equal(fids, df.index.values)
 
@@ -188,9 +201,6 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write_dataframe(expected, filename, driver=driver)
 
-    if driver == "GPKG":
-        expected.index += 1
-
     assert os.path.exists(filename)
 
     df = read_dataframe(filename)
@@ -216,9 +226,7 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
     "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
 )
 def test_write_empty_dataframe(tmpdir, driver, ext):
-    expected = gp.GeoDataFrame(
-        geometry=[], crs=4326, index=pd.Series(np.array([], dtype=np.int64), name="fid")
-    )
+    expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write_dataframe(expected, filename, driver=driver)

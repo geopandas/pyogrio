@@ -4,13 +4,14 @@
 
 ### Major enhancements
 
--   index of GeoDataFrame created by `read_dataframe` is now set to the FID of the
-    features that are read, as `int64` dtype. Note that some drivers start FID
-    numbering at 0 whereas others start numbering at 1.
+-   index of GeoDataFrame created by `read_dataframe` can now optionally be set
+    to the FID of the features that are read, as `int64` dtype. Note that some
+    drivers start FID numbering at 0 whereas others start numbering at 1.
 
 ### Breaking changes
 
--   `read` now also returns FIDs ndarray in addition to meta, geometries, and fields
+-   `read` now also returns an optional FIDs ndarray in addition to meta,
+    geometries, and fields; this is the 2nd item in the returned tuple.
 
 ## 0.3.0
 

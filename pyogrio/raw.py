@@ -27,6 +27,7 @@ def read(
     where=None,
     bbox=None,
     fids=None,
+    return_fids=False,
 ):
     """Read OGR data source.
 
@@ -76,12 +77,15 @@ def read(
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
+    return_fids : bool, optional (default: False)
+        If True, will return the FIDs of the feature that were read.
 
     Returns
     -------
     (dict, fids, geometry, data fields)
         Returns a tuple of meta information about the data source in a dict,
-        an ndarray of FIDs corresponding to the features that were read,
+        an ndarray of FIDs corresponding to the features that were read or None
+        (if return_fids is False),
         an ndarray of geometry objects or None (if data source does not include
         geometry or read_geometry is False), a tuple of ndarrays for each field
         in the data layer.
@@ -106,6 +110,7 @@ def read(
         where=where,
         bbox=bbox,
         fids=fids,
+        return_fids=return_fids,
     )
 
 
