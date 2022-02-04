@@ -87,7 +87,7 @@ def read_dataframe(
         if not "/vsi" in path.lower() and not os.path.exists(path):
             raise ValueError(f"'{path}' does not exist")
 
-    meta, geometry, field_data = read(
+    meta, index, geometry, field_data = read(
         path,
         layer=layer,
         encoding=encoding,
@@ -103,7 +103,7 @@ def read_dataframe(
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
-    df = pd.DataFrame(data, columns=columns)
+    df = pd.DataFrame(data, columns=columns, index=pd.Series(index, name='fid'))
 
     if geometry is None or not read_geometry:
         return df

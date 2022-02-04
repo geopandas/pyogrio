@@ -527,6 +527,9 @@ cdef get_features(
     if max_features > 0:
         count = max_features
 
+    fid_data = np.empty(shape=(count), dtype=np.int64)
+    fid_view = fid_data[:]
+
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
         geom_view = geometries[:]
@@ -551,6 +554,8 @@ cdef get_features(
         if ogr_feature == NULL:
             raise ValueError("Failed to read feature {}".format(i))
 
+        fid_view[i] = OGR_F_GetFID(ogr_feature)
+
         if read_geometry:
             process_geometry(ogr_feature, i, geom_view, force_2d)
 
@@ -559,7 +564,7 @@ cdef get_features(
             field_indexes, field_ogr_types, encoding
         )
 
-    return (geometries, field_data)
+    return fid_data, geometries, field_data
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -747,6 +752,7 @@ def ogr_read(
             read_geometry=read_geometry and geometry_type is not None,
             force_2d=force_2d,
         )
+        fid_data = fids.astype(np.int64)
     else:
         # Apply the attribute filter
         if where is not None and where != "":
@@ -761,7 +767,7 @@ def ogr_read(
             ogr_layer, skip_features, max_features
         )
 
-        geometries, field_data = get_features(
+        fid_data, geometries, field_data = get_features(
             ogr_layer,
             fields,
             encoding,
@@ -784,6 +790,7 @@ def ogr_read(
 
     return (
         meta,
+        fid_data,
         geometries,
         field_data
     )

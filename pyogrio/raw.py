@@ -79,8 +79,9 @@ def read(
 
     Returns
     -------
-    (dict, geometry, data fields)
+    (dict, fids, geometry, data fields)
         Returns a tuple of meta information about the data source in a dict,
+        an ndarray of FIDs corresponding to the features that were read,
         an ndarray of geometry objects or None (if data source does not include
         geometry or read_geometry is False), a tuple of ndarrays for each field
         in the data layer.

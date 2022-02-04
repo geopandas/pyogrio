@@ -38,6 +38,8 @@ def test_read_dataframe(naturalearth_lowres):
 
     assert df.geometry.iloc[0].type == "MultiPolygon"
 
+    assert df.index.name == "fid"
+
 
 def test_read_dataframe_vsi(naturalearth_lowres_vsi):
     df = read_dataframe(naturalearth_lowres_vsi)
@@ -152,8 +154,10 @@ def test_read_bbox(naturalearth_lowres):
 
 def test_read_fids(naturalearth_lowres):
     # ensure keyword is properly passed through
-    df = read_dataframe(naturalearth_lowres, fids=[0, 10, 5])
+    fids = np.array([0, 10, 5], dtype="uint64")
+    df = read_dataframe(naturalearth_lowres, fids=fids)
     assert len(df) == 3
+    assert np.array_equal(fids, df.index.values)
 
 
 def test_read_fids_force_2d(test_fgdb_vsi):
@@ -184,6 +188,9 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write_dataframe(expected, filename, driver=driver)
 
+    if driver == "GPKG":
+        expected.index += 1
+
     assert os.path.exists(filename)
 
     df = read_dataframe(filename)
@@ -197,20 +204,21 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
         is_json = driver == "GeoJSON"
 
         assert_geodataframe_equal(
-            df, expected, check_less_precise=is_json, check_dtype=not is_json
+            df,
+            expected,
+            check_less_precise=is_json,
+            check_index_type=False,
+            check_dtype=not is_json,
         )
 
 
 @pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("ESRI Shapefile", "shp"),
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg"),
-    ],
+    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
 )
 def test_write_empty_dataframe(tmpdir, driver, ext):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+    expected = gp.GeoDataFrame(
+        geometry=[], crs=4326, index=pd.Series(np.array([], dtype=np.int64), name="fid")
+    )
 
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write_dataframe(expected, filename, driver=driver)

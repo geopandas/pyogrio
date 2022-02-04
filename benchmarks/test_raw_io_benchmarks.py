@@ -109,14 +109,14 @@ def test_write_lowres_gpkg(tmpdir, naturalearth_lowres, benchmark):
 
 @pytest.mark.benchmark(group="write-lowres")
 def test_write_lowres_geojson(tmpdir, naturalearth_lowres, benchmark):
-    meta, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), "test.json")
     benchmark(write, filename, geometry, field_data, driver="GeoJSON", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
 def test_write_lowres_geojsonseq(tmpdir, naturalearth_lowres, benchmark):
-    meta, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), "test.json")
     benchmark(write, filename, geometry, field_data, driver="GeoJSONSeq", **meta)
 
@@ -158,7 +158,7 @@ def test_write_fiona_lowres_shp(tmpdir, naturalearth_lowres, benchmark):
 
 @pytest.mark.benchmark(group="write-modres")
 def test_write_modres_shp(tmpdir, naturalearth_modres, benchmark):
-    meta, geometry, field_data = read(naturalearth_modres)
+    meta, _, geometry, field_data = read(naturalearth_modres)
     filename = os.path.join(str(tmpdir), "test.shp")
     benchmark(write, filename, geometry, field_data, **meta)
 
