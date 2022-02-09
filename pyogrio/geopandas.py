@@ -4,6 +4,23 @@ from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
 
+def _stringify_path(path):
+    """
+    Convert path-like to a string if possible, pass-through other objects
+    """
+    if isinstance(path, str):
+        return path
+
+    # checking whether path implements the filesystem protocol
+    try:
+        return path.__fspath__()  # new in python 3.6
+    except AttributeError:
+        pass
+
+    # pass-though other objects
+    return path
+
+
 def read_dataframe(
     path_or_buffer,
     layer=None,
@@ -80,6 +97,8 @@ def read_dataframe(
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
+
+    path_or_buffer = _stringify_path(path_or_buffer)
 
     if isinstance(path_or_buffer, str):
         path = path_or_buffer

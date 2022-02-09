@@ -299,3 +299,21 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
 
     meta2, geometry2, field_data2 = read(buffer)
     assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))
+
+
+@pytest.mark.parametrize(
+    "driver,ext",
+    [
+        ("GeoJSON", "geojson"),
+        ("GPKG", "gpkg")
+    ]
+)
+def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
+    meta, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    with open(filename, "rb") as f:
+        meta2, geometry2, field_data2 = read(f)
+
+    assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))

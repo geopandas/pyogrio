@@ -93,6 +93,9 @@ def read(
             "geometry": "<geometry type>"
         }
     """
+    if hasattr(path_or_buffer, "read"):
+        path_or_buffer = path_or_buffer.read()
+
     from_buffer = False
     if isinstance(path_or_buffer, bytes):
         from_buffer = True
