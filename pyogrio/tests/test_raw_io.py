@@ -271,20 +271,17 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
 
-def test_read_from_bytes(tmpdir, naturalearth_lowres):
+@pytest.mark.parametrize(
+    "driver,ext",
+    [
+        ("GeoJSON", "geojson"),
+        ("GPKG", "gpkg")
+    ]
+)
+def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, geometry, field_data = read(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.gpkg")
-    write(filename, geometry, field_data, driver="GPKG", **meta)
-
-    with open(filename, "rb") as f:
-        buffer = f.read()
-
-    meta2, geometry2, field_data2 = read(buffer)
-    assert_equal_result((meta, geometry, field_data), (meta2, geometry2, field_data2))
-
-
-    filename = os.path.join(str(tmpdir), "test.geojson")
-    write(filename, geometry, field_data, driver="GeoJSON", **meta)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
 
     with open(filename, "rb") as f:
         buffer = f.read()

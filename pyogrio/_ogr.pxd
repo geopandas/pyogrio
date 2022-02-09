@@ -36,11 +36,10 @@ cdef extern from "cpl_string.h":
 
 cdef extern from "cpl_vsi.h" nogil:
 
-    ctypedef int vsi_l_offset
     ctypedef FILE VSILFILE
 
     VSILFILE *VSIFileFromMemBuffer(const char *path, void *data,
-                                   vsi_l_offset data_len, int take_ownership)
+                                   int data_len, int take_ownership)
     int VSIFCloseL(VSILFILE *fp)
     int VSIUnlink(const char *path)
 
