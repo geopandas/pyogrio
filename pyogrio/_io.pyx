@@ -144,7 +144,7 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
         CSLDestroy(open_opts)
 
 
-cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer):
+cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     """Open OGR layer by index or name.
 
     Parameters
@@ -275,7 +275,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
 
     field_count = OGR_FD_GetFieldCount(ogr_featuredef)
 
-    fields = np.empty(shape=(field_count, 4), dtype=np.object)
+    fields = np.empty(shape=(field_count, 4), dtype=object)
     fields_view = fields[:,:]
 
     for i in range(field_count):
@@ -892,7 +892,7 @@ def ogr_list_layers(str path):
 
     layer_count = GDALDatasetGetLayerCount(ogr_dataset)
 
-    data = np.empty(shape=(layer_count, 2), dtype=np.object)
+    data = np.empty(shape=(layer_count, 2), dtype=object)
     data_view = data[:]
     for i in range(layer_count):
         ogr_layer = GDALDatasetGetLayer(ogr_dataset, i)

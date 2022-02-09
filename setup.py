@@ -154,7 +154,7 @@ setup(
     name="pyogrio",
     version=version,
     packages=["pyogrio"],
-    url="https://github.com/brendan-ward/pyogrio",
+    url="https://github.com/pyogrio/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
     author_email="bcward@astutespruce.com",
