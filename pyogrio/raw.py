@@ -2,6 +2,7 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.util import vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
@@ -92,6 +93,7 @@ def read(
             "geometry": "<geometry type>"
         }
     """
+    path = vsi_path(path)
 
     return ogr_read(
         str(path),
