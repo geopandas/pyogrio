@@ -109,7 +109,7 @@ def read_dataframe(
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
     if fid_as_index:
-        index = pd.Int64Index(index, name="fid")
+        index = pd.Index(index, name="fid")
     else:
         index = None
 

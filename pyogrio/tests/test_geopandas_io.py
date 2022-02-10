@@ -111,7 +111,7 @@ def test_read_fid_as_index(naturalearth_lowres):
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
     df = read_dataframe(naturalearth_lowres, fid_as_index=True, **kwargs)
-    assert_index_equal(df.index, pd.Int64Index([2, 3], name="fid"))
+    assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
 @pytest.mark.filterwarnings("ignore: Layer")
