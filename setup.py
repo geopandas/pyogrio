@@ -53,6 +53,10 @@ if "clean" in sys.argv:
         for entry in root.rglob(ext):
             entry.unlink()
 
+elif "sdist" in sys.argv or "egg_info" in sys.argv:
+    # don't cythonize for the sdist
+    pass
+
 else:
     if cythonize is None:
         raise ImportError("Cython is required to build from source")
