@@ -16,7 +16,7 @@ def read_dataframe(
     where=None,
     bbox=None,
     fids=None,
-    set_fid_index=False,
+    fid_as_index=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -68,8 +68,8 @@ def read_dataframe(
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
-    set_fid_index : bool, optional (default: False)
-        If True, will return use the FIDs of the features that were read as the
+    fid_as_index : bool, optional (default: False)
+        If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
 
     Returns
@@ -103,13 +103,13 @@ def read_dataframe(
         where=where,
         bbox=bbox,
         fids=fids,
-        return_fids=set_fid_index,
+        return_fids=fid_as_index,
     )
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
-    if set_fid_index:
-        index = index = pd.Series(index, name="fid")
+    if fid_as_index:
+        index = pd.Int64Index(index, name="fid")
     else:
         index = None
 
