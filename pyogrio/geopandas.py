@@ -2,7 +2,6 @@ import os
 
 from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
-from pyogrio.util import vsi_path
 
 
 def read_dataframe(
@@ -85,12 +84,6 @@ def read_dataframe(
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
-
-    path = vsi_path(str(path))
-
-    if not "://" in path:
-        if not "/vsi" in path.lower() and not os.path.exists(path):
-            raise ValueError(f"'{path}' does not exist")
 
     meta, index, geometry, field_data = read(
         path,

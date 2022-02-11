@@ -32,6 +32,8 @@ def change_cwd(path):
         ("az://testing/data.gpkg", "/vsiaz/testing/data.gpkg"),
         ("adl://testing/data.gpkg", "/vsiadls/testing/data.gpkg"),
         ("adls://testing/data.gpkg", "/vsiadls/testing/data.gpkg"),
+        ("hdfs://testing/data.gpkg", "/vsihdfs/testing/data.gpkg"),
+        ("webhdfs://testing/data.gpkg", "/vsiwebhdfs/testing/data.gpkg"),
         # archives
         ("zip://data.zip", "/vsizip/data.zip"),
         ("tar://data.tar", "/vsitar/data.tar"),
@@ -51,6 +53,11 @@ def change_cwd(path):
 )
 def test_vsi_path(path, expected):
     assert vsi_path(path) == expected
+
+
+def test_vsi_path_unknown():
+    # unrecognized URI gets passed through as is
+    assert vsi_path("s4://test/data.geojson") == "s4://test/data.geojson"
 
 
 def test_vsi_handling_read_functions(naturalearth_lowres_vsi):
@@ -130,6 +137,6 @@ def test_url_with_zip():
 
 
 # @pytest.mark.network
-# def test_uri_s3()
+# def test_uri_s3():
 #     df = pyogrio.read_dataframe('zip+s3://fiona-testing/coutwildrnp.zip')
 #     assert len(df) == 67

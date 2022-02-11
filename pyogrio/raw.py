@@ -100,6 +100,10 @@ def read(
     """
     path = vsi_path(str(path))
 
+    if not "://" in path:
+        if not "/vsi" in path.lower() and not os.path.exists(path):
+            raise ValueError(f"'{path}' does not exist")
+
     return ogr_read(
         path,
         layer=layer,

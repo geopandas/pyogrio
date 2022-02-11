@@ -104,7 +104,7 @@ def read_bounds(
     path = vsi_path(str(path))
 
     return ogr_read_bounds(
-        str(path),
+        path,
         layer=layer,
         skip_features=skip_features,
         max_features=max_features or 0,
@@ -144,7 +144,7 @@ def read_info(path, layer=None, encoding=None):
             }
     """
     path = vsi_path(str(path))
-    return ogr_read_info(str(path), layer=layer, encoding=encoding)
+    return ogr_read_info(path, layer=layer, encoding=encoding)
 
 
 def set_gdal_config_options(options):

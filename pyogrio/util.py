@@ -69,10 +69,9 @@ def _parse_uri(path: str):
     """
     parts = urlparse(path)
 
-    # if the scheme is not one of Rasterio's supported schemes, we
-    # return an UnparsedPath.
+    # if the scheme is not one of GDAL's supported schemes, return raw path
     if parts.scheme and not all(p in SCHEMES for p in parts.scheme.split("+")):
-        return path
+        return path, None, None
 
     # we have a URI
     path = parts.path
