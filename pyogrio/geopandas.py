@@ -86,8 +86,7 @@ def read_dataframe(
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
-    path = str(path)
-    path = vsi_path(path)
+    path = vsi_path(str(path))
 
     if not "://" in path:
         if not "/vsi" in path.lower() and not os.path.exists(path):

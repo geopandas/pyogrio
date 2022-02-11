@@ -98,10 +98,10 @@ def read(
             "geometry": "<geometry type>"
         }
     """
-    path = vsi_path(path)
+    path = vsi_path(str(path))
 
     return ogr_read(
-        str(path),
+        path,
         layer=layer,
         encoding=encoding,
         columns=columns,

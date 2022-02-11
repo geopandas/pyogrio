@@ -60,7 +60,7 @@ def test_vsi_handling_read_functions(naturalearth_lowres_vsi):
     path = "zip://" + str(path)
 
     result = pyogrio.raw.read(path)
-    assert len(result[1]) == 177
+    assert len(result[2]) == 177
 
     result = pyogrio.read_info(path)
     assert result["features"] == 177
