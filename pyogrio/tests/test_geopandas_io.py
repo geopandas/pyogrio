@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from pandas.testing import assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers
@@ -100,6 +100,20 @@ def test_read_null_values(test_fgdb_vsi):
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] == None
 
 
+def test_read_fid_as_index(naturalearth_lowres):
+    kwargs = {"skip_features": 2, "max_features": 2}
+
+    # default is to not set FIDs as index
+    df = read_dataframe(naturalearth_lowres, **kwargs)
+    assert_index_equal(df.index, pd.RangeIndex(0, 2))
+
+    df = read_dataframe(naturalearth_lowres, fid_as_index=False, **kwargs)
+    assert_index_equal(df.index, pd.RangeIndex(0, 2))
+
+    df = read_dataframe(naturalearth_lowres, fid_as_index=True, **kwargs)
+    assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+
+
 @pytest.mark.filterwarnings("ignore: Layer")
 def test_read_where(naturalearth_lowres):
     # empty filter should return full set of records
@@ -152,8 +166,10 @@ def test_read_bbox(naturalearth_lowres):
 
 def test_read_fids(naturalearth_lowres):
     # ensure keyword is properly passed through
-    df = read_dataframe(naturalearth_lowres, fids=[0, 10, 5])
+    fids = np.array([0, 10, 5], dtype=np.int64)
+    df = read_dataframe(naturalearth_lowres, fids=fids, fid_as_index=True)
     assert len(df) == 3
+    assert np.array_equal(fids, df.index.values)
 
 
 def test_read_fids_force_2d(test_fgdb_vsi):
@@ -197,17 +213,16 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
         is_json = driver == "GeoJSON"
 
         assert_geodataframe_equal(
-            df, expected, check_less_precise=is_json, check_dtype=not is_json
+            df,
+            expected,
+            check_less_precise=is_json,
+            check_index_type=False,
+            check_dtype=not is_json,
         )
 
 
 @pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("ESRI Shapefile", "shp"),
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg"),
-    ],
+    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
 )
 def test_write_empty_dataframe(tmpdir, driver, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
