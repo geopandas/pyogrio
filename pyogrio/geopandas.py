@@ -27,7 +27,7 @@ def read_dataframe(
     Parameters
     ----------
     path : str
-        path to file
+        A dataset path or URI.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name

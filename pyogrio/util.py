@@ -1,5 +1,3 @@
-"""Dataset paths, identifiers, and filenames"""
-
 import re
 import sys
 from urllib.parse import urlparse
@@ -32,22 +30,22 @@ def vsi_path(path: str) -> str:
 
 # Supported URI schemes and their mapping to GDAL's VSI suffix.
 SCHEMES = {
-    "ftp": "curl",
+    "file": "file",
+    "zip": "zip",
+    "tar": "tar",
     "gzip": "gzip",
     "http": "curl",
     "https": "curl",
+    "ftp": "curl",
     "s3": "s3",
-    "tar": "tar",
-    "zip": "zip",
-    "file": "file",
     "gs": "gs",
     "az": "az",
     "adls": "adls",
     "adl": "adls",  # fsspec uses this
-    # 'oss': 'oss',
-    # 'swift': 'swift',
     "hdfs": "hdfs",
     "webhdfs": "webhdfs",
+    # GDAL additionally supports oss and swift for remote filesystems, but
+    # those are for now not added as supported URI
 }
 
 CURLSCHEMES = set([k for k, v in SCHEMES.items() if v == "curl"])
