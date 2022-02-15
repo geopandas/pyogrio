@@ -42,7 +42,7 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
     )
 
     assert array_equal(
-        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
     )
 
     # Measured 3D is downgraded to 2.5D during read

@@ -27,7 +27,7 @@ def read_dataframe(
     Parameters
     ----------
     path : str
-        path to file
+        A dataset path or URI.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -84,12 +84,6 @@ def read_dataframe(
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
-
-    path = str(path)
-
-    if not "://" in path:
-        if not "/vsi" in path.lower() and not os.path.exists(path):
-            raise ValueError(f"'{path}' does not exist")
 
     meta, index, geometry, field_data = read(
         path,

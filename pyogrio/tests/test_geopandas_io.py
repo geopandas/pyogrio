@@ -40,7 +40,7 @@ def test_read_dataframe(naturalearth_lowres):
 
 
 def test_read_dataframe_vsi(naturalearth_lowres_vsi):
-    df = read_dataframe(naturalearth_lowres_vsi)
+    df = read_dataframe(naturalearth_lowres_vsi[1])
     assert len(df) == 177
 
 

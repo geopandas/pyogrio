@@ -34,6 +34,7 @@ def test_read(naturalearth_lowres):
 
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
+    _, naturalearth_lowres_vsi = naturalearth_lowres_vsi
     assert array_equal(
         list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
     )

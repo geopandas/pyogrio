@@ -2,6 +2,7 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.util import vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
@@ -37,7 +38,7 @@ def read(
     Parameters
     ----------
     path : pathlib.Path or str
-        data source path
+        A dataset path or URI.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -97,9 +98,14 @@ def read(
             "geometry": "<geometry type>"
         }
     """
+    path = vsi_path(str(path))
+
+    if not "://" in path:
+        if not "/vsi" in path.lower() and not os.path.exists(path):
+            raise ValueError(f"'{path}' does not exist")
 
     return ogr_read(
-        str(path),
+        path,
         layer=layer,
         encoding=encoding,
         columns=columns,
