@@ -96,12 +96,13 @@ cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
     return 0
 
 
-cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
-    cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
-    if err == OGRERR_FAILURE:
-        raise TransactionError("Failed to rollback transaction")
+# Not currently used; uncomment when used
+# cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
+#     cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
+#     if err == OGRERR_FAILURE:
+#         raise TransactionError("Failed to rollback transaction")
 
-    return 0
+#     return 0
 
 
 
@@ -266,7 +267,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     cdef int i
     cdef int field_count
     cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH fielddef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef const char *key_c
 
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
@@ -1036,7 +1037,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH fielddef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
