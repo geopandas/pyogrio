@@ -264,7 +264,7 @@ extension of the filename:
 
 ## Reading from compressed files / archives
 
-GDAL supports to read directly from an archive, such as a zipped folder, without
+GDAL supports reading directly from an archive, such as a zipped folder, without
 the need to manually unpack the archive first. This is especially useful when
 the dataset, such as a ESRI Shapefile, consists of multiple files and is
 distributed as a zipped archive.
