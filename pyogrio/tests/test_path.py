@@ -136,7 +136,12 @@ def test_url_with_zip():
     assert len(df) == 67
 
 
-# @pytest.mark.network
-# def test_uri_s3():
-#     df = pyogrio.read_dataframe('zip+s3://fiona-testing/coutwildrnp.zip')
-#     assert len(df) == 67
+@pytest.fixture
+def aws_env_setup(monkeypatch):
+    monkeypatch.setenv("AWS_NO_SIGN_REQUEST", "YES")
+
+
+@pytest.mark.network
+def test_uri_s3(aws_env_setup):
+    df = pyogrio.read_dataframe('zip+s3://fiona-testing/coutwildrnp.zip')
+    assert len(df) == 67
