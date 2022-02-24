@@ -1,12 +1,20 @@
 # CHANGELOG
 
-## 0.4.0 (in progress)
+## 0.4.0
 
 ### Major enhancements
 
+-   index of GeoDataFrame created by `read_dataframe` can now optionally be set
+    to the FID of the features that are read, as `int64` dtype. Note that some
+    drivers start FID numbering at 0 whereas others start numbering at 1.
 -   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
 -   add dtype for each field to `read_info` (#30)
 -   support writing empty GeoDataFrames (#38)
+
+### Breaking changes
+
+-   `read` now also returns an optional FIDs ndarray in addition to meta,
+    geometries, and fields; this is the 2nd item in the returned tuple.
 
 ### Potentially breaking changes
 

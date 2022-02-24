@@ -89,12 +89,13 @@ cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
     return 0
 
 
-cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
-    cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
-    if err == OGRERR_FAILURE:
-        raise DataSourceError("Failed to rollback transaction")
+# Not currently used; uncomment when used
+# cdef int rollback_transaction(OGRDataSourceH ogr_dataset) except 1:
+#     cdef int err = GDALDatasetRollbackTransaction(ogr_dataset)
+#     if err == OGRERR_FAILURE:
+#         raise DataSourceError("Failed to rollback transaction")
 
-    return 0
+#     return 0
 
 
 # ported from fiona::_shim22.pyx::gdal_open_vector
@@ -274,7 +275,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     cdef int i
     cdef int field_count
     cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH fielddef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef const char *key_c
 
     try:
@@ -526,7 +527,8 @@ cdef get_features(
     uint8_t read_geometry,
     uint8_t force_2d,
     int skip_features,
-    int max_features
+    int max_features,
+    uint8_t return_fids
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -549,6 +551,12 @@ cdef get_features(
 
     if max_features > 0:
         count = max_features
+
+    if return_fids:
+        fid_data = np.empty(shape=(count), dtype=np.int64)
+        fid_view = fid_data[:]
+    else:
+        fid_data = None
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
@@ -578,6 +586,10 @@ cdef get_features(
         except CPLE_BaseError as exc:
             raise FeatureError(str(exc))
 
+
+        if return_fids:
+            fid_view[i] = OGR_F_GetFID(ogr_feature)
+
         if read_geometry:
             process_geometry(ogr_feature, i, geom_view, force_2d)
 
@@ -586,7 +598,7 @@ cdef get_features(
             field_indexes, field_ogr_types, encoding
         )
 
-    return (geometries, field_data)
+    return fid_data, geometries, field_data
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -726,6 +738,7 @@ def ogr_read(
     object where=None,
     tuple bbox=None,
     object fids=None,
+    int return_fids=False,
     **kwargs):
 
     cdef int err = 0
@@ -782,6 +795,12 @@ def ogr_read(
             read_geometry=read_geometry and geometry_type is not None,
             force_2d=force_2d,
         )
+
+        # bypass reading fids since these should match fids used for read
+        if return_fids:
+            fid_data = fids.astype(np.int64)
+        else:
+            fid_data = None
     else:
         # Apply the attribute filter
         if where is not None and where != "":
@@ -796,7 +815,7 @@ def ogr_read(
             ogr_layer, skip_features, max_features
         )
 
-        geometries, field_data = get_features(
+        fid_data, geometries, field_data = get_features(
             ogr_layer,
             fields,
             encoding,
@@ -804,6 +823,7 @@ def ogr_read(
             force_2d=force_2d,
             skip_features=skip_features,
             max_features=max_features,
+            return_fids=return_fids
         )
 
     meta = {
@@ -819,6 +839,7 @@ def ogr_read(
 
     return (
         meta,
+        fid_data,
         geometries,
         field_data
     )
@@ -1052,7 +1073,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH fielddef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
