@@ -40,5 +40,6 @@ supported_formats
 install
 introduction
 api
+errors
 known_issues
 ```

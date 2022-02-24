@@ -38,15 +38,11 @@ If you install GeoPandas or Fiona using `pip`, you may encounter issues related
 to incompatibility of the exact GDAL library pre-installed with Fiona and the
 version of GDAL that gets compiled with Pyogrio (right now you do this manually).
 
-This may show up as driver error resulting from a `NULL` pointer exception like
+This may show up as an exception like
 this:
 
 ```
-pyogrio._err.NullPointerError: NULL pointer error
-
-During handling of the above exception, another exception occurred:
-...
-pyogrio.errors.DriverError: Data source driver could not be created: GPKG
+pyogrio.errors.DataSourceError: Could not obtain driver ...
 ```
 
 To get around it, uninstall `fiona` then reinstall to use system GDAL:

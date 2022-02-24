@@ -165,7 +165,6 @@ cdef inline object exc_check():
         return
 
 
-
 cdef void *exc_wrap_pointer(void *ptr) except NULL:
     """Wrap a GDAL/OGR function that returns GDALDatasetH etc (void *)
     Raises an exception if a non-fatal error has be set or if pointer is NULL.
