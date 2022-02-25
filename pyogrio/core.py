@@ -1,4 +1,6 @@
 from pyogrio._env import GDALEnv
+from pyogrio.util import vsi_path
+
 
 with GDALEnv():
     from pyogrio._ogr import (
@@ -99,9 +101,10 @@ def read_bounds(
         fids are global IDs read from the FID field of the dataset
         bounds are ndarray of shape(4, n) containig ``xmin``, ``ymin``, ``xmax``, ``ymax``
     """
+    path = vsi_path(str(path))
 
     return ogr_read_bounds(
-        str(path),
+        path,
         layer=layer,
         skip_features=skip_features,
         max_features=max_features or 0,
@@ -140,7 +143,8 @@ def read_info(path, layer=None, encoding=None):
                 "features": <feature count>
             }
     """
-    return ogr_read_info(str(path), layer=layer, encoding=encoding)
+    path = vsi_path(str(path))
+    return ogr_read_info(path, layer=layer, encoding=encoding)
 
 
 def set_gdal_config_options(options):

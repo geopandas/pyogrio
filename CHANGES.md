@@ -1,5 +1,32 @@
 # CHANGELOG
 
+## 0.4.0
+
+### Major enhancements
+
+-   index of GeoDataFrame created by `read_dataframe` can now optionally be set
+    to the FID of the features that are read, as `int64` dtype. Note that some
+    drivers start FID numbering at 0 whereas others start numbering at 1.
+-   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
+-   add dtype for each field to `read_info` (#30)
+-   support writing empty GeoDataFrames (#38)
+
+### Breaking changes
+
+-   `read` now also returns an optional FIDs ndarray in addition to meta,
+    geometries, and fields; this is the 2nd item in the returned tuple.
+
+### Potentially breaking changes
+
+-   Consolided error handling to better use GDAL error messages and specific
+    exception classes (#39). Note that this is a breaking change only if you are
+    relying on specific error classes to be emitted.
+
+### Bug fixes
+
+-   use dtype `object` instead of `numpy.object` to eliminate deprecation warnings (#34)
+-   raise error if layer cannot be opened (#35)
+
 ## 0.3.0
 
 ### Major enhancements

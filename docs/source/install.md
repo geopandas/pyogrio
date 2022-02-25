@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.6 - 3.9 and GDAL 2.4.x - 3.2.x
+Supports Python 3.8 - 3.10 and GDAL 2.4.x - 3.2.x
 (prior versions will not be supported)
 
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
@@ -38,15 +38,11 @@ If you install GeoPandas or Fiona using `pip`, you may encounter issues related
 to incompatibility of the exact GDAL library pre-installed with Fiona and the
 version of GDAL that gets compiled with Pyogrio (right now you do this manually).
 
-This may show up as driver error resulting from a `NULL` pointer exception like
+This may show up as an exception like
 this:
 
 ```
-pyogrio._err.NullPointerError: NULL pointer error
-
-During handling of the above exception, another exception occurred:
-...
-pyogrio.errors.DriverError: Data source driver could not be created: GPKG
+pyogrio.errors.DataSourceError: Could not obtain driver ...
 ```
 
 To get around it, uninstall `fiona` then reinstall to use system GDAL:

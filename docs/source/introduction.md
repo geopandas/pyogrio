@@ -262,6 +262,52 @@ extension of the filename:
 `.gpkg`: `GPKG`
 `.json`: `GeoJSON`
 
+## Reading from compressed files / archives
+
+GDAL supports reading directly from an archive, such as a zipped folder, without
+the need to manually unpack the archive first. This is especially useful when
+the dataset, such as a ESRI Shapefile, consists of multiple files and is
+distributed as a zipped archive.
+
+GDAL handles this through the concept of [virtual file systems](https://gdal.org/user/virtual_file_systems.html)
+using a `/vsiPREFIX/..` path (for example `/vsizip/..`). For convenience,
+pyogrio also supports passing the path with the more common URI syntax
+using `zip://..`:
+
+```python
+>>> read_dataframe("/vsizip/ne_10m_admin_0_countries.zip")
+>>> read_dataframe("zip://ne_10m_admin_0_countries.zip")
+```
+
+## Reading from remote filesystems
+
+GDAL supports several remote filesystems, such as S3, Google Cloud or Azure,
+out of the box through the concept of virtual file systems. See
+[GDAL's docs on network file systems](https://gdal.org/user/virtual_file_systems.html#network-based-file-systems)
+for more details.
+You can use GDAL's native `/vsi../` notation, but for convenience, pyogrio
+also supports passing the path with the more common URI syntax:
+
+```python
+>>> read_dataframe("/vsis3/bucket/data.geojson")
+>>> read_dataframe("s3://bucket/data.geojson")
+```
+
+It is also possible to combine multiple virtual filesystems, such as reading
+a zipped folder (see section above) from a remote filesystem:
+
+```python
+>>> read_dataframe("vsizip/vsis3/bucket/shapefile.zip")
+>>> read_dataframe("zip+s3://bucket/shapefile.zip")
+```
+
+You can also read from a URL with this syntax:
+
+```python
+>>> read_dataframe("https://s3.amazonaws.com/bucket/data.geojson")
+>>> read_dataframe("zip+https://s3.amazonaws.com/bucket/shapefile.zip")
+```
+
 ## Configuration options
 
 It is possible to set

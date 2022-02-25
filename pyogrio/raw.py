@@ -2,6 +2,7 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.util import vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
@@ -28,6 +29,7 @@ def read(
     where=None,
     bbox=None,
     fids=None,
+    return_fids=False,
 ):
     """Read OGR data source.
 
@@ -37,7 +39,7 @@ def read(
     Parameters
     ----------
     path_or_buffer : pathlib.Path or str, or bytes buffer
-        Data source path or raw buffer.
+        A dataset path or URI, or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -77,11 +79,15 @@ def read(
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
+    return_fids : bool, optional (default: False)
+        If True, will return the FIDs of the feature that were read.
 
     Returns
     -------
-    (dict, geometry, data fields)
+    (dict, fids, geometry, data fields)
         Returns a tuple of meta information about the data source in a dict,
+        an ndarray of FIDs corresponding to the features that were read or None
+        (if return_fids is False),
         an ndarray of geometry objects or None (if data source does not include
         geometry or read_geometry is False), a tuple of ndarrays for each field
         in the data layer.
@@ -107,7 +113,11 @@ def read(
         if is_zipped:
             path = "/vsizip/" + path
     else:
-        path = str(path_or_buffer)
+        path = vsi_path(str(path_or_buffer))
+
+    if not "://" in path:
+        if not "/vsi" in path.lower() and not os.path.exists(path):
+            raise ValueError(f"'{path}' does not exist")
 
     try:
         result = ogr_read(
@@ -122,6 +132,7 @@ def read(
             where=where,
             bbox=bbox,
             fids=fids,
+            return_fids=return_fids,
         )
     finally:
         if from_buffer:
