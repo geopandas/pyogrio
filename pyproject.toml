@@ -6,3 +6,19 @@ requires = [
     "Cython>=0.29",
     "oldest-supported-numpy",
 ]
+
+[tool.cibuildwheel]
+build = "cp39-*"
+
+[tool.cibuildwheel.windows]
+archs = ["auto64"]
+
+before-build = "pip install delvewheel"
+repair-wheel-command = "delvewheel repair --add-path C:/Users/joris/vcpkg/installed/x64-windows/bin -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.windows.environment]
+VCPKG_ROOT = "C:/Users/joris/vcpkg"
+VCPKG_INSTALL = "$VCPKG_ROOT/installed/x64-windows"
+GDAL_VERSION = "3.4.1"
+GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
+GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
