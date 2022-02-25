@@ -19,6 +19,7 @@ DRIVERS = {
 
 def read(
     path_or_buffer,
+    /,
     layer=None,
     encoding=None,
     columns=None,

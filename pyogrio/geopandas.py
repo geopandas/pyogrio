@@ -23,6 +23,7 @@ def _stringify_path(path):
 
 def read_dataframe(
     path_or_buffer,
+    /,
     layer=None,
     encoding=None,
     columns=None,
