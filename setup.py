@@ -89,7 +89,7 @@ else:
                 try:
                     gdalinfo_path = None
                     for path in os.getenv("PATH", "").split(os.pathsep):
-                        matches = list(Path(path).glob("**/gdalinfo*"))
+                        matches = list(Path(path).glob("**/gdalinfo.exe"))
                         if matches:
                             gdalinfo_path = matches[0]
                             break
@@ -111,9 +111,17 @@ else:
 
             GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
 
-            log.info(
-                "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
-            )
+            include_dir = os.environ.get("GDAL_INCLUDE_PATH")
+            library_dir = os.environ.get("GDAL_LIBRARY_PATH")
+
+            if include_dir and library_dir:
+                ext_options["include_dirs"].append(include_dir)
+                ext_options["library_dirs"].append(library_dir)
+                ext_options["libraries"].append("gdal_i")
+            else:
+                log.info(
+                    "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
+                )
 
         else:
             raise e
