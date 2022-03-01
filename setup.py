@@ -34,28 +34,33 @@ def read_response(cmd):
     return subprocess.check_output(cmd).decode("utf").strip()
 
 
-ext_options = {
-    "include_dirs": [],
-    "library_dirs": [],
-    "libraries": [],
-    "extra_link_args": [],
-}
-ext_modules = []
+def get_gdal_paths():
+    """Obtain the paths for compiling and linking with the GDAL C-API
 
+    First the presence of the GDAL_INCLUDE_PATH and GDAL_LIBRARY_PATH environment
+    variables is checked. If they are both present, these are taken.
 
-# setuptools clean does not cleanup Cython artifacts
-if "clean" in sys.argv:
-    if os.path.exists("build"):
-        shutil.rmtree("build")
+    If one of the two paths was not present, gdal-config is called (it should be on the
+    PATH variable). gdal-config provides all the paths.
 
-    root = Path(".")
-    for ext in ["*.so", "*.pyc", "*.c", "*.cpp"]:
-        for entry in root.rglob(ext):
-            entry.unlink()
+    If no environment variables were specified or gdal-config was not found,
+    no additional paths are provided to the extension. It is still possible
+    to compile in this case using custom arguments to setup.py.
+    """
+    include_dir = os.environ.get("GDAL_INCLUDE_PATH")
+    library_dir = os.environ.get("GDAL_LIBRARY_PATH")
 
-else:
-    if cythonize is None:
-        raise ImportError("Cython is required to build from source")
+    if include_dir and library_dir:
+        return {
+            "include_dirs": [include_dir],
+            "library_dirs": [library_dir],
+            "libraries": ["gdal_i" if platform.system() == "Windows" else "gdal"],
+        }
+    if include_dir or library_dir:
+        log.warn(
+            "If specifying the GDAL_INCLUDE_PATH or GDAL_LIBRARY_PATH environment "
+            "variables, you need to specify both."
+        )
 
     try:
         # Get libraries, etc from gdal-config (not available on Windows)
@@ -64,18 +69,30 @@ else:
         config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
         GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
+        if not GDAL_VERSION > MIN_GDAL_VERSION:
+            sys.exit("GDAL must be >= 2.4.x")
 
-        ext_options["include_dirs"] = [
+        include_dirs = [
             entry[2:] for entry in config["cflags"].split(" ")
         ]
+        library_dirs = []
+        libraries = []
+        extra_link_args = []
 
         for entry in config["libs"].split(" "):
             if entry.startswith("-L"):
-                ext_options["library_dirs"].append(entry[2:])
+                library_dirs.append(entry[2:])
             elif entry.startswith("-l"):
-                ext_options["libraries"].append(entry[2:])
+                libraries.append(entry[2:])
             else:
-                ext_options["extra_link_args"].append(entry)
+                extra_link_args.append(entry)
+        
+        return {
+            "include_dirs": include_dirs,
+            "library_dirs": library_dirs,
+            "libraries": libraries,
+            "extra_link_args": extra_link_args,
+        }
 
     except Exception as e:
         if platform.system() == "Windows":
@@ -110,24 +127,35 @@ else:
                 sys.exit(1)
 
             GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
+            if not GDAL_VERSION > MIN_GDAL_VERSION:
+                sys.exit("GDAL must be >= 2.4.x")
 
-            include_dir = os.environ.get("GDAL_INCLUDE_PATH")
-            library_dir = os.environ.get("GDAL_LIBRARY_PATH")
-
-            if include_dir and library_dir:
-                ext_options["include_dirs"].append(include_dir)
-                ext_options["library_dirs"].append(library_dir)
-                ext_options["libraries"].append("gdal_i")
-            else:
-                log.info(
-                    "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
-                )
+            log.info(
+                "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
+            )
+            return {}
 
         else:
             raise e
 
-    if not GDAL_VERSION > MIN_GDAL_VERSION:
-        sys.exit("GDAL must be >= 2.4.x")
+
+ext_modules = []
+
+# setuptools clean does not cleanup Cython artifacts
+if "clean" in sys.argv:
+    if os.path.exists("build"):
+        shutil.rmtree("build")
+
+    root = Path(".")
+    for ext in ["*.so", "*.pyc", "*.c", "*.cpp"]:
+        for entry in root.rglob(ext):
+            entry.unlink()
+
+else:
+    if cythonize is None:
+        raise ImportError("Cython is required to build from source")
+
+    ext_options = get_gdal_paths()
 
     ext_modules = cythonize(
         [
