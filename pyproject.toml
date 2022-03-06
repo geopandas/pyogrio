@@ -14,10 +14,10 @@ build = "cp39-*"
 archs = ["auto64"]
 
 before-build = "pip install delvewheel"
-repair-wheel-command = "delvewheel repair --add-path C:/Users/joris/vcpkg/installed/x64-windows/bin -w {dest_dir} {wheel}"
+repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.windows.environment]
-VCPKG_ROOT = "C:/Users/joris/vcpkg"
+VCPKG_ROOT = "C:/vcpkg"
 VCPKG_INSTALL = "$VCPKG_ROOT/installed/x64-windows"
 GDAL_VERSION = "3.4.1"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"

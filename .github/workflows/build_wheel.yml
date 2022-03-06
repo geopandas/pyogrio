@@ -1,0 +1,27 @@
+name: Build wheels
+
+on: [push, pull_request]
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install GDAL
+        run: |
+          vcpkg install gdal[core]:x64-windows
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+        # env:
+        #   CIBW_SOME_OPTION: value
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
