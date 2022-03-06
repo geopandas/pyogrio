@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - uses: actions/cache@v1
+        id: vcpkgcache
+        with:
+          path: C:/vcpkg/installed
+          key: ${{ runner.os }}-vcpkg
+
       - name: Install GDAL
         run: |
           vcpkg install gdal[core]:x64-windows
