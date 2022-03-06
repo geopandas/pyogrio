@@ -31,3 +31,46 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
+
+  windows-tests:
+    name: windows py${{ matrix.python-version }} tests
+    runs-on: windows-latest
+    needs: build_wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        include:
+          - os: windows-latest
+            triplet: x64-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheels from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Set version string
+        shell: bash
+        run: echo "py_version_str=cp$(echo ${{ matrix.python-version }} | tr -d -c 0-9)" >> $GITHUB_ENV
+
+      - name: Install package from wheel
+        shell: bash
+        run: |
+          ls -R wheelhouse
+          python -m pip install --upgrade pip
+          pip install wheelhouse/pyogrio-*${{ env.py_version_str }}*.whl
+      - name: Run tests
+        run: |
+          pip install pytest
+          python -m pytest --pyargs pyogrio
