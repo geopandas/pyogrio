@@ -76,5 +76,7 @@ jobs:
           python -m pip install wheelhouse/artifact/${{ env.wheel_name }}
       - name: Run tests
         run: |
-          pip install pytest
+          python -m pip install pytest
+          python -m pip list
+          cd ..
           python -m pytest --pyargs pyogrio
