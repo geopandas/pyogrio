@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from distutils import log
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 import versioneer
 
@@ -165,7 +165,7 @@ cmdclass["build_ext"] = build_ext
 setup(
     name="pyogrio",
     version=version,
-    packages=["pyogrio"],
+    packages=find_packages(),
     url="https://github.com/pyogrio/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
