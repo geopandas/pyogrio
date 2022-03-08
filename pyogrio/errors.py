@@ -1,18 +1,32 @@
-class CRSError(Exception):
+class DataSourceError(RuntimeError):
+    """Errors relating to opening or closing an OGRDataSource (with >= 1 layers)"""
+
     pass
 
 
-class DriverError(Exception):
+class DataLayerError(RuntimeError):
+    """Errors relating to working with a single OGRLayer"""
+
     pass
 
 
-class TransactionError(RuntimeError):
+class CRSError(DataLayerError):
+    """Errors relating to getting or setting CRS values"""
+
     pass
 
 
-class UnsupportedGeometryTypeError(Exception):
+class FeatureError(DataLayerError):
+    """Errors related to reading or writing a feature"""
+
     pass
 
 
-class DriverIOError(IOError):
+class GeometryError(DataLayerError):
+    """Errors relating to getting or setting a geometry field"""
+
     pass
+
+
+class FieldError(DataLayerError):
+    """Errors relating to getting or setting a non-geometry field"""

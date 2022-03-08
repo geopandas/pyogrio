@@ -19,14 +19,14 @@ except ImportError:
     cythonize = None
 
 
-MIN_PYTHON_VERSION = (3, 6, 0)
+MIN_PYTHON_VERSION = (3, 8, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 build_ext = None
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.6 is required")
+    raise RuntimeError("Python >= 3.8 is required")
 
 
 # Get GDAL config from gdal-config command
@@ -151,6 +151,10 @@ if "clean" in sys.argv:
         for entry in root.rglob(ext):
             entry.unlink()
 
+elif "sdist" in sys.argv or "egg_info" in sys.argv:
+    # don't cythonize for the sdist
+    pass
+
 else:
     if cythonize is None:
         raise ImportError("Cython is required to build from source")
@@ -190,14 +194,14 @@ setup(
     name="pyogrio",
     version=version,
     packages=["pyogrio"],
-    url="https://github.com/brendan-ward/pyogrio",
+    url="https://github.com/pyogrio/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
     author_email="bcward@astutespruce.com",
     description="Vectorized spatial vector file format I/O using GDAL/OGR",
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=["numpy"],
     extras_require={
         "dev": ["Cython"],

@@ -6,7 +6,7 @@ import pytest
 from pyogrio import __gdal_version_string__, __version__, list_drivers
 
 
-data_dir = Path(__file__).parent.resolve() / "fixtures"
+_data_dir = Path(__file__).parent.resolve() / "fixtures"
 
 
 def pytest_report_header(config):
@@ -18,9 +18,14 @@ def pytest_report_header(config):
     )
 
 
+@pytest.fixture
+def data_dir():
+    return _data_dir
+
+
 @pytest.fixture(scope="session")
 def naturalearth_lowres():
-    return data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
+    return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
 
 
 @pytest.fixture
@@ -34,10 +39,10 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
             filename = f"{naturalearth_lowres.stem}.{ext}"
             out.write(naturalearth_lowres.parent / filename, filename)
 
-    return f"/vsizip/{path}/{naturalearth_lowres.name}"
+    return path, f"/vsizip/{path}/{naturalearth_lowres.name}"
 
 
 @pytest.fixture(scope="session")
 def test_fgdb_vsi():
-    return f"/vsizip/{data_dir}/test_fgdb.gdb.zip"
+    return f"/vsizip/{_data_dir}/test_fgdb.gdb.zip"
 
