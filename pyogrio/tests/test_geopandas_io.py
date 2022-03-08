@@ -236,3 +236,27 @@ def test_write_empty_dataframe(tmpdir, driver, ext):
     df = read_dataframe(filename)
 
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.filterwarnings(
+    "ignore: You will likely lose important projection information"
+)
+def test_custom_crs_io(tmpdir, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+    # project Belgium to a custom Albers Equal Area projection
+    expected = df.loc[df.name == "Belgium"].to_crs(
+        "+proj=aea +lat_1=49.5 +lat_2=51.5 +lon_0=4.3"
+    )
+    filename = os.path.join(str(tmpdir), "test.shp")
+    write_dataframe(expected, filename)
+
+    assert os.path.exists(filename)
+
+    df = read_dataframe(filename)
+
+    crs = df.crs.to_dict()
+    assert crs["lat_1"] == 49.5
+    assert crs["lat_2"] == 51.5
+    assert crs["lon_0"] == 4.3
+    assert df.crs.equals(expected.crs)
+
