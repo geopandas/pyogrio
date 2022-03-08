@@ -76,7 +76,8 @@ jobs:
           python -m pip install wheelhouse/artifact/${{ env.wheel_name }}
       - name: Run tests
         run: |
-          python -m pip install pytest pandas
+          python -m pip install pytest pandas pyproj shapely packaging
+          python -m pip install --no-deps geopandas
           python -m pip list
           cd ..
           python -m pytest --pyargs pyogrio
