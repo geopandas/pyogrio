@@ -258,4 +258,5 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres):
     assert crs["lat_1"] == 49.5
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
+    assert df.crs.equals(expected.crs)
 
