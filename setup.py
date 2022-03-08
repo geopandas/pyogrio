@@ -68,8 +68,8 @@ def get_gdal_paths():
         gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
         config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
-        GDAL_VERSION = tuple(int(i) for i in config["version"].split("."))
-        if not GDAL_VERSION > MIN_GDAL_VERSION:
+        gdal_version = tuple(int(i) for i in config["version"].split("."))
+        if not gdal_version >= MIN_GDAL_VERSION:
             sys.exit("GDAL must be >= 2.4.x")
 
         include_dirs = [
@@ -98,38 +98,6 @@ def get_gdal_paths():
         if platform.system() == "Windows":
             # Note: additional command-line parameters required to point to GDAL;
             # see the README.
-
-            gdal_version_str = os.environ.get("GDAL_VERSION", "")
-            if not gdal_version_str:
-                # attempt to execute gdalinfo to find GDAL version
-                # Note: gdalinfo must be on the PATH
-                try:
-                    gdalinfo_path = None
-                    for path in os.getenv("PATH", "").split(os.pathsep):
-                        matches = list(Path(path).glob("**/gdalinfo.exe"))
-                        if matches:
-                            gdalinfo_path = matches[0]
-                            break
-
-                    if gdalinfo_path:
-                        raw_version = read_response([gdalinfo_path, "--version"]) or ""
-                        m = re.search("\d+\.\d+\.\d+", raw_version)
-                        if m:
-                            gdal_version_str = m.group()
-
-                except:
-                    log.warn(
-                        "Could not obtain version by executing 'gdalinfo --version'"
-                    )
-
-            if not gdal_version_str:
-                print("GDAL_VERSION must be provided as an environment variable")
-                sys.exit(1)
-
-            GDAL_VERSION = tuple(int(i) for i in gdal_version_str.split("."))
-            if not GDAL_VERSION > MIN_GDAL_VERSION:
-                sys.exit("GDAL must be >= 2.4.x")
-
             log.info(
                 "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
             )
