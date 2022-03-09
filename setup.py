@@ -37,11 +37,11 @@ def read_response(cmd):
 def get_gdal_paths():
     """Obtain the paths for compiling and linking with the GDAL C-API
 
-    First the presence of the GDAL_INCLUDE_PATH and GDAL_LIBRARY_PATH environment
-    variables is checked. If they are both present, these are taken.
+    GDAL_INCLUDE_PATH and GDAL_LIBRARY_PATH environment variables are used
+    if both are present.
 
-    If one of the two paths was not present, gdal-config is called (it should be on the
-    PATH variable). gdal-config provides all the paths.
+    If those variables are not present, gdal-config is called (it should be
+    on the PATH variable). gdal-config provides all the paths.
 
     If no environment variables were specified or gdal-config was not found,
     no additional paths are provided to the extension. It is still possible
