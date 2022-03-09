@@ -161,11 +161,13 @@ cdef extern from "ogr_srs_api.h":
     ctypedef void* OGRSpatialReferenceH
 
     int                     OSRAutoIdentifyEPSG(OGRSpatialReferenceH srs)
+    OGRErr                  OSRExportToWkt(OGRSpatialReferenceH srs, char **params)
     const char*             OSRGetAuthorityName(OGRSpatialReferenceH srs, const char *key)
     const char*             OSRGetAuthorityCode(OGRSpatialReferenceH srs, const char *key)
-    OGRErr                  OSRExportToWkt(OGRSpatialReferenceH srs, char **params)
+    OGRErr                  OSRImportFromEPSG(OGRSpatialReferenceH srs, int code)
 
     int                     OSRSetFromUserInput(OGRSpatialReferenceH srs, const char *pszDef)
+    void                    OSRSetPROJSearchPaths(const char *const *paths)
     OGRSpatialReferenceH    OSRNewSpatialReference(const char *wkt)
     void                    OSRRelease(OGRSpatialReferenceH srs)
 

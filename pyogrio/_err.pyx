@@ -1,7 +1,9 @@
 # ported from fiona::_err.pyx
 from enum import IntEnum
 
-from pyogrio._ogr cimport *
+from pyogrio._ogr cimport (
+    CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
+    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr)
 
 
 # CPL Error types as an enum.
@@ -182,6 +184,8 @@ cdef void *exc_wrap_pointer(void *ptr) except NULL:
 cdef int exc_wrap_int(int err) except -1:
     """Wrap a GDAL/OGR function that returns CPLErr or OGRErr (int)
     Raises an exception if a non-fatal error has be set.
+
+    Copied from Fiona (_err.pyx).
     """
     if err:
         exc = exc_check()
@@ -190,4 +194,16 @@ cdef int exc_wrap_int(int err) except -1:
         else:
             # no error message from GDAL
             raise CPLE_BaseError(-1, -1, "Unspecified OGR / GDAL error")
+    return err
+
+
+cdef int exc_wrap_ogrerr(int err) except -1:
+    """Wrap a function that returns OGRErr (int) but does not use the
+    CPL error stack.
+
+    Adapted from Fiona (_err.pyx).
+    """
+    if err != 0:
+        raise CPLE_BaseError(3, err, f"OGR Error code {err}")
+
     return err

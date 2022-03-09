@@ -1,3 +1,11 @@
+import os
+import sys
+import warnings
+
+from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr
+from pyogrio._err import CPLE_BaseError
+
+
 cdef get_string(const char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *
 
@@ -113,3 +121,77 @@ def ogr_list_drivers():
 
     return drivers
 
+
+cdef void set_proj_search_path(str path):
+    """Set PROJ library data file search path for use in GDAL."""
+    cdef char **paths = NULL
+    cdef const char *path_c = NULL
+    path_b = path.encode("utf-8")
+    path_c = path_b
+    paths = CSLAddString(paths, path_c)
+    OSRSetPROJSearchPaths(<const char *const *>paths)
+
+
+cdef char has_proj_data():
+    """Verify if PROJ library data files are loaded by GDAL.
+
+    Returns
+    -------
+    bool
+        True if a test spatial reference object could be created, which verifies
+        that data files are correctly loaded.
+
+    Adapted from Fiona (_env.pyx).
+    """
+    cdef OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL)
+
+    try:
+        exc_wrap_ogrerr(exc_wrap_int(OSRImportFromEPSG(srs, 4326)))
+    except CPLE_BaseError:
+        return 0
+    else:
+        return 1
+    finally:
+        if srs != NULL:
+            OSRRelease(srs)
+
+
+def init_proj_data():
+    """Set Proj search directories in the following precedence:
+    - PROJ_LIB env var
+    - wheel copy of proj
+    - default install of proj found by GDAL
+    - search other well-known paths
+
+    Adapted from Fiona (env.py, _env.pyx).
+    """
+
+    if "PROJ_LIB" in os.environ:
+        set_proj_search_path(os.environ["PROJ_LIB"])
+        # verify that this now resolves
+        if not has_proj_data():
+            raise ValueError("PROJ_LIB did not resolve to a path containing PROJ data files")
+        return
+
+    # wheels are packaged to include PROJ data files at pyogrio/proj_data
+    wheel_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "proj_data"))
+    if os.path.exists(wheel_dir):
+        set_proj_search_path(wheel_dir)
+        # verify that this now resolves
+        if not has_proj_data():
+            raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
+        return
+
+    # GDAL correctly found PROJ based on compiled-in paths
+    if has_proj_data():
+        return
+
+    wk_path = os.path.join(sys.prefix, 'share', 'proj')
+    if os.path.exists(wk_path):
+        set_proj_search_path(wk_path)
+        # verify that this now resolves
+        if not has_proj_data():
+            raise ValueError(f"Found PROJ data directory at {wk_path} but it does not appear to correctly contain PROJ data files")
+        return
+
+    warnings.warn("Could not detect PROJ data files.  Set PROJ_LIB environment variable to the correct path.", RuntimeWarning)
