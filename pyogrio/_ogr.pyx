@@ -145,7 +145,7 @@ cdef char has_gdal_data():
 
 
 cdef char has_proj_data():
-    """Verify that PROJ library data files are loaded by GDAL.
+    """Verify that PROJ library data files are correctly found.
 
     Returns
     -------
@@ -202,7 +202,7 @@ def init_gdal_data():
 def init_proj_data():
     """Set Proj search directories in the following precedence:
     - wheel copy of proj_data
-    - default detection by GDAL, including PROJ_LIB (detected automatically by GDAL)
+    - default detection by PROJ, including PROJ_LIB (detected automatically by PROJ)
     - search other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
@@ -217,7 +217,7 @@ def init_proj_data():
             raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
         return
 
-    # GDAL correctly found data files from PROJ_LIB or compiled-in paths
+    # PROJ correctly found data files from PROJ_LIB or compiled-in paths
     if has_proj_data():
         return
 
