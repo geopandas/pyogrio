@@ -9,10 +9,12 @@ with GDALEnv():
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
+        init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
     )
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
+    _init_gdal_data()
     _init_proj_data()
 
     __gdal_version__ = get_gdal_version()

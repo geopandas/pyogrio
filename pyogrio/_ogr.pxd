@@ -8,6 +8,7 @@ cdef extern from "cpl_conv.h":
     void*   CPLMalloc(size_t)
     void    CPLFree(void *ptr)
 
+    const char* CPLFindFile(const char *pszClass, const char *filename)
     const char* CPLGetConfigOption(const char* key, const char* value)
     void        CPLSetConfigOption(const char* key, const char* value)
 

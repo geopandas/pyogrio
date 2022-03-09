@@ -132,8 +132,20 @@ cdef void set_proj_search_path(str path):
     OSRSetPROJSearchPaths(<const char *const *>paths)
 
 
+cdef char has_gdal_data():
+    """Verify that GDAL library data files are correctly found.
+
+    Adapted from Fiona (_env.pyx).
+    """
+
+    if CPLFindFile("gdal", "header.dxf") != NULL:
+        return True
+
+    return False
+
+
 cdef char has_proj_data():
-    """Verify if PROJ library data files are loaded by GDAL.
+    """Verify that PROJ library data files are loaded by GDAL.
 
     Returns
     -------
@@ -156,12 +168,52 @@ cdef char has_proj_data():
             OSRRelease(srs)
 
 
+
+def init_gdal_data():
+    """Set GDAL data search directories in the following precedence:
+    - GDAL_DATA env var
+    - wheel copy of gdal_data
+    - other well-known paths under sys.prefix
+
+    Adapted from Fiona (env.py, _env.pyx).
+    """
+
+    if "GDAL_DATA" in os.environ:
+        set_gdal_config_options({"GDAL_DATA": os.environ["GDAL_DATA"]})
+        if not has_gdal_data():
+            raise ValueError("GDAL_DATA does not resolve to a directory that contains GDAL data files")
+        return
+
+    # wheels are packaged to include PROJ data files at pyogrio/gdal_data
+    wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "gdal_data"))
+    if os.path.exists(wheel_path):
+        set_gdal_config_options({"GDAL_DATA": wheel_path})
+        if not has_gdal_data():
+            raise ValueError("Could not correctly detect GDAL data files installed by pyogrio wheel")
+        return
+
+    # GDAL correctly found data files from compiled-in paths
+    if has_gdal_data():
+        return
+
+    wk_path = os.path.join(sys.prefix, 'share', 'gdal')
+    if os.path.exists(wk_path):
+        set_gdal_config_options({"GDAL_DATA": wk_path})
+        if not has_gdal_data():
+            raise ValueError(f"Found GDAL data directory at {wk_path} but it does not appear to correctly contain GDAL data files")
+        return
+
+    warnings.warn("Could not detect GDAL data files.  Set GDAL_DATA environment variable to the correct path.", RuntimeWarning)
+
+
+
+
 def init_proj_data():
     """Set Proj search directories in the following precedence:
     - PROJ_LIB env var
-    - wheel copy of proj
+    - wheel copy of proj_data
     - default install of proj found by GDAL
-    - search other well-known paths
+    - search other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
     """
@@ -174,9 +226,9 @@ def init_proj_data():
         return
 
     # wheels are packaged to include PROJ data files at pyogrio/proj_data
-    wheel_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "proj_data"))
-    if os.path.exists(wheel_dir):
-        set_proj_search_path(wheel_dir)
+    wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "proj_data"))
+    if os.path.exists(wheel_path):
+        set_proj_search_path(wheel_path)
         # verify that this now resolves
         if not has_proj_data():
             raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
