@@ -185,7 +185,7 @@ def init_gdal_data():
             raise ValueError("Could not correctly detect GDAL data files installed by pyogrio wheel")
         return
 
-    # GDAL correctly found data files from compiled-in paths
+    # GDAL correctly found data files from GDAL_DATA or compiled-in paths
     if has_gdal_data():
         return
 
@@ -201,7 +201,6 @@ def init_gdal_data():
 
 def init_proj_data():
     """Set Proj search directories in the following precedence:
-    - PROJ_LIB env var
     - wheel copy of proj_data
     - default detection by GDAL, including PROJ_LIB (detected automatically by GDAL)
     - search other well-known paths under sys.prefix
@@ -218,7 +217,7 @@ def init_proj_data():
             raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
         return
 
-    # GDAL correctly found PROJ based on compiled-in paths
+    # GDAL correctly found data files from PROJ_LIB or compiled-in paths
     if has_proj_data():
         return
 
