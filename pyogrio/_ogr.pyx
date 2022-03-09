@@ -173,6 +173,7 @@ def init_gdal_data():
     """Set GDAL data search directories in the following precedence:
     - GDAL_DATA env var
     - wheel copy of gdal_data
+    - default install of GDAL data files
     - other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
