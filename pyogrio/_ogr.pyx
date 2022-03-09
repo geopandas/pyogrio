@@ -168,7 +168,6 @@ cdef char has_proj_data():
             OSRRelease(srs)
 
 
-
 def init_gdal_data():
     """Set GDAL data search directories in the following precedence:
     - GDAL_DATA env var
@@ -185,7 +184,7 @@ def init_gdal_data():
             raise ValueError("GDAL_DATA does not resolve to a directory that contains GDAL data files")
         return
 
-    # wheels are packaged to include PROJ data files at pyogrio/gdal_data
+    # wheels are packaged to include GDAL data files at pyogrio/gdal_data
     wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "gdal_data"))
     if os.path.exists(wheel_path):
         set_gdal_config_options({"GDAL_DATA": wheel_path})
@@ -205,8 +204,6 @@ def init_gdal_data():
         return
 
     warnings.warn("Could not detect GDAL data files.  Set GDAL_DATA environment variable to the correct path.", RuntimeWarning)
-
-
 
 
 def init_proj_data():
