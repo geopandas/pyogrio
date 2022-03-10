@@ -1,3 +1,11 @@
+import os
+import sys
+import warnings
+
+from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr
+from pyogrio._err import CPLE_BaseError
+
+
 cdef get_string(const char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *
 
@@ -113,3 +121,112 @@ def ogr_list_drivers():
 
     return drivers
 
+
+cdef void set_proj_search_path(str path):
+    """Set PROJ library data file search path for use in GDAL."""
+    cdef char **paths = NULL
+    cdef const char *path_c = NULL
+    path_b = path.encode("utf-8")
+    path_c = path_b
+    paths = CSLAddString(paths, path_c)
+    OSRSetPROJSearchPaths(<const char *const *>paths)
+
+
+cdef char has_gdal_data():
+    """Verify that GDAL library data files are correctly found.
+
+    Adapted from Fiona (_env.pyx).
+    """
+
+    if CPLFindFile("gdal", "header.dxf") != NULL:
+        return True
+
+    return False
+
+
+cdef char has_proj_data():
+    """Verify that PROJ library data files are correctly found.
+
+    Returns
+    -------
+    bool
+        True if a test spatial reference object could be created, which verifies
+        that data files are correctly loaded.
+
+    Adapted from Fiona (_env.pyx).
+    """
+    cdef OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL)
+
+    try:
+        exc_wrap_ogrerr(exc_wrap_int(OSRImportFromEPSG(srs, 4326)))
+    except CPLE_BaseError:
+        return 0
+    else:
+        return 1
+    finally:
+        if srs != NULL:
+            OSRRelease(srs)
+
+
+def init_gdal_data():
+    """Set GDAL data search directories in the following precedence:
+    - wheel copy of gdal_data
+    - default detection by GDAL, including GDAL_DATA (detected automatically by GDAL)
+    - other well-known paths under sys.prefix
+
+    Adapted from Fiona (env.py, _env.pyx).
+    """
+
+    # wheels are packaged to include GDAL data files at pyogrio/gdal_data
+    wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "gdal_data"))
+    if os.path.exists(wheel_path):
+        set_gdal_config_options({"GDAL_DATA": wheel_path})
+        if not has_gdal_data():
+            raise ValueError("Could not correctly detect GDAL data files installed by pyogrio wheel")
+        return
+
+    # GDAL correctly found data files from GDAL_DATA or compiled-in paths
+    if has_gdal_data():
+        return
+
+    wk_path = os.path.join(sys.prefix, 'share', 'gdal')
+    if os.path.exists(wk_path):
+        set_gdal_config_options({"GDAL_DATA": wk_path})
+        if not has_gdal_data():
+            raise ValueError(f"Found GDAL data directory at {wk_path} but it does not appear to correctly contain GDAL data files")
+        return
+
+    warnings.warn("Could not detect GDAL data files.  Set GDAL_DATA environment variable to the correct path.", RuntimeWarning)
+
+
+def init_proj_data():
+    """Set Proj search directories in the following precedence:
+    - wheel copy of proj_data
+    - default detection by PROJ, including PROJ_LIB (detected automatically by PROJ)
+    - search other well-known paths under sys.prefix
+
+    Adapted from Fiona (env.py, _env.pyx).
+    """
+
+    # wheels are packaged to include PROJ data files at pyogrio/proj_data
+    wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "proj_data"))
+    if os.path.exists(wheel_path):
+        set_proj_search_path(wheel_path)
+        # verify that this now resolves
+        if not has_proj_data():
+            raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
+        return
+
+    # PROJ correctly found data files from PROJ_LIB or compiled-in paths
+    if has_proj_data():
+        return
+
+    wk_path = os.path.join(sys.prefix, 'share', 'proj')
+    if os.path.exists(wk_path):
+        set_proj_search_path(wk_path)
+        # verify that this now resolves
+        if not has_proj_data():
+            raise ValueError(f"Found PROJ data directory at {wk_path} but it does not appear to correctly contain PROJ data files")
+        return
+
+    warnings.warn("Could not detect PROJ data files.  Set PROJ_LIB environment variable to the correct path.", RuntimeWarning)
