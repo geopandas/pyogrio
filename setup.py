@@ -116,7 +116,7 @@ def get_gdal_paths():
 
 
 ext_modules = []
-package_data = None
+package_data = {}
 
 # setuptools clean does not cleanup Cython artifacts
 if "clean" in sys.argv:
