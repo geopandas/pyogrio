@@ -10,6 +10,23 @@ from pyogrio import (
     get_gdal_config_option,
 )
 
+from pyogrio._env import GDALEnv
+
+with GDALEnv():
+    # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
+    # search paths
+    from pyogrio._ogr import has_gdal_data, has_proj_data
+
+
+def test_gdal_data():
+    # test will fail if GDAL data files cannot be found, indicating an installation error
+    assert has_gdal_data()
+
+
+def test_proj_data():
+    # test will fail if PROJ data files cannot be found, indicating an installation error
+    assert has_proj_data()
+
 
 def test_list_drivers():
     all_drivers = list_drivers()
