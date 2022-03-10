@@ -107,3 +107,16 @@ Also see `.github/test-windows.yml` for additional ideas if you run into problem
 
 Windows is minimally tested; we are currently unable to get automated tests
 working on our Windows CI.
+
+## GDAL and PROJ data files
+
+GDAL requires certain files to be present within a GDAL data folder, as well
+as a PROJ data folder. These folders are normally detected automatically.
+
+If you have an unusual installation of GDAL and PROJ, you may need to set
+additional environment variables at **runtime** in order for these to be
+correctly detected by GDAL:
+
+-   set `GDAL_DATA` to the folder containing the GDAL data files (e.g., contains `header.dxf`)
+    within the installation of GDAL that is used by Pyogrio.
+-   set `PROJ_LIB` to the folder containing the PROJ data files (e.g., contains `proj.db`)
