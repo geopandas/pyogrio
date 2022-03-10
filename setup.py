@@ -29,6 +29,14 @@ if sys.version_info < MIN_PYTHON_VERSION:
     raise RuntimeError("Python >= 3.8 is required")
 
 
+def copy_data_tree(datadir, destdir):
+    try:
+        shutil.rmtree(destdir)
+    except OSError:
+        pass
+    shutil.copytree(datadir, destdir)
+
+
 # Get GDAL config from gdal-config command
 def read_response(cmd):
     return subprocess.check_output(cmd).decode("utf").strip()
@@ -108,6 +116,7 @@ def get_gdal_paths():
 
 
 ext_modules = []
+package_data = None
 
 # setuptools clean does not cleanup Cython artifacts
 if "clean" in sys.argv:
@@ -153,6 +162,18 @@ else:
             except ImportError:
                 pass
 
+    if os.environ.get("PYOGRIO_PACKAGE_DATA"):
+        gdal_data = os.environ.get("GDAL_DATA")
+        if gdal_data:
+            log.info("Copying gdal data from %s" % gdal_data)
+            copy_data_tree(gdal_data, "pyogrio/gdal_data")
+
+        proj_data = os.environ.get("PROJ_LIB")
+        if os.path.exists(proj_data):
+            log.info("Copying proj data from %s" % proj_data)
+            copy_data_tree(proj_data, "pyogrio/proj_data")
+        package_data = {"pyogrio": ["gdal_data/*", "proj_data/*"]}
+
 
 version = versioneer.get_version()
 cmdclass = versioneer.get_cmdclass()
@@ -180,4 +201,5 @@ setup(
     include_package_data=True,
     cmdclass=cmdclass,
     ext_modules=ext_modules,
+    package_data=package_data,
 )
