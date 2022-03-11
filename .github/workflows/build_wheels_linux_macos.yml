@@ -1,0 +1,106 @@
+name: Build Linux/MacOS wheels
+
+on:
+  push:
+    branches:
+      - main # just build the sdist & wheel, skip release
+    tags:
+      - "*"
+  pull_request: # also build on PRs touching this file
+    paths:
+      - ".github/workflows/build_wheel.yml"
+      - "ci/*"
+      - "MANIFEST.in"
+      - "pyproject.toml"
+      - "setup.py"
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }} ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-20.04", "macos-latest"]
+        platform: ["x86_64"]
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # TODO:
+      # - name: Cache vcpkg
+      #   uses: actions/cache@v1
+      #   id: vcpkgcache
+      #   with:
+      #     # path: TBD
+      #     key: ${{ runner.os }}-vcpkg
+
+      - name: Install GDAL
+        run: |
+          vcpkg install gdal[core]
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+        env:
+          # should be automatically detected?
+          GDAL_INCLUDE_PATH: "/usr/local/include"
+          GDAL_LIBRARY_PATH: "/usr/local/lib"
+          PYOGRIO_PACKAGE_DATA: 1
+          GDAL_DATA: "/usr/local/share/gdal"
+          PROJ_LIB: "/usr/local/share/proj4"
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  test-wheel:
+    name: Test wheels on ${{ matrix.os }} ${{ matrix.platform }}
+    needs: build_wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-20.04"]
+        platform: ["x86_64"]
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Download wheels from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Set version string
+        shell: bash
+        run: echo "py_version_str=cp$(echo ${{ matrix.python-version }} | tr -d -c 0-9)" >> $GITHUB_ENV
+
+      - name: Get wheel name
+        shell: bash
+        run: echo "wheel_name=$(ls -R wheelhouse/ | grep whl)" >> $GITHUB_ENV
+
+      - name: Install package from wheel
+        shell: bash
+        run: |
+          ls -R wheelhouse
+          python -m pip install --upgrade pip
+          python -m pip install wheelhouse/artifact/${{ env.wheel_name }}
+      - name: Run tests
+        run: |
+          python -m pip install pytest pandas pyproj shapely packaging
+          python -m pip install --no-deps geopandas
+          python -m pip list
+          cd ..
+          python -m pytest --pyargs pyogrio

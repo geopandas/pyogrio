@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from distutils import log
-from setuptools import setup
+from setuptools import setup, find_packages
 from setuptools.extension import Extension
 import versioneer
 
@@ -27,6 +27,14 @@ build_ext = None
 
 if sys.version_info < MIN_PYTHON_VERSION:
     raise RuntimeError("Python >= 3.8 is required")
+
+
+def copy_data_tree(datadir, destdir):
+    try:
+        shutil.rmtree(destdir)
+    except OSError:
+        pass
+    shutil.copytree(datadir, destdir)
 
 
 # Get GDAL config from gdal-config command
@@ -72,9 +80,7 @@ def get_gdal_paths():
         if not gdal_version >= MIN_GDAL_VERSION:
             sys.exit("GDAL must be >= 2.4.x")
 
-        include_dirs = [
-            entry[2:] for entry in config["cflags"].split(" ")
-        ]
+        include_dirs = [entry[2:] for entry in config["cflags"].split(" ")]
         library_dirs = []
         libraries = []
         extra_link_args = []
@@ -86,7 +92,7 @@ def get_gdal_paths():
                 libraries.append(entry[2:])
             else:
                 extra_link_args.append(entry)
-        
+
         return {
             "include_dirs": include_dirs,
             "library_dirs": library_dirs,
@@ -108,6 +114,7 @@ def get_gdal_paths():
 
 
 ext_modules = []
+package_data = {}
 
 # setuptools clean does not cleanup Cython artifacts
 if "clean" in sys.argv:
@@ -153,6 +160,18 @@ else:
             except ImportError:
                 pass
 
+    if os.environ.get("PYOGRIO_PACKAGE_DATA"):
+        gdal_data = os.environ.get("GDAL_DATA")
+        if gdal_data:
+            log.info("Copying gdal data from %s" % gdal_data)
+            copy_data_tree(gdal_data, "pyogrio/gdal_data")
+
+        proj_data = os.environ.get("PROJ_LIB")
+        if os.path.exists(proj_data):
+            log.info("Copying proj data from %s" % proj_data)
+            copy_data_tree(proj_data, "pyogrio/proj_data")
+        package_data = {"pyogrio": ["gdal_data/*", "proj_data/*"]}
+
 
 version = versioneer.get_version()
 cmdclass = versioneer.get_cmdclass()
@@ -161,7 +180,7 @@ cmdclass["build_ext"] = build_ext
 setup(
     name="pyogrio",
     version=version,
-    packages=["pyogrio"],
+    packages=find_packages(),
     url="https://github.com/pyogrio/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
@@ -180,4 +199,5 @@ setup(
     include_package_data=True,
     cmdclass=cmdclass,
     ext_modules=ext_modules,
+    package_data=package_data,
 )

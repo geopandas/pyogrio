@@ -6,3 +6,7 @@ requires = [
     "Cython>=0.29",
     "oldest-supported-numpy",
 ]
+
+[tool.cibuildwheel]
+skip = ["cp36-*", "cp37-*", "pp*"]
+archs = ["auto64"]
