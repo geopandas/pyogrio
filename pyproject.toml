@@ -8,7 +8,7 @@ requires = [
 ]
 
 [tool.cibuildwheel]
-build = "cp39-*"
+skip = ["cp36-*", "cp37-*", "pp*"]
 
 [tool.cibuildwheel.windows]
 archs = ["auto64"]
