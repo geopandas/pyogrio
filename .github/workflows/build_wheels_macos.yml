@@ -8,7 +8,7 @@ on:
       - "*"
   pull_request: # also build on PRs touching this file
     paths:
-      - ".github/workflows/build_wheel.yml"
+      - ".github/workflows/build_wheels_macos.yml"
       - "ci/*"
       - "MANIFEST.in"
       - "pyproject.toml"
@@ -36,6 +36,14 @@ jobs:
         with:
           path: "/vcpkg/installed"
           key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg
+
+      # MacOS build requires aclocal, which is part of automake, but appears
+      # to be missing in default image
+      - name: Reinstall automake
+        if: matrix.os == "macos-latest"
+        run: |
+          brew reinstall automake
+          echo $(which aclocal)
 
       - name: Install GDAL
         run: |

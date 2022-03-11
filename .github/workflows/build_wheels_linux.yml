@@ -8,7 +8,7 @@ on:
       - "*"
   pull_request: # also build on PRs touching this file
     paths:
-      - ".github/workflows/build_wheel.yml"
+      - ".github/workflows/build_wheels_linux.yml"
       - "ci/*"
       - "MANIFEST.in"
       - "pyproject.toml"
