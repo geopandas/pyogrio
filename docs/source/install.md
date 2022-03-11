@@ -59,8 +59,10 @@ exactly the same GDAL library.
 
 Clone this repository to a local folder.
 
-Install an appropriate distribution of GDAL for your system. `gdal-config` must
-be on your system path.
+Install an appropriate distribution of GDAL for your system. Either
+`gdal-config` must be on your system path (to automatically determine the
+GDAL paths), or either the `GDAL_INCLUDE_PATH` and `GDAL_LIBRARY_PATH`
+environment variables need to be set.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
@@ -77,18 +79,24 @@ pytest pyogrio/tests
 Install GDAL from an appropriate provider of Windows binaries. We've heard that
 the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
 
-To build on Windows, you need to provide additional command-line parameters
-because the location of the GDAL binaries and headers cannot be automatically
-determined.
+To build on Windows, you need to provide additional environment variables or
+command-line parameters because the location of the GDAL binaries and headers
+cannot be automatically determined.
 
-Assuming GDAL is installed to `c:\GDAL`, you can build as follows:
+Assuming GDAL is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`
+and `GDAL_LIBRARY_PATH` environment variables and build as follows:
+
+```bash
+set GDAL_INCLUDE_PATH=C:\GDAL\include
+set GDAL_LIBRARY_PATH=C:\GDAL\lib
+python -m pip install --no-deps --force-reinstall --no-use-pep517 -e . -v
+```
+
+Alternatively, you can pass those options also as command-line parameters:
 
 ```bash
 python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
-
-`GDAL_VERSION` environment variable must be if the version cannot be autodetected
-using `gdalinfo.exe` (must be on your system `PATH` in order for this to work).
 
 The location of the GDAL DLLs must be on your system `PATH`.
 
@@ -99,3 +107,16 @@ Also see `.github/test-windows.yml` for additional ideas if you run into problem
 
 Windows is minimally tested; we are currently unable to get automated tests
 working on our Windows CI.
+
+## GDAL and PROJ data files
+
+GDAL requires certain files to be present within a GDAL data folder, as well
+as a PROJ data folder. These folders are normally detected automatically.
+
+If you have an unusual installation of GDAL and PROJ, you may need to set
+additional environment variables at **runtime** in order for these to be
+correctly detected by GDAL:
+
+-   set `GDAL_DATA` to the folder containing the GDAL data files (e.g., contains `header.dxf`)
+    within the installation of GDAL that is used by Pyogrio.
+-   set `PROJ_LIB` to the folder containing the PROJ data files (e.g., contains `proj.db`)
