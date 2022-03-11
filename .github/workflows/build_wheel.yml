@@ -1,6 +1,18 @@
 name: Build wheels
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main  # just build the sdist & wheel, skip release
+    tags:
+      - "*"
+  pull_request:  # also build on PRs touching this file
+    paths:
+      - ".github/workflows/build_wheel.yml"
+      - "ci/*"
+      - "MANIFEST.in"
+      - "pyproject.toml"
+      - "setup.py"
 
 jobs:
   build_wheels:
@@ -55,7 +67,7 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
+          # cache: 'pip'
 
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v2
