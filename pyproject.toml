@@ -12,7 +12,7 @@ skip = ["cp36-*", "cp37-*", "pp*"]
 archs = ["auto64"]
 
 [tool.cibuildwheel.linux.environment]
-GDAL_INCLUDE_PATH = "/vcpkg/packages/gdal_x64-linux/include"
-GDAL_LIBRARY_PATH = "/vcpkg/packages/gdal_x64-linux/lib"
-GDAL_DATA = "/vcpkg/packages/gdal_x64-linux/share/gdal"
-PROJ_LIB = "/vcpkg/packages/proj4_x64-linux/share/proj4"
+GDAL_INCLUDE_PATH = "/vcpkg/installed/x64-linux/include"
+GDAL_LIBRARY_PATH = "/vcpkg/installed/x64-linux/lib"
+GDAL_DATA = "/vcpkg/installed/x64-linux/share/gdal"
+PROJ_LIB = "/vcpkg/installed/x64-linux/share/proj"
