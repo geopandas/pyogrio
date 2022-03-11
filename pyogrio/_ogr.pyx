@@ -1,13 +1,10 @@
-<<<<<<< HEAD
-from uuid import uuid4
-=======
 import os
 import sys
+from uuid import uuid4
 import warnings
 
 from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr
 from pyogrio._err import CPLE_BaseError
->>>>>>> upstream/main
 
 
 cdef get_string(const char *c_str, str encoding="UTF-8"):
