@@ -132,7 +132,7 @@ cdef void set_proj_search_path(str path):
     OSRSetPROJSearchPaths(<const char *const *>paths)
 
 
-cdef char has_gdal_data():
+def has_gdal_data():
     """Verify that GDAL library data files are correctly found.
 
     Adapted from Fiona (_env.pyx).
@@ -144,7 +144,7 @@ cdef char has_gdal_data():
     return False
 
 
-cdef char has_proj_data():
+def has_proj_data():
     """Verify that PROJ library data files are correctly found.
 
     Returns
@@ -160,9 +160,9 @@ cdef char has_proj_data():
     try:
         exc_wrap_ogrerr(exc_wrap_int(OSRImportFromEPSG(srs, 4326)))
     except CPLE_BaseError:
-        return 0
+        return False
     else:
-        return 1
+        return True
     finally:
         if srs != NULL:
             OSRRelease(srs)
