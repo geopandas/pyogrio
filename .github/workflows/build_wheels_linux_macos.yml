@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "macos-latest"]
+        os: ["ubuntu-20.04"]
         platform: ["x86_64"]
 
     steps:
@@ -30,13 +30,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      # TODO:
-      # - name: Cache vcpkg
-      #   uses: actions/cache@v1
-      #   id: vcpkgcache
-      #   with:
-      #     # path: TBD
-      #     key: ${{ runner.os }}-vcpkg
+      - name: Cache vcpkg
+        uses: actions/cache@v1
+        id: vcpkgcache
+        with:
+          path: "/home/runner/.cache/vcpkg/archives"
+          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg
 
       - name: Install GDAL
         run: |
@@ -45,12 +44,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
         env:
-          # should be automatically detected?
-          GDAL_INCLUDE_PATH: "/usr/local/include"
-          GDAL_LIBRARY_PATH: "/usr/local/lib"
           PYOGRIO_PACKAGE_DATA: 1
-          GDAL_DATA: "/usr/local/share/gdal"
-          PROJ_LIB: "/usr/local/share/proj4"
 
       - uses: actions/upload-artifact@v2
         with:
