@@ -308,7 +308,7 @@ def assert_equal_result(result1, result2):
     assert np.array_equal(meta1["fields"], meta2["fields"])
     assert np.array_equal(index1, index2)
     # assert np.array_equal(geometry1, geometry2)
-    pygeos = pytest.importorkskip("pygeos")
+    pygeos = pytest.importorskip("pygeos")
     assert pygeos.equals_exact(
         pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
     ).all()
