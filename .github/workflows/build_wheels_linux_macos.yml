@@ -40,15 +40,15 @@ jobs:
       - name: Install libtool
         if: ${{ matrix.os == 'macos-latest' }}
         run: |
-          echo (which libtool)
+          echo $(which libtool)
           brew install libtool
-          echo (which libtool)
+          echo $(which libtool)
 
       - name: Install GDAL
         run: |
           vcpkg install gdal[core]
-          echo (/usr/local/share/vcpkg/packages/gdal_x64-linux/bin/gdal-config --cflags)
-          echo (/usr/local/share/vcpkg/packages/gdal_x64-linux/bin/gdal-config --libs)
+          echo $(/usr/local/share/vcpkg/packages/gdal_x64-linux/bin/gdal-config --cflags)
+          echo $(/usr/local/share/vcpkg/packages/gdal_x64-linux/bin/gdal-config --libs)
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
