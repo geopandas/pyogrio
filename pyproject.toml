@@ -17,9 +17,7 @@ before-build = "pip install delvewheel"
 repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.windows.environment]
-VCPKG_ROOT = "C:/vcpkg"
-VCPKG_INSTALL = "$VCPKG_ROOT/installed/x64-windows"
-GDAL_VERSION = "3.4.1"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 PYOGRIO_PACKAGE_DATA = 1
