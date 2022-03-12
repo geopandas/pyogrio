@@ -35,7 +35,7 @@ jobs:
         id: vcpkgcache
         with:
           path: "/home/runner/.cache/vcpkg/archives/"
-          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy2
+          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy3
 
       - name: Test vcpkg cache
         run: |
@@ -44,8 +44,8 @@ jobs:
           ls /usr/local/share/
           echo "contents of /usr/local/share/packages"
           ls /usr/local/share/vcpkg/packages
-          echo "contents of /usr/local/share/vcpkg/packages/expat_x64-linux/include"
-          ls /usr/local/share/vcpkg/packages/expat_x64-linux/include
+          echo "contents of /usr/local/share/vcpkg/packages/expat_x64-osx/include"
+          ls /usr/local/share/vcpkg/packages/expat_x64-osx/include
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
