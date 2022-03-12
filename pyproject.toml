@@ -11,6 +11,7 @@ requires = [
 #skip = ["cp36-*", "cp37-*", "pp*"]
 build = "cp39-*"
 archs = ["auto64"]
+build-verbosity = 3
 
 [tool.cibuildwheel.linux.environment]
 GDAL_INCLUDE_PATH = "/host/usr/local/share/vcpkg/installed/x64-linux/include"
