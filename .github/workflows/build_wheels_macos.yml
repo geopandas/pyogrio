@@ -40,7 +40,7 @@ jobs:
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
-        if: ${{ matrix.os == "macos-latest" }}
+        if: ${{ matrix.os == 'macos-latest' }}
         run: |
           brew reinstall automake
           echo $(which aclocal)
@@ -49,16 +49,16 @@ jobs:
       #   run: |
       #     vcpkg install gdal[core]
 
-      - name: Test vcpkg cache
-        run: |
-          echo $VCPKG_ROOT
-          vcpkg install expat[core]
+      # - name: Test vcpkg cache
+      #   run: |
+      #     echo $VCPKG_ROOT
+      #     vcpkg install expat[core]
 
-      - name: Upload build logs
-        uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
-        with:
-          path: /usr/local/share/vcpkg/buildtrees/gdal/*.log
+      # - name: Upload build logs
+      #   uses: actions/upload-artifact@v2
+      #   if: ${{ failure() }}
+      #   with:
+      #     path: /usr/local/share/vcpkg/buildtrees/gdal/*.log
 
       # - name: Build wheels
       #   uses: pypa/cibuildwheel@v2.3.1

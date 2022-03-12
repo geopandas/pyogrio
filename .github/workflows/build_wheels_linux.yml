@@ -34,17 +34,20 @@ jobs:
         uses: actions/cache@v1
         id: vcpkgcache
         with:
-          path: "/vcpkg/installed"
+          path: "/home/runner/.cache/vcpkg/archives/"
           key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy
 
       - name: Test vcpkg cache
         run: |
           vcpkg install expat[core]
+          echo "contents of /usr/local/share/"
           ls /usr/local/share/
+          echo "contents of /usr/local/share/packages"
           ls /usr/local/share/vcpkg/packages
+          echo "contents of /usr/local/share/vcpkg/packages/expat_x64-linux/lib"
           ls /usr/local/share/vcpkg/packages/expat_x64-linux/lib
-          ls vcpkg
-          ls root
+          echo "contents of /home/runner/.cache/vcpkg/archives/"
+          ls /home/runner/.cache/vcpkg/archives/
 
       # - name: Install GDAL
       #   run: |
