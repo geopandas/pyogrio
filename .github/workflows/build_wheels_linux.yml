@@ -1,19 +1,19 @@
 name: Build Linux wheels
 
-on:
-  push:
-    branches:
-      - main # just build the sdist & wheel, skip release
-    tags:
-      - "*"
-  pull_request: # also build on PRs touching this file
-    paths:
-      - ".github/workflows/build_wheels_linux.yml"
-      - "ci/*"
-      - "MANIFEST.in"
-      - "pyproject.toml"
-      - "setup.py"
-  workflow_dispatch:
+# on:
+#   push:
+#     branches:
+#       - main # just build the sdist & wheel, skip release
+#     tags:
+#       - "*"
+#   pull_request: # also build on PRs touching this file
+#     paths:
+#       - ".github/workflows/build_wheels_linux.yml"
+#       - "ci/*"
+#       - "MANIFEST.in"
+#       - "pyproject.toml"
+#       - "setup.py"
+#   workflow_dispatch:
 
 jobs:
   build_wheels:
@@ -39,8 +39,11 @@ jobs:
 
       - name: Test vcpkg cache
         run: |
-          echo $VCPKG_ROOT
           vcpkg install expat[core]
+          ls /vcpkg/installed
+          ls /usr/local/share/vcpkg/packages
+          ls /usr/local/share/vcpkg/packages/expat_x64-linux/lib
+          ls vcpkg
 
       # - name: Install GDAL
       #   run: |
