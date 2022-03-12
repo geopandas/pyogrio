@@ -35,19 +35,24 @@ jobs:
         id: vcpkgcache
         with:
           path: "/vcpkg/installed"
-          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg
+          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
-        if: matrix.os == "macos-latest"
+        if: ${{ matrix.os == "macos-latest" }}
         run: |
           brew reinstall automake
           echo $(which aclocal)
 
-      - name: Install GDAL
+      # - name: Install GDAL
+      #   run: |
+      #     vcpkg install gdal[core]
+
+      - name: Test vcpkg cache
         run: |
-          vcpkg install gdal[core]
+          echo $VCPKG_ROOT
+          vcpkg install expat[core]
 
       - name: Upload build logs
         uses: actions/upload-artifact@v2
