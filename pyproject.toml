@@ -16,3 +16,9 @@ GDAL_INCLUDE_PATH = "/usr/local/share/vcpkg/packages/gdal_x64-linux/include"
 GDAL_LIBRARY_PATH = "/usr/local/share/vcpkg/packages/gdal_x64-linux/lib"
 GDAL_DATA = "/usr/local/share/vcpkg/packages/gdal_x64-linux/share/gdal"
 PROJ_LIB = "/usr/local/share/vcpkg/packages/proj_x64-linux/share/proj"
+
+[tool.cibuildwheel.linux.macos]
+GDAL_INCLUDE_PATH = "/usr/local/share/vcpkg/packages/gdal_x64-osx/include"
+GDAL_LIBRARY_PATH = "/usr/local/share/vcpkg/packages/gdal_x64-osx/lib"
+GDAL_DATA = "/usr/local/share/vcpkg/packages/gdal_x64-osx/share/gdal"
+PROJ_LIB = "/usr/local/share/vcpkg/packages/proj_x64-osx/share/proj"
