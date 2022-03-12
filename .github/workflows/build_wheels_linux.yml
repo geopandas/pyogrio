@@ -1,19 +1,19 @@
 name: Build Linux wheels
 
-# on:
-#   push:
-#     branches:
-#       - main # just build the sdist & wheel, skip release
-#     tags:
-#       - "*"
-#   pull_request: # also build on PRs touching this file
-#     paths:
-#       - ".github/workflows/build_wheels_linux.yml"
-#       - "ci/*"
-#       - "MANIFEST.in"
-#       - "pyproject.toml"
-#       - "setup.py"
-#   workflow_dispatch:
+on:
+  push:
+    branches:
+      - main # just build the sdist & wheel, skip release
+    tags:
+      - "*"
+  pull_request: # also build on PRs touching this file
+    paths:
+      - ".github/workflows/build_wheels_linux.yml"
+      - "ci/*"
+      - "MANIFEST.in"
+      - "pyproject.toml"
+      - "setup.py"
+  workflow_dispatch:
 
 jobs:
   build_wheels:
