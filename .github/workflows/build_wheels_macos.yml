@@ -34,16 +34,26 @@ jobs:
         uses: actions/cache@v1
         id: vcpkgcache
         with:
-          path: "/vcpkg/installed"
-          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy
+          path: "/home/runner/.cache/vcpkg/archives/"
+          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-dummy2
+
+      - name: Test vcpkg cache
+        run: |
+          vcpkg install expat[core]
+          echo "contents of /usr/local/share/"
+          ls /usr/local/share/
+          echo "contents of /usr/local/share/packages"
+          ls /usr/local/share/vcpkg/packages
+          echo "contents of /usr/local/share/vcpkg/packages/expat_x64-linux/include"
+          ls /usr/local/share/vcpkg/packages/expat_x64-linux/include
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
-      - name: Reinstall automake
-        if: ${{ matrix.os == 'macos-latest' }}
-        run: |
-          brew reinstall automake
-          echo $(which aclocal)
+      # - name: Reinstall automake
+      #   if: ${{ matrix.os == 'macos-latest' }}
+      #   run: |
+      #     brew reinstall automake
+      #     echo $(which aclocal)
 
       # - name: Install GDAL
       #   run: |
