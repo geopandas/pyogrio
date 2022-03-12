@@ -40,10 +40,11 @@ jobs:
       - name: Test vcpkg cache
         run: |
           vcpkg install expat[core]
-          ls /vcpkg/installed
+          ls /usr/local/share/
           ls /usr/local/share/vcpkg/packages
           ls /usr/local/share/vcpkg/packages/expat_x64-linux/lib
           ls vcpkg
+          ls root
 
       # - name: Install GDAL
       #   run: |
