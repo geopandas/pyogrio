@@ -30,10 +30,8 @@ if sys.version_info < MIN_PYTHON_VERSION:
 
 
 def copy_data_tree(datadir, destdir):
-    try:
+    if os.path.exists(destdir):
         shutil.rmtree(destdir)
-    except OSError:
-        pass
     shutil.copytree(datadir, destdir)
 
 
@@ -120,8 +118,9 @@ package_data = {}
 
 # setuptools clean does not cleanup Cython artifacts
 if "clean" in sys.argv:
-    if os.path.exists("build"):
-        shutil.rmtree("build")
+    for directory in ["build", "pyogrio/gdal_data", "pyogrio/proj_data"]:
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
 
     root = Path(".")
     for ext in ["*.so", "*.pyc", "*.c", "*.cpp"]:
@@ -164,14 +163,25 @@ else:
 
     if os.environ.get("PYOGRIO_PACKAGE_DATA"):
         gdal_data = os.environ.get("GDAL_DATA")
-        if gdal_data:
-            log.info("Copying gdal data from %s" % gdal_data)
+        if gdal_data and os.path.exists(gdal_data):
+            log.info(f"Copying gdal data from {gdal_data}")
             copy_data_tree(gdal_data, "pyogrio/gdal_data")
+        else:
+            raise Exception(
+                "Could not find GDAL data files for packaging. "
+                "Ensure to set the GDAL_DATA environment variable"
+            )
 
         proj_data = os.environ.get("PROJ_LIB")
-        if os.path.exists(proj_data):
-            log.info("Copying proj data from %s" % proj_data)
+        if proj_data and os.path.exists(proj_data):
+            log.info(f"Copying proj data from {proj_data}")
             copy_data_tree(proj_data, "pyogrio/proj_data")
+        else:
+            raise Exception(
+                "Could not find PROJ data files for packaging. "
+                "Ensure to set the PROJ_LIB environment variable"
+            )   
+
         package_data = {"pyogrio": ["gdal_data/*", "proj_data/*"]}
 
 

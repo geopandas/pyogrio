@@ -1,4 +1,4 @@
-name: Build wheels
+name: Build wheels for Windows
 
 on:
   push:
@@ -6,10 +6,9 @@ on:
       - main  # just build the sdist & wheel, skip release
     tags:
       - "*"
-  pull_request:  # also build on PRs touching this file
+  pull_request:  # also build on PRs touching files that affect wheels
     paths:
       - ".github/workflows/build_wheel.yml"
-      - "ci/*"
       - "MANIFEST.in"
       - "pyproject.toml"
       - "setup.py"
@@ -41,8 +40,6 @@ jobs:
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
-        # env:
-        #   CIBW_SOME_OPTION: value
 
       - uses: actions/upload-artifact@v2
         with:
