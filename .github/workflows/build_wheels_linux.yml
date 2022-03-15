@@ -30,29 +30,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache vcpkg
-        uses: actions/cache@v1
-        id: vcpkgcache
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
         with:
-          path: "/home/runner/.cache/vcpkg/archives/"
-          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-gdal3.4.1
+          install: true
 
-      - name: Install GDAL
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx
+
+      - name: Build Docker image with vcpkg and gdal
         run: |
-          vcpkg install gdal[core]
-          echo "contents of /usr/local/share/vcpkg/packages/gdal_x64-linux/include"
-          ls /usr/local/share/vcpkg/packages/gdal_x64-linux/include
-          echo "contents of /usr/local/share/vcpkg/packages/gdal_x64-linux/lib"
-          ls /usr/local/share/vcpkg/packages/gdal_x64-linux/lib
+          docker build -t manylinux-vcpkg-gdal -f ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile .
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
-        env:
-          PYOGRIO_PACKAGE_DATA: 1
+      # - name: Build wheels
+      #   uses: pypa/cibuildwheel@v2.3.1
+      #   env:
+      #     PYOGRIO_PACKAGE_DATA: 1
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
+      # - uses: actions/upload-artifact@v2
+      #   with:
+      #     path: ./wheelhouse/*.whl
 
   # test-wheel:
   #   name: Test wheels on ${{ matrix.os }} ${{ matrix.platform }}
