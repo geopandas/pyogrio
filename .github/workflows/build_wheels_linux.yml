@@ -68,6 +68,9 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+      - run: |
+          docker images
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
