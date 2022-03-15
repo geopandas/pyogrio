@@ -11,14 +11,20 @@ requires = [
 #skip = ["cp36-*", "cp37-*", "pp*"]
 build = "cp39-*"
 archs = ["auto64"]
+manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 build-verbosity = 3
 
+[tool.cibuildwheel.linux]
+# explicitly mention 2_27 for now because it fails for manylinux2014 (2_17)
+repair-wheel-command = "auditwheel repair --plat manylinux_2_27_x86_64 -w {dest_dir} {wheel}"
+
 [tool.cibuildwheel.linux.environment]
-GDAL_INCLUDE_PATH = "/host/usr/local/share/vcpkg/installed/x64-linux/include"
-GDAL_LIBRARY_PATH = "/host/usr/local/share/vcpkg/installed/x64-linux/lib"
-LD_LIBRARY_PATH = "/host/usr/local/share/vcpkg/installed/x64-linux/lib:$LD_LIBRARY_PATH"
-GDAL_DATA = "/host/usr/local/share/vcpkg/installed/x64-linux/share/gdal/gdal"
-PROJ_LIB = "/host/usr/local/share/vcpkg/installed/x64-linux/share/proj/data"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-linux-dynamic"
+GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
+GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+PYOGRIO_PACKAGE_DATA = 1
+GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
 
 [tool.cibuildwheel.macos]
 repair-wheel-command = [
