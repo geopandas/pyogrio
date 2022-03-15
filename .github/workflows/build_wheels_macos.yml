@@ -47,7 +47,7 @@ jobs:
 
       - name: Install GDAL
         run: |
-          vcpkg install gdal[core]
+          vcpkg install gdal[core]:x64-osx-dynamic --overlay-triplets=./ci/x64-osx-dynamic
           echo "contents of /usr/local/share/vcpkg/packages/gdal_x64-osx/include"
           ls /usr/local/share/vcpkg/packages/gdal_x64-osx/include
           echo "contents of /usr/local/share/vcpkg/packages/gdal_x64-osx/lib"
