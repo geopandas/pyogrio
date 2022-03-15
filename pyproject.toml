@@ -33,8 +33,9 @@ repair-wheel-command = [
 ]
 
 [tool.cibuildwheel.macos.environment]
-GDAL_INCLUDE_PATH = "/usr/local/share/vcpkg/installed/x64-osx/include"
-GDAL_LIBRARY_PATH = "/usr/local/share/vcpkg/installed/x64-osx/lib"
-GDAL_DATA = "/usr/local/share/vcpkg/installed/x64-osx/share/gdal/gdal"
-PROJ_LIB = "/usr/local/share/vcpkg/installed/x64-osx/share/proj/data"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-osx-dynamic"
+GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
+GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
 MACOSX_DEPLOYMENT_TARGET = "11.0"
