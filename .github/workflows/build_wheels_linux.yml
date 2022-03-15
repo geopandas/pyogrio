@@ -54,8 +54,9 @@ jobs:
         with:
           context: .
           file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
-          push: false
           tags: manylinux-vcpkg-gdal:latest
+          push: false
+          load: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
