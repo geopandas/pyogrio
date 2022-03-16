@@ -8,6 +8,9 @@ from pyogrio import __gdal_version_string__, __version__, list_drivers
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
+print("CONFTEST LOADED")
+print(f"Fixtures data: {_data_dir} (exists? {_data_dir.exists()})")
+
 
 def pytest_report_header(config):
     drivers = ", ".join(sorted(list(list_drivers(read=True).keys())))
@@ -18,7 +21,7 @@ def pytest_report_header(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def data_dir():
     return _data_dir
 
@@ -28,7 +31,7 @@ def naturalearth_lowres():
     return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
     """Wrap naturalearth_lowres as a zip file for vsi tests"""
 
