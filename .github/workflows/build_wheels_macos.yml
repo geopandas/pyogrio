@@ -51,7 +51,7 @@ jobs:
 
       - name: check proj data path
         run: |
-          ls ${{ env.VCPKG_INSTALL}}/share/ -R
+          ls /usr/local/share/vcpkg/installed/x64-osx-dynamic/share/ -R
 
       - name: Upload build logs
         uses: actions/upload-artifact@v2
