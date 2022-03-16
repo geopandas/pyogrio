@@ -38,3 +38,6 @@ GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj4"
+
+[tool.pytest.ini_options]
+testpaths = ["pyogrio/tests"]
