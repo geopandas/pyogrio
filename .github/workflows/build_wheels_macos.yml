@@ -112,4 +112,4 @@ jobs:
           python -m pip list
           cd ..
           python -m pytest --pyargs pyogrio --traceconfig --fixtures
-          python -m pytest --pyargs pyogrio -v -s
+          python -m pytest --pyargs pyogrio.tests -v -s

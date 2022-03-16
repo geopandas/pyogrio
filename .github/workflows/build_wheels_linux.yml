@@ -123,4 +123,4 @@ jobs:
           python -m pip install --no-deps geopandas
           python -m pip list
           cd ..
-          python -m pytest --pyargs pyogrio
+          python -m pytest --pyargs pyogrio.tests
