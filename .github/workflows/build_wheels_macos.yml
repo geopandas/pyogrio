@@ -22,8 +22,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["macos-latest"]
+        os: ["macos-latest", "macos-10.15"]
         platform: ["x86_64"]
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
 
     steps:
       - uses: actions/checkout@v2
@@ -40,7 +43,7 @@ jobs:
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
-        if: ${{ matrix.os == 'macos-latest' }}
+        if: ${{ startsWith(matrix.os, 'macos') }}
         run: |
           brew reinstall automake
           echo $(which aclocal)
@@ -71,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["macos-latest"]
+        os: ["macos-latest", "macos-10.15"]
         platform: ["x86_64"]
         python-version: ["3.8", "3.9", "3.10"]
 
