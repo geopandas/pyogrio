@@ -51,7 +51,7 @@ jobs:
 
       - name: check proj data path
         run: |
-          ls /usr/local/share/vcpkg/installed/x64-osx-dynamic/share/ -R
+          ls /usr/local/share/vcpkg/installed/x64-osx-dynamic/share/proj4 -R
 
       - name: Upload build logs
         uses: actions/upload-artifact@v2
