@@ -108,5 +108,7 @@ jobs:
           python -m pip install pytest pandas pyproj shapely packaging
           python -m pip install --no-deps geopandas
           python -m pip list
+          pwd
+          ls
           cd ..
           python -m pytest --pyargs pyogrio.tests
