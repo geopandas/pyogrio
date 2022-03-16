@@ -51,8 +51,7 @@ jobs:
 
       - name: check proj data path
         run: |
-          ls $VCPKG_INSTALL/share/proj -R
-          ls $VCPKG_INSTALL/share/proj4 -R
+          ls $VCPKG_INSTALL/share/
 
       - name: Upload build logs
         uses: actions/upload-artifact@v2
