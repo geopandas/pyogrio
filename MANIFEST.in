@@ -2,3 +2,4 @@ include versioneer.py
 include pyogrio/_version.py
 include pyogrio/*.pyx pyogrio/*.pxd
 exclude pyogrio/*.c
+recursive-include pyogrio/tests/fixtures *

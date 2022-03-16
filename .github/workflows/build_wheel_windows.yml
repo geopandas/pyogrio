@@ -1,0 +1,92 @@
+name: Build wheels for Windows
+
+on:
+  push:
+    branches:
+      - main  # just build the sdist & wheel, skip release
+    tags:
+      - "*"
+  pull_request:  # also build on PRs touching files that affect wheels
+    paths:
+      - ".github/workflows/build_wheel.yml"
+      - "MANIFEST.in"
+      - "pyproject.toml"
+      - "setup.py"
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Cache vcpkg
+        uses: actions/cache@v1
+        id: vcpkgcache
+        with:
+          path: C:/vcpkg/installed
+          key: ${{ runner.os }}-vcpkg
+
+      - name: Install GDAL
+        run: |
+          vcpkg install gdal[core]:x64-windows
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  test_wheels:
+    name: windows py${{ matrix.python-version }} tests
+    runs-on: windows-latest
+    needs: build_wheels
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: 'ci/requirements-wheel-test.txt'
+
+      - name: Download wheels from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Set version string
+        shell: bash
+        run: echo "py_version_str=cp$(echo ${{ matrix.python-version }} | tr -d -c 0-9)" >> $GITHUB_ENV
+
+      - name: Install dependencies and pyogrio wheel
+        shell: bash
+        run: |
+          python -m pip install -r ci/requirements-wheel-test.txt
+          python -m pip install --no-deps geopandas
+          ls -R wheelhouse
+          python -m pip install wheelhouse/artifact/pyogrio-*${{ env.py_version_str }}*.whl
+          python -m pip list
+
+      - name: Run tests
+        shell: bash
+        run: |
+          cd ..
+          python -m pytest --pyargs pyogrio
