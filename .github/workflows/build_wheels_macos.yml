@@ -38,7 +38,7 @@ jobs:
         id: vcpkgcache
         with:
           path: "/Users/runner/.cache/vcpkg/archives"
-          key: ${{ runner.os }}-${{ matrix.platform }}-vcpkg-gdal3.4.1-dynamic
+          key: ${{ matrix.os }}-${{ matrix.platform }}-vcpkg-gdal3.4.1-dynamic
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
