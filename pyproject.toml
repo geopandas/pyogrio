@@ -9,7 +9,6 @@ requires = [
 
 [tool.cibuildwheel]
 skip = ["cp36-*", "cp37-*", "pp*", "*musllinux*"]
-#build = "cp39-*"
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 build-verbosity = 3
@@ -37,6 +36,20 @@ VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-osx-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj4"
+
+[tool.cibuildwheel.windows]
+archs = ["auto64"]
+
+before-build = "pip install delvewheel"
+repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-windows/bin -w {dest_dir} {wheel}"
+
+[tool.cibuildwheel.windows.environment]
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows"
+GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
+GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+PYOGRIO_PACKAGE_DATA = 1
+GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj4"
 
 [tool.pytest.ini_options]
