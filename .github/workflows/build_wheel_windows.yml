@@ -46,7 +46,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   test_wheels:
-    name: windows py${{ matrix.python-version }} tests
+    name: windows python ${{ matrix.python-version }} tests
     runs-on: windows-latest
     needs: build_wheels
     strategy:
