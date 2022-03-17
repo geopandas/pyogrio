@@ -3,10 +3,10 @@ name: Build wheels for Windows
 on:
   push:
     branches:
-      - main  # just build the sdist & wheel, skip release
+      - main # just build the sdist & wheel, skip release
     tags:
       - "*"
-  pull_request:  # also build on PRs touching files that affect wheels
+  pull_request: # also build on PRs touching files that affect wheels
     paths:
       - ".github/workflows/build_wheel.yml"
       - "MANIFEST.in"
@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.8', '3.9', '3.10']
+        python-version: ["3.8", "3.9", "3.10"]
 
     steps:
       - name: Checkout
@@ -64,8 +64,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-          cache-dependency-path: 'ci/requirements-wheel-test.txt'
+          cache: "pip"
+          cache-dependency-path: "ci/requirements-wheel-test.txt"
 
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v2
@@ -89,4 +89,4 @@ jobs:
         shell: bash
         run: |
           cd ..
-          python -m pytest --pyargs pyogrio
+          python -m pytest --pyargs pyogrio.tests -v
