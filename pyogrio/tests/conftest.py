@@ -8,9 +8,6 @@ from pyogrio import __gdal_version_string__, __version__, list_drivers
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
-print("CONFTEST LOADED")
-print(f"Fixtures data: {_data_dir} (exists? {_data_dir.exists()})")
-
 
 def pytest_report_header(config):
     drivers = ", ".join(sorted(list(list_drivers(read=True).keys())))

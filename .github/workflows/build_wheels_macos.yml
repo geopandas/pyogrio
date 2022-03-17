@@ -76,7 +76,7 @@ jobs:
       matrix:
         os: ["macos-latest", "macos-10.15"]
         platform: ["x86_64"]
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8", "3.9"]
 
     steps:
       - name: Checkout
@@ -111,5 +111,4 @@ jobs:
           python -m pip install --no-deps geopandas
           python -m pip list
           cd ..
-          python -m pytest --pyargs pyogrio --traceconfig --fixtures
-          python -m pytest --pyargs pyogrio.tests -v -s
+          python -m pytest --pyargs pyogrio.tests -v
