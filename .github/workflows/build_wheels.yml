@@ -83,11 +83,10 @@ jobs:
           vcpkg install gdal[core]:x64-osx-dynamic --overlay-triplets=./ci/custom-triplets
 
       - name: Upload vcpkg build logs
-        if: runner.os == 'macOS' || runner.os == 'Windows'
+        if: (runner.os == 'macOS' || runner.os == 'Windows') && ${{ failure() }}
         uses: actions/upload-artifact@v2
-        if: ${{ failure() }}
         with:
-          path: {{ env.VCPKG_INSTALLATION_ROOT }}/buildtrees/gdal/*.log
+          path: ${{ env.VCPKG_INSTALLATION_ROOT }}/buildtrees/gdal/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
