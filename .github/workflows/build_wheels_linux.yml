@@ -38,7 +38,7 @@ jobs:
 
       - name: Build Docker image with vcpkg and gdal
         run: |
-          docker build -t manylinux-vcpkg-gdal -f ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile --cache-from=type=gha --cache-to=type=gha,mode=max .
+          docker build -t manylinux-vcpkg-gdal -f ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile --load --cache-from=type=gha --cache-to=type=gha,mode=max .
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
