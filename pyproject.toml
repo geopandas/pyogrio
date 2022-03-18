@@ -12,7 +12,6 @@ skip = ["cp36-*", "cp37-*", "pp*", "*musllinux*"]
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 build-verbosity = 3
-environment = { PYOGRIO_PACKAGE_DATA=1 }
 
 [tool.cibuildwheel.linux]
 # explicitly mention 2_27 for now because it fails for manylinux2014 (2_17)
@@ -22,6 +21,7 @@ repair-wheel-command = "auditwheel repair --plat manylinux_2_27_x86_64 -w {dest_
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-linux-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
 
@@ -35,6 +35,7 @@ repair-wheel-command = [
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-osx-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj4"
 
@@ -46,5 +47,6 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
+PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj4"
