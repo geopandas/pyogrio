@@ -86,7 +86,7 @@ jobs:
         if: (runner.os == 'macOS' || runner.os == 'Windows') && ${{ failure() }}
         uses: actions/upload-artifact@v2
         with:
-          path: ${{ env.VCPKG_INSTALLATION_ROOT }}/buildtrees/gdal/*.log
+          path: $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -128,17 +128,12 @@ jobs:
         with:
           path: wheelhouse
 
-      - name: Set version string
-        shell: bash
-        run: echo "py_version_str=cp$(echo ${{ matrix.python-version }} | tr -d -c 0-9)" >> $GITHUB_ENV
-
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
           python -m pip install -r ci/requirements-wheel-test.txt
           python -m pip install --no-deps geopandas
-          ls -R wheelhouse
-          python -m pip install wheelhouse/artifact/pyogrio-*${{ env.py_version_str }}*.whl
+          python -m pip install --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
       # TODO temporary set env variable for curl certificate
