@@ -13,10 +13,6 @@ archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 build-verbosity = 3
 
-[tool.cibuildwheel.linux]
-# explicitly mention 2_27 for now because it fails for manylinux2014 (2_17)
-repair-wheel-command = "auditwheel repair --plat manylinux_2_27_x86_64 -w {dest_dir} {wheel}"
-
 [tool.cibuildwheel.linux.environment]
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-linux-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
