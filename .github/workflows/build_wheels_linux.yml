@@ -92,4 +92,5 @@ jobs:
         env:
           CURL_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
         run: |
+          cd ..
           python -m pytest --pyargs pyogrio.tests -v
