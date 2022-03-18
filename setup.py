@@ -78,9 +78,7 @@ def get_gdal_paths():
         if not gdal_version >= MIN_GDAL_VERSION:
             sys.exit("GDAL must be >= 2.4.x")
 
-        include_dirs = [
-            entry[2:] for entry in config["cflags"].split(" ")
-        ]
+        include_dirs = [entry[2:] for entry in config["cflags"].split(" ")]
         library_dirs = []
         libraries = []
         extra_link_args = []
@@ -92,7 +90,7 @@ def get_gdal_paths():
                 libraries.append(entry[2:])
             else:
                 extra_link_args.append(entry)
-        
+
         return {
             "include_dirs": include_dirs,
             "library_dirs": library_dirs,

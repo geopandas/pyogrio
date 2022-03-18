@@ -1,4 +1,4 @@
-name: Build wheels for Windows
+name: Build MacOS wheels
 
 on:
   push:
@@ -6,24 +6,30 @@ on:
       - main # just build the sdist & wheel, skip release
     tags:
       - "*"
-  pull_request: # also build on PRs touching files that affect wheels
+  pull_request: # also build on PRs touching this file
     paths:
-      - ".github/workflows/build_wheel.yml"
+      - ".github/workflows/build_wheels_macos.yml"
+      - "ci/*"
       - "MANIFEST.in"
       - "pyproject.toml"
       - "setup.py"
+  workflow_dispatch:
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os }} ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [windows-2019]
+        os: ["macos-10.15"]
+        platform: ["x86_64"]
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
@@ -31,12 +37,26 @@ jobs:
         uses: actions/cache@v1
         id: vcpkgcache
         with:
-          path: C:/vcpkg/installed
-          key: ${{ runner.os }}-vcpkg
+          path: "/Users/runner/.cache/vcpkg/archives"
+          key: ${{ matrix.os }}-${{ matrix.platform }}-vcpkg-gdal3.4.1-dynamic
+
+      # MacOS build requires aclocal, which is part of automake, but appears
+      # to be missing in default image
+      - name: Reinstall automake
+        if: ${{ startsWith(matrix.os, 'macos') }}
+        run: |
+          brew reinstall automake
+          echo $(which aclocal)
 
       - name: Install GDAL
         run: |
-          vcpkg install gdal[core]:x64-windows
+          vcpkg install gdal[core]:x64-osx-dynamic --overlay-triplets=./ci/custom-triplets
+
+      - name: Upload build logs
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          path: /usr/local/share/vcpkg/buildtrees/gdal/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -45,14 +65,16 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
-  test_wheels:
-    name: windows python ${{ matrix.python-version }} tests
-    runs-on: windows-latest
+  test-wheel:
+    name: Test wheels on ${{ matrix.os }} ${{ matrix.platform }}
     needs: build_wheels
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        os: ["macos-latest", "macos-10.15"]
+        platform: ["x86_64"]
+        python-version: ["3.8", "3.9"]
 
     steps:
       - name: Checkout
@@ -64,8 +86,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
-          cache-dependency-path: "ci/requirements-wheel-test.txt"
 
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v2

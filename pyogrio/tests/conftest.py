@@ -18,7 +18,7 @@ def pytest_report_header(config):
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def data_dir():
     return _data_dir
 
@@ -28,7 +28,7 @@ def naturalearth_lowres():
     return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
     """Wrap naturalearth_lowres as a zip file for vsi tests"""
 
