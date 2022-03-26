@@ -16,17 +16,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }} ${{ matrix.platform }}
-    runs-on: ${{ matrix.os }}
+  build_wheels_linux:
+    name: Build wheels on Linux
+    runs-on: "ubuntu-20.04"
     strategy:
       fail-fast: false
-      matrix:
-        os: ["ubuntu-20.04", "macos-10.15", "windows-2019"]
-        platform: ["x86_64"]
-
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "10.15"
 
     steps:
       - name: Checkout
@@ -35,14 +29,12 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        if: runner.os == 'Linux'
         id: buildx
         uses: docker/setup-buildx-action@v1
         with:
           install: true
 
       - name: Build Docker image with vcpkg and gdal
-        if: runner.os == 'Linux'
         # using build-push-action (without push) to make use of cache arguments
         uses: docker/build-push-action@v2
         with:
@@ -54,15 +46,42 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
+
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
+
+  build_wheels_mac_win:
+    name: Build wheels on ${{ runner.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: "macos-10.15"
+            triplet: "x64-osx-dynamic"
+          - os: "windows-2019"
+            triplet: "x64-windows"
+
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
       - name: Cache vcpkg
-        if: runner.os == 'macOS' || runner.os == 'Windows'
         uses: actions/cache@v1
         id: vcpkgcache
         with:
           path: |
             C:/vcpkg/installed
             /Users/runner/.cache/vcpkg/archives
-          key: ${{ matrix.os }}-${{ matrix.platform }}-vcpkg-gdal3.4.1-1
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.1-1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -72,18 +91,12 @@ jobs:
           brew reinstall automake
           echo $(which aclocal)
 
-      - name: Install GDAL (Windows)
-        if: runner.os == 'Windows'
+      - name: Install GDAL
         run: |
-          vcpkg install gdal[core]:x64-windows
-
-      - name: Install GDAL (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          vcpkg install gdal[core]:x64-osx-dynamic --overlay-triplets=./ci/custom-triplets
+          vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
 
       - name: Upload vcpkg build logs
-        if: (runner.os == 'macOS' || runner.os == 'Windows') && ${{ failure() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v2
         with:
           path: $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
@@ -96,14 +109,13 @@ jobs:
           path: ./wheelhouse/*.whl
 
   test_wheels:
-    name: Test wheels on ${{ matrix.os }} (python ${{ matrix.python-version }})
-    needs: build_wheels
+    name: Test wheels on ${{ runner.os }} (Python ${{ matrix.python-version }})
+    needs: [build_wheels_linux, build_wheels_mac_win]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-10.15"]
-        platform: ["x86_64"]
         python-version: ["3.8", "3.9"]
         include:
           # TODO macOS is failing on py 3.10 because of shapely failure
@@ -136,8 +148,9 @@ jobs:
           python -m pip install --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
-      # TODO temporary set env variable for curl certificate
+      # TODO temporary set env variable for curl certificate for Linux
       - name: Set CURL_CA_BUNDLE environment variable
+        if: runner.os == 'Linux'
         run: |
           echo "CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> $GITHUB_ENV
 
