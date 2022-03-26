@@ -92,6 +92,8 @@ jobs:
           echo $(which aclocal)
 
       - name: Install GDAL
+        env:
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
         run: |
           vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
 
