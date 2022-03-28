@@ -103,9 +103,6 @@ jobs:
         with:
           path: $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
 
-      - name: Check data paths
-        run: ls -R $VCPKG_INSTALL/share/proj/
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
 
