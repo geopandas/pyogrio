@@ -79,9 +79,9 @@ jobs:
         id: vcpkgcache
         with:
           path: |
-            C:/vcpkg/installed
             /Users/runner/.cache/vcpkg/archives
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.1-1
+            C:\vcpkg\installed
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -102,6 +102,9 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           path: $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
+
+      - name: Check data paths
+        run: ls -R $VCPKG_INSTALL/share/proj/
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
