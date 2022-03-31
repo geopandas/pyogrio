@@ -129,7 +129,7 @@ jobs:
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
         run: |
-          arch -arm64 vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
+          vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
