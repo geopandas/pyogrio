@@ -81,7 +81,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
   build-wheels-mac-win:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
