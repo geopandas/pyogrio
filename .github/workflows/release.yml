@@ -100,9 +100,7 @@ jobs:
           #   triplet: "x64-windows"
 
     env:
-      VCPKG_INSTALL: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed/${{ matrix.triplet }}
       MACOSX_DEPLOYMENT_TARGET: "10.15"
-      CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_osx_architectures }}
 
     steps:
       - name: Checkout
@@ -142,6 +140,8 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
         env:
+          VCPKG_INSTALL: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed/${{ matrix.triplet }}
+          CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_osx_architectures }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v2
