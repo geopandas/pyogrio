@@ -1,4 +1,4 @@
-name: Build and publish pyogrio to PyPI / GitHub
+name: Release
 
 on:
   push:
