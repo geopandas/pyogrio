@@ -87,10 +87,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-10.15
-            arch: x86_64
-            cmake_osx_architectures: x86_64
-            triplet: "x64-osx-dynamic"
+          # - os: macos-10.15
+          #   arch: x86_64
+          #   cmake_osx_architectures: x86_64
+          #   triplet: "x64-osx-dynamic"
           - os: macos-10.15
             arch: arm64
             cmake_osx_architectures: arm64
@@ -129,7 +129,7 @@ jobs:
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
         run: |
-          vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
+          vcpkg install gdal[core]:arm64-osx-dynamic
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
