@@ -140,7 +140,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
         env:
-          VCPKG_INSTALL: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed/${{ matrix.triplet }}
+          VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_osx_architectures }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
