@@ -28,7 +28,6 @@ repair-wheel-command = [
 ]
 
 [tool.cibuildwheel.macos.environment]
-VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-osx-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 PYOGRIO_PACKAGE_DATA = 1
