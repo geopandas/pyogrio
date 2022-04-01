@@ -131,7 +131,7 @@ def buffer_to_virtual_file(bytesbuf, ext=''):
     (https://github.com/Toblerity/Fiona/blob/c388e9adcf9d33e3bb04bf92b2ff210bbce452d9/fiona/ogrext.pyx#L1863-L1879)
     """
 
-    vsi_filename = '/vsimem/{}'.format(uuid4().hex + ext)
+    vsi_filename = f"/vsimem/{uuid4().hex + ext}"
 
     vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("utf8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
 
