@@ -15,10 +15,6 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.9", "3.10"]
 
-    # env:
-    #   GDAL_INCLUDE_PATH: "$HOME/micromamba/envs/test/include"
-    #   GDAL_LIBRARY_PATH: "$HOME/micromamba/envs/test/lib"
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v2
@@ -32,8 +28,8 @@ jobs:
       - name: Set environment variables (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo "GDAL_INCLUDE_PATH=$HOME/micromamba/envs/test/Include" >> $GITHUB_ENV
-          echo "GDAL_LIBRARY_PATH=$HOME/micromamba/envs/test/Library" >> $GITHUB_ENV
+          echo "GDAL_INCLUDE_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/include." >> $GITHUB_ENV
+          echo "GDAL_LIBRARY_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/lib" >> $GITHUB_ENV
 
       - name: Install pyogrio
         run: pip install -e .
