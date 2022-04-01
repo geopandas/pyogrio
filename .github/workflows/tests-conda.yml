@@ -30,7 +30,7 @@ jobs:
           extra-specs: python=${{ matrix.python }}
 
       - name: Install pyogrio
-        run: pip install -e . --no-build-isolation
+        run: pip install -e .
 
       - name: Test
         run: |
