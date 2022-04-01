@@ -15,9 +15,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.9", "3.10"]
 
-    # env:
-    #   GDAL_INCLUDE_PATH: 
-    #   GDAL_LIBRARY_PATH: 
+    env:
+      GDAL_INCLUDE_PATH: "$HOME/micromamba/envs/test/include"
+      GDAL_LIBRARY_PATH: "$HOME/micromamba/envs/test/lib"
 
     steps:
       - name: Checkout repo
@@ -30,7 +30,7 @@ jobs:
           extra-specs: python=${{ matrix.python }}
 
       - name: Install pyogrio
-        run: pip install .
+        run: pip install -e . --no-build-isolation
 
       - name: Test
         run: |
