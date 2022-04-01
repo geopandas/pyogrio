@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: ${{ matrix.os }}-${{ matrix.architecture }} Py${{ matrix.python }} GEOS ${{ matrix.geos }}
+    name: ${{ matrix.os }} (Python ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -24,6 +24,7 @@ jobs:
         with:
           environment-file: ci/environment.yml
           extra-specs: python=${{ matrix.python }}
+          cache-env: true
 
       - name: Set environment variables (Windows)
         if: runner.os == 'Windows'
