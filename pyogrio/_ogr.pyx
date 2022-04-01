@@ -133,7 +133,7 @@ def buffer_to_virtual_file(bytesbuf, ext=''):
 
     vsi_filename = f"/vsimem/{uuid4().hex + ext}"
 
-    vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("utf8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
+    vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("UTF-8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
 
     if vsi_handle == NULL:
         raise OSError('failed to map buffer to file')
@@ -144,7 +144,7 @@ def buffer_to_virtual_file(bytesbuf, ext=''):
 
 
 def remove_virtual_file(vsi_filename):
-    return VSIUnlink(vsi_filename.encode("utf8"))
+    return VSIUnlink(vsi_filename.encode("UTF-8"))
 
 
 cdef void set_proj_search_path(str path):

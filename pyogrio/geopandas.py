@@ -12,10 +12,8 @@ def _stringify_path(path):
         return path
 
     # checking whether path implements the filesystem protocol
-    try:
-        return path.__fspath__()  # new in python 3.6
-    except AttributeError:
-        pass
+    if hasattr(path, "__fspath__"):
+        return path.__fspath__()
 
     # pass-though other objects
     return path
