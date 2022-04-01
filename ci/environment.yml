@@ -1,0 +1,9 @@
+name: test
+channels:
+  - conda-forge
+dependencies:
+  - numpy
+  - libgdal
+  - pytest
+  - pygeos
+  - geopandas-base
