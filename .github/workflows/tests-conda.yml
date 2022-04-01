@@ -1,4 +1,4 @@
-name: Tests
+name: Conda Tests
 
 on: [push, pull_request]
 
