@@ -1,0 +1,37 @@
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: ${{ matrix.os }}-${{ matrix.architecture }} Py${{ matrix.python }} GEOS ${{ matrix.geos }}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2019]
+        python: ["3.9", "3.10"]
+
+    # env:
+    #   GDAL_INCLUDE_PATH: 
+    #   GDAL_LIBRARY_PATH: 
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Install Conda environment with Micromamba
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: ci/environment.yml
+          extra-specs: python=${{ matrix.python }}
+
+      - name: Install pyogrio
+        run: pip install .
+
+      - name: Test
+        run: |
+          pytest -v -r s pyogrio/tests
