@@ -1,5 +1,6 @@
 # Contains declarations against GDAL / OGR API
 from libc.stdint cimport int64_t
+from libc.stdio cimport FILE
 
 
 cdef extern from "cpl_conv.h":
@@ -32,6 +33,16 @@ cdef extern from "cpl_string.h":
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
     void        CSLDestroy(char **list)
     char**      CSLAddString(char **list, const char *string)
+
+
+cdef extern from "cpl_vsi.h" nogil:
+
+    ctypedef FILE VSILFILE
+
+    VSILFILE *VSIFileFromMemBuffer(const char *path, void *data,
+                                   int data_len, int take_ownership)
+    int VSIFCloseL(VSILFILE *fp)
+    int VSIUnlink(const char *path)
 
 
 cdef extern from "ogr_core.h":

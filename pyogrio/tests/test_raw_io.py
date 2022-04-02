@@ -299,3 +299,67 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+
+def assert_equal_result(result1, result2):
+    meta1, index1, geometry1, field_data1 = result1
+    meta2, index2, geometry2, field_data2 = result2
+
+    assert np.array_equal(meta1["fields"], meta2["fields"])
+    assert np.array_equal(index1, index2)
+    # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
+    # the WKB values are not exactly equal, therefore parsing with pygeos to compare
+    # with tolerance
+    pygeos = pytest.importorskip("pygeos")
+    assert pygeos.equals_exact(
+        pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
+    ).all()
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+
+
+@pytest.mark.parametrize(
+    "driver,ext",
+    [
+        ("GeoJSON", "geojson"),
+        ("GPKG", "gpkg")
+    ]
+)
+def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
+    meta, index, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    with open(filename, "rb") as f:
+        buffer = f.read()
+
+    result2 = read(buffer)
+    assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
+    path, vsi_path = naturalearth_lowres_vsi
+    meta, index, geometry, field_data = read(vsi_path)
+
+    with open(path, "rb") as f:
+        buffer = f.read()
+
+    result2 = read(buffer)
+    assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+@pytest.mark.parametrize(
+    "driver,ext",
+    [
+        ("GeoJSON", "geojson"),
+        ("GPKG", "gpkg")
+    ]
+)
+def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
+    meta, index, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    with open(filename, "rb") as f:
+        result2 = read(f)
+
+    assert_equal_result((meta, index, geometry, field_data), result2)

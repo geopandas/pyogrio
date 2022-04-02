@@ -6,6 +6,7 @@ from pyogrio.util import vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    from pyogrio._ogr import buffer_to_virtual_file, remove_virtual_file
 
 
 DRIVERS = {
@@ -17,7 +18,8 @@ DRIVERS = {
 
 
 def read(
-    path,
+    path_or_buffer,
+    /,
     layer=None,
     encoding=None,
     columns=None,
@@ -37,8 +39,8 @@ def read(
 
     Parameters
     ----------
-    path : pathlib.Path or str
-        A dataset path or URI.
+    path_or_buffer : pathlib.Path or str, or bytes buffer
+        A dataset path or URI, or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -98,26 +100,46 @@ def read(
             "geometry": "<geometry type>"
         }
     """
-    path = vsi_path(str(path))
+    if hasattr(path_or_buffer, "read"):
+        path_or_buffer = path_or_buffer.read()
+
+    from_buffer = False
+    if isinstance(path_or_buffer, bytes):
+        from_buffer = True
+        ext = ""
+        is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
+        if is_zipped:
+            ext = ".zip"
+        path = buffer_to_virtual_file(path_or_buffer, ext=ext)
+        if is_zipped:
+            path = "/vsizip/" + path
+    else:
+        path = vsi_path(str(path_or_buffer))
 
     if not "://" in path:
         if not "/vsi" in path.lower() and not os.path.exists(path):
             raise ValueError(f"'{path}' does not exist")
 
-    return ogr_read(
-        path,
-        layer=layer,
-        encoding=encoding,
-        columns=columns,
-        read_geometry=read_geometry,
-        force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features or 0,
-        where=where,
-        bbox=bbox,
-        fids=fids,
-        return_fids=return_fids,
-    )
+    try:
+        result = ogr_read(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            return_fids=return_fids,
+        )
+    finally:
+        if from_buffer:
+            remove_virtual_file(path)
+
+    return result
 
 
 def write(

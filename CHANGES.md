@@ -4,6 +4,7 @@
 
 ### Major enhancements
 
+-   support for reading from file-like objects and in-memory buffers (#25)
 -   index of GeoDataFrame created by `read_dataframe` can now optionally be set
     to the FID of the features that are read, as `int64` dtype. Note that some
     drivers start FID numbering at 0 whereas others start numbering at 1.
@@ -18,7 +19,7 @@
 
 ### Potentially breaking changes
 
--   Consolided error handling to better use GDAL error messages and specific
+-   Consolidated error handling to better use GDAL error messages and specific
     exception classes (#39). Note that this is a breaking change only if you are
     relying on specific error classes to be emitted.
 

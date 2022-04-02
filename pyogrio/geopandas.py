@@ -4,8 +4,24 @@ from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
 
+def _stringify_path(path):
+    """
+    Convert path-like to a string if possible, pass-through other objects
+    """
+    if isinstance(path, str):
+        return path
+
+    # checking whether path implements the filesystem protocol
+    if hasattr(path, "__fspath__"):
+        return path.__fspath__()
+
+    # pass-though other objects
+    return path
+
+
 def read_dataframe(
-    path,
+    path_or_buffer,
+    /,
     layer=None,
     encoding=None,
     columns=None,
@@ -26,8 +42,8 @@ def read_dataframe(
 
     Parameters
     ----------
-    path : str
-        A dataset path or URI.
+    path_or_buffer : pathlib.Path or str, or bytes buffer
+         A dataset path or URI, or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -85,8 +101,10 @@ def read_dataframe(
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
+    path_or_buffer = _stringify_path(path_or_buffer)
+
     meta, index, geometry, field_data = read(
-        path,
+        path_or_buffer,
         layer=layer,
         encoding=encoding,
         columns=columns,
