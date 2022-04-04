@@ -247,9 +247,9 @@ def test_write_dataframe_gdalparams(tmpdir, naturalearth_lowres):
     test_noindex_index_filename = os.path.join(str(tmpdir), f"test_gdalparams_noindex.qix")
     assert os.path.exists(test_noindex_index_filename) is False
     
-    withindex_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.shp")
-    write_dataframe(original_df, withindex_filename, SPATIAL_INDEX="YES")
-    assert os.path.exists(withindex_filename) is True
+    test_withindex_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.shp")
+    write_dataframe(original_df, test_withindex_filename, SPATIAL_INDEX="YES")
+    assert os.path.exists(test_withindex_filename) is True
     test_withindex_index_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.qix")
     assert os.path.exists(test_withindex_index_filename) is True
 
