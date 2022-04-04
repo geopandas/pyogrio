@@ -238,6 +238,22 @@ def test_write_empty_dataframe(tmpdir, driver, ext):
     assert_geodataframe_equal(df, expected)
 
 
+def test_write_dataframe_gdalparams(tmpdir, naturalearth_lowres):
+    original_df = read_dataframe(naturalearth_lowres)
+    
+    test_noindex_filename = os.path.join(str(tmpdir), f"test_gdalparams_noindex.shp")
+    write_dataframe(original_df, test_noindex_filename, SPATIAL_INDEX="NO")
+    assert os.path.exists(test_noindex_filename) is True
+    test_noindex_index_filename = os.path.join(str(tmpdir), f"test_gdalparams_noindex.qix")
+    assert os.path.exists(test_noindex_index_filename) is False
+    
+    withindex_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.shp")
+    write_dataframe(original_df, withindex_filename, SPATIAL_INDEX="YES")
+    assert os.path.exists(withindex_filename) is True
+    test_withindex_index_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.qix")
+    assert os.path.exists(test_withindex_index_filename) is True
+
+
 @pytest.mark.filterwarnings(
     "ignore: You will likely lose important projection information"
 )
