@@ -216,4 +216,5 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
         crs=crs,
         geometry_type=geometry_type,
         encoding=encoding,
+        **kwargs
     )
