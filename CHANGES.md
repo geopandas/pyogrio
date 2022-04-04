@@ -27,6 +27,7 @@
 
 -   use dtype `object` instead of `numpy.object` to eliminate deprecation warnings (#34)
 -   raise error if layer cannot be opened (#35)
+-   fix passing gdal creation parameters in `write_dataframe` (#62)
 
 ## 0.3.0
 
