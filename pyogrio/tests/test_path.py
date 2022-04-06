@@ -120,6 +120,14 @@ def test_zip_path(naturalearth_lowres_vsi):
     assert len(df) == 177
 
 
+@pytest.mark.filterwarnings("ignore: Measured")
+def test_detect_zip_path(data_dir):
+    path = data_dir / "test_fgdb.gdb.zip"
+
+    df = pyogrio.read_dataframe(path, layer="test_lines")
+    assert len(df) == 2
+
+
 @pytest.mark.network
 def test_url():
     df = pyogrio.read_dataframe(
@@ -143,5 +151,5 @@ def aws_env_setup(monkeypatch):
 
 @pytest.mark.network
 def test_uri_s3(aws_env_setup):
-    df = pyogrio.read_dataframe('zip+s3://fiona-testing/coutwildrnp.zip')
+    df = pyogrio.read_dataframe("zip+s3://fiona-testing/coutwildrnp.zip")
     assert len(df) == 67
