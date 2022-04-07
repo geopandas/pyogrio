@@ -16,10 +16,11 @@ def vsi_path(path: str) -> str:
     # Windows drive letters (e.g. "C:\") confuse `urlparse` as they look like
     # URL schemes
     if sys.platform == "win32" and re.match("^[a-zA-Z]\\:", path):
-        if path.split("!")[0].endswith(".zip"):
-            return f"/vsizip/{path}"
+        if not path.split("!")[0].endswith(".zip"):
+            return path
 
-        return path
+        # prefix then allow to proceed with remaining parsing
+        path = f"zip://{path}"
 
     path, archive, scheme = _parse_uri(path)
 
