@@ -1,5 +1,6 @@
 import os
 import contextlib
+from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
@@ -120,12 +121,64 @@ def test_zip_path(naturalearth_lowres_vsi):
     assert len(df) == 177
 
 
-@pytest.mark.filterwarnings("ignore: Measured")
-def test_detect_zip_path(data_dir):
-    path = data_dir / "test_fgdb.gdb.zip"
+def test_detect_zip_path(tmp_path, naturalearth_lowres):
+    # create a zipfile with 2 shapefiles in a set of subdirectories
+    df = pyogrio.read_dataframe(naturalearth_lowres, where="iso_a3 in ('CAN', 'PER')")
+    pyogrio.write_dataframe(df.loc[df.iso_a3 == "CAN"], tmp_path / "test1.shp")
+    pyogrio.write_dataframe(df.loc[df.iso_a3 == "PER"], tmp_path / "test2.shp")
 
-    df = pyogrio.read_dataframe(path, layer="test_lines")
-    assert len(df) == 2
+    path = tmp_path / "test.zip"
+    with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
+        for ext in ["dbf", "prj", "shp", "shx"]:
+            filename = f"test1.{ext}"
+            out.write(tmp_path / filename, filename)
+
+            filename = f"test2.{ext}"
+            out.write(tmp_path / filename, f"/a/b/{filename}")
+
+    # defaults to the first shapefile found, at lowest subdirectory
+    df = pyogrio.read_dataframe(path)
+    assert df.iso_a3[0] == "CAN"
+
+    # selecting a shapefile from within the zip requires "!"" archive specifier
+    df = pyogrio.read_dataframe(f"{path}!test1.shp")
+    assert df.iso_a3[0] == "CAN"
+
+    df = pyogrio.read_dataframe(f"{path}!/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+    # specifying zip:// scheme should also work
+    df = pyogrio.read_dataframe(f"zip://{path}!/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+    # specifying /vsizip/ should also work but path must already be in GDAL ready
+    # format without the "!"" archive specifier
+    df = pyogrio.read_dataframe(f"/vsizip/{path}/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+
+def test_prefix_vsizip():
+    # regular paths should not be modified
+    assert vsi_path("test.shp") == "test.shp"
+    assert vsi_path("/a/b/test.shp") == "/a/b/test.shp"
+
+    # zip files should be prefixed by vsizip
+    assert vsi_path("test.zip") == "/vsizip/test.zip"
+    assert vsi_path("/a/b/test.zip") == "/vsizip//a/b/test.zip"
+    assert vsi_path("a/b/test.zip") == "/vsizip/a/b/test.zip"
+
+    # archives using ! notation should be prefixed by vsizip
+    assert vsi_path("test.zip!item.shp") == "/vsizip/test.zip/item.shp"
+    assert vsi_path("test.zip!/a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
+    assert vsi_path("test.zip!a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
+    assert vsi_path("/vsizip/test.zip/a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
+    assert vsi_path("zip:///test.zip/a/b/item.shp") == "/vsizip//test.zip/a/b/item.shp"
+
+    # compound schemes should be prefixed by vsizip
+    assert (
+        vsi_path("zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip")
+        == "/vsizip/vsicurl/https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip"
+    )
 
 
 @pytest.mark.network
