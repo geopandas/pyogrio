@@ -283,9 +283,9 @@ If your archive contains multiple datasets, you need to specify which one to use
 otherwise GDAL will default to the first one found.
 
 ```python
->>> read_dataframe("/vsizip/ne_10m_admin_0_countries.zip/a/b/test.shp")
->>> read_dataframe("zip://ne_10m_admin_0_countries.zip/a/b/test.shp")
->>> read_dataframe("zip://ne_10m_admin_0_countries.zip!a/b/test.shp")
+>>> read_dataframe("/vsizip/multiple_datasets.zip/a/b/test.shp")
+>>> read_dataframe("zip://multiple_datasets.zip/a/b/test.shp")
+>>> read_dataframe("zip://multiple_datasets.zip!a/b/test.shp")
 ```
 
 Pyogrio will attempt to autodetect zip files if the filename or archive path
@@ -294,7 +294,7 @@ ends with `.zip` and will add the `/vsizip/` prefix for you, but you must use
 archive:
 
 ```python
->>> read_dataframe("ne_10m_admin_0_countries.zip!/a/b/test.shp")
+>>> read_dataframe("multiple_datasets.zip!/a/b/test.shp")
 ```
 
 ## Reading from remote filesystems

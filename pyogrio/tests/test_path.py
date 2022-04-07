@@ -50,6 +50,20 @@ def change_cwd(path):
             "zip+https://s3.amazonaws.com/testing/shapefile.zip",
             "/vsizip/vsicurl/https://s3.amazonaws.com/testing/shapefile.zip",
         ),
+        # auto-prefix zip files
+        ("test.zip", "/vsizip/test.zip"),
+        ("/a/b/test.zip", "/vsizip//a/b/test.zip"),
+        ("a/b/test.zip", "/vsizip/a/b/test.zip"),
+        # archives using ! notation should be prefixed by vsizip
+        ("test.zip!item.shp", "/vsizip/test.zip/item.shp"),
+        ("test.zip!/a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("test.zip!a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("/vsizip/test.zip/a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("zip:///test.zip/a/b/item.shp", "/vsizip//test.zip/a/b/item.shp"),
+        (
+            "zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip",
+            "/vsizip/vsicurl/https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip",
+        ),
     ],
 )
 def test_vsi_path(path, expected):
@@ -155,30 +169,6 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
     # format without the "!"" archive specifier
     df = pyogrio.read_dataframe(f"/vsizip/{path}/a/b/test2.shp")
     assert df.iso_a3[0] == "PER"
-
-
-def test_prefix_vsizip():
-    # regular paths should not be modified
-    assert vsi_path("test.shp") == "test.shp"
-    assert vsi_path("/a/b/test.shp") == "/a/b/test.shp"
-
-    # zip files should be prefixed by vsizip
-    assert vsi_path("test.zip") == "/vsizip/test.zip"
-    assert vsi_path("/a/b/test.zip") == "/vsizip//a/b/test.zip"
-    assert vsi_path("a/b/test.zip") == "/vsizip/a/b/test.zip"
-
-    # archives using ! notation should be prefixed by vsizip
-    assert vsi_path("test.zip!item.shp") == "/vsizip/test.zip/item.shp"
-    assert vsi_path("test.zip!/a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
-    assert vsi_path("test.zip!a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
-    assert vsi_path("/vsizip/test.zip/a/b/item.shp") == "/vsizip/test.zip/a/b/item.shp"
-    assert vsi_path("zip:///test.zip/a/b/item.shp") == "/vsizip//test.zip/a/b/item.shp"
-
-    # compound schemes should be prefixed by vsizip
-    assert (
-        vsi_path("zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip")
-        == "/vsizip/vsicurl/https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip"
-    )
 
 
 @pytest.mark.network
