@@ -28,6 +28,7 @@ def change_cwd(path):
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
         # cloud URIs
+        ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
         ("s3://testing/data.gpkg", "/vsis3/testing/data.gpkg"),
         ("gs://testing/data.gpkg", "/vsigs/testing/data.gpkg"),
         ("az://testing/data.gpkg", "/vsiaz/testing/data.gpkg"),
@@ -60,9 +61,19 @@ def change_cwd(path):
         ("test.zip!a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
         ("/vsizip/test.zip/a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
         ("zip:///test.zip/a/b/item.shp", "/vsizip//test.zip/a/b/item.shp"),
+        # auto-prefix remote zip files
         (
-            "zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip",
-            "/vsizip/vsicurl/https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip",
+            "https://s3.amazonaws.com/testing/test.zip",
+            "/vsizip/vsicurl/https://s3.amazonaws.com/testing/test.zip",
+        ),
+        (
+            "https://s3.amazonaws.com/testing/test.zip!/a/b/item.shp",
+            "/vsizip/vsicurl/https://s3.amazonaws.com/testing/test.zip/a/b/item.shp",
+        ),
+        ("s3://testing/test.zip", "/vsizip/vsis3/testing/test.zip"),
+        (
+            "s3://testing/test.zip!a/b/item.shp",
+            "/vsizip/vsis3/testing/test.zip/a/b/item.shp",
         ),
     ],
 )

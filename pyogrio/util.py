@@ -97,7 +97,7 @@ def _construct_vsi_path(path, archive, scheme) -> str:
     schemes = scheme.split("+")
 
     if "zip" not in schemes and (archive.endswith(".zip") or path.endswith(".zip")):
-        schemes.append("zip")
+        schemes.insert(0, "zip")
 
     if schemes:
         prefix = "/".join(
@@ -106,6 +106,8 @@ def _construct_vsi_path(path, archive, scheme) -> str:
 
         if schemes[-1] in CURLSCHEMES:
             suffix = f"{schemes[-1]}://"
+
+    print(f"schemes: {schemes}, prefix: {prefix}, suffix: {suffix}, archive: {archive}")
 
     if prefix:
         if archive:
