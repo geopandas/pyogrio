@@ -279,6 +279,24 @@ using `zip://..`:
 >>> read_dataframe("zip://ne_10m_admin_0_countries.zip")
 ```
 
+If your archive contains multiple datasets, you need to specify which one to use;
+otherwise GDAL will default to the first one found.
+
+```python
+>>> read_dataframe("/vsizip/ne_10m_admin_0_countries.zip/a/b/test.shp")
+>>> read_dataframe("zip://ne_10m_admin_0_countries.zip/a/b/test.shp")
+>>> read_dataframe("zip://ne_10m_admin_0_countries.zip!a/b/test.shp")
+```
+
+Pyogrio will attempt to autodetect zip files if the filename or archive path
+ends with `.zip` and will add the `/vsizip/` prefix for you, but you must use
+`"!"` to denote the archive name in order to read a specific dataset within the
+archive:
+
+```python
+>>> read_dataframe("ne_10m_admin_0_countries.zip!/a/b/test.shp")
+```
+
 ## Reading from remote filesystems
 
 GDAL supports several remote filesystems, such as S3, Google Cloud or Azure,

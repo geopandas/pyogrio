@@ -11,6 +11,10 @@ def vsi_path(path: str) -> str:
     # Windows drive letters (e.g. "C:\") confuse `urlparse` as they look like
     # URL schemes
     if sys.platform == "win32" and re.match("^[a-zA-Z]\\:", path):
+        # try to detect archive component without url parsing
+        if path.split("!")[0].endswith(".zip"):
+            return f"zip://{path}"
+
         return path
 
     # path is already in GDAL format
