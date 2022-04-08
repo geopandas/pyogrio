@@ -127,7 +127,27 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
         with:
-          path: $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
+          path: |
+            $VCPKG_INSTALLATION_ROOT/buildtrees/expat/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/geos/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/giflib/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/json-c/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libgeotiff/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libiconv/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libjpeg-turbo/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/liblzma/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libpng/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libwebp/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/libxml2/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/nlohmann-json/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/openjpeg/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/proj/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/sqlite3/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/proj/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/tiff/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/zlib/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/zstd/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
