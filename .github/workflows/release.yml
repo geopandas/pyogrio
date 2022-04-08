@@ -42,42 +42,42 @@ jobs:
           path: ./dist/*.tar.gz
           retention-days: 5
 
-  build-wheels-linux:
-    name: Build wheels on Linux
-    runs-on: "ubuntu-20.04"
-    strategy:
-      fail-fast: false
+  # build-wheels-linux:
+  #   name: Build wheels on Linux
+  #   runs-on: "ubuntu-20.04"
+  #   strategy:
+  #     fail-fast: false
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-        with:
-          install: true
+  #     - name: Set up Docker Buildx
+  #       id: buildx
+  #       uses: docker/setup-buildx-action@v1
+  #       with:
+  #         install: true
 
-      - name: Build Docker image with vcpkg and gdal
-        # using build-push-action (without push) to make use of cache arguments
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
-          tags: manylinux-vcpkg-gdal:latest
-          push: false
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+  #     - name: Build Docker image with vcpkg and gdal
+  #       # using build-push-action (without push) to make use of cache arguments
+  #       uses: docker/build-push-action@v2
+  #       with:
+  #         context: .
+  #         file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+  #         tags: manylinux-vcpkg-gdal:latest
+  #         push: false
+  #         load: true
+  #         cache-from: type=gha
+  #         cache-to: type=gha,mode=max
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
+  #     - uses: actions/upload-artifact@v2
+  #       with:
+  #         path: ./wheelhouse/*.whl
 
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }}
@@ -88,8 +88,8 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
-          - os: "windows-2019"
-            triplet: "x64-windows"
+          # - os: "windows-2019"
+          #   triplet: "x64-windows"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -125,29 +125,10 @@ jobs:
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           path: |
-            $VCPKG_INSTALLATION_ROOT/buildtrees/expat/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/geos/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/giflib/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/json-c/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libgeotiff/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libiconv/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libjpeg-turbo/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/liblzma/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libpng/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libwebp/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/libxml2/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/nlohmann-json/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/openjpeg/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/proj/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/sqlite3/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/proj/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/tiff/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/zlib/*.log
-            $VCPKG_INSTALLATION_ROOT/buildtrees/zstd/*.log
+            $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
