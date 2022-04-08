@@ -107,8 +107,6 @@ def _construct_vsi_path(path, archive, scheme) -> str:
         if schemes[-1] in CURLSCHEMES:
             suffix = f"{schemes[-1]}://"
 
-    print(f"schemes: {schemes}, prefix: {prefix}, suffix: {suffix}, archive: {archive}")
-
     if prefix:
         if archive:
             return "/{}/{}{}/{}".format(prefix, suffix, archive, path.lstrip("/"))
