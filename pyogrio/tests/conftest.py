@@ -34,7 +34,6 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 
     path = tmp_path / f"{naturalearth_lowres.name}.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
-        # out.write(naturalearth_lowres, naturalearth_lowres.name)
         for ext in ["dbf", "prj", "shp", "shx"]:
             filename = f"{naturalearth_lowres.stem}.{ext}"
             out.write(naturalearth_lowres.parent / filename, filename)
