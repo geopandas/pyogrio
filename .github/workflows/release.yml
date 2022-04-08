@@ -127,7 +127,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v2
         with:
-          path: $VCPKG_INSTALLATION_ROOT/buildtrees/gdal/*.log
+          path: $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
