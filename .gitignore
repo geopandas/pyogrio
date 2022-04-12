@@ -35,3 +35,5 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+ci/vcpkg_installed/
