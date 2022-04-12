@@ -17,4 +17,4 @@ COPY ci/vcpkg.json opt/vcpkg/
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic/lib"
 # RUN vcpkg install gdal[core]:x64-linux-dynamic --overlay-triplets=opt/vcpkg/custom-triplets --overlay-ports=opt/vcpkg/custom-ports
-RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets --overlay-ports=opt/vcpkg/custom-ports --feature-flags="versions,manifests" --x-manifest-root=opt/vcpkg --x-install-root=opt/vcpkg/installed
+RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets --triplet=x64-linux-dynamic --overlay-ports=opt/vcpkg/custom-ports --feature-flags="versions,manifests" --x-manifest-root=opt/vcpkg --x-install-root=opt/vcpkg/installed

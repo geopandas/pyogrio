@@ -121,7 +121,7 @@ jobs:
 
         run: |
           echo "VCPKG_INSTALLATION_ROOT: ${VCPKG_INSTALLATION_ROOT}"
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${VCPKG_INSTALLATION_ROOT}/installed"
+          vcpkg install --overlay-triplets=./ci/custom-triplets --triplet=x64-linux-dynamic --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${VCPKG_INSTALLATION_ROOT}/installed"
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
