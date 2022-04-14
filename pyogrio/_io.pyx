@@ -171,6 +171,43 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     return ogr_layer
 
 
+cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, sql, sql_dialect) except NULL:
+    """Execute an SQL statement on a dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+    sql : str
+        The sql statement to execute
+    sql_dialect : str
+        The sql dialect the sql statement is written in
+
+    Returns
+    -------
+    pointer to OGR layer
+    """
+    cdef OGRLayerH ogr_layer = NULL
+
+    try:
+        sql_b = sql.encode('utf-8')
+        sql_c = sql_b
+        if sql_dialect is not None:
+            sql_dialect_b = sql_dialect.encode('utf-8')
+            sql_dialect_c = sql_dialect_b
+            ogr_layer = exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
+        else: 
+            ogr_layer = exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))      
+
+    # GDAL does not always raise exception messages in this case
+    except NullPointerError:
+        raise DataLayerError(f"Error executing sql '{sql}'") from None
+
+    except CPLE_BaseError as exc:
+        raise DataLayerError(str(exc))
+
+    return ogr_layer
+
+
 cdef str get_crs(OGRLayerH ogr_layer):
     """Read CRS from layer as EPSG:<code> if available or WKT.
 
@@ -738,6 +775,8 @@ def ogr_read(
     object where=None,
     tuple bbox=None,
     object fids=None,
+    object sql=None,
+    object sql_dialect=None,
     int return_fids=False,
     **kwargs):
 
@@ -757,15 +796,24 @@ def ogr_read(
         layer = 0
 
     if fids is not None:
-        if where is not None or bbox is not None or skip_features or max_features:
+        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
             raise ValueError(
-                "cannot set both 'fids' and any of 'where', 'bbox', "
+                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
                 "'skip_features' or 'max_features'"
             )
         fids = np.asarray(fids, dtype=np.intc)
 
+    if sql is not None:
+        if where is not None or bbox is not None or fids is not None: # or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'sql' and any of 'where', 'bbox', 'fids'"
+            )
+
     ogr_dataset = ogr_open(path_c, 0, kwargs)
-    ogr_layer = get_ogr_layer(ogr_dataset, layer)
+    if sql is None:
+        ogr_layer = get_ogr_layer(ogr_dataset, layer)
+    else:
+        ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
 
     crs = get_crs(ogr_layer)
 
@@ -834,6 +882,9 @@ def ogr_read(
     }
 
     if ogr_dataset != NULL:
+        # TODO: shouldn't this happen in an exception handler?
+        if sql is not None:
+            GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
         GDALClose(ogr_dataset)
     ogr_dataset = NULL
 

@@ -32,6 +32,8 @@ def read_dataframe(
     where=None,
     bbox=None,
     fids=None,
+    sql=None,
+    sql_dialect=None,
     fid_as_index=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -115,6 +117,8 @@ def read_dataframe(
         where=where,
         bbox=bbox,
         fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
         return_fids=fid_as_index,
     )
 
