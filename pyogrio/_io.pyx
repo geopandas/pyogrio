@@ -179,7 +179,7 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
     ogr_dataset : pointer to open OGR dataset
     sql : str
         The sql statement to execute
-    sql_dialect : str
+    sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in
 
     Returns
