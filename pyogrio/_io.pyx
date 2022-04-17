@@ -171,7 +171,7 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     return ogr_layer
 
 
-cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, sql, sql_dialect) except NULL:
+cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=None) except NULL:
     """Execute an SQL statement on a dataset.
 
     Parameters
