@@ -4,7 +4,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import pytest
 
 from pyogrio import __gdal_version_string__, __version__, list_drivers
-import pyogrio
+
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
@@ -23,18 +23,10 @@ def data_dir():
     return _data_dir
 
 
-@pytest.fixture(scope="function")
-def naturalearth_lowres(tmp_path, suffix: str = ".shp"): #request):
-    shp_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
-    if suffix.lower() == ".shp":
-        return shp_path
-    else:
-        suffix_path = tmp_path / f"{shp_path.stem}{suffix}"
-        if suffix_path.exists():
-            return suffix_path
-        gdf = pyogrio.read_dataframe(shp_path)
-        pyogrio.write_dataframe(gdf, suffix_path)
-        return suffix_path
+@pytest.fixture(scope="session")
+def naturalearth_lowres():
+    return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
+
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):

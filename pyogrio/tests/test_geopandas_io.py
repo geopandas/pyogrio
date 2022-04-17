@@ -186,9 +186,8 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.parametrize(
-        "suffix", [".shp", ".json", ".gpkg"] ) #, ".fgb"] )
-def test_read_sql(naturalearth_lowres, suffix):
+#@pytest.mark.filterwarnings("ignore: Layer")
+def test_read_sql(naturalearth_lowres):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres, sql=None)
     assert len(df) == 177
@@ -216,7 +215,7 @@ def test_read_sql(naturalearth_lowres, suffix):
                FROM naturalearth_lowres 
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')
               ORDER BY name"""
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(naturalearth_lowres, sql=sql)
     assert len(df.columns) == 4
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
     names_found = df['name'].to_list()
@@ -228,8 +227,7 @@ def test_read_sql(naturalearth_lowres, suffix):
                FROM naturalearth_lowres 
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')
               ORDER BY name"""
-    df = read_dataframe(
-            naturalearth_lowres, sql=sql, skip_features=1, max_features=1, sql_dialect="OGRSQL")
+    df = read_dataframe(naturalearth_lowres, sql=sql, skip_features=1, max_features=1)
     assert len(df.columns) == 4
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
     names_found_skip_max = df['name'].to_list()
@@ -240,7 +238,7 @@ def test_read_sql(naturalearth_lowres, suffix):
     sql = """SELECT name, pop_est, iso_a3 
                FROM naturalearth_lowres 
               WHERE POP_EST >= 10000000 AND POP_EST < 100000000"""
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(naturalearth_lowres, sql=sql)
     assert len(df) == 75
     assert len(df.columns) == 4
     assert df.pop_est.min() >= 10000000
