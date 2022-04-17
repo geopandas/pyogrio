@@ -1055,11 +1055,20 @@ cdef infer_field_types(list dtypes):
 
     return field_types
 
+cdef OGRGeometryH force_to_multitype(int wkbtype, OGRGeometryH ogr_geometry):
+    if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+        return OGR_G_ForceToMultiPoint(ogr_geometry)
+    elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+        return OGR_G_ForceToMultiLineString(ogr_geometry)
+    elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+        return OGR_G_ForceToMultiPolygon(ogr_geometry)
+    else:
+        return NULL
 
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, **kwargs):
+    str crs, str geometry_type, str encoding, bint force_multitype=False, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1072,6 +1081,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
@@ -1173,12 +1183,12 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     ### Get geometry type
     # TODO: this is brittle for 3D / ZM / M types
     # TODO: fail on M / ZM types
-    geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+    geometry_code = get_geometry_type_code(geometry_type or "Unknown", force_multitype)
 
     ### Create the layer
     try:
         ogr_layer = exc_wrap_pointer(
-                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
                         <OGRwkbGeometryType>geometry_code, options))
 
     except Exception as exc:
@@ -1194,7 +1204,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         if options != NULL:
             CSLDestroy(<char**>options)
             options = NULL
-
 
     ### Create the fields
     field_types = infer_field_types([field.dtype for field in field_data])
@@ -1271,6 +1280,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
             if err:
                 raise GeometryError(f"Could not set geometry for feature at index {i}") from None
+
+            # Convert to multi type
+            if force_multitype is True:
+                ogr_geometry_multi = force_to_multitype(<OGRwkbGeometryType>wkbtype, ogr_geometry)
+                if ogr_geometry_multi != NULL:
+                    OGR_G_DestroyGeometry(ogr_geometry)
+                    ogr_geometry = ogr_geometry_multi
 
             # Set field values
             for field_idx in range(num_fields):

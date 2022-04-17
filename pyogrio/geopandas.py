@@ -136,7 +136,7 @@ def read_dataframe(
 
 
 # TODO: handle index properly
-def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
+def write_dataframe(df, path, layer=None, driver=None, encoding=None, force_multitype=False, **kwargs):
     """
     Write GeoPandas GeoDataFrame to an OGR file format.
 
@@ -152,6 +152,8 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
+    force_multitype: bool: True to convert single type geometries to their 
+        corresponding multi type.  
 
     **kwargs
         The kwargs passed to OGR.
@@ -216,5 +218,6 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
         crs=crs,
         geometry_type=geometry_type,
         encoding=encoding,
+        force_multitype=force_multitype,
         **kwargs
     )
