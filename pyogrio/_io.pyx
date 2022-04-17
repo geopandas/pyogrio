@@ -791,10 +791,6 @@ def ogr_read(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    # layer defaults to index 0
-    if layer is None:
-        layer = 0
-
     if fids is not None:
         if where is not None or bbox is not None or sql is not None or skip_features or max_features:
             raise ValueError(
@@ -804,13 +800,16 @@ def ogr_read(
         fids = np.asarray(fids, dtype=np.intc)
 
     if sql is not None:
-        if where is not None or bbox is not None or fids is not None: # or skip_features or max_features:
+        if where is not None or bbox is not None or fids is not None:
             raise ValueError(
                 "cannot set both 'sql' and any of 'where', 'bbox', 'fids'"
             )
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     if sql is None:
+        # layer defaults to index 0
+        if layer is None:
+            layer = 0    
         ogr_layer = get_ogr_layer(ogr_dataset, layer)
     else:
         ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
