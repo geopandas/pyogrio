@@ -1055,16 +1055,6 @@ cdef infer_field_types(list dtypes):
 
     return field_types
 
-cdef OGRGeometryH force_to_multitype(int wkbtype, OGRGeometryH ogr_geometry):
-    if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
-        return OGR_G_ForceToMultiPoint(ogr_geometry)
-    elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
-        return OGR_G_ForceToMultiLineString(ogr_geometry)
-    elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
-        return OGR_G_ForceToMultiPolygon(ogr_geometry)
-    else:
-        return NULL
-
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
@@ -1275,18 +1265,20 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     ogr_geometry = NULL
                 raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
+            # Convert to multi type
+            if force_multitype is True:
+                if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+                    ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
+                elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+                    ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
+                elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+                    ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
+
             # Set the geometry on the feature
             # this assumes ownership of the geometry and it's cleanup
             err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
             if err:
                 raise GeometryError(f"Could not set geometry for feature at index {i}") from None
-
-            # Convert to multi type
-            if force_multitype is True:
-                ogr_geometry_multi = force_to_multitype(<OGRwkbGeometryType>wkbtype, ogr_geometry)
-                if ogr_geometry_multi != NULL:
-                    OGR_G_DestroyGeometry(ogr_geometry)
-                    ogr_geometry = ogr_geometry_multi
 
             # Set field values
             for field_idx in range(num_fields):
