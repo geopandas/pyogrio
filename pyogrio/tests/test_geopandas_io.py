@@ -187,25 +187,34 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 
 @pytest.mark.parametrize(
-    "driver,ext",
+    "driver, ext",
     [
         ("ESRI Shapefile", "shp"),
         ("GeoJSON", "geojson"),
         ("GeoJSONSeq", "geojsons"),
         ("GPKG", "gpkg"),
+        ("FlatGeobuf", "fgb"),
     ],
 )
 def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
     expected = read_dataframe(naturalearth_lowres)
-
     filename = os.path.join(str(tmpdir), f"test.{ext}")
-    write_dataframe(expected, filename, driver=driver)
+
+    if driver != "FlatGeobuf":
+        write_dataframe(expected, filename, driver=driver)
+    else:
+        # For FlatGeoBuf, force_multitype needs to be True because mixed types 
+        # are not supported + no spatial index, otherwise feature order is 
+        # changed
+        with pytest.raises(Exception, match="Could not add feature to layer at"):
+            filename_err = os.path.join(str(tmpdir), f"test_error.{ext}")
+            write_dataframe(expected, filename_err, driver=driver)
+        write_dataframe(expected, filename, driver=driver, force_multitype=True, SPATIAL_INDEX=False)
 
     assert os.path.exists(filename)
-
     df = read_dataframe(filename)
 
-    if driver != "GeoJSONSeq":
+    if driver not in ["GeoJSONSeq"]:
         # GeoJSONSeq driver I/O reorders features and / or vertices, and does
         # not support roundtrip comparison
 
