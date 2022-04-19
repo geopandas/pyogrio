@@ -1,5 +1,6 @@
 import warnings
 import os
+from typing import Optional
 
 from pyogrio._env import GDALEnv
 from pyogrio.util import vsi_path
@@ -13,6 +14,8 @@ DRIVERS = {
     ".gpkg": "GPKG",
     ".shp": "ESRI Shapefile",
     ".json": "GeoJSON",
+    ".geojson": "GeoJSON",
+    ".geojsons": "GeoJSONSeq",
     ".fgb": "FlatGeobuf",
 }
 
@@ -150,13 +153,12 @@ def write(
     layer=None,
     driver=None,
     # derived from meta if roundtrip
-    geometry_type=None,
+    geometry_type: Optional[str] = None,
     crs=None,
     encoding=None,
-    promote_to_multitype: bool = False,
+    promote_to_multitype: Optional[bool] = None,
     **kwargs,
 ):
-
     if geometry_type is None:
         raise ValueError("geometry_type must be provided")
 
@@ -174,6 +176,12 @@ def write(
             raise ValueError(
                 f"Could not infer driver from path: {path}; please specify driver explicitly"
             )
+
+    if promote_to_multitype is None:
+        if geometry_type.startswith("Multi") and driver in ["GPKG", "FlatGeobuf"]:
+            promote_to_multitype = True
+        else:
+            promote_to_multitype = False
 
     if crs is None:
         warnings.warn(

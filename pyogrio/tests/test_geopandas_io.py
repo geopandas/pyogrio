@@ -190,55 +190,53 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 
 @pytest.mark.parametrize(
-    "driver, suffix",
-    [
-        ("ESRI Shapefile", ".shp"),
-        ("GeoJSON", ".geojson"),
-        ("GeoJSONSeq", ".geojsons"),
-        ("GPKG", ".gpkg"),
-        ("FlatGeobuf", ".fgb"),
-    ],
+        "suffix",
+        [".fgb", ".geojson", ".geojsons", ".gpkg", ".json", ".shp", ],
 )
-def test_write_dataframe(tmp_path, naturalearth_lowres, driver, suffix):
-    expected_gdf = read_dataframe(naturalearth_lowres)
-    assert isinstance(expected_gdf, gp.GeoDataFrame)
+def test_write_dataframe(tmp_path, naturalearth_lowres, suffix):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    assert isinstance(input_gdf, gp.GeoDataFrame)
     output_path = tmp_path / f"test{suffix}"
 
-    if driver == "FlatGeobuf":
-        # For FlatGeoBuf:
-        #    - promote_to_multitype=True because mixed types are not supported
-        #    - no spatial index, otherwise feature order is changed
+    if suffix == ".fgb":
+        # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
         with pytest.raises(Exception, match="Could not add feature to layer at"):
-            write_dataframe(expected_gdf, output_path, driver=driver)
-        write_dataframe(expected_gdf, output_path, driver=driver, promote_to_multitype=True)
+            write_dataframe(input_gdf, output_path, promote_to_multitype=False)
+        write_dataframe(input_gdf, output_path)
     else:
-        write_dataframe(expected_gdf, output_path, driver=driver)
+        write_dataframe(input_gdf, output_path)
 
-    assert os.path.exists(output_path)
+    assert output_path.exists()
     result_gdf = read_dataframe(output_path)
     assert isinstance(result_gdf, gp.GeoDataFrame)
 
-    if driver == "GeoJSONSeq":
+    # File types not supporting mixed types should only contain 1 type
+    geometry_types = result_gdf.geometry.type.unique()
+    if suffix in [".fgb", ".gpkg", ]:
+        assert len(geometry_types) == 1
+    else:
+        assert len(geometry_types) == 2
+
+    if suffix == ".geojsons":
         # GeoJSONSeq reorders features and vertices, so normalize + sort 
         result_gdf.geometry = gp.GeoSeries(_vectorized.normalize(result_gdf.geometry.array.data))
         result_gdf = sort_geodataframe(result_gdf)
-        expected_gdf.geometry = gp.GeoSeries(_vectorized.normalize(expected_gdf.geometry.array.data))
-        expected_gdf = sort_geodataframe(expected_gdf)
-
-    elif driver == "FlatGeobuf":
+        input_gdf.geometry = gp.GeoSeries(_vectorized.normalize(input_gdf.geometry.array.data))
+        input_gdf = sort_geodataframe(input_gdf)
+    elif suffix == ".fgb":
         # FlatGeobuf (with spatial index) reorders features, so sort 
         result_gdf = sort_geodataframe(result_gdf)
-        # Convert expected_gdf to multipolygon to get same sorting
-        expected_gdf.geometry = gp.GeoSeries(to_multipolygon(expected_gdf.geometry.array.data))
-        expected_gdf = sort_geodataframe(expected_gdf)
+        # Convert input_gdf to multipolygon to get same sorting
+        input_gdf.geometry = gp.GeoSeries(to_multipolygon(input_gdf.geometry.array.data))
+        input_gdf = sort_geodataframe(input_gdf)
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
-    is_json = (driver in ["GeoJSONSeq", "GeoJSON"])
+    is_json = (suffix in [".geojsons", ".geojson", ".json"])
 
     assert_geodataframe_equal(
         result_gdf,
-        expected_gdf,
+        input_gdf,
         check_less_precise=is_json,
         check_index_type=False,
         check_dtype=not is_json,

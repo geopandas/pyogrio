@@ -136,7 +136,7 @@ def read_dataframe(
 
 
 # TODO: handle index properly
-def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to_multitype=False, **kwargs):
+def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to_multitype=None, **kwargs):
     """
     Write GeoPandas GeoDataFrame to an OGR file format.
 
@@ -152,9 +152,10 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
-    promote_to_multitype: bool: 
+    promote_to_multitype: bool, optional (default: None) 
         True to convert single type geometries to their corresponding 
-        multitype. Defaults to False. 
+        multitype. If None, will be treated as True for formats that don't 
+        support mixed geometries (GPKG, GeoFlatBuffer). Defaults to None. 
 
     **kwargs
         The kwargs passed to OGR.
@@ -193,10 +194,21 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
+    geometry_type = None
     if not df.empty:
         # TODO: validate geometry types, not all combinations are valid
-        geometry_type = geometry.type.unique()[0]
-    else:
+        geometry_types = geometry.type.unique()
+        if len(geometry_types) == 1:
+            geometry_type = geometry_types[0]
+        elif len(geometry_types == 2):
+            if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
+                geometry_type = "MultiPolygon"
+            elif "LineString" in geometry_types and "MultiLineString" in geometry_types:
+                geometry_type = "MultiLineString"
+            elif "Point" in geometry_types and "MultiPoint" in geometry_types:
+                geometry_type = "MultiPoint"
+            
+    if geometry_type is None:
         geometry_type = "Unknown"
 
     crs = None
