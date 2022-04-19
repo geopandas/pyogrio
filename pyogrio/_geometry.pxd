@@ -1,2 +1,2 @@
 cdef str get_geometry_type(void *ogr_layer)
-cdef int get_geometry_type_code(str geometry_type, bint promote_to_multitype)
+cdef int get_geometry_type_code(str geometry_type, bint promote_to_multi)

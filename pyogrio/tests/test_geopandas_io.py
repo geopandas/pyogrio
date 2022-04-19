@@ -12,7 +12,6 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 try:
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
-    from geopandas import _vectorized
     import pygeos as pg
     import numpy as np
 
@@ -190,21 +189,15 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 
 @pytest.mark.parametrize(
-        "suffix",
+        "ext",
         [".fgb", ".geojson", ".geojsons", ".gpkg", ".json", ".shp", ],
 )
-def test_write_dataframe(tmp_path, naturalearth_lowres, suffix):
+def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     input_gdf = read_dataframe(naturalearth_lowres)
     assert isinstance(input_gdf, gp.GeoDataFrame)
-    output_path = tmp_path / f"test{suffix}"
+    output_path = tmp_path / f"test{ext}"
 
-    if suffix == ".fgb":
-        # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
-        with pytest.raises(Exception, match="Could not add feature to layer at"):
-            write_dataframe(input_gdf, output_path, promote_to_multitype=False)
-        write_dataframe(input_gdf, output_path)
-    else:
-        write_dataframe(input_gdf, output_path)
+    write_dataframe(input_gdf, output_path)
 
     assert output_path.exists()
     result_gdf = read_dataframe(output_path)
@@ -212,18 +205,18 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, suffix):
 
     # File types not supporting mixed types should only contain 1 type
     geometry_types = result_gdf.geometry.type.unique()
-    if suffix in [".fgb", ".gpkg", ]:
+    if ext in [".fgb", ".gpkg", ]:
         assert len(geometry_types) == 1
     else:
         assert len(geometry_types) == 2
 
-    if suffix == ".geojsons":
+    if ext == ".geojsons":
         # GeoJSONSeq reorders features and vertices, so normalize + sort 
-        result_gdf.geometry = gp.GeoSeries(_vectorized.normalize(result_gdf.geometry.array.data))
+        result_gdf.geometry = gp.GeoSeries(pg.normalize(result_gdf.geometry.array.data))
         result_gdf = sort_geodataframe(result_gdf)
-        input_gdf.geometry = gp.GeoSeries(_vectorized.normalize(input_gdf.geometry.array.data))
+        input_gdf.geometry = gp.GeoSeries(pg.normalize(input_gdf.geometry.array.data))
         input_gdf = sort_geodataframe(input_gdf)
-    elif suffix == ".fgb":
+    elif ext == ".fgb":
         # FlatGeobuf (with spatial index) reorders features, so sort 
         result_gdf = sort_geodataframe(result_gdf)
         # Convert input_gdf to multipolygon to get same sorting
@@ -232,7 +225,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, suffix):
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
-    is_json = (suffix in [".geojsons", ".geojson", ".json"])
+    is_json = (ext in [".geojsons", ".geojson", ".json"])
 
     assert_geodataframe_equal(
         result_gdf,
@@ -241,6 +234,16 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, suffix):
         check_index_type=False,
         check_dtype=not is_json,
     )
+
+
+def test_write_dataframe_mixed_fgb(tmp_path, naturalearth_lowres):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    assert isinstance(input_gdf, gp.GeoDataFrame)
+    output_path = tmp_path / f"test.fgb"
+
+    # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
+    with pytest.raises(Exception, match="Could not add feature to layer at"):
+        write_dataframe(input_gdf, output_path, promote_to_multi=False)
 
 
 def sort_geodataframe(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:

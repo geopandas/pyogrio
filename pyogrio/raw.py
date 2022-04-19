@@ -20,6 +20,12 @@ DRIVERS = {
 }
 
 
+DRIVERS_NO_MIXED_SINGLE_MULTI = {
+    "GPKG",
+    "FlatGeobuf",
+}
+
+
 def read(
     path_or_buffer,
     /,
@@ -156,7 +162,7 @@ def write(
     geometry_type=None,
     crs=None,
     encoding=None,
-    promote_to_multitype: Optional[bool] = None,
+    promote_to_multi=None,
     **kwargs,
 ):
     if geometry_type is None:
@@ -177,12 +183,11 @@ def write(
                 f"Could not infer driver from path: {path}; please specify driver explicitly"
             )
 
-    if promote_to_multitype is None:
-        if geometry_type.startswith("Multi") and driver in ["GPKG", "FlatGeobuf"]:
-            promote_to_multitype = True
-        else:
-            promote_to_multitype = False
-
+    if promote_to_multi is None:
+        promote_to_multi = (
+            geometry_type.startswith("Multi") and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+        )
+        
     if crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
@@ -200,6 +205,6 @@ def write(
         fields=fields,
         crs=crs,
         encoding=encoding,
-        promote_to_multitype=promote_to_multitype,
+        promote_to_multi=promote_to_multi,
         **kwargs,
     )
