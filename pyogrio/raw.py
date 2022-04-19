@@ -153,7 +153,7 @@ def write(
     layer=None,
     driver=None,
     # derived from meta if roundtrip
-    geometry_type: Optional[str] = None,
+    geometry_type=None,
     crs=None,
     encoding=None,
     promote_to_multitype: Optional[bool] = None,
