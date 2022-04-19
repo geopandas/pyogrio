@@ -11,7 +11,7 @@
 -   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
 -   add dtype for each field to `read_info` (#30)
 -   support writing empty GeoDataFrames (#38)
--   add keyword to promote mixed singular/multi geometry column to multi geometrytype (#56)
+-   add keyword to promote mixed singular/multi geometry column to multi geometry type (#56)
 
 
 ### Breaking changes
