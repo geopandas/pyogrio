@@ -1058,7 +1058,7 @@ cdef infer_field_types(list dtypes):
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, bint force_multitype=False, **kwargs):
+    str crs, str geometry_type, str encoding, bint promote_to_multitype=False, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1173,7 +1173,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     ### Get geometry type
     # TODO: this is brittle for 3D / ZM / M types
     # TODO: fail on M / ZM types
-    geometry_code = get_geometry_type_code(geometry_type or "Unknown", force_multitype)
+    geometry_code = get_geometry_type_code(geometry_type or "Unknown", promote_to_multitype)
 
     ### Create the layer
     try:
@@ -1266,7 +1266,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
             # Convert to multi type
-            if force_multitype is True:
+            if promote_to_multitype is True:
                 if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
                     ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
                 elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):

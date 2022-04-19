@@ -101,20 +101,20 @@ cdef str get_geometry_type(void *ogr_layer):
     return GEOMETRY_TYPES[ogr_type]
 
 
-cdef int get_geometry_type_code(str geometry_type, bint force_multitype):
+cdef int get_geometry_type_code(str geometry_type, bint promote_to_multitype):
     """Get geometry type code for string geometry type.
 
     Parameters
     ----------
     geometry_type: str
-    force_multitype: bint (bool)
+    promote_to_multitype: bint (bool)
 
     Returns
     -------
     int
         geometry type code
     """
-    if force_multitype is True and "Multi" not in geometry_type:
+    if promote_to_multitype is True and "Multi" not in geometry_type:
         geometry_type = (geometry_type
                 .replace("Point", "MultiPoint") 
                 .replace("LineString", "MultiLineString")

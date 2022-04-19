@@ -12,6 +12,9 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 try:
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
+    from geopandas import _vectorized
+    import pygeos as pg
+    import numpy as np
 
     has_geopandas = True
 except ImportError:
@@ -187,48 +190,106 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 
 @pytest.mark.parametrize(
-    "driver, ext",
+    "driver, suffix",
     [
-        ("ESRI Shapefile", "shp"),
-        ("GeoJSON", "geojson"),
-        ("GeoJSONSeq", "geojsons"),
-        ("GPKG", "gpkg"),
-        ("FlatGeobuf", "fgb"),
+        ("ESRI Shapefile", ".shp"),
+        ("GeoJSON", ".geojson"),
+        ("GeoJSONSeq", ".geojsons"),
+        ("GPKG", ".gpkg"),
+        ("FlatGeobuf", ".fgb"),
     ],
 )
-def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
-    expected = read_dataframe(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
+def test_write_dataframe(tmp_path, naturalearth_lowres, driver, suffix):
+    expected_gdf = read_dataframe(naturalearth_lowres)
+    assert isinstance(expected_gdf, gp.GeoDataFrame)
+    output_path = tmp_path / f"test{suffix}"
 
-    if driver != "FlatGeobuf":
-        write_dataframe(expected, filename, driver=driver)
-    else:
-        # For FlatGeoBuf, force_multitype needs to be True because mixed types 
-        # are not supported + no spatial index, otherwise feature order is 
-        # changed
+    if driver == "FlatGeobuf":
+        # For FlatGeoBuf:
+        #    - promote_to_multitype=True because mixed types are not supported
+        #    - no spatial index, otherwise feature order is changed
         with pytest.raises(Exception, match="Could not add feature to layer at"):
-            filename_err = os.path.join(str(tmpdir), f"test_error.{ext}")
-            write_dataframe(expected, filename_err, driver=driver)
-        write_dataframe(expected, filename, driver=driver, force_multitype=True, SPATIAL_INDEX=False)
+            write_dataframe(expected_gdf, output_path, driver=driver)
+        write_dataframe(expected_gdf, output_path, driver=driver, promote_to_multitype=True)
+    else:
+        write_dataframe(expected_gdf, output_path, driver=driver)
 
-    assert os.path.exists(filename)
-    df = read_dataframe(filename)
+    assert os.path.exists(output_path)
+    result_gdf = read_dataframe(output_path)
+    assert isinstance(result_gdf, gp.GeoDataFrame)
 
-    if driver not in ["GeoJSONSeq"]:
-        # GeoJSONSeq driver I/O reorders features and / or vertices, and does
-        # not support roundtrip comparison
+    if driver == "GeoJSONSeq":
+        # GeoJSONSeq reorders features and vertices, so normalize + sort 
+        result_gdf.geometry = gp.GeoSeries(_vectorized.normalize(result_gdf.geometry.array.data))
+        result_gdf = sort_geodataframe(result_gdf)
+        expected_gdf.geometry = gp.GeoSeries(_vectorized.normalize(expected_gdf.geometry.array.data))
+        expected_gdf = sort_geodataframe(expected_gdf)
 
-        # Coordinates are not precisely equal when written to JSON
-        # dtypes do not necessarily round-trip precisely through JSON
-        is_json = driver == "GeoJSON"
+    elif driver == "FlatGeobuf":
+        # FlatGeobuf (with spatial index) reorders features, so sort 
+        result_gdf = sort_geodataframe(result_gdf)
+        # Convert expected_gdf to multipolygon to get same sorting
+        expected_gdf.geometry = gp.GeoSeries(to_multipolygon(expected_gdf.geometry.array.data))
+        expected_gdf = sort_geodataframe(expected_gdf)
 
-        assert_geodataframe_equal(
-            df,
-            expected,
-            check_less_precise=is_json,
-            check_index_type=False,
-            check_dtype=not is_json,
+    # Coordinates are not precisely equal when written to JSON
+    # dtypes do not necessarily round-trip precisely through JSON
+    is_json = (driver in ["GeoJSONSeq", "GeoJSON"])
+
+    assert_geodataframe_equal(
+        result_gdf,
+        expected_gdf,
+        check_less_precise=is_json,
+        check_index_type=False,
+        check_dtype=not is_json,
+    )
+
+
+def sort_geodataframe(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
+    """
+    Sort the geodataframe on all column's values, incl. the geometry column.
+
+    Parameters
+    ----------
+        gdf: gp.GeoDataFrame
+            the geodataframe to order
+
+    Returns
+    -------
+    gp.GeoDataFrame: the ordered GeoDataFrame.
+    """
+    result_gdf = gdf.copy()
+    result_gdf["tmp_order_wkt"] = result_gdf.geometry.to_wkt()
+    columns_no_geom = [column for column in result_gdf.columns if column != "geometry"]
+    result_gdf = (result_gdf
+            .sort_values(by=columns_no_geom)
+            .drop(columns="tmp_order_wkt")
+            .reset_index(drop=True))
+    assert isinstance(result_gdf, gp.GeoDataFrame)
+    return result_gdf 
+
+
+def to_multipolygon(geometries):
+    """
+    Convert single part polygons to multipolygons.
+
+    Parameters
+    ----------
+    geometries : ndarray of pygeos geometries
+        can be mixed polygon and multipolygon types
+
+    Returns
+    -------
+    ndarray of pygeos geometries, all multipolygon types
+    """
+    ix = pg.get_type_id(geometries) == 3
+    if ix.sum():
+        geometries = geometries.copy()
+        geometries[ix] = np.apply_along_axis(
+            pg.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
         )
+
+    return geometries
 
 
 @pytest.mark.parametrize(

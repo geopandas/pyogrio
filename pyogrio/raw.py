@@ -153,7 +153,7 @@ def write(
     geometry_type=None,
     crs=None,
     encoding=None,
-    force_multitype: bool = False,
+    promote_to_multitype: bool = False,
     **kwargs,
 ):
 
@@ -192,6 +192,6 @@ def write(
         fields=fields,
         crs=crs,
         encoding=encoding,
-        force_multitype=force_multitype,
+        promote_to_multitype=promote_to_multitype,
         **kwargs,
     )
