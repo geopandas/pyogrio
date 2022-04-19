@@ -24,7 +24,7 @@ def data_dir():
 
 
 @pytest.fixture(scope="function")
-def naturalearth_lowres(tmp_path, suffix: str = ".shp"): #request):
+def naturalearth_lowres(tmp_path, suffix: str = ".shp"):
     shp_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
     if suffix.lower() == ".shp":
         return shp_path
