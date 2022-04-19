@@ -155,7 +155,10 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to
     promote_to_multitype: bool, optional (default: None) 
         True to convert single type geometries to their corresponding 
         multitype. If None, will be treated as True for formats that don't 
-        support mixed geometries (GPKG, GeoFlatBuffer). Defaults to None. 
+        If True, will convert singular geometry types to their corresponding
+        multi geometry type.  By default, will convert convert mixed singular
+        and multi geometry types to multi geometry types for drivers that do
+        not support mixed singular and geometry types.
 
     **kwargs
         The kwargs passed to OGR.
