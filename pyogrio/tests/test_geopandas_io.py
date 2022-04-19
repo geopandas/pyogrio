@@ -117,8 +117,8 @@ def test_read_fid_as_index(naturalearth_lowres):
 
 @pytest.mark.filterwarnings("ignore: Layer")
 @pytest.mark.parametrize(
-        "suffix", [".shp", ".json", ".gpkg"] ) #, ".fgb"] )
-def test_read_where(naturalearth_lowres, suffix):
+        "ext", [".shp", ".json", ".gpkg"] ) #, ".fgb"] )
+def test_read_where(naturalearth_lowres, ext):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres, where="")
     assert len(df) == 177

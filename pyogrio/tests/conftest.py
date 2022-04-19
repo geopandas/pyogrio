@@ -24,17 +24,21 @@ def data_dir():
 
 
 @pytest.fixture(scope="function")
-def naturalearth_lowres(tmp_path, suffix: str = ".shp"):
+def naturalearth_lowres(tmp_path, request):
+    ext = request._pyfuncitem.callspec.params.get("ext")
+    if ext is None:
+        ext = ".shp" 
+
     shp_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
-    if suffix.lower() == ".shp":
+    if ext.lower() == ".shp":
         return shp_path
     else:
-        suffix_path = tmp_path / f"{shp_path.stem}{suffix}"
-        if suffix_path.exists():
-            return suffix_path
+        ext_path = tmp_path / f"{shp_path.stem}{ext}"
+        if ext_path.exists():
+            return ext_path
         gdf = pyogrio.read_dataframe(shp_path)
-        pyogrio.write_dataframe(gdf, suffix_path)
-        return suffix_path
+        pyogrio.write_dataframe(gdf, ext_path)
+        return ext_path
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
