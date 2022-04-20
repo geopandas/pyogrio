@@ -806,86 +806,86 @@ def ogr_read(
             )
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
-    if sql is None:
-        # layer defaults to index 0
-        if layer is None:
-            layer = 0    
-        ogr_layer = get_ogr_layer(ogr_dataset, layer)
-    else:
-        ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
-
-    crs = get_crs(ogr_layer)
-
-    # Encoding is derived from the dataset, from the user, or from the system locale
-    encoding = (
-        detect_encoding(ogr_dataset, ogr_layer)
-        or encoding
-        or locale.getpreferredencoding()
-    )
-
-    fields = get_fields(ogr_layer, encoding)
-
-    if columns is not None:
-        # Fields are matched exactly by name, duplicates are dropped.
-        # Find index of each field into fields
-        idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
-        fields = fields[idx, :]
-
-    geometry_type = get_geometry_type(ogr_layer)
-
-    if fids is not None:
-        geometries, field_data = get_features_by_fid(
-            ogr_layer,
-            fids,
-            fields,
-            encoding,
-            read_geometry=read_geometry and geometry_type is not None,
-            force_2d=force_2d,
-        )
-
-        # bypass reading fids since these should match fids used for read
-        if return_fids:
-            fid_data = fids.astype(np.int64)
+    try:
+        if sql is None:
+            # layer defaults to index 0
+            if layer is None:
+                layer = 0    
+            ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
-            fid_data = None
-    else:
-        # Apply the attribute filter
-        if where is not None and where != "":
-            apply_where_filter(ogr_layer, where)
+            ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
 
-        # Apply the spatial filter
-        if bbox is not None:
-            apply_spatial_filter(ogr_layer, bbox)
+        crs = get_crs(ogr_layer)
 
-        # Limit feature range to available range
-        skip_features, max_features = validate_feature_range(
-            ogr_layer, skip_features, max_features
+        # Encoding is derived from the dataset, from the user, or from the system locale
+        encoding = (
+            detect_encoding(ogr_dataset, ogr_layer)
+            or encoding
+            or locale.getpreferredencoding()
         )
 
-        fid_data, geometries, field_data = get_features(
-            ogr_layer,
-            fields,
-            encoding,
-            read_geometry=read_geometry and geometry_type is not None,
-            force_2d=force_2d,
-            skip_features=skip_features,
-            max_features=max_features,
-            return_fids=return_fids
-        )
+        fields = get_fields(ogr_layer, encoding)
 
-    meta = {
-        'crs': crs,
-        'encoding': encoding,
-        'fields': fields[:,2], # return only names
-        'geometry_type': geometry_type
-    }
+        if columns is not None:
+            # Fields are matched exactly by name, duplicates are dropped.
+            # Find index of each field into fields
+            idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
+            fields = fields[idx, :]
 
-    if ogr_dataset != NULL:
-        # TODO: shouldn't this happen in an exception handler?
-        if sql is not None:
-            GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
-        GDALClose(ogr_dataset)
-    ogr_dataset = NULL
+        geometry_type = get_geometry_type(ogr_layer)
+
+        if fids is not None:
+            geometries, field_data = get_features_by_fid(
+                ogr_layer,
+                fids,
+                fields,
+                encoding,
+                read_geometry=read_geometry and geometry_type is not None,
+                force_2d=force_2d,
+            )
+
+            # bypass reading fids since these should match fids used for read
+            if return_fids:
+                fid_data = fids.astype(np.int64)
+            else:
+                fid_data = None
+        else:
+            # Apply the attribute filter
+            if where is not None and where != "":
+                apply_where_filter(ogr_layer, where)
+
+            # Apply the spatial filter
+            if bbox is not None:
+                apply_spatial_filter(ogr_layer, bbox)
+
+            # Limit feature range to available range
+            skip_features, max_features = validate_feature_range(
+                ogr_layer, skip_features, max_features
+            )
+
+            fid_data, geometries, field_data = get_features(
+                ogr_layer,
+                fields,
+                encoding,
+                read_geometry=read_geometry and geometry_type is not None,
+                force_2d=force_2d,
+                skip_features=skip_features,
+                max_features=max_features,
+                return_fids=return_fids
+            )
+
+        meta = {
+            'crs': crs,
+            'encoding': encoding,
+            'fields': fields[:,2], # return only names
+            'geometry_type': geometry_type
+        }
+    finally:
+        if ogr_dataset != NULL:
+            if sql is not None:
+                GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
 
     return (
         meta,
