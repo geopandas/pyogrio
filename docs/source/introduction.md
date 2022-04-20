@@ -42,8 +42,9 @@ You can certainly try to read or write using unsupported drivers that are
 available in your installation, but you may encounter errors.
 
 Note: different drivers have different tolerance for mixed geometry types, e.g.,
-MultiPolygon and Polygon in the same dataset. You will get exceptions if you
-attempt to write mixed geometries to a driver that does not support them.
+MultiPolygon and Polygon in the same dataset. You will get exceptions or 
+warnings if you attempt to write mixed geometries to a driver that does not 
+support them.
 
 ## List available layers
 
@@ -180,6 +181,41 @@ with the bbox.
 ```
 
 Note: the `bbox` values must be in the same CRS as the dataset.
+
+## Execute a sql query
+
+You can use the `sql` parameter to execute a sql query on a dataset. 
+
+Depending on the dataset, you can use different sql dialects. By default, if 
+the dataset natively supports sql, the sql style for this datasource 
+will be used (eg. GPKG, PostgreSQL). If the datasource doesn't
+natively support sql (eg. ESRI Shapefile, FlatGeobuf), you can choose 
+between the '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
+(the default) and the '[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)' 
+dialect. For SELECT statements the 'SQLITE' dialect tends to provide more 
+features as all [spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
+functions can be used.
+
+This sql query returns the 5 Western European countries with the most 
+neighbours with their "circularity":
+
+```python
+>>> sql = """SELECT geometry, name, Circularity(geometry) AS circularity,
+                    (SELECT count(*)  
+                       FROM ne_10m_admin_0_countries layer_sub
+                      WHERE ST_Intersects(layer.geometry, layer_sub.geometry)) AS nb_neighbours
+               FROM ne_10m_admin_0_countries layer
+              WHERE subregion = 'Western Europe'
+              ORDER BY nb_neighbours DESC
+              LIMIT 5"""
+>>> read_dataframe('ne_10m_admin_0_countries.shp', sql=sql, sql_dialect='SQLITE')
+          NAME  circularity  nb_neighbours                            geometry
+0       France     0.086359             11  MULTIPOLYGON (((-54.11153 2.114...
+1      Germany     0.123962             10  MULTIPOLYGON (((13.81572 48.766...
+2      Austria     0.216613              9  POLYGON ((16.94504 48.60417, 16...
+3  Switzerland     0.221956              6  POLYGON ((10.45381 46.86443, 10...
+4      Belgium     0.268855              5  POLYGON ((2.52180 51.08754, 2.5...
+```
 
 ## Force geometries to be read as 2D geometries
 
