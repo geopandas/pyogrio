@@ -119,13 +119,15 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+          VCPKG_INSTALLATION_ROOT: "c:/vcpkg"
 
         run: |
           echo "VCPKG_INSTALLATION_ROOT: $VCPKG_INSTALLATION_ROOT"
           vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci
           vcpkg list
-          ls "c:/vcpkg/*"
-          ls ci/*
+          ls "c:/vcpkg/installed/*"
+          ls "c:/vcpkg/buildtrees/*"
+          ls ci/vcpkg_installed/*
           ls $VCPKG_INSTALLATION_ROOT/*
 
       - name: Upload vcpkg build logs
