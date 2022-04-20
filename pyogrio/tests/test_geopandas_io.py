@@ -118,37 +118,37 @@ def test_read_fid_as_index(naturalearth_lowres):
 @pytest.mark.filterwarnings("ignore: Layer")
 @pytest.mark.parametrize(
         "ext", [".shp", ".json", ".gpkg"] ) #, ".fgb"] )
-def test_read_where(naturalearth_lowres, ext):
+def test_read_where(naturalearth_lowres_ext, ext):
     # empty filter should return full set of records
-    df = read_dataframe(naturalearth_lowres, where="")
+    df = read_dataframe(naturalearth_lowres_ext, where="")
     assert len(df) == 177
 
     # should return singular item
-    df = read_dataframe(naturalearth_lowres, where="iso_a3 = 'CAN'")
+    df = read_dataframe(naturalearth_lowres_ext, where="iso_a3 = 'CAN'")
     assert len(df) == 1
     assert df.iloc[0].iso_a3 == "CAN"
 
-    df = read_dataframe(naturalearth_lowres, where="iso_a3 IN ('CAN', 'USA', 'MEX')")
+    df = read_dataframe(naturalearth_lowres_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')")
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
 
     # should return items within range
     df = read_dataframe(
-        naturalearth_lowres, where="POP_EST >= 10000000 AND POP_EST < 100000000"
+        naturalearth_lowres_ext, where="POP_EST >= 10000000 AND POP_EST < 100000000"
     )
     assert len(df) == 75
     assert df.pop_est.min() >= 10000000
     assert df.pop_est.max() < 100000000
 
     # should match no items
-    df = read_dataframe(naturalearth_lowres, where="ISO_A3 = 'INVALID'")
+    df = read_dataframe(naturalearth_lowres_ext, where="ISO_A3 = 'INVALID'")
     assert len(df) == 0
 
 @pytest.mark.parametrize(
         "suffix", [".shp", ".json", ".gpkg"] ) #, ".fgb"] )
-def test_read_where_invalid(naturalearth_lowres, suffix):
+def test_read_where_invalid(naturalearth_lowres_ext, suffix):
     with pytest.raises(ValueError, match="Invalid SQL"):
-        read_dataframe(naturalearth_lowres, where="invalid")
+        read_dataframe(naturalearth_lowres_ext, where="invalid")
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])

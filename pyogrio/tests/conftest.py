@@ -24,8 +24,15 @@ def data_dir():
 
 
 @pytest.fixture(scope="function")
-def naturalearth_lowres(tmp_path, request):
-    ext = request._pyfuncitem.callspec.params.get("ext")
+def naturalearth_lowres():
+    return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
+
+
+@pytest.fixture(scope="function")
+def naturalearth_lowres_ext(tmp_path, request):
+    ext = None
+    if "callspec" in dir(request._pyfuncitem):
+        ext = request._pyfuncitem.callspec.params.get("ext")
     if ext is None:
         ext = ".shp" 
 
