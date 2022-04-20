@@ -188,23 +188,53 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 @pytest.mark.filterwarnings("ignore: Layer")
 def test_read_sql(naturalearth_lowres):
-    # should return singular item
+    # The geometry column cannot be specified when using the 
+    # default OGRSQL dialect but is returned nonetheless, so 4 columns.
+    sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
+    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
+    assert len(df.columns) == 4
+    assert len(df) == 177
+
+    # Columns and/or where filters are applied after the sql query, so alias 
+    # needs to be specified instead of original column name.
+    df = read_dataframe(
+        naturalearth_lowres, 
+        sql=sql, 
+        sql_dialect="OGRSQL", 
+        columns=["iso_a3_renamed", "name"],
+        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
+    )
+    assert len(df.columns) == 3
+    assert len(df) == 3
+    assert len(set(df.iso_a3_renamed.unique()).difference(["CAN", "MEX", "USA"])) == 0
+
+    # Add bbox as well.
+    df = read_dataframe(
+        naturalearth_lowres, 
+        sql=sql, 
+        sql_dialect="OGRSQL", 
+        columns=["iso_a3_renamed", "name"],
+        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
+        bbox=(-140, 20, -100, 40)
+    )
+    assert len(df.columns) == 3
+    assert len(df) == 2
+    assert len(set(df.iso_a3_renamed.unique()).difference(["MEX", "USA"])) == 0
+
+    # Should return single row.
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
-
-    # the geometry column cannot be specified when using the 
-    # default OGRSQL dialect but is returned nonetheless, so 4 columns
-    sql = """SELECT name, pop_est, iso_a3  
+    
+    sql = """SELECT *  
                FROM naturalearth_lowres 
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
-    assert len(df.columns) == 4
+    assert len(df.columns) == 6
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
-    names_found = df['name'].to_list()
     
     sql = """SELECT *
                FROM naturalearth_lowres 
@@ -225,7 +255,7 @@ def test_read_sql(naturalearth_lowres):
     assert len(df) == 1
     assert df.iso_a3.tolist() == ["MEX"]
     
-    # should return items within range
+    # Should return items within range.
     sql = """SELECT *
                FROM naturalearth_lowres 
               WHERE POP_EST >= 10000000 AND POP_EST < 100000000"""
@@ -235,18 +265,16 @@ def test_read_sql(naturalearth_lowres):
     assert df.pop_est.min() >= 10000000
     assert df.pop_est.max() < 100000000
 
-    # should match no items
-    sql = """SELECT *
-               FROM naturalearth_lowres 
-              WHERE ISO_A3 = 'INVALID'"""
+    # Should match no items.
+    sql = "SELECT * FROM naturalearth_lowres WHERE ISO_A3 = 'INVALID'"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df) == 0
 
-    sql = "SELECT name, pop_est, iso_a3 FROM naturalearth_lowres LIMIT 1"
+    sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df = read_dataframe(naturalearth_lowres, sql=sql, max_features=3, sql_dialect="OGRSQL")
     assert len(df) == 1
 
-    sql = "SELECT name, pop_est, iso_a3 FROM naturalearth_lowres LIMIT 1"
+    sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
         df = read_dataframe(naturalearth_lowres, sql=sql, skip_features=1, sql_dialect="OGRSQL")
 
@@ -272,9 +300,9 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres):
 def test_read_sql_invalid(naturalearth_lowres):
     with pytest.raises(Exception, match="SQL Expression Parsing Error"):
         read_dataframe(naturalearth_lowres, sql="invalid")
-    with pytest.raises(ValueError, match="cannot set both 'sql' and any of"):
-        read_dataframe(naturalearth_lowres, sql="whatever", where="test")
-
+    with pytest.raises(ValueError, match="'sql' paramater cannot be combined with 'layer'"):
+        read_dataframe(naturalearth_lowres, sql="whatever", layer="invalid")
+        
 
 @pytest.mark.parametrize(
     "driver,ext",

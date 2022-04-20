@@ -799,11 +799,8 @@ def ogr_read(
             )
         fids = np.asarray(fids, dtype=np.intc)
 
-    if sql is not None:
-        if where is not None or bbox is not None or fids is not None:
-            raise ValueError(
-                "cannot set both 'sql' and any of 'where', 'bbox', 'fids'"
-            )
+    if sql is not None and layer is not None:
+        raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     try:
