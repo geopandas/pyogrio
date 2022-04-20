@@ -119,7 +119,7 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_INSTALLATION_ROOT: "c:/vcpkg"
+          VCPKG_INSTALLATION_ROOT: "c:\vcpkg"
 
         run: |
           echo "VCPKG_INSTALLATION_ROOT: $VCPKG_INSTALLATION_ROOT"
@@ -137,7 +137,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: |
-            "$VCPKG_INSTALLATION_ROOT/buildtrees/expat/*.log"
+            "C:\vcpkg\buildtrees\expat\*.log"
             "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
 
       # - name: Build wheels
