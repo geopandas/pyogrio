@@ -119,25 +119,23 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_MANIFEST_MODE: "ON"
-          VCPKG_MANIFEST_INSTALL: "ON"
 
         run: |
-          vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="$VCPKG_INSTALLATION_ROOT/installed"
+          vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci
           vcpkg list
 
       - name: Upload vcpkg build logs
-        if: ${{ failure() }}
+        # if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
           path: "${VCPKG_INSTALLATION_ROOT}/buildtrees/**/*.log"
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+      # - name: Build wheels
+      #   uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
+      # - uses: actions/upload-artifact@v2
+      #   with:
+      #     path: ./wheelhouse/*.whl
 
   # test-wheels:
   #   name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
