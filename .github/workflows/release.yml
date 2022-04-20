@@ -123,18 +123,22 @@ jobs:
 
         run: |
           echo "VCPKG_INSTALLATION_ROOT: $VCPKG_INSTALLATION_ROOT"
+          echo "VCPKG_INSTALL: $VCPKG_INSTALL"
           vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci
           vcpkg list
-          ls "c:/vcpkg/installed/*"
-          ls "c:/vcpkg/buildtrees/*"
-          ls ci/vcpkg_installed/*
-          ls $VCPKG_INSTALLATION_ROOT/*
+          ls "c:/vcpkg/installed/vcpkg/*"
+          ls "c:/vcpkg/buildtrees/expat/*"
+          ls ci/vcpkg_installed/vcpkg/*
+          ls ci/vcpkg_installed/x64-windows/*
+          ls "$VCPKG_INSTALLATION_ROOT/*"
 
       - name: Upload vcpkg build logs
         # if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          path: "${VCPKG_INSTALLATION_ROOT}/buildtrees/**/*.log"
+          path: |
+            "$VCPKG_INSTALLATION_ROOT/buildtrees/expat/*.log"
+            "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
 
       # - name: Build wheels
       #   uses: pypa/cibuildwheel@v2.3.1
