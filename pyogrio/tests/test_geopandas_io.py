@@ -12,13 +12,14 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 try:
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
-    import pygeos as pg
-    import numpy as np
-
     has_geopandas = True
 except ImportError:
     has_geopandas = False
-
+try:
+    import pygeos
+    has_pygeos = True
+except ImportError:
+    has_pygeos = False
 
 pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
@@ -187,7 +188,7 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
 
-
+@pytest.mark.skipif(not has_pygeos, reason="pygeos not available")
 @pytest.mark.parametrize(
         "ext",
         [".fgb", ".geojson", ".geojsons", ".gpkg", ".json", ".shp", ],
@@ -212,9 +213,9 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
     if ext == ".geojsons":
         # GeoJSONSeq reorders features and vertices, so normalize + sort 
-        result_gdf.geometry = gp.GeoSeries(pg.normalize(result_gdf.geometry.array.data))
+        result_gdf.geometry = gp.GeoSeries(pygeos.normalize(result_gdf.geometry.array.data))
         result_gdf = sort_geodataframe(result_gdf)
-        input_gdf.geometry = gp.GeoSeries(pg.normalize(input_gdf.geometry.array.data))
+        input_gdf.geometry = gp.GeoSeries(pygeos.normalize(input_gdf.geometry.array.data))
         input_gdf = sort_geodataframe(input_gdf)
     elif ext == ".fgb":
         # FlatGeobuf (with spatial index) reorders features, so sort 
@@ -239,7 +240,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 def test_write_dataframe_mixed_fgb(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
     assert isinstance(input_gdf, gp.GeoDataFrame)
-    output_path = tmp_path / f"test.fgb"
+    output_path = tmp_path / "test.fgb"
 
     # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
     with pytest.raises(Exception, match="Could not add feature to layer at"):
@@ -283,11 +284,11 @@ def to_multipolygon(geometries):
     -------
     ndarray of pygeos geometries, all multipolygon types
     """
-    ix = pg.get_type_id(geometries) == 3
+    ix = pygeos.get_type_id(geometries) == 3
     if ix.sum():
         geometries = geometries.copy()
         geometries[ix] = np.apply_along_axis(
-            pg.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
+            pygeos.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
         )
 
     return geometries
