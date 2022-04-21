@@ -86,18 +86,18 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
-            vcpkg_root: "c:\\vcpkg"
             vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
           - os: "windows-2019"
             triplet: "x64-windows"
-            vcpkg_root: "c:\\vcpkg"
+            # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
+            # no longer seems properly set on windows; it gets clobbered with
+            # the drive where the worker is run
             vcpkg_installed_root: "c:\\vcpkg\\installed"
-            vcpkg_logs: "$VCPKG_INSTALLATION_ROOT\\buildtrees\\**\\*.log"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
-      VCPKG_INSTALLATION_ROOT: ${{ matrix.vcpkg_root }}
 
     steps:
       - name: Checkout
