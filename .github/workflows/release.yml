@@ -88,6 +88,8 @@ jobs:
           #   triplet: "x64-osx-dynamic"
           - os: "windows-2019"
             triplet: "x64-windows"
+            vcpkg_installed_root: "c:\\vcpkg\\installed"
+            vcpkg_logs: "C:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -119,24 +121,19 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_INSTALLATION_ROOT: "c:\\vcpkg"
 
         run: |
-          echo "VCPKG_INSTALLATION_ROOT: $VCPKG_INSTALLATION_ROOT"
-          echo "VCPKG_INSTALL: $VCPKG_INSTALL"
-          vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="c:\\vcpkg\\installed"
+          vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
           vcpkg list
           ls "c:/vcpkg/installed/vcpkg/*"
-          ls "c:/vcpkg/buildtrees/expat/*"
-          ls ci/vcpkg_installed/vcpkg/*
-          ls ci/vcpkg_installed/x64-windows/*
           ls "$VCPKG_INSTALLATION_ROOT/*"
+          ls ${{ matrix.vcpkg_logs }}
 
       - name: Upload vcpkg build logs
         # if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          path: "C:\\vcpkg\\buildtrees\\**\\*.log"
+          path: ${{ matrix.vcpkg_logs }}
 
       # - name: Build wheels
       #   uses: pypa/cibuildwheel@v2.3.1
