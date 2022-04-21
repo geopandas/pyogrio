@@ -86,15 +86,18 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
+            vcpkg_root: "c:\\vcpkg"
             vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
           - os: "windows-2019"
             triplet: "x64-windows"
-            vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT\\installed"
+            vcpkg_root: "c:\\vcpkg"
+            vcpkg_installed_root: "c:\\vcpkg\\installed"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
+      VCPKG_INSTALLATION_ROOT: ${{ matrix.vcpkg_root }}
 
     steps:
       - name: Checkout
@@ -108,7 +111,7 @@ jobs:
         with:
           path: |
             /Users/runner/.cache/vcpkg/archives
-            C:\vcpkg\installed
+            ${{ matrix.vcpkg_installed_root }}
           # bump the last digit to avoid using previous build cache
           key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme
 
@@ -127,8 +130,9 @@ jobs:
         run: |
           vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
           vcpkg list
-          ls "c:/vcpkg/installed/vcpkg/*"
           ls $VCPKG_INSTALLATION_ROOT
+          ls ${{ matrix.vcpkg_root }}
+          ls ${{ matrix.vcpkg_installed_root }}
           ls ${{ matrix.vcpkg_logs }}
 
       - name: Upload vcpkg build logs
