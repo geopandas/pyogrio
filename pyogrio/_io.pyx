@@ -186,17 +186,16 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
     -------
     pointer to OGR layer
     """
-    cdef OGRLayerH ogr_layer = NULL
 
     try:
         sql_b = sql.encode('utf-8')
         sql_c = sql_b
-        if sql_dialect is not None:
-            sql_dialect_b = sql_dialect.encode('utf-8')
-            sql_dialect_c = sql_dialect_b
-            ogr_layer = exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
-        else: 
-            ogr_layer = exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))      
+        if sql_dialect is None:
+            return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))      
+
+        sql_dialect_b = sql_dialect.encode('utf-8')
+        sql_dialect_c = sql_dialect_b
+        return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))    
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -204,8 +203,6 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
 
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
-
-    return ogr_layer
 
 
 cdef str get_crs(OGRLayerH ogr_layer):
@@ -877,6 +874,7 @@ def ogr_read(
             'fields': fields[:,2], # return only names
             'geometry_type': geometry_type
         }
+
     finally:
         if ogr_dataset != NULL:
             if sql is not None:
