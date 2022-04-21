@@ -23,3 +23,5 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
     --x-manifest-root=opt/vcpkg \
     --x-install-root=opt/vcpkg/installed && \
     vcpkg list
+
+RUN git config --global --add safe.directory *
