@@ -16,69 +16,69 @@ on:
   workflow_dispatch:
 
 jobs:
-  # build-sdist:
-  #   name: Build pyogrio sdist
-  #   runs-on: ubuntu-latest
+  build-sdist:
+    name: Build pyogrio sdist
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout source
-  #       uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: "3.x"
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
 
-  #     - name: Build a source tarball
-  #       run: |
-  #         python -m pip install --upgrade pip
-  #         python -m pip install build setuptools
-  #         python -m build --sdist
+      - name: Build a source tarball
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build setuptools
+          python -m build --sdist
 
-  #     - uses: actions/upload-artifact@v2
-  #       with:
-  #         path: ./dist/*.tar.gz
-  #         retention-days: 5
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./dist/*.tar.gz
+          retention-days: 5
 
-  # build-wheels-linux:
-  #   name: Build wheels on Linux
-  #   runs-on: "ubuntu-20.04"
+  build-wheels-linux:
+    name: Build wheels on Linux
+    runs-on: "ubuntu-20.04"
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
-  #       with:
-  #         fetch-depth: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-  #     - name: Set up Docker Buildx
-  #       id: buildx
-  #       uses: docker/setup-buildx-action@v1
-  #       with:
-  #         install: true
-  #         buildkitd-flags: --debug
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          install: true
+          buildkitd-flags: --debug
 
-  #     - name: Build Docker image with vcpkg and gdal
-  #       # using build-push-action (without push) to make use of cache arguments
-  #       uses: docker/build-push-action@v2
-  #       with:
-  #         context: .
-  #         file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
-  #         tags: manylinux-vcpkg-gdal:latest
-  #         push: false
-  #         load: true
-  #         cache-from: type=gha
-  #         cache-to: type=gha,mode=max
-  #       env:
-  #         BUILDKIT_PROGRESS: plain
+      - name: Build Docker image with vcpkg and gdal
+        # using build-push-action (without push) to make use of cache arguments
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+          tags: manylinux-vcpkg-gdal:latest
+          push: false
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        env:
+          BUILDKIT_PROGRESS: plain
 
-  #     - name: Build wheels
-  #       uses: pypa/cibuildwheel@v2.3.1
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
 
-  #     - uses: actions/upload-artifact@v2
-  #       with:
-  #         path: ./wheelhouse/*.whl
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
 
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }}
@@ -114,7 +114,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme5
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-cache4
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -133,113 +133,113 @@ jobs:
           vcpkg list
 
       - name: Upload vcpkg build logs
-        # if: ${{ failure() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
           path: ${{ matrix.vcpkg_logs }}
 
-  #     - name: Build wheels
-  #       uses: pypa/cibuildwheel@v2.3.1
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.3.1
 
-  #     - uses: actions/upload-artifact@v2
-  #       with:
-  #         path: ./wheelhouse/*.whl
+      - uses: actions/upload-artifact@v2
+        with:
+          path: ./wheelhouse/*.whl
 
-  # test-wheels:
-  #   name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-  #   needs: [build-wheels-linux, build-wheels-mac-win]
-  #   runs-on: ${{ matrix.os }}
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-10.15"]
-  #       python-version: ["3.8", "3.9"]
-  #       include:
-  #         # TODO macOS is failing on py 3.10 because of shapely failure
-  #         - os: "ubuntu-20.04"
-  #           python-version: "3.10"
-  #         - os: "windows-latest"
-  #           python-version: "3.10"
+  test-wheels:
+    name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+    needs: [build-wheels-linux, build-wheels-mac-win]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-10.15"]
+        python-version: ["3.8", "3.9"]
+        include:
+          # TODO macOS is failing on py 3.10 because of shapely failure
+          - os: "ubuntu-20.04"
+            python-version: "3.10"
+          - os: "windows-latest"
+            python-version: "3.10"
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-  #     - name: Set up Python
-  #       uses: actions/setup-python@v2
-  #       with:
-  #         python-version: ${{ matrix.python-version }}
-  #         cache: "pip"
-  #         cache-dependency-path: "ci/requirements-wheel-test.txt"
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: "ci/requirements-wheel-test.txt"
 
-  #     - name: Download wheels from artifacts
-  #       uses: actions/download-artifact@v2
-  #       with:
-  #         path: wheelhouse
+      - name: Download wheels from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
 
-  #     - name: Install dependencies and pyogrio wheel
-  #       shell: bash
-  #       run: |
-  #         python -m pip install -r ci/requirements-wheel-test.txt
-  #         python -m pip install --no-deps geopandas
-  #         python -m pip install --find-links wheelhouse/artifact pyogrio
-  #         python -m pip list
+      - name: Install dependencies and pyogrio wheel
+        shell: bash
+        run: |
+          python -m pip install -r ci/requirements-wheel-test.txt
+          python -m pip install --no-deps geopandas
+          python -m pip install --find-links wheelhouse/artifact pyogrio
+          python -m pip list
 
-  #     # TODO temporary set env variable for curl certificate for Linux
-  #     - name: Set CURL_CA_BUNDLE environment variable
-  #       if: runner.os == 'Linux'
-  #       run: |
-  #         echo "CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> $GITHUB_ENV
+      # TODO temporary set env variable for curl certificate for Linux
+      - name: Set CURL_CA_BUNDLE environment variable
+        if: runner.os == 'Linux'
+        run: |
+          echo "CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> $GITHUB_ENV
 
-  #     - name: Run tests
-  #       shell: bash
-  #       run: |
-  #         cd ..
-  #         python -m pytest --pyargs pyogrio.tests -v
+      - name: Run tests
+        shell: bash
+        run: |
+          cd ..
+          python -m pytest --pyargs pyogrio.tests -v
 
-  # publish:
-  #   name: Publish pyogrio to GitHub / PyPI
-  #   needs: [build-sdist, test-wheels]
-  #   runs-on: ubuntu-latest
-  #   # release on every tag
-  #   if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+  publish:
+    name: Publish pyogrio to GitHub / PyPI
+    needs: [build-sdist, test-wheels]
+    runs-on: ubuntu-latest
+    # release on every tag
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
-  #   steps:
-  #     - uses: actions/download-artifact@v2
-  #       with:
-  #         name: artifact
-  #         path: dist
+    steps:
+      - uses: actions/download-artifact@v2
+        with:
+          name: artifact
+          path: dist
 
-  #     - name: Publish distribution to PyPI
-  #       uses: pypa/gh-action-pypi-publish@master
-  #       with:
-  #         user: __token__
-  #         password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
-  #     - name: Create GitHub Release
-  #       id: create_release
-  #       uses: actions/create-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-  #       with:
-  #         tag_name: ${{ github.ref }}
-  #         release_name: ${{ github.ref }}
-  #         draft: false
-  #         prerelease: false
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
 
-  #     - name: Get Asset name
-  #       run: |
-  #         export PKG=$(ls dist/ | grep tar)
-  #         set -- $PKG
-  #         echo "name=$1" >> $GITHUB_ENV
+      - name: Get Asset name
+        run: |
+          export PKG=$(ls dist/ | grep tar)
+          set -- $PKG
+          echo "name=$1" >> $GITHUB_ENV
 
-  #     - name: Upload Release Asset (sdist) to GitHub
-  #       id: upload-release-asset
-  #       uses: actions/upload-release-asset@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         upload_url: ${{ steps.create_release.outputs.upload_url }}
-  #         asset_path: dist/${{ env.name }}
-  #         asset_name: ${{ env.name }}
-  #         asset_content_type: application/zip
+      - name: Upload Release Asset (sdist) to GitHub
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/${{ env.name }}
+          asset_name: ${{ env.name }}
+          asset_content_type: application/zip
