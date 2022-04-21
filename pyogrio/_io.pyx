@@ -1266,7 +1266,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
             # Convert to multi type
-            if promote_to_multi is True:
+            if promote_to_multi:
                 if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
                     ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
                 elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
