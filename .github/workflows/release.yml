@@ -110,8 +110,8 @@ jobs:
         id: vcpkgcache
         with:
           path: |
-            /Users/runner/.cache/vcpkg/archives
             ${{ matrix.vcpkg_installed_root }}
+            /Users/runner/.cache/vcpkg/archives
           # bump the last digit to avoid using previous build cache
           key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme2
 
@@ -130,18 +130,14 @@ jobs:
         run: |
           vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
           vcpkg list
-          ls $VCPKG_INSTALLATION_ROOT
-          ls ${{ matrix.vcpkg_installed_root }}
-          ls ${{ matrix.vcpkg_logs }}
-          ls /Users/runner/.cache/*
-          ls /Users/runner/.cache/vcpkg/*
           ls /Users/runner/.cache/vcpkg/archives/*
 
       - name: Upload vcpkg build logs
         # if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          path: ${{ matrix.vcpkg_logs }}
+          # path: ${{ matrix.vcpkg_logs }}
+          path: /Users/runner/.cache/vcpkg/archives/*
 
       # - name: Build wheels
       #   uses: pypa/cibuildwheel@v2.3.1
