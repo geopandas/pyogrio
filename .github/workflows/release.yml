@@ -89,13 +89,14 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
+            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
+
           - os: "windows-2019"
             triplet: "x64-windows"
-            # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
-            # no longer seems properly set on windows; it gets clobbered with
-            # the drive where the worker is run
-            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+            # windows requires windows-specific paths
+            vcpkg_cache: "$env.VCPKG_INSTALLATION_ROOT\\installed"
+            vcpkg_logs: "$env.VCPKG_INSTALLATION_ROOT\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -111,10 +112,9 @@ jobs:
         id: vcpkgcache
         with:
           path: |
-            /Users/runner/.cache/vcpkg/archives
-            $VCPKG_INSTALLATION_ROOT/installed
+            ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-3
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme4
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -136,8 +136,7 @@ jobs:
         # if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          path: $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
-          # path: ${{ matrix.vcpkg_logs }}
+          path: ${{ matrix.vcpkg_logs }}
 
   #     - name: Build wheels
   #       uses: pypa/cibuildwheel@v2.3.1
