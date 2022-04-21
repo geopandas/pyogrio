@@ -115,7 +115,7 @@ def test_read_fid_as_index(naturalearth_lowres):
     assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
-@pytest.mark.filterwarnings("ignore: Layer")
+@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where(naturalearth_lowres):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres, where="")
@@ -186,58 +186,32 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.filterwarnings("ignore: Layer")
+@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_sql(naturalearth_lowres):
-    # The geometry column cannot be specified when using the 
+    # The geometry column cannot be specified when using the
     # default OGRSQL dialect but is returned nonetheless, so 4 columns.
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df.columns) == 4
     assert len(df) == 177
 
-    # Columns and/or where filters are applied after the sql query, so alias 
-    # needs to be specified instead of original column name.
-    df = read_dataframe(
-        naturalearth_lowres, 
-        sql=sql, 
-        sql_dialect="OGRSQL", 
-        columns=["iso_a3_renamed", "name"],
-        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-    )
-    assert len(df.columns) == 3
-    assert len(df) == 3
-    assert len(set(df.iso_a3_renamed.unique()).difference(["CAN", "MEX", "USA"])) == 0
-
-    # Add bbox as well.
-    df = read_dataframe(
-        naturalearth_lowres, 
-        sql=sql, 
-        sql_dialect="OGRSQL", 
-        columns=["iso_a3_renamed", "name"],
-        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-        bbox=(-140, 20, -100, 40)
-    )
-    assert len(df.columns) == 3
-    assert len(df) == 2
-    assert len(set(df.iso_a3_renamed.unique()).difference(["MEX", "USA"])) == 0
-
-    # Should return single row.
+    # Should return single row
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
-    
-    sql = """SELECT *  
-               FROM naturalearth_lowres 
+
+    sql = """SELECT *
+               FROM naturalearth_lowres
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df.columns) == 6
     assert len(df) == 3
-    assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
-    
+    assert df.iso_a3.tolist() == ["CAN", "USA", "MEX"]
+
     sql = """SELECT *
-               FROM naturalearth_lowres 
+               FROM naturalearth_lowres
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')
               ORDER BY name"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
@@ -245,19 +219,9 @@ def test_read_sql(naturalearth_lowres):
     assert len(df) == 3
     assert df.iso_a3.tolist() == ["CAN", "MEX", "USA"]
 
-    sql = """SELECT *
-               FROM naturalearth_lowres 
-              WHERE iso_a3 IN ('CAN', 'MEX', 'USA')
-              ORDER BY name"""
-    df = read_dataframe(
-            naturalearth_lowres, sql=sql, skip_features=1, max_features=1, sql_dialect="OGRSQL")
-    assert len(df.columns) == 6
-    assert len(df) == 1
-    assert df.iso_a3.tolist() == ["MEX"]
-    
     # Should return items within range.
     sql = """SELECT *
-               FROM naturalearth_lowres 
+               FROM naturalearth_lowres
               WHERE POP_EST >= 10000000 AND POP_EST < 100000000"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df) == 75
@@ -270,13 +234,67 @@ def test_read_sql(naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="OGRSQL")
     assert len(df) == 0
 
+
+def test_read_sql_invalid(naturalearth_lowres):
+    with pytest.raises(Exception, match="SQL Expression Parsing Error"):
+        read_dataframe(naturalearth_lowres, sql="invalid")
+
+    with pytest.raises(
+            ValueError, match="'sql' paramater cannot be combined with 'layer'"):
+        read_dataframe(naturalearth_lowres, sql="whatever", layer="invalid")
+
+
+def test_read_sql_columns_where(naturalearth_lowres):
+    sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
+    df = read_dataframe(
+        naturalearth_lowres,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        columns=["iso_a3_renamed", "name"],
+        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
+    )
+    assert len(df.columns) == 3
+    assert len(df) == 3
+    assert df.iso_a3_renamed.tolist() == ["CAN", "USA", "MEX"]
+
+
+def test_read_sql_columns_where_bbox(naturalearth_lowres):
+    sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
+    df = read_dataframe(
+        naturalearth_lowres,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        columns=["iso_a3_renamed", "name"],
+        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
+        bbox=(-140, 20, -100, 40)
+    )
+    assert len(df.columns) == 3
+    assert len(df) == 2
+    assert df.iso_a3_renamed.tolist() == ["USA", "MEX"]
+
+
+def test_read_sql_skip_max(naturalearth_lowres):
+    sql = """SELECT *
+               FROM naturalearth_lowres
+              WHERE iso_a3 IN ('CAN', 'MEX', 'USA')
+              ORDER BY name"""
+    df = read_dataframe(
+            naturalearth_lowres, sql=sql, skip_features=1,
+            max_features=1, sql_dialect="OGRSQL")
+    assert len(df.columns) == 6
+    assert len(df) == 1
+    assert df.iso_a3.tolist() == ["MEX"]
+
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
-    df = read_dataframe(naturalearth_lowres, sql=sql, max_features=3, sql_dialect="OGRSQL")
+    df = read_dataframe(
+            naturalearth_lowres, sql=sql, max_features=3, sql_dialect="OGRSQL")
     assert len(df) == 1
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
-        df = read_dataframe(naturalearth_lowres, sql=sql, skip_features=1, sql_dialect="OGRSQL")
+        _ = read_dataframe(
+                naturalearth_lowres, sql=sql, skip_features=1, sql_dialect="OGRSQL")
+
 
 def test_read_sql_dialect_sqlite(naturalearth_lowres):
     # should return singular item
@@ -288,7 +306,7 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres):
     area_canada = df.iloc[0].geometry.area
 
     # use spatialite function (needs SQLITE dialect)
-    sql = """SELECT ST_Buffer(geometry, 5) AS geometry, name, pop_est, iso_a3 
+    sql = """SELECT ST_Buffer(geometry, 5) AS geometry, name, pop_est, iso_a3
                FROM naturalearth_lowres 
               WHERE ISO_A3 = 'CAN'"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="SQLITE")
@@ -296,13 +314,6 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres):
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
 
-
-def test_read_sql_invalid(naturalearth_lowres):
-    with pytest.raises(Exception, match="SQL Expression Parsing Error"):
-        read_dataframe(naturalearth_lowres, sql="invalid")
-    with pytest.raises(ValueError, match="'sql' paramater cannot be combined with 'layer'"):
-        read_dataframe(naturalearth_lowres, sql="whatever", layer="invalid")
-        
 
 @pytest.mark.parametrize(
     "driver,ext",
@@ -340,6 +351,7 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
         )
 
 
+@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize(
     "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
 )
@@ -393,4 +405,3 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres):
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
     assert df.crs.equals(expected.crs)
-
