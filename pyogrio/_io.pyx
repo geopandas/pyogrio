@@ -620,7 +620,6 @@ cdef get_features(
         except CPLE_BaseError as exc:
             raise FeatureError(str(exc))
 
-
         if return_fids:
             fid_view[i] = OGR_F_GetFID(ogr_feature)
 
@@ -879,6 +878,7 @@ def ogr_read(
         if ogr_dataset != NULL:
             if sql is not None:
                 GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
+
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
@@ -1058,7 +1058,6 @@ cdef void * create_crs(str crs) except NULL:
         raise CRSError("Could not set CRS: {}".format(exc))
 
     return ogr_crs
-
 
 
 cdef infer_field_types(list dtypes):
