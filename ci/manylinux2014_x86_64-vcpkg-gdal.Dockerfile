@@ -24,4 +24,6 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
     --x-install-root=opt/vcpkg/installed && \
     vcpkg list
 
+# setting git safe directory is required for properly building wheels when
+# git >= 2.35.3
 RUN git config --global --add safe.directory "*"
