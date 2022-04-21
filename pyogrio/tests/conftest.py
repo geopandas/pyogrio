@@ -18,34 +18,36 @@ def pytest_report_header(config):
     )
 
 
+def prepare_testfile(testfile_path, dst_dir, ext):
+    if ext == testfile_path.suffix:
+        return testfile_path
+    else:
+        dst_path = dst_dir / f"{testfile_path.stem}{ext}"
+        if dst_path.exists():
+            return dst_path
+        gdf = pyogrio.read_dataframe(testfile_path)
+        pyogrio.write_dataframe(gdf, dst_path)
+        return dst_path
+
+
 @pytest.fixture(scope="session")
 def data_dir():
     return _data_dir
 
 
 @pytest.fixture(scope="function")
-def naturalearth_lowres():
-    return _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
+def naturalearth_lowres(tmp_path, request):
+    ext = request.param \
+            if ("param" in dir(request) and request.param is not None) else ".shp"
+    testfile_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
+
+    return prepare_testfile(testfile_path, tmp_path, ext)
 
 
-@pytest.fixture(scope="function")
-def naturalearth_lowres_ext(tmp_path, request):
-    ext = None
-    if "callspec" in dir(request._pyfuncitem):
-        ext = request._pyfuncitem.callspec.params.get("ext")
-    if ext is None:
-        ext = ".shp" 
+@pytest.fixture(scope="function", params=[".shp", ".gpkg", ".json"])
+def naturalearth_lowres_all_ext(tmp_path, naturalearth_lowres, request):
+    return prepare_testfile(naturalearth_lowres, tmp_path, request.param)
 
-    shp_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
-    if ext.lower() == ".shp":
-        return shp_path
-    else:
-        ext_path = tmp_path / f"{shp_path.stem}{ext}"
-        if ext_path.exists():
-            return ext_path
-        gdf = pyogrio.read_dataframe(shp_path)
-        pyogrio.write_dataframe(gdf, ext_path)
-        return ext_path
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
@@ -63,4 +65,3 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 @pytest.fixture(scope="session")
 def test_fgdb_vsi():
     return f"/vsizip/{_data_dir}/test_fgdb.gdb.zip"
-
