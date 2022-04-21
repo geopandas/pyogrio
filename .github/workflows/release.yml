@@ -89,15 +89,12 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
-            vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
           - os: "windows-2019"
             triplet: "x64-windows"
             # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
             # no longer seems properly set on windows; it gets clobbered with
             # the drive where the worker is run
-
-            vcpkg_installed_root: "$env:VCPKG_INSTALLATION_ROOT\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
@@ -109,15 +106,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: Cache vcpkg
-      #   uses: actions/cache@v3
-      #   id: vcpkgcache
-      #   with:
-      #     path: |
-      #       /Users/runner/.cache/vcpkg/archives
-      #       $VCPKG_INSTALLATION_ROOT/installed
-      #     # bump the last digit to avoid using previous build cache
-      #     key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme3
+      - name: Cache vcpkg
+        uses: actions/cache@v3
+        id: vcpkgcache
+        with:
+          path: |
+            /Users/runner/.cache/vcpkg/archives
+            $VCPKG_INSTALLATION_ROOT/installed
+          # bump the last digit to avoid using previous build cache
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-3
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -135,11 +132,12 @@ jobs:
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
 
-  #     - name: Upload vcpkg build logs
-  #       if: ${{ failure() }}
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ${{ matrix.vcpkg_logs }}
+      - name: Upload vcpkg build logs
+        # if: ${{ failure() }}
+        uses: actions/upload-artifact@v3
+        with:
+          path: $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
+          # path: ${{ matrix.vcpkg_logs }}
 
   #     - name: Build wheels
   #       uses: pypa/cibuildwheel@v2.3.1
