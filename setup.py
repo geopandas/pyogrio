@@ -74,7 +74,7 @@ def get_gdal_paths():
         gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
         config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
-        gdal_version = tuple(int(i) for i in config["version"].split("."))
+        gdal_version = tuple(int(i) for i in config["version"].strip("dev").split("."))
         if not gdal_version >= MIN_GDAL_VERSION:
             sys.exit("GDAL must be >= 2.4.x")
 
