@@ -22,9 +22,10 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          set-safe-directory: true
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -48,9 +49,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          set-safe-directory: true
 
       - name: Set up Docker Buildx
         id: buildx
@@ -103,9 +105,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          set-safe-directory: true
 
       - name: Cache vcpkg
         uses: actions/cache@v3
@@ -163,7 +166,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v2
