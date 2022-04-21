@@ -48,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: "osgeo/gdal:ubuntu-small-3.4.0" # python 3.8.10
+      volumes:
+        - ./wheelhouse:wheelhouse
 
     steps:
       - name: Download sdist from artifacts
@@ -62,16 +64,16 @@ jobs:
       - name: Build from sdist
         shell: bash
         run: |
-          python3 -m pip install cython~=0.29
-          python3 -m pip install wheelhouse/*.tar.gz
+          python3 -m pip install --no-cache-dir cython~=0.29
+          python3 -m pip install --no-cache-dir --no-build-isolation wheelhouse/*.tar.gz
           python3 -m pip list
 
       - name: Run tests
         shell: bash
         run: |
           cd ..
-          python3 -m pip install pytest pandas pyproj shapely
-          python3 -m pip install --no-deps geopandas
+          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely
+          python3 -m pip install --no-cache-dir --no-deps geopandas
           python3 -m pytest --pyargs pyogrio.tests -v
 
   # build-wheels-linux:
