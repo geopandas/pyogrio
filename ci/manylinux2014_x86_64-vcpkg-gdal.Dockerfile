@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2014_x86_64:2022-04-03-da6ecb3
+FROM quay.io/pypa/manylinux2014_x86_64:2022-04-18-1d09d31
 
 RUN yum install -y curl unzip zip tar python3
 
@@ -23,3 +23,7 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
     --x-manifest-root=opt/vcpkg \
     --x-install-root=opt/vcpkg/installed && \
     vcpkg list
+
+# setting git safe directory is required for properly building wheels when
+# git >= 2.35.3
+RUN git config --global --add safe.directory "*"
