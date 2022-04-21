@@ -57,6 +57,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
         with:
           install: true
+          buildkitd-flags: --debug
 
       - name: Build Docker image with vcpkg and gdal
         # using build-push-action (without push) to make use of cache arguments
@@ -69,73 +70,8 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
-
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
-
-  build-wheels-mac-win:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: "macos-10.15"
-            triplet: "x64-osx-dynamic"
-            vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
-            vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
-          - os: "windows-2019"
-            triplet: "x64-windows"
-            # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
-            # no longer seems properly set on windows; it gets clobbered with
-            # the drive where the worker is run
-            vcpkg_installed_root: "c:\\vcpkg\\installed"
-            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
-
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "10.15"
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        id: vcpkgcache
-        with:
-          path: |
-            /Users/runner/.cache/vcpkg/archives
-            ${{ matrix.vcpkg_installed_root }}
-          # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-2
-
-      # MacOS build requires aclocal, which is part of automake, but appears
-      # to be missing in default image
-      - name: Reinstall automake
-        if: runner.os == 'macOS'
-        run: |
-          brew reinstall automake
-          echo $(which aclocal)
-
-      - name: Install GDAL
         env:
-          VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-
-        run: |
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
-          vcpkg list
-
-      - name: Upload vcpkg build logs
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v3
-        with:
-          path: ${{ matrix.vcpkg_logs }}
+          BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -143,6 +79,73 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           path: ./wheelhouse/*.whl
+
+  # build-wheels-mac-win:
+  #   name: Build wheels on ${{ matrix.os }}
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - os: "macos-10.15"
+  #           triplet: "x64-osx-dynamic"
+  #           vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
+  #           vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
+  #         - os: "windows-2019"
+  #           triplet: "x64-windows"
+  #           # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
+  #           # no longer seems properly set on windows; it gets clobbered with
+  #           # the drive where the worker is run
+  #           vcpkg_installed_root: "c:\\vcpkg\\installed"
+  #           vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+
+  #   env:
+  #     MACOSX_DEPLOYMENT_TARGET: "10.15"
+
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: Cache vcpkg
+  #       uses: actions/cache@v3
+  #       id: vcpkgcache
+  #       with:
+  #         path: |
+  #           /Users/runner/.cache/vcpkg/archives
+  #           ${{ matrix.vcpkg_installed_root }}
+  #         # bump the last digit to avoid using previous build cache
+  #         key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-2
+
+  #     # MacOS build requires aclocal, which is part of automake, but appears
+  #     # to be missing in default image
+  #     - name: Reinstall automake
+  #       if: runner.os == 'macOS'
+  #       run: |
+  #         brew reinstall automake
+  #         echo $(which aclocal)
+
+  #     - name: Install GDAL
+  #       env:
+  #         VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+
+  #       run: |
+  #         vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
+  #         vcpkg list
+
+  #     - name: Upload vcpkg build logs
+  #       if: ${{ failure() }}
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         path: ${{ matrix.vcpkg_logs }}
+
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.3.1
+
+  #     - uses: actions/upload-artifact@v2
+  #       with:
+  #         path: ./wheelhouse/*.whl
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
@@ -151,14 +154,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-10.15"]
+        os: ["ubuntu-20.04"] # , "windows-latest", "macos-latest", "macos-10.15"]
         python-version: ["3.8", "3.9"]
-        include:
-          # TODO macOS is failing on py 3.10 because of shapely failure
-          - os: "ubuntu-20.04"
-            python-version: "3.10"
-          - os: "windows-latest"
-            python-version: "3.10"
+        # include:
+        #   # TODO macOS is failing on py 3.10 because of shapely failure
+        #   - os: "ubuntu-20.04"
+        #     python-version: "3.10"
+        #   - os: "windows-latest"
+        #     python-version: "3.10"
 
     steps:
       - name: Checkout

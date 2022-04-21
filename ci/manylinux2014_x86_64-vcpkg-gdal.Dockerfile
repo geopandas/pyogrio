@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2014_x86_64
+FROM quay.io/pypa/manylinux2014_x86_64:2022-04-03-da6ecb3
 
 RUN yum install -y curl unzip zip tar python3
 
