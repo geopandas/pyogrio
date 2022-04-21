@@ -156,7 +156,7 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, promote_to
         If True, will convert singular geometry types to their corresponding
         multi geometry type. By default, will convert convert mixed singular
         and multi geometry types to multi geometry types for drivers that do
-        not support mixed singular and geometry types.
+        not support mixed singular and multi geometry types.
 
     **kwargs
         The kwargs passed to OGR.
