@@ -88,13 +88,13 @@ jobs:
             triplet: "x64-osx-dynamic"
             vcpkg_installed_root: "$VCPKG_INSTALLATION_ROOT/installed"
             vcpkg_logs: "$VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log"
-          # - os: "windows-2019"
-          #   triplet: "x64-windows"
-          #   # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
-          #   # no longer seems properly set on windows; it gets clobbered with
-          #   # the drive where the worker is run
-          #   vcpkg_installed_root: "c:\\vcpkg\\installed"
-          #   vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+          - os: "windows-2019"
+            triplet: "x64-windows"
+            # windows requires windows-specific paths, and VCPKG_INSTALLATION_ROOT
+            # no longer seems properly set on windows; it gets clobbered with
+            # the drive where the worker is run
+            vcpkg_installed_root: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -106,14 +106,14 @@ jobs:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: vcpkgcache
         with:
           path: |
-            ${{ matrix.vcpkg_installed_root }}
             /Users/runner/.cache/vcpkg/archives
+            ${{ matrix.vcpkg_installed_root }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme2
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-2
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -130,14 +130,12 @@ jobs:
         run: |
           vcpkg install --debug --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${{ matrix.vcpkg_installed_root }}"
           vcpkg list
-          ls /Users/runner/.cache/vcpkg/archives/*
 
       - name: Upload vcpkg build logs
-        # if: ${{ failure() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          # path: ${{ matrix.vcpkg_logs }}
-          path: /Users/runner/.cache/vcpkg/archives/*
+          path: ${{ matrix.vcpkg_logs }}
 
       # - name: Build wheels
       #   uses: pypa/cibuildwheel@v2.3.1
