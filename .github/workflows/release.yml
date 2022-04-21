@@ -109,15 +109,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache vcpkg
-        uses: actions/cache@v3
-        id: vcpkgcache
-        with:
-          path: |
-            /Users/runner/.cache/vcpkg/archives
-            $VCPKG_INSTALLATION_ROOT/installed
-          # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme3
+      # - name: Cache vcpkg
+      #   uses: actions/cache@v3
+      #   id: vcpkgcache
+      #   with:
+      #     path: |
+      #       /Users/runner/.cache/vcpkg/archives
+      #       $VCPKG_INSTALLATION_ROOT/installed
+      #     # bump the last digit to avoid using previous build cache
+      #     key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-fixme3
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -134,8 +134,6 @@ jobs:
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
-          echo "$VCPKG_INSTALLATION_ROOT/installed (without quotes):"
-          ls ${{ matrix.vcpkg_installed_root }}
 
   #     - name: Upload vcpkg build logs
   #       if: ${{ failure() }}
