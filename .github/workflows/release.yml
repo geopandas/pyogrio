@@ -130,9 +130,9 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-
+        shell: bash
         run: |
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=${{ matrix.vcpkg_installed_root }}
+          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
           echo "$VCPKG_INSTALLATION_ROOT/installed (without quotes):"
           ls ${{ matrix.vcpkg_installed_root }}
