@@ -188,17 +188,20 @@ You can use the `sql` parameter to execute a sql query on a dataset.
 
 Depending on the dataset, you can use different sql dialects. By default, if 
 the dataset natively supports sql, the sql statement will be passed through 
-to the underlying RDBMS. In this case the sql query should be written in the 
-corresponding dialect (e.g. GPKG/Sqlite, PostgreSQL, Oracle Spatial). If the 
-datasource doesn't natively support sql (e.g. ESRI Shapefile, FlatGeobuf), you 
-can choose between 
-'[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
+as such. Hence, the sql query should be written in the relevant native sql
+dialect (e.g. [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)/
+[Sqlite](https://gdal.org/drivers/vector/sqlite.html), 
+[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource 
+doesn't natively support sql (e.g. 
+[ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html), 
+[FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose 
+between '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
 (the default) and  
 '[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)'. 
 For SELECT statements the 'SQLITE' dialect tends to provide more spatial 
 features as all 
 [spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
-functions can be used.
+functions can be used. 
 
 You can combine a sql query with other parameters that will filter the 
 dataset. When using ``columns``, ``skip_features``, ``max_features``, and/or 
@@ -211,8 +214,8 @@ statement, so these are some things you need to be aware of:
 
 For the ``bbox`` parameter, depending on the combination of the dialect of the 
 sql query and the dataset, a spatial index will be used or not, e.g.:
-- .shp file: spatial index is used with 'OGRSQL' query, not with 'SQLITE'.
-- .gpkg file: spatial index is always used.
+- ESRI Shapefile: spatial index is used with 'OGRSQL', not with 'SQLITE'.
+- Geopackage: spatial index is always used.
 
 The following sql query returns the 5 Western European countries with the most 
 neighbours:
