@@ -48,8 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: "osgeo/gdal:ubuntu-small-3.4.0" # python 3.8.10
-      volumes:
-        - /__w/pyogrio/pyogrio/wheelhouse/artifact:/wheelhouse
 
     steps:
       - name: Download sdist from artifacts
@@ -61,8 +59,6 @@ jobs:
         run: |
           echo "wheelhouse/*"
           ls wheelhouse/*
-          echo "/wheelhouse/*"
-          ls /wheelhouse/*
 
       - name: Install python
         run: |
@@ -72,7 +68,7 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install --no-cache-dir cython~=0.29
-          python3 -m pip install --no-cache-dir --no-build-isolation /wheelhouse/*.tar.gz
+          python3 -m pip install --no-cache-dir --no-build-isolation wheelhouse/artifact/*.tar.gz
           python3 -m pip list
 
       - name: Run tests
