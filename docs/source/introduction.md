@@ -187,7 +187,7 @@ Note: the `bbox` values must be in the same CRS as the dataset.
 You can use the `sql` parameter to execute a sql query on a dataset. 
 
 Depending on the dataset, you can use different sql dialects. By default, if 
-the dataset natively supports sql, the sql style for this datasource 
+the dataset natively supports sql, the sql dialect for this datasource 
 will be used (eg. GPKG, PostgreSQL). If the datasource doesn't
 natively support sql (eg. ESRI Shapefile, FlatGeobuf), you can choose 
 between the '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
