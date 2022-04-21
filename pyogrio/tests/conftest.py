@@ -21,13 +21,13 @@ def pytest_report_header(config):
 def prepare_testfile(testfile_path, dst_dir, ext):
     if ext == testfile_path.suffix:
         return testfile_path
-    else:
-        dst_path = dst_dir / f"{testfile_path.stem}{ext}"
-        if dst_path.exists():
-            return dst_path
-        gdf = pyogrio.read_dataframe(testfile_path)
-        pyogrio.write_dataframe(gdf, dst_path)
+
+    dst_path = dst_dir / f"{testfile_path.stem}{ext}"
+    if dst_path.exists():
         return dst_path
+    gdf = pyogrio.read_dataframe(testfile_path)
+    pyogrio.write_dataframe(gdf, dst_path)
+    return dst_path
 
 
 @pytest.fixture(scope="session")
@@ -37,8 +37,7 @@ def data_dir():
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres(tmp_path, request):
-    ext = request.param \
-            if ("param" in dir(request) and request.param is not None) else ".shp"
+    ext = getattr(request, "param", ".shp")
     testfile_path = _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
 
     return prepare_testfile(testfile_path, tmp_path, ext)

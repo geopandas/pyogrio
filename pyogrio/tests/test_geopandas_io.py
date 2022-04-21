@@ -47,7 +47,7 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
 
 @pytest.mark.parametrize(
         "naturalearth_lowres, expected_ext",
-        [(".gpkg", ".gpkg"), (None, ".shp")],
+        [(".gpkg", ".gpkg"), (".shp", ".shp")],
         indirect=["naturalearth_lowres"])
 def test_fixture_naturalearth_lowres(naturalearth_lowres, expected_ext):
     # Test the fixture with "indirect" parameter
