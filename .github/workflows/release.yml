@@ -57,6 +57,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
         with:
           install: true
+          buildkitd-flags: --debug
 
       - name: Build Docker image with vcpkg and gdal
         # using build-push-action (without push) to make use of cache arguments
@@ -69,6 +70,8 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        env:
+          BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -86,8 +89,14 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
+            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+
           - os: "windows-2019"
             triplet: "x64-windows"
+            # windows requires windows-specific paths
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
@@ -99,13 +108,13 @@ jobs:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: vcpkgcache
         with:
           path: |
-            /Users/runner/.cache/vcpkg/archives
-            C:\vcpkg\installed
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-1
+            ${{ matrix.vcpkg_cache }}
+          # bump the last digit to avoid using previous build cache
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-cache4
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -118,17 +127,16 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-
+        shell: bash
         run: |
-          echo "VCPKG_INSTALLATION_ROOT: ${VCPKG_INSTALLATION_ROOT}"
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root="${VCPKG_INSTALLATION_ROOT}/installed"
+          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v3
         with:
-          path: "${VCPKG_INSTALLATION_ROOT}/buildtrees/**/*.log"
+          path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
