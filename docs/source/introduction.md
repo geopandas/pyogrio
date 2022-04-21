@@ -187,34 +187,53 @@ Note: the `bbox` values must be in the same CRS as the dataset.
 You can use the `sql` parameter to execute a sql query on a dataset. 
 
 Depending on the dataset, you can use different sql dialects. By default, if 
-the dataset natively supports sql, the sql dialect for this datasource 
-will be used (eg. GPKG, PostgreSQL). If the datasource doesn't
-natively support sql (eg. ESRI Shapefile, FlatGeobuf), you can choose 
-between the '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
-(the default) and the '[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)' 
-dialect. For SELECT statements the 'SQLITE' dialect tends to provide more 
-features as all [spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
+the dataset natively supports sql, the sql statement will be passed through 
+to the underlying RDBMS. In this case the sql query should be written in the 
+corresponding dialect (e.g. GPKG/Sqlite, PostgreSQL, Oracle Spatial). If the 
+datasource doesn't natively support sql (e.g. ESRI Shapefile, FlatGeobuf), you 
+can choose between 
+'[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
+(the default) and  
+'[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)'. 
+For SELECT statements the 'SQLITE' dialect tends to provide more spatial 
+features as all 
+[spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
 functions can be used.
 
-This sql query returns the 5 Western European countries with the most 
-neighbours with their "circularity":
+You can combine a sql query with other parameters that will filter the 
+dataset. When using ``columns``, ``skip_features``, ``max_features``, and/or 
+``where`` it is important to note that they will be applied AFTER the sql 
+statement, so these are some things you need to be aware of:
+- if you specify an alias for a column in the sql statement, you need to 
+  specify this alias when using the ``columns`` keyword.
+- ``skip_features`` and ``max_features`` will be applied on the rows returned 
+  by the sql query, not on the original dataset.
+
+For the ``bbox`` parameter, depending on the combination of the dialect of the 
+sql query and the dataset, a spatial index will be used or not, e.g.:
+- .shp file: spatial index is used with 'OGRSQL' query, not with 'SQLITE'.
+- .gpkg file: spatial index is always used.
+
+The following sql query returns the 5 Western European countries with the most 
+neighbours:
 
 ```python
->>> sql = """SELECT geometry, name, Circularity(geometry) AS circularity,
-                    (SELECT count(*)  
-                       FROM ne_10m_admin_0_countries layer_sub
-                      WHERE ST_Intersects(layer.geometry, layer_sub.geometry)) AS nb_neighbours
-               FROM ne_10m_admin_0_countries layer
-              WHERE subregion = 'Western Europe'
-              ORDER BY nb_neighbours DESC
-              LIMIT 5"""
+>>> sql = """
+        SELECT geometry, name,
+               (SELECT count(*)  
+                  FROM ne_10m_admin_0_countries layer_sub
+                 WHERE ST_Intersects(layer.geometry, layer_sub.geometry)) AS nb_neighbours
+          FROM ne_10m_admin_0_countries layer
+         WHERE subregion = 'Western Europe'
+         ORDER BY nb_neighbours DESC
+         LIMIT 5"""
 >>> read_dataframe('ne_10m_admin_0_countries.shp', sql=sql, sql_dialect='SQLITE')
-          NAME  circularity  nb_neighbours                            geometry
-0       France     0.086359             11  MULTIPOLYGON (((-54.11153 2.114...
-1      Germany     0.123962             10  MULTIPOLYGON (((13.81572 48.766...
-2      Austria     0.216613              9  POLYGON ((16.94504 48.60417, 16...
-3  Switzerland     0.221956              6  POLYGON ((10.45381 46.86443, 10...
-4      Belgium     0.268855              5  POLYGON ((2.52180 51.08754, 2.5...
+          NAME  nb_neighbours                            geometry
+0       France             11  MULTIPOLYGON (((-54.11153 2.114...
+1      Germany             10  MULTIPOLYGON (((13.81572 48.766...
+2      Austria              9  POLYGON ((16.94504 48.60417, 16...
+3  Switzerland              6  POLYGON ((10.45381 46.86443, 10...
+4      Belgium              5  POLYGON ((2.52180 51.08754, 2.5...
 ```
 
 ## Force geometries to be read as 2D geometries

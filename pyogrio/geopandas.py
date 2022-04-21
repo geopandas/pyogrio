@@ -1,5 +1,3 @@
-import os
-
 from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
@@ -67,10 +65,10 @@ def read_dataframe(
         be ignored and 2D geometries to be returned
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
-        features.  Must be less than the total number of features in the file. 
+        features.  Must be less than the total number of features in the file.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
-        number of features in the file minus skip_features (if used). 
+        number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values.  Uses a
         restricted form of SQL WHERE clause, defined here:
@@ -82,31 +80,34 @@ def read_dataframe(
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (``skip_features``, ``max_features``,
-        ``where`` or ``bbox``). Note that the starting index is driver and file
+        ``where``, ``bbox`` or ``sql``). Note that the starting index is driver and file
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
     sql : str, optional (default: None)
-        The sql statement to execute. Look at the sql_dialect parameter for 
-        more information on the syntax to use for the query. When combined 
-        with other keywords like columns, skip_features, max_features, where 
-        or bbox, those are applied after the sql query. The ``layer`` keyword 
-        cannot be combined with ``sql``.
+        The sql statement to execute. Look at the sql_dialect parameter for
+        more information on the syntax to use for the query. When combined
+        with other keywords like ``columns``, ``skip_features``,
+        ``max_features``, ``where`` or ``bbox``, those are applied after the
+        sql query. Be aware that this can have an impact on performance,
+        because e.g. filtering with the ``bbox`` keyword won't trigger use of
+        spatial indexes anymore.
+        Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in. Possible values:
-        
-          - **None**: if the datasource natively supports sql, the specific  
-            sql syntax for this datasource should be used (eg. SQLite, 
-            PostgreSQL, Oracle,...). If the datasource doesn't natively 
-            support sql, the 'OGRSQL_' dialect is the 
+
+          - **None**: if the datasource natively supports sql, the specific
+            sql syntax for this datasource should be used (eg. SQLite,
+            PostgreSQL, Oracle,...). If the datasource doesn't natively
+            support sql, the 'OGRSQL_' dialect is the
             default.
-          - 'OGRSQL_': can be used on any datasource. Performance can suffer 
+          - 'OGRSQL_': can be used on any datasource. Performance can suffer
             when used on datasources with native support for sql.
-          - 'SQLITE_': can be used on any datasource. All spatialite_ 
-            functions can be used. Performance can suffer on datasources with 
-            native support for sql, except for GPKG and SQLite as this is 
-            their native sql dialect. 
-               
+          - 'SQLITE_': can be used on any datasource. All spatialite_
+            functions can be used. Performance can suffer on datasources with
+            native support for sql, except for GPKG and SQLite as this is
+            their native sql dialect.
+
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
