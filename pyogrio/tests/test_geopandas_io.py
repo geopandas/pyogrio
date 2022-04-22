@@ -15,11 +15,6 @@ try:
     has_geopandas = True
 except ImportError:
     has_geopandas = False
-try:
-    import pygeos
-    has_pygeos = True
-except ImportError:
-    has_pygeos = False
 
 pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
@@ -188,7 +183,6 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
 
-@pytest.mark.skipif(not has_pygeos, reason="pygeos not available")
 @pytest.mark.parametrize(
         "ext",
         [".fgb", ".geojson", ".geojsons", ".gpkg", ".json", ".shp", ],
@@ -211,22 +205,17 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     else:
         assert len(geometry_types) == 2
 
-    if ext == ".geojsons":
-        # GeoJSONSeq reorders features and vertices, so normalize + sort 
-        result_gdf.geometry = gp.GeoSeries(pygeos.normalize(result_gdf.geometry.array.data))
-        result_gdf = sort_geodataframe(result_gdf)
-        input_gdf.geometry = gp.GeoSeries(pygeos.normalize(input_gdf.geometry.array.data))
-        input_gdf = sort_geodataframe(input_gdf)
-    elif ext == ".fgb":
-        # FlatGeobuf (with spatial index) reorders features, so sort 
-        result_gdf = sort_geodataframe(result_gdf)
-        # Convert input_gdf to multipolygon to get same sorting
-        input_gdf.geometry = gp.GeoSeries(to_multipolygon(input_gdf.geometry.array.data))
-        input_gdf = sort_geodataframe(input_gdf)
+    if ext in [".geojsons", ".fgb"]:
+        # These formats reorder features, so sort
+        sort_columns = [col for col in result_gdf.columns if col != "geometry"]
+        result_gdf = result_gdf.sort_values(by=sort_columns).reset_index(drop=True)
+        input_gdf = input_gdf.sort_values(by=sort_columns).reset_index(drop=True)
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
     is_json = (ext in [".geojsons", ".geojson", ".json"])
+    # In .geojsons the vertices are reordered, so normalize
+    is_jsons = (ext == ".geojsons")
 
     assert_geodataframe_equal(
         result_gdf,
@@ -234,6 +223,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
         check_less_precise=is_json,
         check_index_type=False,
         check_dtype=not is_json,
+        normalize=is_jsons,
     )
 
 
@@ -245,53 +235,6 @@ def test_write_dataframe_mixed_fgb(tmp_path, naturalearth_lowres):
     # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
     with pytest.raises(Exception, match="Could not add feature to layer at"):
         write_dataframe(input_gdf, output_path, promote_to_multi=False)
-
-
-def sort_geodataframe(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
-    """
-    Sort the geodataframe on all column's values, incl. the geometry column.
-
-    Parameters
-    ----------
-        gdf: gp.GeoDataFrame
-            the geodataframe to order
-
-    Returns
-    -------
-    gp.GeoDataFrame: the ordered GeoDataFrame.
-    """
-    result_gdf = gdf.copy()
-    result_gdf["tmp_order_wkt"] = result_gdf.geometry.to_wkt()
-    columns_no_geom = [column for column in result_gdf.columns if column != "geometry"]
-    result_gdf = (result_gdf
-            .sort_values(by=columns_no_geom)
-            .drop(columns="tmp_order_wkt")
-            .reset_index(drop=True))
-    assert isinstance(result_gdf, gp.GeoDataFrame)
-    return result_gdf 
-
-
-def to_multipolygon(geometries):
-    """
-    Convert single part polygons to multipolygons.
-
-    Parameters
-    ----------
-    geometries : ndarray of pygeos geometries
-        can be mixed polygon and multipolygon types
-
-    Returns
-    -------
-    ndarray of pygeos geometries, all multipolygon types
-    """
-    ix = pygeos.get_type_id(geometries) == 3
-    if ix.sum():
-        geometries = geometries.copy()
-        geometries[ix] = np.apply_along_axis(
-            pygeos.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
-        )
-
-    return geometries
 
 
 @pytest.mark.parametrize(
