@@ -112,18 +112,23 @@ def test_read_null_values(test_fgdb_vsi):
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
 
 
-def test_read_fid_as_index(naturalearth_lowres):
+def test_read_fid_as_index(naturalearth_lowres_all_ext):
     kwargs = {"skip_features": 2, "max_features": 2}
 
     # default is to not set FIDs as index
-    df = read_dataframe(naturalearth_lowres, **kwargs)
+    df = read_dataframe(naturalearth_lowres_all_ext, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres, fid_as_index=False, **kwargs)
+    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres, fid_as_index=True, **kwargs)
-    assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
+    if naturalearth_lowres_all_ext.suffix in ['.gpkg']:
+        # File format where fid starts at 1
+        assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
+    else:
+        # File format where fid starts at 0
+        assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
 @pytest.mark.filterwarnings("ignore: Layer")
@@ -165,26 +170,26 @@ def test_read_where_invalid(naturalearth_lowres_all_ext):
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
-def test_read_bbox_invalid(naturalearth_lowres, bbox):
+def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
     with pytest.raises(ValueError, match="Invalid bbox"):
-        read_dataframe(naturalearth_lowres, bbox=bbox)
+        read_dataframe(naturalearth_lowres_all_ext, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres):
+def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        df = read_dataframe(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))
+        df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
         assert len(df) == 0
 
-    df = read_dataframe(naturalearth_lowres, bbox=(-140, 20, -100, 40))
+    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 40))
     assert len(df) == 2
     assert np.array_equal(df.iso_a3, ["USA", "MEX"])
 
 
-def test_read_fids(naturalearth_lowres):
+def test_read_fids(naturalearth_lowres_all_ext):
     # ensure keyword is properly passed through
-    fids = np.array([0, 10, 5], dtype=np.int64)
-    df = read_dataframe(naturalearth_lowres, fids=fids, fid_as_index=True)
+    fids = np.array([1, 10, 5], dtype=np.int64)
+    df = read_dataframe(naturalearth_lowres_all_ext, fids=fids, fid_as_index=True)
     assert len(df) == 3
     assert np.array_equal(fids, df.index.values)
 
