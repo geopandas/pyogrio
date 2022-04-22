@@ -345,8 +345,7 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres_all_ext):
     # Use spatialite function
     ext = naturalearth_lowres_all_ext.suffix
     if ext == '.gpkg' and spatialite_available(naturalearth_lowres_all_ext) is False:
-        raise Exception("SPATIALITE NOT AVAILABLE")
-        #pytest.skip("test on gpkg needs libspatialite")
+        pytest.skip("The rest of this test needs sqlite with spatialite enabled")
     geometry_column = "geom" if ext == '.gpkg' else "geometry"
     sql = f"""SELECT ST_Buffer({geometry_column}, 5) AS geometry, name, pop_est, iso_a3
                 FROM naturalearth_lowres
