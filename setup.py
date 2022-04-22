@@ -74,7 +74,7 @@ def get_gdal_paths():
         gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
         config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
-        gdal_version = tuple(int(i) for i in config["version"].split("."))
+        gdal_version = tuple(int(i) for i in config["version"].strip("dev").split("."))
         if not gdal_version >= MIN_GDAL_VERSION:
             sys.exit("GDAL must be >= 2.4.x")
 
@@ -167,7 +167,7 @@ else:
         else:
             raise Exception(
                 "Could not find GDAL data files for packaging. "
-                "Ensure to set the GDAL_DATA environment variable"
+                "Make sure to set the GDAL_DATA environment variable"
             )
 
         proj_data = os.environ.get("PROJ_LIB")
@@ -177,8 +177,8 @@ else:
         else:
             raise Exception(
                 "Could not find PROJ data files for packaging. "
-                "Ensure to set the PROJ_LIB environment variable"
-            )   
+                "Make sure to set the PROJ_LIB environment variable"
+            )
 
         package_data = {"pyogrio": ["gdal_data/*", "proj_data/*"]}
 
