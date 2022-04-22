@@ -17,14 +17,18 @@ try:
 except ImportError:
     has_geopandas = False
 
-try:
-    import libspatialite
-
-    has_libspatialite = True
-except ImportError:
-    has_libspatialite = False
-
 pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+
+
+def spatialite_available(path):
+    try:
+        _ = read_dataframe(
+                path,
+                sql="select spatialite_version();",
+                sql_dialect="SQLITE")
+        return True
+    except Exception:
+        return False
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
@@ -340,9 +344,9 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres_all_ext):
 
     # Use spatialite function
     ext = naturalearth_lowres_all_ext.suffix
-    if has_libspatialite is False and ext == '.gpkg':
-        pytest.skip("test on gpkg needs libspatialite")
-
+    if ext == '.gpkg' and spatialite_available(naturalearth_lowres_all_ext) is False:
+        raise Exception("SPATIALITE NOT AVAILABLE")
+        #pytest.skip("test on gpkg needs libspatialite")
     geometry_column = "geom" if ext == '.gpkg' else "geometry"
     sql = f"""SELECT ST_Buffer({geometry_column}, 5) AS geometry, name, pop_est, iso_a3
                 FROM naturalearth_lowres
