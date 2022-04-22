@@ -17,6 +17,12 @@ try:
 except ImportError:
     has_geopandas = False
 
+try:
+    import libspatialite
+
+    has_libspatialite = True
+except ImportError:
+    has_libspatialite = False
 
 pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
@@ -142,7 +148,8 @@ def test_read_where(naturalearth_lowres_all_ext):
     assert len(df) == 1
     assert df.iloc[0].iso_a3 == "CAN"
 
-    df = read_dataframe(naturalearth_lowres_all_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')")
+    df = read_dataframe(
+            naturalearth_lowres_all_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')")
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
 
@@ -318,7 +325,8 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
         _ = read_dataframe(
-                naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL")
+                naturalearth_lowres_all_ext, sql=sql, skip_features=1, 
+                sql_dialect="OGRSQL")
 
 
 def test_read_sql_dialect_sqlite(naturalearth_lowres_all_ext):
@@ -332,6 +340,9 @@ def test_read_sql_dialect_sqlite(naturalearth_lowres_all_ext):
 
     # Use spatialite function
     ext = naturalearth_lowres_all_ext.suffix
+    if has_libspatialite is False and ext == '.gpkg':
+        pytest.skip("test on gpkg needs libspatialite")
+
     geometry_column = "geom" if ext == '.gpkg' else "geometry"
     sql = f"""SELECT ST_Buffer({geometry_column}, 5) AS geometry, name, pop_est, iso_a3
                 FROM naturalearth_lowres
