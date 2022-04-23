@@ -91,7 +91,7 @@ def read_dataframe(
         ``max_features``, ``where`` or ``bbox``, those are applied after the
         sql query. Be aware that this can have an impact on performance,
         (e.g. filtering with the ``bbox`` keyword may not use
-        spatial indexes anymore.
+        spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in. Possible values:
