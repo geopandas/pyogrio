@@ -42,6 +42,37 @@ jobs:
           path: ./dist/*.tar.gz
           retention-days: 5
 
+  test-sdist:
+    name: Test sdist
+    needs: [build-sdist]
+    runs-on: ubuntu-latest
+    container:
+      image: "osgeo/gdal:ubuntu-small-3.4.0" # python 3.8.10
+
+    steps:
+      - name: Download sdist from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Install pip
+        run: |
+          apt-get update && apt-get install -y python3-pip
+
+      - name: Build from sdist and install test dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --no-cache-dir wheelhouse/artifact/*.tar.gz
+          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely
+          python3 -m pip install --no-cache-dir --no-deps geopandas
+          python3 -m pip list
+
+      - name: Run tests
+        shell: bash
+        run: |
+          cd ..
+          python3 -m pytest --pyargs pyogrio.tests -v
+
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: "ubuntu-20.04"
@@ -199,7 +230,7 @@ jobs:
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
-    needs: [build-sdist, test-wheels]
+    needs: [test-sdist, test-wheels]
     runs-on: ubuntu-latest
     # release on every tag
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
