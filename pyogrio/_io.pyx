@@ -771,7 +771,8 @@ def ogr_read(
     object where=None,
     tuple bbox=None,
     object fids=None,
-    object sql=None,
+    str sql=None,
+    str sql_dialect=None,
     object sql_dialect=None,
     int return_fids=False,
     **kwargs):
