@@ -90,7 +90,7 @@ def read_dataframe(
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
         sql query. Be aware that this can have an impact on performance,
-        because e.g. filtering with the ``bbox`` keyword won't trigger use of
+        (e.g. filtering with the ``bbox`` keyword may not use
         spatial indexes anymore.
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
