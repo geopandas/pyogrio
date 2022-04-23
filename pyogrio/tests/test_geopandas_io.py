@@ -5,8 +5,8 @@ import pandas as pd
 from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
-from pyogrio import list_layers
-from pyogrio.errors import DataLayerError
+from pyogrio import list_layers, read_info
+from pyogrio.errors import DataLayerError, FeatureError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 
 try:
@@ -257,6 +257,44 @@ def test_write_empty_dataframe(tmpdir, driver, ext):
     df = read_dataframe(filename)
 
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize(
+    "driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg"), ("FlatGeobuf", "fbg")]
+)
+def test_write_mixed_geometries(tmp_path, driver, ext):
+    from shapely.geometry import Point, LineString, box
+
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0, 3.0]},
+        geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
+        crs="EPSG:4326"
+    )
+
+    filename = tmp_path / f"test.{ext}"
+    write_dataframe(df, filename, driver=driver)
+
+    assert read_info(filename)["geometry_type"] == "Unknown"
+    result = read_dataframe(filename)
+    if driver == "FlatGeobuf":
+        # FlatGeobuf results in mixed row order in case of mixed geometries
+        result = result.sort_values("col").reset_index(drop=True)
+    assert_geodataframe_equal(result, df)
+
+
+def test_write_mixed_geometries_unsupported(tmp_path):
+    # Shapefile doesn't support generic "Geometry" / "Unknown" type
+    # for mixed geometries
+    from shapely.geometry import Point, LineString, box
+
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0, 3.0]},
+        geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
+        crs="EPSG:4326"
+    )
+
+    with pytest.raises(FeatureError):
+        write_dataframe(df, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
 def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
