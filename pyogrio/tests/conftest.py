@@ -6,7 +6,9 @@ import pytest
 from pyogrio import __gdal_version_string__, __version__, list_drivers
 import pyogrio
 
+
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
+ALL_EXTS = [".shp", ".gpkg", ".json"]
 
 
 def pytest_report_header(config):
@@ -43,7 +45,7 @@ def naturalearth_lowres(tmp_path, request):
     return prepare_testfile(testfile_path, tmp_path, ext)
 
 
-@pytest.fixture(scope="function", params=[".shp", ".gpkg", ".json"])
+@pytest.fixture(scope="function", params=ALL_EXTS)
 def naturalearth_lowres_all_ext(tmp_path, naturalearth_lowres, request):
     return prepare_testfile(naturalearth_lowres, tmp_path, request.param)
 

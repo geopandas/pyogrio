@@ -8,6 +8,7 @@ import pytest
 from pyogrio import list_layers
 from pyogrio.errors import DataLayerError
 from pyogrio.geopandas import read_dataframe, write_dataframe
+from pyogrio.tests.conftest import ALL_EXTS
 
 try:
     import geopandas as gp
@@ -333,24 +334,50 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
                 sql_dialect="OGRSQL")
 
 
-def test_read_sql_dialect_sqlite(naturalearth_lowres_all_ext):
+@pytest.mark.parametrize(
+        "naturalearth_lowres", [ext for ext in ALL_EXTS if ext != ".gpkg"],
+        indirect=["naturalearth_lowres"])
+def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     # Should return singular item
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="SQLITE")
+    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="SQLITE")
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
     area_canada = df.iloc[0].geometry.area
 
     # Use spatialite function
-    ext = naturalearth_lowres_all_ext.suffix
-    if ext == '.gpkg' and spatialite_available(naturalearth_lowres_all_ext) is False:
-        pytest.skip("The rest of this test needs sqlite with spatialite enabled")
+    sql = """SELECT ST_Buffer(geometry, 5) AS geometry, name, pop_est, iso_a3
+               FROM naturalearth_lowres
+              WHERE ISO_A3 = 'CAN'"""
+    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="SQLITE")
+    assert len(df) == 1
+    assert len(df.columns) == 4
+    assert df.iloc[0].geometry.area > area_canada
+
+
+@pytest.mark.parametrize(
+        "naturalearth_lowres", [".gpkg"],
+        indirect=["naturalearth_lowres"])
+def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
+    #if spatialite_available(naturalearth_lowres) is False:
+    #    pytest.skip("The test needs sqlite with spatialite enabled")
+
+    # Should return singular item
+    sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
+    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
+    assert len(df) == 1
+    assert len(df.columns) == 6
+    assert df.iloc[0].iso_a3 == "CAN"
+    area_canada = df.iloc[0].geometry.area
+
+    # Use spatialite function
+    ext = naturalearth_lowres.suffix
     geometry_column = "geom" if ext == '.gpkg' else "geometry"
     sql = f"""SELECT ST_Buffer({geometry_column}, 5) AS geometry, name, pop_est, iso_a3
                 FROM naturalearth_lowres
                WHERE ISO_A3 = 'CAN'"""
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="SQLITE")
+    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
