@@ -1,5 +1,3 @@
-import os
-
 from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
@@ -32,6 +30,8 @@ def read_dataframe(
     where=None,
     bbox=None,
     fids=None,
+    sql=None,
+    sql_dialect=None,
     fid_as_index=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -80,10 +80,34 @@ def read_dataframe(
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (``skip_features``, ``max_features``,
-        ``where`` or ``bbox``). Note that the starting index is driver and file
+        ``where``, ``bbox`` or ``sql``). Note that the starting index is driver and file
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
+    sql : str, optional (default: None)
+        The sql statement to execute. Look at the sql_dialect parameter for
+        more information on the syntax to use for the query. When combined
+        with other keywords like ``columns``, ``skip_features``,
+        ``max_features``, ``where`` or ``bbox``, those are applied after the
+        sql query. Be aware that this can have an impact on performance,
+        (e.g. filtering with the ``bbox`` keyword may not use
+        spatial indexes).
+        Cannot be combined with the ``layer`` or ``fids`` keywords.
+    sql_dialect : str, optional (default: None)
+        The sql dialect the sql statement is written in. Possible values:
+
+          - **None**: if the datasource natively supports sql, the specific
+            sql syntax for this datasource should be used (eg. SQLite,
+            PostgreSQL, Oracle,...). If the datasource doesn't natively
+            support sql, the 'OGRSQL_' dialect is the
+            default.
+          - 'OGRSQL_': can be used on any datasource. Performance can suffer
+            when used on datasources with native support for sql.
+          - 'SQLITE_': can be used on any datasource. All spatialite_
+            functions can be used. Performance can suffer on datasources with
+            native support for sql, except for GPKG and SQLite as this is
+            their native sql dialect.
+
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
@@ -91,6 +115,11 @@ def read_dataframe(
     Returns
     -------
     GeoDataFrame or DataFrame (if no geometry is present)
+
+    .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+    .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+    .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+
     """
     try:
         with GDALEnv():
@@ -115,6 +144,8 @@ def read_dataframe(
         where=where,
         bbox=bbox,
         fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
         return_fids=fid_as_index,
     )
 
