@@ -2,6 +2,7 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.errors import DataSourceError
 from pyogrio.util import vsi_path
 
 with GDALEnv():
@@ -118,7 +119,7 @@ def read(
 
     if not "://" in path:
         if not "/vsi" in path.lower() and not os.path.exists(path):
-            raise ValueError(f"'{path}' does not exist")
+            raise DataSourceError(f"'{path}' does not exist")
 
     try:
         result = ogr_read(

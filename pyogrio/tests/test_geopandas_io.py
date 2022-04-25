@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers
-from pyogrio.errors import DataLayerError
+from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 
 try:
@@ -205,6 +205,18 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         df = read_dataframe(test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22])
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
+
+
+def test_read_non_existent_file():
+    # ensure consistent error message
+    with pytest.raises(DataSourceError):
+        read_dataframe("non-existent.shp")
+
+    with pytest.raises(DataSourceError):
+        read_dataframe("/vsizip/non-existent.zip")
+
+    with pytest.raises(DataSourceError):
+        read_dataframe("zip:///non-existent.zip")
 
 
 @pytest.mark.parametrize(
