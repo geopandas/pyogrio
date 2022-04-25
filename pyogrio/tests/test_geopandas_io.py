@@ -360,7 +360,9 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
         "naturalearth_lowres", [".gpkg"],
         indirect=["naturalearth_lowres"])
 def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
-    # Should return singular item
+    # "INDIRECT_SQL" prohibits GDAL from passing the sql statement to sqlite.
+    # Because the statement is processed within GDAL it is possible to use
+    # spatialite functions even if sqlite isn't built with spatialite support.
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
     assert len(df) == 1
@@ -369,9 +371,9 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     area_canada = df.iloc[0].geometry.area
 
     # Use spatialite function
-    sql = f"""SELECT ST_Buffer(geom, 5) AS geometry, name, pop_est, iso_a3
-                FROM naturalearth_lowres
-               WHERE ISO_A3 = 'CAN'"""
+    sql = """SELECT ST_Buffer(geom, 5) AS geometry, name, pop_est, iso_a3
+               FROM naturalearth_lowres
+              WHERE ISO_A3 = 'CAN'"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
     assert len(df) == 1
     assert len(df.columns) == 4
