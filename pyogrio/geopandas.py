@@ -136,7 +136,9 @@ def read_dataframe(
 
 
 # TODO: handle index properly
-def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
+def write_dataframe(
+    df, path, layer=None, driver=None, encoding=None, geometry_type=None, **kwargs
+):
     """
     Write GeoPandas GeoDataFrame to an OGR file format.
 
@@ -152,6 +154,12 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
+    geometry_type : string, optional (default: None)
+        The geometry type for the dataset layer that will be written.
+        By default will be inferred from the data, but this parameter allows
+        to override this and specify the geometry type manually. Possible
+        values: 'Unknown', 'Point', 'LineString', 'Polygon', 'MultiPoint',
+        'MultiLineString', 'MultiPolygon', 'GeometryCollection'.
 
     **kwargs
         The kwargs passed to OGR.
@@ -190,11 +198,12 @@ def write_dataframe(df, path, layer=None, driver=None, encoding=None, **kwargs):
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
-    if not df.empty:
-        # TODO: validate geometry types, not all combinations are valid
-        geometry_type = geometry.type.unique()[0]
-    else:
-        geometry_type = "Unknown"
+    if geometry_type is None:
+        if not df.empty:
+            # TODO: validate geometry types, not all combinations are valid
+            geometry_type = geometry.type.unique()[0]
+        else:
+            geometry_type = "Unknown"
 
     crs = None
     if geometry.crs:

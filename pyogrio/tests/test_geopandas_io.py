@@ -5,8 +5,8 @@ import pandas as pd
 from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
-from pyogrio import list_layers
-from pyogrio.errors import DataLayerError
+from pyogrio import list_layers, read_info
+from pyogrio.errors import DataLayerError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 
 try:
@@ -252,6 +252,23 @@ def test_write_dataframe_gdalparams(tmpdir, naturalearth_lowres):
     assert os.path.exists(test_withindex_filename) is True
     test_withindex_index_filename = os.path.join(str(tmpdir), f"test_gdalparams_withindex.qix")
     assert os.path.exists(test_withindex_index_filename) is True
+
+
+def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    filename =  tmp_path / "test.gpkg"
+    write_dataframe(df, filename, geometry_type="Unknown")
+    assert read_info(filename)["geometry_type"] == "Unknown"
+
+    write_dataframe(df, filename, geometry_type="Polygon")
+    assert read_info(filename)["geometry_type"] == "Polygon"
+
+    write_dataframe(df, filename, geometry_type="MultiPolygon")
+    assert read_info(filename)["geometry_type"] == "MultiPolygon"
+
+    with pytest.raises(GeometryError):
+        write_dataframe(df, filename, geometry_type="NotSupported")
 
 
 @pytest.mark.filterwarnings(
