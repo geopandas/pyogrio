@@ -47,6 +47,13 @@ FIELD_TYPES = [
     None            # OFTInteger64List, List of 64bit integers, not supported
 ]
 
+FIELD_SUBTYPES = [
+    None,           # OFSTNone, No subtype
+    "bool",         # OFSTBoolean, Boolean integer
+    "int16",        # OFSTInt16, Signed 16-bit integer
+    "float32",      # OFSTFloat32, Single precision (32 bit) floating point
+]
+
 # Mapping of numpy ndarray dtypes to (field type, subtype)
 DTYPE_OGR_FIELD_TYPES = {
     'int8': (OFTInteger, OFSTInt16),
@@ -276,6 +283,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     cdef int field_count
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
+    cdef int field_subtype
     cdef const char *key_c
 
     try:
@@ -310,6 +318,15 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
             continue
+
+        field_subtype = OGR_Fld_GetSubType(ogr_fielddef)
+        try:
+            subtype = FIELD_SUBTYPES[field_subtype]
+        except IndexError:
+            pass
+        if subtype is not None:
+            # bool, int16, float32 dtypes
+            np_type = subtype
 
         fields_view[i,0] = i
         fields_view[i,1] = field_type
@@ -1206,10 +1223,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
 
             # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
-            if field_type != OFSTNone:
+            if field_subtype != OFSTNone:
                 OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
 
-            if field_type:
+            if width:
                 OGR_Fld_SetWidth(ogr_fielddef, width)
 
             # TODO: set precision
