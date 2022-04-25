@@ -3,4 +3,5 @@ pytest
 pandas
 pyproj
 shapely
+rtree
 packaging
