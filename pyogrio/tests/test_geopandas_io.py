@@ -274,6 +274,7 @@ def test_write_mixed_geometries(tmp_path, driver, ext):
     filename = tmp_path / f"test.{ext}"
     write_dataframe(df, filename, driver=driver)
 
+    # Drivers that support mixed geometries will default to "Unknown" geometry type
     assert read_info(filename)["geometry_type"] == "Unknown"
     result = read_dataframe(filename)
     if driver == "FlatGeobuf":
@@ -293,7 +294,8 @@ def test_write_mixed_geometries_unsupported(tmp_path):
         crs="EPSG:4326"
     )
 
-    with pytest.raises(FeatureError):
+    # TODO propagate better error message from GDAL
+    with pytest.raises(FeatureError, match="Could not add feature to layer"):
         write_dataframe(df, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
