@@ -360,9 +360,6 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
         "naturalearth_lowres", [".gpkg"],
         indirect=["naturalearth_lowres"])
 def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
-    #if spatialite_available(naturalearth_lowres) is False:
-    #    pytest.skip("The test needs sqlite with spatialite enabled")
-
     # Should return singular item
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
@@ -372,9 +369,7 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     area_canada = df.iloc[0].geometry.area
 
     # Use spatialite function
-    ext = naturalearth_lowres.suffix
-    geometry_column = "geom" if ext == '.gpkg' else "geometry"
-    sql = f"""SELECT ST_Buffer({geometry_column}, 5) AS geometry, name, pop_est, iso_a3
+    sql = f"""SELECT ST_Buffer(geom, 5) AS geometry, name, pop_est, iso_a3
                 FROM naturalearth_lowres
                WHERE ISO_A3 = 'CAN'"""
     df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")

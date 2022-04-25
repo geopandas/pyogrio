@@ -201,7 +201,9 @@ between '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)'
 For SELECT statements the 'SQLITE' dialect tends to provide more spatial 
 features as all 
 [spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
-functions can be used if gdal was build with spatialite support. 
+functions can be used. If gdal is not built with spatialite support in SQLite,
+you can use ``sql_dialect="INDIRECT_SQLITE"`` to be able to use spatialite 
+functions on native SQLite files like Geopackage. 
 
 You can combine a sql query with other parameters that will filter the 
 dataset. When using ``columns``, ``skip_features``, ``max_features``, and/or 
