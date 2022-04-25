@@ -156,7 +156,7 @@ def write_dataframe(
         the file.
     geometry_type : string, optional (default: None)
         The geometry type for the dataset layer that will be written.
-        By default will be inferred from the data, but this parameter allows
+        By default will be inferred from the data, but this parameter allows you
         to override this and specify the geometry type manually. Possible
         values: 'Unknown', 'Point', 'LineString', 'Polygon', 'MultiPoint',
         'MultiLineString', 'MultiPolygon', 'GeometryCollection'.
