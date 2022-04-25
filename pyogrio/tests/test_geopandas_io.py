@@ -267,7 +267,7 @@ def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
     write_dataframe(df, filename, geometry_type="MultiPolygon")
     assert read_info(filename)["geometry_type"] == "MultiPolygon"
 
-    with pytest.raises(GeometryError):
+    with pytest.raises(GeometryError, match="Geometry type is not supported: NotSupported"):
         write_dataframe(df, filename, geometry_type="NotSupported")
 
 
