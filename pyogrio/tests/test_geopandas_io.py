@@ -260,7 +260,7 @@ def test_write_empty_dataframe(tmpdir, driver, ext):
 
 
 @pytest.mark.parametrize(
-    "driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg"), ("FlatGeobuf", "fbg")]
+    "driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg"), ("FlatGeobuf", "fgb")]
 )
 def test_write_mixed_geometries(tmp_path, driver, ext):
     from shapely.geometry import Point, LineString, box
