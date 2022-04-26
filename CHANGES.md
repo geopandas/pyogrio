@@ -11,6 +11,7 @@
 -   generalize check for VSI files from `/vsizip` to `/vsi` (#29)
 -   add dtype for each field to `read_info` (#30)
 -   support writing empty GeoDataFrames (#38)
+-   support use of a sql statement in read_dataframe (#70)
 
 ### Breaking changes
 

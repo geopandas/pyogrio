@@ -1,6 +1,10 @@
 name: Conda Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   test:
@@ -17,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install Conda environment with Micromamba
         uses: mamba-org/provision-with-micromamba@main

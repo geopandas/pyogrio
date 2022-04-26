@@ -1,6 +1,10 @@
 name: Docker GDAL Test
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   TestLinux:
@@ -19,7 +23,7 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Install packages
         run: |

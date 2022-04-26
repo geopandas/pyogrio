@@ -1,5 +1,6 @@
 import os
 import contextlib
+from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
@@ -27,6 +28,7 @@ def change_cwd(path):
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
         # cloud URIs
+        ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
         ("s3://testing/data.gpkg", "/vsis3/testing/data.gpkg"),
         ("gs://testing/data.gpkg", "/vsigs/testing/data.gpkg"),
         ("az://testing/data.gpkg", "/vsiaz/testing/data.gpkg"),
@@ -48,6 +50,30 @@ def change_cwd(path):
         (
             "zip+https://s3.amazonaws.com/testing/shapefile.zip",
             "/vsizip/vsicurl/https://s3.amazonaws.com/testing/shapefile.zip",
+        ),
+        # auto-prefix zip files
+        ("test.zip", "/vsizip/test.zip"),
+        ("/a/b/test.zip", "/vsizip//a/b/test.zip"),
+        ("a/b/test.zip", "/vsizip/a/b/test.zip"),
+        # archives using ! notation should be prefixed by vsizip
+        ("test.zip!item.shp", "/vsizip/test.zip/item.shp"),
+        ("test.zip!/a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("test.zip!a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("/vsizip/test.zip/a/b/item.shp", "/vsizip/test.zip/a/b/item.shp"),
+        ("zip:///test.zip/a/b/item.shp", "/vsizip//test.zip/a/b/item.shp"),
+        # auto-prefix remote zip files
+        (
+            "https://s3.amazonaws.com/testing/test.zip",
+            "/vsizip/vsicurl/https://s3.amazonaws.com/testing/test.zip",
+        ),
+        (
+            "https://s3.amazonaws.com/testing/test.zip!/a/b/item.shp",
+            "/vsizip/vsicurl/https://s3.amazonaws.com/testing/test.zip/a/b/item.shp",
+        ),
+        ("s3://testing/test.zip", "/vsizip/vsis3/testing/test.zip"),
+        (
+            "s3://testing/test.zip!a/b/item.shp",
+            "/vsizip/vsis3/testing/test.zip/a/b/item.shp",
         ),
     ],
 )
@@ -120,6 +146,42 @@ def test_zip_path(naturalearth_lowres_vsi):
     assert len(df) == 177
 
 
+def test_detect_zip_path(tmp_path, naturalearth_lowres):
+    # create a zipfile with 2 shapefiles in a set of subdirectories
+    df = pyogrio.read_dataframe(naturalearth_lowres, where="iso_a3 in ('CAN', 'PER')")
+    pyogrio.write_dataframe(df.loc[df.iso_a3 == "CAN"], tmp_path / "test1.shp")
+    pyogrio.write_dataframe(df.loc[df.iso_a3 == "PER"], tmp_path / "test2.shp")
+
+    path = tmp_path / "test.zip"
+    with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
+        for ext in ["dbf", "prj", "shp", "shx"]:
+            filename = f"test1.{ext}"
+            out.write(tmp_path / filename, filename)
+
+            filename = f"test2.{ext}"
+            out.write(tmp_path / filename, f"/a/b/{filename}")
+
+    # defaults to the first shapefile found, at lowest subdirectory
+    df = pyogrio.read_dataframe(path)
+    assert df.iso_a3[0] == "CAN"
+
+    # selecting a shapefile from within the zip requires "!"" archive specifier
+    df = pyogrio.read_dataframe(f"{path}!test1.shp")
+    assert df.iso_a3[0] == "CAN"
+
+    df = pyogrio.read_dataframe(f"{path}!/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+    # specifying zip:// scheme should also work
+    df = pyogrio.read_dataframe(f"zip://{path}!/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+    # specifying /vsizip/ should also work but path must already be in GDAL ready
+    # format without the "!"" archive specifier
+    df = pyogrio.read_dataframe(f"/vsizip/{path}/a/b/test2.shp")
+    assert df.iso_a3[0] == "PER"
+
+
 @pytest.mark.network
 def test_url():
     df = pyogrio.read_dataframe(
@@ -143,5 +205,5 @@ def aws_env_setup(monkeypatch):
 
 @pytest.mark.network
 def test_uri_s3(aws_env_setup):
-    df = pyogrio.read_dataframe('zip+s3://fiona-testing/coutwildrnp.zip')
+    df = pyogrio.read_dataframe("zip+s3://fiona-testing/coutwildrnp.zip")
     assert len(df) == 67
