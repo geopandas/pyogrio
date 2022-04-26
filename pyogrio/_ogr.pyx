@@ -41,16 +41,6 @@ def get_gdal_version_string():
     return get_string(version)
 
 
-def get_gdal_geos_version():
-    cdef int major, minor, revision
-
-    if not OGRGetGEOSVersion(&major, &minor, &revision):
-        return None
-
-
-    return (major, minor, revision)
-
-
 def set_gdal_config_options(dict options):
     for name, value in options.items():
         name_b = name.encode('utf-8')

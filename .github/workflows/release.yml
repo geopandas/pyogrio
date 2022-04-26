@@ -111,6 +111,9 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
+      - name: Log GDAL dependencies
+        run: gdal-config --dep-libs
+
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -176,6 +179,10 @@ jobs:
         with:
           path: ./wheelhouse/*.whl
 
+      - name: Log GDAL dependencies
+        if: runner.os == 'macOS'
+        run: gdal-config --dep-libs
+
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     needs: [build-wheels-linux, build-wheels-mac-win]
@@ -215,7 +222,6 @@ jobs:
           python -m pip install --no-deps geopandas
           python -m pip install --find-links wheelhouse/artifact pyogrio
           python -m pip list
-          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
 
       # TODO temporary set env variable for curl certificate for Linux
       - name: Set CURL_CA_BUNDLE environment variable
