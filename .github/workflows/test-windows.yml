@@ -43,7 +43,7 @@ jobs:
       PROJ_LIB: "C:\\gdal\\bin\\proj6\\share"
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Cache GDAL binaries
         uses: actions/cache@v2

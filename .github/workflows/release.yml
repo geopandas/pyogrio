@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -42,15 +42,44 @@ jobs:
           path: ./dist/*.tar.gz
           retention-days: 5
 
+  test-sdist:
+    name: Test sdist
+    needs: [build-sdist]
+    runs-on: ubuntu-latest
+    container:
+      image: "osgeo/gdal:ubuntu-small-3.4.0" # python 3.8.10
+
+    steps:
+      - name: Download sdist from artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: wheelhouse
+
+      - name: Install pip
+        run: |
+          apt-get update && apt-get install -y python3-pip
+
+      - name: Build from sdist and install test dependencies
+        shell: bash
+        run: |
+          python3 -m pip install --no-cache-dir wheelhouse/artifact/*.tar.gz
+          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely
+          python3 -m pip install --no-cache-dir --no-deps geopandas
+          python3 -m pip list
+
+      - name: Run tests
+        shell: bash
+        run: |
+          cd ..
+          python3 -m pytest --pyargs pyogrio.tests -v
+
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: "ubuntu-20.04"
-    strategy:
-      fail-fast: false
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -59,6 +88,7 @@ jobs:
         uses: docker/setup-buildx-action@v1
         with:
           install: true
+          buildkitd-flags: --debug
 
       - name: Build Docker image with vcpkg and gdal
         # using build-push-action (without push) to make use of cache arguments
@@ -71,6 +101,8 @@ jobs:
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
+        env:
+          BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -88,26 +120,32 @@ jobs:
         include:
           - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
+            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+
           - os: "windows-2019"
             triplet: "x64-windows"
+            # windows requires windows-specific paths
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "10.15"
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         id: vcpkgcache
         with:
           path: |
-            /Users/runner/.cache/vcpkg/archives
-            C:\vcpkg\installed
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-1
+            ${{ matrix.vcpkg_cache }}
+          # bump the last digit to avoid using previous build cache
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-cache4
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -120,14 +158,16 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+        shell: bash
         run: |
-          vcpkg install gdal[core] --overlay-triplets=./ci/custom-triplets
+          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
+          vcpkg list
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
-          path: $VCPKG_INSTALLATION_ROOT/buildtrees/**/*.log
+          path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
@@ -154,7 +194,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -190,7 +230,7 @@ jobs:
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
-    needs: [build-sdist, test-wheels]
+    needs: [test-sdist, test-wheels]
     runs-on: ubuntu-latest
     # release on every tag
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')

@@ -327,6 +327,12 @@ cdef extern from "gdal.h":
     int             GDALDatasetGetLayerCount(GDALDatasetH ds)
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
+    OGRLayerH       GDALDatasetExecuteSQL(
+                            GDALDatasetH ds, 
+                            const char* pszStatement, 
+                            OGRGeometryH hSpatialFilter, 
+                            const char* pszDialect)
+    void            GDALDatasetReleaseResultSet(GDALDatasetH, OGRLayerH)
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)

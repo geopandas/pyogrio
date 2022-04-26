@@ -12,7 +12,7 @@
 -   add dtype for each field to `read_info` (#30)
 -   support writing empty GeoDataFrames (#38)
 -   add keyword to promote mixed singular/multi geometry column to multi geometry type (#56)
-
+-   support use of a sql statement in read_dataframe (#70)
 
 ### Breaking changes
 
