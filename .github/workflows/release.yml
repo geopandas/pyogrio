@@ -215,6 +215,7 @@ jobs:
           python -m pip install --no-deps geopandas
           python -m pip install --find-links wheelhouse/artifact pyogrio
           python -m pip list
+          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
 
       # TODO temporary set env variable for curl certificate for Linux
       - name: Set CURL_CA_BUNDLE environment variable

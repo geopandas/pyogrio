@@ -188,6 +188,8 @@ cdef extern from "ogr_api.h":
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
 
+    bint            OGRGetGEOSVersion(int *pnMajor, int *pnMinor, int *pnPatch)
+
     OGRDataSourceH  OGR_Dr_Open(OGRSFDriverH driver, const char *path, int bupdate)
     const char*     OGR_Dr_GetName(OGRSFDriverH driver)
 
@@ -325,9 +327,9 @@ cdef extern from "gdal.h":
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
     OGRLayerH       GDALDatasetExecuteSQL(
-                            GDALDatasetH ds, 
-                            const char* pszStatement, 
-                            OGRGeometryH hSpatialFilter, 
+                            GDALDatasetH ds,
+                            const char* pszStatement,
+                            OGRGeometryH hSpatialFilter,
                             const char* pszDialect)
     void            GDALDatasetReleaseResultSet(GDALDatasetH, OGRLayerH)
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
