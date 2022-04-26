@@ -31,6 +31,8 @@ def read(
     where=None,
     bbox=None,
     fids=None,
+    sql=None,
+    sql_dialect=None,
     return_fids=False,
 ):
     """Read OGR data source.
@@ -130,6 +132,8 @@ def read(
             where=where,
             bbox=bbox,
             fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
             return_fids=return_fids,
         )
     finally:
