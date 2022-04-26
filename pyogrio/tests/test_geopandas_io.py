@@ -220,14 +220,14 @@ def test_read_fids_force_2d(test_fgdb_vsi):
 
 
 def test_read_non_existent_file():
-    # ensure consistent error message
-    with pytest.raises(DataSourceError):
+    # ensure consistent error type / message from GDAL
+    with pytest.raises(DataSourceError, match="No such file or directory"):
         read_dataframe("non-existent.shp")
 
-    with pytest.raises(DataSourceError):
+    with pytest.raises(DataSourceError, match="does not exist in the file system"):
         read_dataframe("/vsizip/non-existent.zip")
 
-    with pytest.raises(DataSourceError):
+    with pytest.raises(DataSourceError, match="does not exist in the file system"):
         read_dataframe("zip:///non-existent.zip")
 
 
