@@ -240,7 +240,7 @@ def test_read_sql(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
     assert len(df.columns) == 6
     assert len(df) == 3
-    assert df.iso_a3.tolist() == ["CAN", "USA", "MEX"]
+    assert sorted(df.iso_a3.tolist()) == ["CAN", "MEX", "USA"]
 
     sql = """SELECT *
                FROM naturalearth_lowres
@@ -291,7 +291,7 @@ def test_read_sql_columns_where(naturalearth_lowres_all_ext):
     )
     assert len(df.columns) == 3
     assert len(df) == 3
-    assert df.iso_a3_renamed.tolist() == ["CAN", "USA", "MEX"]
+    assert sorted(df.iso_a3_renamed.tolist()) == ["CAN", "MEX", "USA"]
 
 
 def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
@@ -306,7 +306,7 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
     )
     assert len(df.columns) == 3
     assert len(df) == 2
-    assert df.iso_a3_renamed.tolist() == ["USA", "MEX"]
+    assert sorted(df.iso_a3_renamed.tolist()) == ["MEX", "USA"]
 
 
 def test_read_sql_skip_max(naturalearth_lowres_all_ext):
