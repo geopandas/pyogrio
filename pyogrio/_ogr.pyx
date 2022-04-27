@@ -41,6 +41,23 @@ def get_gdal_version_string():
     return get_string(version)
 
 
+IF CTE_GDAL_MAJOR_VERSION >= 3:
+
+    cdef extern from "ogr_api.h":
+        bint OGRGetGEOSVersion(int *pnMajor, int *pnMinor, int *pnPatch)
+
+
+def get_gdal_geos_version():
+    cdef int major, minor, revision
+
+    IF CTE_GDAL_MAJOR_VERSION >= 3:
+        if not OGRGetGEOSVersion(&major, &minor, &revision):
+            return None
+        return (major, minor, revision)
+    ELSE:
+        return (0, 0, 0)
+
+
 def set_gdal_config_options(dict options):
     for name, value in options.items():
         name_b = name.encode('utf-8')

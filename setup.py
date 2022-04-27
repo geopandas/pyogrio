@@ -135,6 +135,11 @@ else:
 
     ext_options = get_gdal_paths()
 
+    compile_time_env = {
+        "CTE_GDAL_MAJOR_VERSION": 3,
+        "CTE_GDAL_MINOR_VERSION": 4,
+    }
+
     ext_modules = cythonize(
         [
             Extension("pyogrio._err", ["pyogrio/_err.pyx"], **ext_options),
@@ -143,6 +148,7 @@ else:
             Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
         ],
         compiler_directives={"language_level": "3"},
+        compile_time_env=compile_time_env,
     )
 
     # Get numpy include directory without importing numpy at top level here
