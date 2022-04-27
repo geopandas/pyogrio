@@ -111,6 +111,57 @@ def get_gdal_paths():
             raise e
 
 
+def get_gdal_version():
+    """
+    Obtain the GDAL version.
+
+    On Linux/MacOS it will first try 'gdal-config --version'. Next, for
+    all platforms it will check the GDAL_VERSION environment variable.
+    On Windows it will still try 'gdalinfo --version' before erroring.
+    """
+    try:
+        # Get libraries, etc from gdal-config (not available on Windows)
+        gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
+        gdal_version_str = read_response([gdal_config, "--version"])
+
+    except Exception as e:
+        gdal_version_str = os.environ.get("GDAL_VERSION")
+
+        if not gdal_version_str:
+            if platform.system() == "Windows":
+                # For Windows: attempt to execute gdalinfo to find GDAL version
+                # Note: gdalinfo must be on the PATH
+                try:
+                    gdalinfo_path = None
+                    for path in os.getenv("PATH", "").split(os.pathsep):
+                        matches = list(Path(path).glob("**/gdalinfo*"))
+                        if matches:
+                            gdalinfo_path = matches[0]
+                            break
+
+                    if gdalinfo_path:
+                        raw_version = read_response([gdalinfo_path, "--version"]) or ""
+                        m = re.search("\d+\.\d+\.\d+", raw_version)
+                        if m:
+                            gdal_version_str = m.group()
+
+                except:
+                    log.warn(
+                        "Could not obtain GDAL version by executing 'gdalinfo --version'"
+                    )
+
+        if not gdal_version_str:
+            print("GDAL_VERSION must be provided as an environment variable")
+            sys.exit(1)
+
+    gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
+
+    if not gdal_version >= MIN_GDAL_VERSION:
+        sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
+
+    return gdal_version
+
+
 ext_modules = []
 package_data = {}
 
@@ -136,8 +187,7 @@ else:
     ext_options = get_gdal_paths()
 
     compile_time_env = {
-        "CTE_GDAL_MAJOR_VERSION": 3,
-        "CTE_GDAL_MINOR_VERSION": 4,
+        "CTE_GDAL_VERSION": get_gdal_version(),
     }
 
     ext_modules = cythonize(
