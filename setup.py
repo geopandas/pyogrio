@@ -40,14 +40,15 @@ def read_response(cmd):
     return subprocess.check_output(cmd).decode("utf").strip()
 
 
-def get_gdal_paths():
-    """Obtain the paths for compiling and linking with the GDAL C-API
+def get_gdal_config():
+    """
+    Obtain the paths and version for compiling and linking with the GDAL C-API.
 
-    GDAL_INCLUDE_PATH and GDAL_LIBRARY_PATH environment variables are used
-    if both are present.
+    GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH and GDAL_VERSION environment variables
+    are used if all are present.
 
     If those variables are not present, gdal-config is called (it should be
-    on the PATH variable). gdal-config provides all the paths.
+    on the PATH variable). gdal-config provides all the paths and version.
 
     If no environment variables were specified or gdal-config was not found,
     no additional paths are provided to the extension. It is still possible
@@ -55,17 +56,19 @@ def get_gdal_paths():
     """
     include_dir = os.environ.get("GDAL_INCLUDE_PATH")
     library_dir = os.environ.get("GDAL_LIBRARY_PATH")
+    gdal_version_str = os.environ.get("GDAL_VERSION")
 
-    if include_dir and library_dir:
+    if include_dir and library_dir and gdal_version_str:
         return {
             "include_dirs": [include_dir],
             "library_dirs": [library_dir],
             "libraries": ["gdal_i" if platform.system() == "Windows" else "gdal"],
-        }
-    if include_dir or library_dir:
+        }, gdal_version_str
+
+    if include_dir or library_dir or gdal_version_str:
         log.warn(
-            "If specifying the GDAL_INCLUDE_PATH or GDAL_LIBRARY_PATH environment "
-            "variables, you need to specify both."
+            "If specifying the GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH or GDAL_VERSION "
+            "environment variables, you need to specify all of them."
         )
 
     try:
@@ -74,10 +77,7 @@ def get_gdal_paths():
         gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
         config = {flag: read_response([gdal_config, f"--{flag}"]) for flag in flags}
 
-        gdal_version = tuple(int(i) for i in config["version"].strip("dev").split("."))
-        if not gdal_version >= MIN_GDAL_VERSION:
-            sys.exit("GDAL must be >= 2.4.x")
-
+        gdal_version_str = config["version"]
         include_dirs = [entry[2:] for entry in config["cflags"].split(" ")]
         library_dirs = []
         libraries = []
@@ -96,70 +96,29 @@ def get_gdal_paths():
             "library_dirs": library_dirs,
             "libraries": libraries,
             "extra_link_args": extra_link_args,
-        }
+        }, gdal_version_str
 
     except Exception as e:
         if platform.system() == "Windows":
-            # Note: additional command-line parameters required to point to GDAL;
-            # see the README.
+            # Get GDAL API version from the command line if specified there.
+            if '--gdalversion' in sys.argv:
+                index = sys.argv.index('--gdalversion')
+                sys.argv.pop(index)
+                gdal_version_str = sys.argv.pop(index)
+            else:
+                print(
+                    "GDAL_VERSION must be provided as an environment variable "
+                    "or as --gdalversion command line argument")
+                sys.exit(1)
+
             log.info(
-                "Building on Windows requires extra options to setup.py to locate GDAL files.  See the README."
+                "Building on Windows requires extra options to setup.py to locate "
+                "GDAL files. See the installation documentation."
             )
-            return {}
+            return {}, gdal_version_str
 
         else:
             raise e
-
-
-def get_gdal_version():
-    """
-    Obtain the GDAL version.
-
-    On Linux/MacOS it will first try 'gdal-config --version'. Next, for
-    all platforms it will check the GDAL_VERSION environment variable.
-    On Windows it will still try 'gdalinfo --version' before erroring.
-    """
-    try:
-        # Get libraries, etc from gdal-config (not available on Windows)
-        gdal_config = os.environ.get("GDAL_CONFIG", "gdal-config")
-        gdal_version_str = read_response([gdal_config, "--version"])
-
-    except Exception as e:
-        gdal_version_str = os.environ.get("GDAL_VERSION")
-
-        if not gdal_version_str:
-            if platform.system() == "Windows":
-                # For Windows: attempt to execute gdalinfo to find GDAL version
-                # Note: gdalinfo must be on the PATH
-                try:
-                    gdalinfo_path = None
-                    for path in os.getenv("PATH", "").split(os.pathsep):
-                        matches = list(Path(path).glob("**/gdalinfo*"))
-                        if matches:
-                            gdalinfo_path = matches[0]
-                            break
-
-                    if gdalinfo_path:
-                        raw_version = read_response([gdalinfo_path, "--version"]) or ""
-                        m = re.search("\d+\.\d+\.\d+", raw_version)
-                        if m:
-                            gdal_version_str = m.group()
-
-                except:
-                    log.warn(
-                        "Could not obtain GDAL version by executing 'gdalinfo --version'"
-                    )
-
-        if not gdal_version_str:
-            print("GDAL_VERSION must be provided as an environment variable")
-            sys.exit(1)
-
-    gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
-
-    if not gdal_version >= MIN_GDAL_VERSION:
-        sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
-
-    return gdal_version
 
 
 ext_modules = []
@@ -184,10 +143,14 @@ else:
     if cythonize is None:
         raise ImportError("Cython is required to build from source")
 
-    ext_options = get_gdal_paths()
+    ext_options, gdal_version_str = get_gdal_config()
+
+    gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
+    if not gdal_version >= MIN_GDAL_VERSION:
+        sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
 
     compile_time_env = {
-        "CTE_GDAL_VERSION": get_gdal_version(),
+        "CTE_GDAL_VERSION": gdal_version,
     }
 
     ext_modules = cythonize(
