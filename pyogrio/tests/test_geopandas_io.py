@@ -329,7 +329,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
         _ = read_dataframe(
-                naturalearth_lowres_all_ext, sql=sql, skip_features=1, 
+                naturalearth_lowres_all_ext, sql=sql, skip_features=1,
                 sql_dialect="OGRSQL")
 
 
@@ -379,10 +379,7 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize(
-        "ext",
-        [".fgb", ".geojson", ".geojsons", ".gpkg", ".json", ".shp", ],
-)
+@pytest.mark.parametrize("ext", ALL_EXTS, )
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     input_gdf = read_dataframe(naturalearth_lowres)
     assert isinstance(input_gdf, gp.GeoDataFrame)
@@ -394,12 +391,11 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     result_gdf = read_dataframe(output_path)
     assert isinstance(result_gdf, gp.GeoDataFrame)
 
-    # File types not supporting mixed types should only contain 1 type
     geometry_types = result_gdf.geometry.type.unique()
-    if ext in [".fgb", ".gpkg", ]:
-        assert len(geometry_types) == 1
-    else:
+    if ext == ".shp":
         assert len(geometry_types) == 2
+    else:
+        assert len(geometry_types) == 1
 
     if ext in [".geojsons", ".fgb"]:
         # These formats reorder features, so sort
@@ -413,6 +409,13 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     # In .geojsons the vertices are reordered, so normalize
     is_jsons = (ext == ".geojsons")
 
+    # If the comparison is made with check_less_precise is True, the input
+    # must be promoted to multitype, otherwise the polygons are !=
+    # TODO Pieter: look in depth why check_less_precise=True seems stricter than False
+    # normalize=True nor check_geom_type=False help
+    if is_json:
+        input_gdf.geometry.array.data = to_multipolygon(input_gdf.geometry.array.data)
+
     assert_geodataframe_equal(
         result_gdf,
         input_gdf,
@@ -423,14 +426,25 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     )
 
 
-def test_write_dataframe_mixed_fgb(tmp_path, naturalearth_lowres):
-    input_gdf = read_dataframe(naturalearth_lowres)
-    assert isinstance(input_gdf, gp.GeoDataFrame)
-    output_path = tmp_path / "test.fgb"
-
-    # For FlatGeoBuf mixed types are not supported + input_gdf is mixed
-    with pytest.raises(Exception, match="Could not add feature to layer at"):
-        write_dataframe(input_gdf, output_path, promote_to_multi=False)
+def to_multipolygon(geometries):
+    """
+    Convert single part polygons to multipolygons.
+    Parameters
+    ----------
+    geometries : ndarray of pygeos geometries
+        can be mixed polygon and multipolygon types
+    Returns
+    -------
+    ndarray of pygeos geometries, all multipolygon types
+    """
+    import pygeos
+    ix = pygeos.get_type_id(geometries) == 3
+    if ix.sum():
+        geometries = geometries.copy()
+        geometries[ix] = np.apply_along_axis(
+            pygeos.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
+        )
+    return geometries
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
@@ -466,10 +480,12 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     assert test_withindex_index_filename.exists() is True
 
 
-def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
+@pytest.mark.parametrize("output_ext", [".gpkg"])
+def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres, output_ext):
+    # TODO Pieter: review test. Only works for .gpkg, all other formats give error somewhere.
     df = read_dataframe(naturalearth_lowres)
 
-    filename =  tmp_path / "test.gpkg"
+    filename = tmp_path / f"test{output_ext}"
     write_dataframe(df, filename, geometry_type="Unknown")
     assert read_info(filename)["geometry_type"] == "Unknown"
 

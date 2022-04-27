@@ -168,8 +168,8 @@ def read_dataframe(
 
 # TODO: handle index properly
 def write_dataframe(
-    df, path, layer=None, driver=None, encoding=None, geometry_type=None, 
-    promote_to_multi=None, **kwargs
+    df, path, layer=None, driver=None, encoding=None, geometry_type=None,
+    **kwargs
 ):
     """
     Write GeoPandas GeoDataFrame to an OGR file format.
@@ -186,7 +186,7 @@ def write_dataframe(
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
-    promote_to_multi: bool, optional (default: None) 
+    TODO Pieter: promote_to_multi: bool, optional (default: None)
         If True, will convert singular geometry types to their corresponding
         multi geometry type. By default, will convert convert mixed singular
         and multi geometry types to multi geometry types for drivers that do
@@ -235,6 +235,8 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
+    # TODO Pieter: keep promote_to_multi parameter further on or not?
+    promote_to_multi = False
     if geometry_type is None:
         geometry_type = "Unknown"
         if not df.empty:
@@ -244,10 +246,13 @@ def write_dataframe(
             elif len(geometry_types == 2):
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
                     geometry_type = "MultiPolygon"
+                    promote_to_multi = True
                 elif "LineString" in geometry_types and "MultiLineString" in geometry_types:
                     geometry_type = "MultiLineString"
+                    promote_to_multi = True
                 elif "Point" in geometry_types and "MultiPoint" in geometry_types:
                     geometry_type = "MultiPoint"
+                    promote_to_multi = True
 
     crs = None
     if geometry.crs:
