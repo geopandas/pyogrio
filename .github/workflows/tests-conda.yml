@@ -35,6 +35,7 @@ jobs:
         run: |
           echo "GDAL_INCLUDE_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/include." >> $GITHUB_ENV
           echo "GDAL_LIBRARY_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/lib" >> $GITHUB_ENV
+          echo "GDAL_VERSION=$(gdalinfo --version)" >> $GITHUB_ENV
 
       - name: Install pyogrio
         run: pip install -e .
