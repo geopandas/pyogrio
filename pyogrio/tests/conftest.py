@@ -8,7 +8,7 @@ import pyogrio
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
-ALL_EXTS = [".shp", ".gpkg", ".json"]
+ALL_EXTS = [".shp", ".gpkg", ".geojson", ".geojsons", ".fgb"]
 
 
 def pytest_report_header(config):
