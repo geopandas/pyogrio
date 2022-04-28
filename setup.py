@@ -44,7 +44,7 @@ def get_gdal_config():
     """
     Obtain the paths and version for compiling and linking with the GDAL C-API.
 
-    GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH and GDAL_VERSION environment variables
+    GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH, and GDAL_VERSION environment variables
     are used if all are present.
 
     If those variables are not present, gdal-config is called (it should be
