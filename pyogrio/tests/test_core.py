@@ -2,6 +2,7 @@ from numpy import array_equal, allclose
 import pytest
 
 from pyogrio import (
+    __gdal_geos_version__,
     list_drivers,
     list_layers,
     read_bounds,
@@ -26,6 +27,10 @@ def test_gdal_data():
 def test_proj_data():
     # test will fail if PROJ data files cannot be found, indicating an installation error
     assert has_proj_data()
+
+
+def test_gdal_geos_version():
+    assert __gdal_geos_version__ is None or isinstance(__gdal_geos_version__, tuple)
 
 
 def test_list_drivers():

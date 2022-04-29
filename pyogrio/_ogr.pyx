@@ -55,7 +55,7 @@ def get_gdal_geos_version():
             return None
         return (major, minor, revision)
     ELSE:
-        return (0, 0, 0)
+        return None
 
 
 def set_gdal_config_options(dict options):
