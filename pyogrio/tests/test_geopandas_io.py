@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers, read_info
-from pyogrio.errors import DataLayerError, FeatureError, GeometryError
+from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.tests.conftest import ALL_EXTS
 
@@ -217,6 +217,18 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         df = read_dataframe(test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22])
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
+
+
+def test_read_non_existent_file():
+    # ensure consistent error type / message from GDAL
+    with pytest.raises(DataSourceError, match="No such file or directory"):
+        read_dataframe("non-existent.shp")
+
+    with pytest.raises(DataSourceError, match="does not exist in the file system"):
+        read_dataframe("/vsizip/non-existent.zip")
+
+    with pytest.raises(DataSourceError, match="does not exist in the file system"):
+        read_dataframe("zip:///non-existent.zip")
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
