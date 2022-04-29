@@ -1366,9 +1366,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
 
             # Add feature to the layer
-            err = OGR_L_CreateFeature(ogr_layer, ogr_feature)
-            if err:
-                raise FeatureError(f"Could not add feature to layer at index {i}")
+            try:
+                exc_wrap_int(OGR_L_CreateFeature(ogr_layer, ogr_feature))
+            except CPLE_BaseError as exc:
+                raise FeatureError(f"Could not add feature to layer at index {i}: {exc}") from None
 
         finally:
             if ogr_feature != NULL:
