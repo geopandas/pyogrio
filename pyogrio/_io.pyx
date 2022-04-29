@@ -47,12 +47,12 @@ FIELD_TYPES = [
     None            # OFTInteger64List, List of 64bit integers, not supported
 ]
 
-FIELD_SUBTYPES = [
-    None,           # OFSTNone, No subtype
-    "bool",         # OFSTBoolean, Boolean integer
-    "int16",        # OFSTInt16, Signed 16-bit integer
-    "float32",      # OFSTFloat32, Single precision (32 bit) floating point
-]
+FIELD_SUBTYPES = {
+    OFSTNone: None,           # No subtype
+    OFSTBoolean: "bool",      # Boolean integer
+    OFSTInt16: "int16",       # Signed 16-bit integer
+    OFSTFloat32: "float32",   # Single precision (32 bit) floating point
+}
 
 # Mapping of numpy ndarray dtypes to (field type, subtype)
 DTYPE_OGR_FIELD_TYPES = {
@@ -320,10 +320,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
             continue
 
         field_subtype = OGR_Fld_GetSubType(ogr_fielddef)
-        try:
-            subtype = FIELD_SUBTYPES[field_subtype]
-        except IndexError:
-            pass
+        subtype = FIELD_SUBTYPES.get(field_subtype)
         if subtype is not None:
             # bool, int16, float32 dtypes
             np_type = subtype
