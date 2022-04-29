@@ -365,15 +365,12 @@ def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
-@pytest.mark.parametrize(
-    "driver,ext", [("GPKG", "gpkg"), ("FlatGeobuf", "fbg")]
-)
-def test_read_write_data_types_numeric(tmp_path, driver, ext):
-    # Point(0, 0), Point(1, 1), Point(2, 2)
-    geometry = np.array([
-        b'\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',
-        b'\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf0?\x00\x00\x00\x00\x00\x00\xf0?',
-        b'\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00@\x00\x00\x00\x00\x00\x00\x00@'], dtype=object)
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_data_types_numeric(tmp_path, ext):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
     field_data = [
         np.array([True, False, True], dtype="bool"),
         np.array([1, 2, 3], dtype="int16"),
@@ -383,9 +380,7 @@ def test_read_write_data_types_numeric(tmp_path, driver, ext):
         np.array([1, 2, 3], dtype="float64"),
     ]
     fields = ["bool", "int16", "int32", "int64", "float32", "float64"]
-    meta = dict(
-        driver=driver, geometry_type="Point", crs="EPSG:4326", spatial_index=False
-    )
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
@@ -394,6 +389,7 @@ def test_read_write_data_types_numeric(tmp_path, driver, ext):
     assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
 
     # other integer data types that don't roundtrip exactly
+    # these are generally promoted to a larger integer type except for uint64
     for i, (dtype, result_dtype) in enumerate([
         ("int8", "int16"),
         ("uint8", "int16"),
