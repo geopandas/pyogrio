@@ -7,6 +7,7 @@ from pyogrio.core import (
     get_gdal_config_option,
     __gdal_version__,
     __gdal_version_string__,
+    __gdal_geos_version__,
 )
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio._version import get_versions

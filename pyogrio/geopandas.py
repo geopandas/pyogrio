@@ -230,11 +230,12 @@ def write_dataframe(
     field_data = [df[f].values for f in fields]
 
     if geometry_type is None:
+        geometry_type = "Unknown"
         if not df.empty:
             # TODO: validate geometry types, not all combinations are valid
-            geometry_type = geometry.type.unique()[0]
-        else:
-            geometry_type = "Unknown"
+            geometry_types = geometry.type.unique()
+            if len(geometry_types) == 1:
+                geometry_type = geometry_types[0]
 
     crs = None
     if geometry.crs:
