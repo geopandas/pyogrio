@@ -5,7 +5,7 @@ import pandas as pd
 from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
-from pyogrio import list_layers, read_info
+from pyogrio import list_layers, read_info, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.tests.conftest import ALL_EXTS
@@ -18,15 +18,20 @@ try:
 except ImportError:
     has_geopandas = False
 
+
+# Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
+# cannot verify it
+has_geos = __gdal_geos_version__ is not None
+
+
 pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
 
 def spatialite_available(path):
     try:
         _ = read_dataframe(
-                path,
-                sql="select spatialite_version();",
-                sql_dialect="SQLITE")
+            path, sql="select spatialite_version();", sql_dialect="SQLITE"
+        )
         return True
     except Exception:
         return False
@@ -57,9 +62,10 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
 
 
 @pytest.mark.parametrize(
-        "naturalearth_lowres, expected_ext",
-        [(".gpkg", ".gpkg"), (".shp", ".shp")],
-        indirect=["naturalearth_lowres"])
+    "naturalearth_lowres, expected_ext",
+    [(".gpkg", ".gpkg"), (".shp", ".shp")],
+    indirect=["naturalearth_lowres"],
+)
 def test_fixture_naturalearth_lowres(naturalearth_lowres, expected_ext):
     # Test the fixture with "indirect" parameter
     assert naturalearth_lowres.suffix == expected_ext
@@ -134,7 +140,7 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
-    if naturalearth_lowres_all_ext.suffix in ['.gpkg']:
+    if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
         # File format where fid starts at 1
         assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
     else:
@@ -154,7 +160,8 @@ def test_read_where(naturalearth_lowres_all_ext):
     assert df.iloc[0].iso_a3 == "CAN"
 
     df = read_dataframe(
-            naturalearth_lowres_all_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')")
+        naturalearth_lowres_all_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')"
+    )
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
 
@@ -289,7 +296,8 @@ def test_read_sql_invalid(naturalearth_lowres_all_ext):
             read_dataframe(naturalearth_lowres_all_ext, sql="invalid")
 
     with pytest.raises(
-            ValueError, match="'sql' paramater cannot be combined with 'layer'"):
+        ValueError, match="'sql' paramater cannot be combined with 'layer'"
+    ):
         read_dataframe(naturalearth_lowres_all_ext, sql="whatever", layer="invalid")
 
 
@@ -315,7 +323,7 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
         sql_dialect="OGRSQL",
         columns=["iso_a3_renamed", "name"],
         where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-        bbox=(-140, 20, -100, 40)
+        bbox=(-140, 20, -100, 40),
     )
     assert len(df.columns) == 3
     assert len(df) == 2
@@ -328,27 +336,35 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
               WHERE iso_a3 IN ('CAN', 'MEX', 'USA')
               ORDER BY name"""
     df = read_dataframe(
-            naturalearth_lowres_all_ext, sql=sql, skip_features=1,
-            max_features=1, sql_dialect="OGRSQL")
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        skip_features=1,
+        max_features=1,
+        sql_dialect="OGRSQL",
+    )
     assert len(df.columns) == 6
     assert len(df) == 1
     assert df.iso_a3.tolist() == ["MEX"]
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df = read_dataframe(
-            naturalearth_lowres_all_ext, sql=sql, max_features=3, sql_dialect="OGRSQL")
+        naturalearth_lowres_all_ext, sql=sql, max_features=3, sql_dialect="OGRSQL"
+    )
     assert len(df) == 1
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
         _ = read_dataframe(
-                naturalearth_lowres_all_ext, sql=sql, skip_features=1, 
-                sql_dialect="OGRSQL")
+            naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
+        )
 
 
+@pytest.mark.skipif(not has_geos, reason="Spatial SQL operations require GEOS")
 @pytest.mark.parametrize(
-        "naturalearth_lowres", [ext for ext in ALL_EXTS if ext != ".gpkg"],
-        indirect=["naturalearth_lowres"])
+    "naturalearth_lowres",
+    [ext for ext in ALL_EXTS if ext != ".gpkg"],
+    indirect=["naturalearth_lowres"],
+)
 def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     # Should return singular item
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
@@ -368,9 +384,10 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
+@pytest.mark.skipif(not has_geos, reason="Spatial SQL operations require GEOS")
 @pytest.mark.parametrize(
-        "naturalearth_lowres", [".gpkg"],
-        indirect=["naturalearth_lowres"])
+    "naturalearth_lowres", [".gpkg"], indirect=["naturalearth_lowres"]
+)
 def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     # "INDIRECT_SQL" prohibits GDAL from passing the sql statement to sqlite.
     # Because the statement is processed within GDAL it is possible to use
@@ -464,7 +481,7 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
 def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
-    filename =  tmp_path / "test.gpkg"
+    filename = tmp_path / "test.gpkg"
     write_dataframe(df, filename, geometry_type="Unknown")
     assert read_info(filename)["geometry_type"] == "Unknown"
 
@@ -474,7 +491,9 @@ def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
     write_dataframe(df, filename, geometry_type="MultiPolygon")
     assert read_info(filename)["geometry_type"] == "MultiPolygon"
 
-    with pytest.raises(GeometryError, match="Geometry type is not supported: NotSupported"):
+    with pytest.raises(
+        GeometryError, match="Geometry type is not supported: NotSupported"
+    ):
         write_dataframe(df, filename, geometry_type="NotSupported")
 
 
@@ -487,7 +506,7 @@ def test_write_mixed_geometries(tmp_path, driver, ext):
     df = gp.GeoDataFrame(
         {"col": [1.0, 2.0, 3.0]},
         geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
-        crs="EPSG:4326"
+        crs="EPSG:4326",
     )
 
     filename = tmp_path / f"test.{ext}"
@@ -510,7 +529,7 @@ def test_write_mixed_geometries_unsupported(tmp_path):
     df = gp.GeoDataFrame(
         {"col": [1.0, 2.0, 3.0]},
         geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
-        crs="EPSG:4326"
+        crs="EPSG:4326",
     )
 
     # ensure error message from GDAL is included
