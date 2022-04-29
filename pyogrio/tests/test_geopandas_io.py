@@ -501,8 +501,12 @@ def test_write_mixed_geometries_unsupported(tmp_path):
         crs="EPSG:4326"
     )
 
-    # TODO propagate better error message from GDAL
-    with pytest.raises(FeatureError, match="Could not add feature to layer"):
+    # ensure error message from GDAL is included
+    msg = (
+        "Could not add feature to layer at index 1: Attempt to "
+        r"write non-point \(LINESTRING\) geometry to point shapefile."
+    )
+    with pytest.raises(FeatureError, match=msg):
         write_dataframe(df, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
