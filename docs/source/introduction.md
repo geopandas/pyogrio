@@ -41,10 +41,6 @@ configuration options.
 You can certainly try to read or write using unsupported drivers that are
 available in your installation, but you may encounter errors.
 
-Note: different drivers have different tolerance for mixed geometry types, e.g.,
-MultiPolygon and Polygon in the same dataset. You will get exceptions if you
-attempt to write mixed geometries to a driver that does not support them.
-
 ## List available layers
 
 To list layers available in a data source:
@@ -180,6 +176,65 @@ with the bbox.
 ```
 
 Note: the `bbox` values must be in the same CRS as the dataset.
+
+## Execute a sql query
+
+You can use the `sql` parameter to execute a sql query on a dataset. 
+
+Depending on the dataset, you can use different sql dialects. By default, if 
+the dataset natively supports sql, the sql statement will be passed through 
+as such. Hence, the sql query should be written in the relevant native sql
+dialect (e.g. [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)/
+[Sqlite](https://gdal.org/drivers/vector/sqlite.html), 
+[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource 
+doesn't natively support sql (e.g. 
+[ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html), 
+[FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose 
+between '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
+(the default) and  
+'[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)'. 
+For SELECT statements the 'SQLITE' dialect tends to provide more spatial 
+features as all 
+[spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
+functions can be used. If gdal is not built with spatialite support in SQLite,
+you can use ``sql_dialect="INDIRECT_SQLITE"`` to be able to use spatialite 
+functions on native SQLite files like Geopackage. 
+
+You can combine a sql query with other parameters that will filter the 
+dataset. When using ``columns``, ``skip_features``, ``max_features``, and/or 
+``where`` it is important to note that they will be applied AFTER the sql 
+statement, so these are some things you need to be aware of:
+- if you specify an alias for a column in the sql statement, you need to 
+  specify this alias when using the ``columns`` keyword.
+- ``skip_features`` and ``max_features`` will be applied on the rows returned 
+  by the sql query, not on the original dataset.
+
+For the ``bbox`` parameter, depending on the combination of the dialect of the 
+sql query and the dataset, a spatial index will be used or not, e.g.:
+- ESRI Shapefile: spatial index is used with 'OGRSQL', not with 'SQLITE'.
+- Geopackage: spatial index is always used.
+
+The following sql query returns the 5 Western European countries with the most 
+neighbours:
+
+```python
+>>> sql = """
+        SELECT geometry, name,
+               (SELECT count(*)  
+                  FROM ne_10m_admin_0_countries layer_sub
+                 WHERE ST_Intersects(layer.geometry, layer_sub.geometry)) AS nb_neighbours
+          FROM ne_10m_admin_0_countries layer
+         WHERE subregion = 'Western Europe'
+         ORDER BY nb_neighbours DESC
+         LIMIT 5"""
+>>> read_dataframe('ne_10m_admin_0_countries.shp', sql=sql, sql_dialect='SQLITE')
+          NAME  nb_neighbours                            geometry
+0       France             11  MULTIPOLYGON (((-54.11153 2.114...
+1      Germany             10  MULTIPOLYGON (((13.81572 48.766...
+2      Austria              9  POLYGON ((16.94504 48.60417, 16...
+3  Switzerland              6  POLYGON ((10.45381 46.86443, 10...
+4      Belgium              5  POLYGON ((2.52180 51.08754, 2.5...
+```
 
 ## Force geometries to be read as 2D geometries
 

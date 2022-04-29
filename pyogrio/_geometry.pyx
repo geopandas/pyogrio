@@ -101,7 +101,7 @@ cdef str get_geometry_type(void *ogr_layer):
     return GEOMETRY_TYPES[ogr_type]
 
 
-cdef int get_geometry_type_code(str geometry_type):
+cdef int get_geometry_type_code(str geometry_type) except *:
     """Get geometry type code for string geometry type.
 
     Parameters
