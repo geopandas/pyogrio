@@ -317,13 +317,7 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
 
-@pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg")
-    ]
-)
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), f"test.{ext}")
@@ -347,13 +341,7 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
-@pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg")
-    ]
-)
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), f"test.{ext}")
@@ -390,16 +378,55 @@ def test_read_write_data_types_numeric(tmp_path, ext):
 
     # other integer data types that don't roundtrip exactly
     # these are generally promoted to a larger integer type except for uint64
-    for i, (dtype, result_dtype) in enumerate([
-        ("int8", "int16"),
-        ("uint8", "int16"),
-        ("uint16", "int32"),
-        ("uint32", "int64"),
-        ("uint64", "int64")
-    ]):
+    for i, (dtype, result_dtype) in enumerate(
+        [
+            ("int8", "int16"),
+            ("uint8", "int16"),
+            ("uint16", "int32"),
+            ("uint32", "int64"),
+            ("uint64", "int64"),
+        ]
+    ):
         field_data = [np.array([1, 2, 3], dtype=dtype)]
         filename = tmp_path / f"test{i}.{ext}"
         write(filename, geometry, field_data, ["col"], **meta)
         result = read(filename)[3][0]
         assert np.array_equal(result, np.array([1, 2, 3]))
         assert result.dtype == result_dtype
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_data_types_numeric_with_null(tmp_path, ext):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    # fields must be stored using float to allow nulls, but we override this on write
+    field_data = [
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+        np.array([1, np.nan, 3], dtype="float64"),
+    ]
+    fields = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    actual = read(filename)
+    assert actual[0]["fields"].tolist() == fields
+
+    # all fields should be re-cast to float64 when detecting nulls in integer
+    # fields
+    assert all([f1.dtype == f2.dtype for f1, f2 in zip(actual[3], field_data)])
+    assert all(
+        [
+            np.array_equal(f1, f2, equal_nan=True)
+            for f1, f2 in zip(actual[3], field_data)
+        ]
+    )
+

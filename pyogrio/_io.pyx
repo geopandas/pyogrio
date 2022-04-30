@@ -198,11 +198,11 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
         sql_b = sql.encode('utf-8')
         sql_c = sql_b
         if sql_dialect is None:
-            return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))      
+            return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
 
         sql_dialect_b = sql_dialect.encode('utf-8')
         sql_dialect_c = sql_dialect_b
-        return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))    
+        return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -519,8 +519,9 @@ cdef process_fields(
         isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
         if isnull:
             if field_type in (OFTInteger, OFTInteger64, OFTReal):
-                if data.dtype in (np.int32, np.int64):
-                    # have to cast to float to hold NaN values
+                # if a signed or unsigned integer, have to cast to float to hold
+                # NaN values
+                if data.dtype.kind in ('i', 'u'):
                     field_data[j] = field_data[j].astype(np.float64)
                     field_data_view[j] = field_data[j][:]
                     field_data_view[j][i] = np.nan
@@ -817,7 +818,7 @@ def ogr_read(
         if sql is None:
             # layer defaults to index 0
             if layer is None:
-                layer = 0    
+                layer = 0
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
