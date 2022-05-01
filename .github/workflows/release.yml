@@ -226,6 +226,7 @@ jobs:
         shell: bash
         run: |
           cd ..
+          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           python -m pytest --pyargs pyogrio.tests -v
 
   publish:
