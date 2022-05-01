@@ -458,12 +458,11 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d, bint demote_to_single = False):
+cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d):
 
     cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb = NULL
     cdef int ret_length
-    cdef OGRwkbGeometryType wkbtype
 
     ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
 
@@ -478,17 +477,6 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
             if force_2d and OGR_G_Is3D(ogr_geometry):
                 OGR_G_Set3D(ogr_geometry, 0)
 
-            if demote_to_single is True:
-                wkbtype = OGR_G_GetGeometryType(ogr_geometry)
-                wkbtype = OGR_GT_Flatten(wkbtype)
-                if wkbtype == wkbMultiPoint and OGR_G_GetGeometryCount(ogr_geometry) == 1:
-                    # TODO: improve this so no 3d data is lost here!
-                    ogr_geometry = OGR_G_ForceTo(ogr_geometry, wkbPoint, NULL)
-                elif wkbtype == wkbMultiLineString and OGR_G_GetGeometryCount(ogr_geometry) == 1:
-                    ogr_geometry = OGR_G_ForceToLineString(ogr_geometry)
-                elif wkbtype == wkbMultiPolygon and OGR_G_GetGeometryCount(ogr_geometry) == 1:
-                    ogr_geometry = OGR_G_ForceToPolygon(ogr_geometry)
-                    
             ret_length = OGR_G_WkbSize(ogr_geometry)
             wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
             OGR_G_ExportToWkb(ogr_geometry, 1, wkb)
@@ -588,8 +576,7 @@ cdef get_features(
     uint8_t force_2d,
     int skip_features,
     int max_features,
-    uint8_t return_fids,
-    bint demote_to_single = False,
+    uint8_t return_fids
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -651,7 +638,7 @@ cdef get_features(
             fid_view[i] = OGR_F_GetFID(ogr_feature)
 
         if read_geometry:
-            process_geometry(ogr_feature, i, geom_view, force_2d, demote_to_single)
+            process_geometry(ogr_feature, i, geom_view, force_2d)
 
         process_fields(
             ogr_feature, i, n_fields, field_data, field_data_view,
@@ -801,7 +788,6 @@ def ogr_read(
     str sql=None,
     str sql_dialect=None,
     int return_fids=False,
-    bint demote_to_single=False,
     **kwargs):
 
     cdef int err = 0
@@ -892,8 +878,7 @@ def ogr_read(
                 force_2d=force_2d,
                 skip_features=skip_features,
                 max_features=max_features,
-                return_fids=return_fids,
-                demote_to_single=demote_to_single,
+                return_fids=return_fids
             )
 
         meta = {

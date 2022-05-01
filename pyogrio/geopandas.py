@@ -33,7 +33,6 @@ def read_dataframe(
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
-    demote_to_single=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -148,7 +147,6 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
-        demote_to_single=demote_to_single,
     )
 
     columns = meta["fields"].tolist()

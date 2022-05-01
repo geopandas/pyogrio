@@ -43,7 +43,6 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
-    demote_to_single=False,
 ):
     """Read OGR data source.
 
@@ -145,7 +144,6 @@ def read(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
-            demote_to_single=demote_to_single,
         )
     finally:
         if from_buffer:
@@ -190,7 +188,7 @@ def write(
         promote_to_multi = (
             geometry_type.startswith("Multi") and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
         )
-
+        
     if crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
