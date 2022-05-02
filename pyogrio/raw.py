@@ -1,13 +1,11 @@
 import warnings
 import os
-from typing import Optional
 
 from pyogrio._env import GDALEnv
-from pyogrio.errors import DataSourceError
 from pyogrio.util import vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    from pyogrio._io import ogr_read, ogr_write
     from pyogrio._ogr import buffer_to_virtual_file, remove_virtual_file
 
 
@@ -24,6 +22,12 @@ DRIVERS = {
 DRIVERS_NO_MIXED_SINGLE_MULTI = {
     "GPKG",
     "FlatGeobuf",
+}
+
+
+DRIVERS_REORDER_ROWS = {
+    "FlatGeobuf",
+    "GeoJSONSeq",
 }
 
 
@@ -119,7 +123,7 @@ def read(
     if isinstance(path_or_buffer, bytes):
         from_buffer = True
         ext = ""
-        is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
+        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
         if is_zipped:
             ext = ".zip"
         path = buffer_to_virtual_file(path_or_buffer, ext=ext)
@@ -186,9 +190,10 @@ def write(
 
     if promote_to_multi is None:
         promote_to_multi = (
-            geometry_type.startswith("Multi") and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+            geometry_type.startswith("Multi")
+            and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
         )
-        
+
     if crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
