@@ -363,3 +363,43 @@ def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
         result2 = read(f)
 
     assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_data_types_numeric(tmp_path, ext):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    field_data = [
+        np.array([True, False, True], dtype="bool"),
+        np.array([1, 2, 3], dtype="int16"),
+        np.array([1, 2, 3], dtype="int32"),
+        np.array([1, 2, 3], dtype="int64"),
+        np.array([1, 2, 3], dtype="float32"),
+        np.array([1, 2, 3], dtype="float64"),
+    ]
+    fields = ["bool", "int16", "int32", "int64", "float32", "float64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
+    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+
+    # other integer data types that don't roundtrip exactly
+    # these are generally promoted to a larger integer type except for uint64
+    for i, (dtype, result_dtype) in enumerate([
+        ("int8", "int16"),
+        ("uint8", "int16"),
+        ("uint16", "int32"),
+        ("uint32", "int64"),
+        ("uint64", "int64")
+    ]):
+        field_data = [np.array([1, 2, 3], dtype=dtype)]
+        filename = tmp_path / f"test{i}.{ext}"
+        write(filename, geometry, field_data, ["col"], **meta)
+        result = read(filename)[3][0]
+        assert np.array_equal(result, np.array([1, 2, 3]))
+        assert result.dtype == result_dtype

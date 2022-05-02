@@ -61,8 +61,8 @@ Clone this repository to a local folder.
 
 Install an appropriate distribution of GDAL for your system. Either
 `gdal-config` must be on your system path (to automatically determine the
-GDAL paths), or either the `GDAL_INCLUDE_PATH` and `GDAL_LIBRARY_PATH`
-environment variables need to be set.
+GDAL paths), or either the `GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and
+`GDAL_VERSION` environment variables need to be set.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
@@ -83,19 +83,20 @@ To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
 cannot be automatically determined.
 
-Assuming GDAL is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`
-and `GDAL_LIBRARY_PATH` environment variables and build as follows:
+Assuming GDAL 3.4.1 is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`,
+`GDAL_LIBRARY_PATH` and `GDAL_VERSION` environment variables and build as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=C:\GDAL\include
 set GDAL_LIBRARY_PATH=C:\GDAL\lib
+set GDAL_VERSION=3.4.1
 python -m pip install --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 Alternatively, you can pass those options also as command-line parameters:
 
 ```bash
-python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
+python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --install-option="--gdalversion=3.4.1" --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 The location of the GDAL DLLs must be on your system `PATH`.

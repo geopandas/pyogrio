@@ -6,6 +6,7 @@ with GDALEnv():
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
+        get_gdal_geos_version,
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
@@ -19,6 +20,7 @@ with GDALEnv():
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()
+    __gdal_geos_version__ = get_gdal_geos_version()
 
 
 def list_drivers(read=False, write=False):
