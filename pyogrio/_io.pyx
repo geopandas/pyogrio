@@ -519,9 +519,9 @@ cdef process_fields(
         isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
         if isnull:
             if field_type in (OFTInteger, OFTInteger64, OFTReal):
-                # if a signed or unsigned integer, have to cast to float to hold
+                # if a boolean or integer type, have to cast to float to hold
                 # NaN values
-                if data.dtype.kind in ('i', 'u'):
+                if data.dtype.kind in ('b', 'i', 'u'):
                     field_data[j] = field_data[j].astype(np.float64)
                     field_data_view[j] = field_data[j][:]
                     field_data_view[j][i] = np.nan

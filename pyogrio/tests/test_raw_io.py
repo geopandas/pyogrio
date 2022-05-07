@@ -395,38 +395,10 @@ def test_read_write_data_types_numeric(tmp_path, ext):
         assert result.dtype == result_dtype
 
 
-@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
-def test_read_write_data_types_numeric_with_null(tmp_path, ext):
-    # Point(0, 0)
-    geometry = np.array(
-        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
-    )
-    # fields must be stored using float to allow nulls, but we override this on write
-    field_data = [
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-        np.array([1, np.nan, 3], dtype="float64"),
-    ]
-    fields = ["int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+def test_read_data_types_numeric_with_null(test_gpkg_nulls):
+    fields = read(test_gpkg_nulls)[3]
 
-    filename = tmp_path / f"test.{ext}"
-    write(filename, geometry, field_data, fields, **meta)
-    actual = read(filename)
-    assert actual[0]["fields"].tolist() == fields
-
-    # all fields should be re-cast to float64 when detecting nulls in integer
-    # fields
-    assert all([f1.dtype == f2.dtype for f1, f2 in zip(actual[3], field_data)])
-    assert all(
-        [
-            np.array_equal(f1, f2, equal_nan=True)
-            for f1, f2 in zip(actual[3], field_data)
-        ]
-    )
-
+    # all fields should be cast to float64 and last value should be np.nan
+    for field in fields:
+        assert field.dtype == "float64"
+        assert np.isnan(field[-1])
