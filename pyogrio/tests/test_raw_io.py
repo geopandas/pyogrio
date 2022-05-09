@@ -398,7 +398,13 @@ def test_read_write_data_types_numeric(tmp_path, ext):
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 
-    # all fields should be cast to float64 and last value should be np.nan
-    for field in fields:
-        assert field.dtype == "float64"
+    for i, field in enumerate(fields):
+        # last value should be np.nan
         assert np.isnan(field[-1])
+
+        # all integer fields should be cast to float64; float32 should be preserved
+        if i == 9:
+            assert field.dtype == "float32"
+        else:
+            assert field.dtype == "float64"
+

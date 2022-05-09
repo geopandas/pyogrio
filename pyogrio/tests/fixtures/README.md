@@ -19,6 +19,7 @@ from collections import OrderedDict
 import fiona
 import geopandas as gp
 import numpy as np
+from pyogrio import write_dataframe
 
 filename = "test_gpkg_nulls.gpkg"
 
@@ -40,7 +41,7 @@ df = gp.GeoDataFrame(
     crs="EPSG:4326",
 )
 
-df.to_file(filename)
+write_dataframe(df, filename)
 
 # construct row with null values
 # Note: np.nan can only be used for float values
