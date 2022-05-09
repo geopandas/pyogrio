@@ -1,4 +1,3 @@
-from pyogrio._env import GDALEnv
 from pyogrio.raw import read, write
 
 
@@ -122,10 +121,9 @@ def read_dataframe(
 
     """
     try:
-        with GDALEnv():
-            import pandas as pd
-            import geopandas as gp
-            from geopandas.array import from_wkb
+        import pandas as pd
+        import geopandas as gp
+        from geopandas.array import from_wkb
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
@@ -197,12 +195,11 @@ def write_dataframe(
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
-        with GDALEnv():
-            import geopandas as gp
-            from geopandas.array import to_wkb
+        import geopandas as gp
+        from geopandas.array import to_wkb
 
-            # if geopandas is available so is pyproj
-            from pyproj.enums import WktVersion
+        # if geopandas is available so is pyproj
+        from pyproj.enums import WktVersion
 
     except ImportError:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
