@@ -28,7 +28,8 @@ jobs:
         with:
           environment-file: ci/environment.yml
           extra-specs: python=${{ matrix.python }}
-          cache-env: true
+          cache-env: false
+          cache-downloads: false
 
       - name: Set environment variables (Windows)
         if: runner.os == 'Windows'
