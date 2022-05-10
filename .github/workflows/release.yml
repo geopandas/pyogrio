@@ -216,12 +216,6 @@ jobs:
           python -m pip install --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
-      # TODO temporary set env variable for curl certificate for Linux
-      - name: Set CURL_CA_BUNDLE environment variable
-        if: runner.os == 'Linux'
-        run: |
-          echo "CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt" >> $GITHUB_ENV
-
       - name: Run tests
         shell: bash
         run: |
