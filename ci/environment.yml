@@ -7,3 +7,6 @@ dependencies:
   - pytest
   - pygeos
   - geopandas-base
+
+  # temporary: to get around issues with GDAL using libblosc 1.21.1
+  - blosc==1.21.0
