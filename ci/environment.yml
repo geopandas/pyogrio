@@ -2,7 +2,6 @@ name: test
 channels:
   - conda-forge
 dependencies:
-  - certifi
   - numpy
   - libgdal
   - pytest
