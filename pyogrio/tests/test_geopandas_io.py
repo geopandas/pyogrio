@@ -45,8 +45,6 @@ def spatialite_available(path):
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
-    assert isinstance(df, gp.GeoDataFrame)
-
     assert df.crs == "EPSG:4326"
     assert len(df) == 177
     assert df.columns.tolist() == [
@@ -420,14 +418,12 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
 )
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     input_gdf = read_dataframe(naturalearth_lowres)
-    assert isinstance(input_gdf, gp.GeoDataFrame)
     output_path = tmp_path / f"test{ext}"
 
     write_dataframe(input_gdf, output_path)
 
     assert output_path.exists()
     result_gdf = read_dataframe(output_path)
-    assert isinstance(result_gdf, gp.GeoDataFrame)
 
     geometry_types = result_gdf.geometry.type.unique()
     if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
@@ -525,7 +521,6 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
 
 def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
-    assert isinstance(input_gdf, gp.GeoDataFrame)
 
     # Without forced promotion
     output_path = tmp_path / "test_no_promote.geojson"
@@ -533,7 +528,6 @@ def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
-    assert isinstance(output_gdf, gp.GeoDataFrame)
     geometry_types = output_gdf.geometry.type.unique()
     assert len(geometry_types) == 2
 
@@ -543,14 +537,12 @@ def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
-    assert isinstance(output_gdf, gp.GeoDataFrame)
     geometry_types = output_gdf.geometry.type.unique()
     assert len(geometry_types) == 1
 
 
 def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
-    assert isinstance(input_gdf, gp.GeoDataFrame)
 
     # Without forced unknown
     output_path = tmp_path / "test_no_unknown.gpkg"
@@ -560,7 +552,6 @@ def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
     output_info = read_info(output_path)
     assert output_info["geometry_type"] == "MultiPolygon"
     output_gdf = read_dataframe(output_path)
-    assert isinstance(output_gdf, gp.GeoDataFrame)
     geometry_types = output_gdf.geometry.type.unique()
     assert len(geometry_types) == 1
     assert geometry_types[0] == "MultiPolygon"
@@ -571,7 +562,6 @@ def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
-    assert isinstance(output_gdf, gp.GeoDataFrame)
     output_info = read_info(output_path)
     assert output_info["geometry_type"] == "Unknown"
     # No promotion should be done
