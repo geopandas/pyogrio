@@ -66,3 +66,8 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 @pytest.fixture(scope="session")
 def test_fgdb_vsi():
     return f"/vsizip/{_data_dir}/test_fgdb.gdb.zip"
+
+
+@pytest.fixture(scope="session")
+def test_gpkg_nulls():
+    return _data_dir / "test_gpkg_nulls.gpkg"

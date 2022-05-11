@@ -2,14 +2,20 @@
 
 ## Support for null values
 
-Some data sources support NULL or otherwise unset field values. These cannot be properly
-stored into the ndarray for certain types. If NULL or unset values are encountered,
-the following occurs:
+Some data sources support NULL or otherwise unset field values. These cannot be
+properly stored into the ndarray for certain types. If NULL or unset values are
+encountered, the following occurs:
 
 -   If the field is a string type, NULL values are represented as None
--   If the field is an integer type (np.int32, np.int64), the field data are
-    re-cast to np.float64 values, and NULL values are represented as np.nan
+-   If the field is a boolean or an integer type (np.int32, np.int64), the field
+    data are re-cast to np.float64 values, and NULL values are represented as
+    np.nan
 -   If the field is a date or datetime type, the field is set as np.datetime64('NaT')
+
+Note: detection of NULL or otherwise unset field values is limited to the subset
+of records that are read from the data layer, which means that reading different
+subsets of records may yield different data types for the same columns. You
+can use `read_info()` to determine the original data types of each column.
 
 ## No support for measured geometries
 

@@ -317,13 +317,7 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
 
-@pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg")
-    ]
-)
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), f"test.{ext}")
@@ -347,13 +341,7 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
-@pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("GeoJSON", "geojson"),
-        ("GPKG", "gpkg")
-    ]
-)
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), f"test.{ext}")
@@ -390,16 +378,33 @@ def test_read_write_data_types_numeric(tmp_path, ext):
 
     # other integer data types that don't roundtrip exactly
     # these are generally promoted to a larger integer type except for uint64
-    for i, (dtype, result_dtype) in enumerate([
-        ("int8", "int16"),
-        ("uint8", "int16"),
-        ("uint16", "int32"),
-        ("uint32", "int64"),
-        ("uint64", "int64")
-    ]):
+    for i, (dtype, result_dtype) in enumerate(
+        [
+            ("int8", "int16"),
+            ("uint8", "int16"),
+            ("uint16", "int32"),
+            ("uint32", "int64"),
+            ("uint64", "int64"),
+        ]
+    ):
         field_data = [np.array([1, 2, 3], dtype=dtype)]
         filename = tmp_path / f"test{i}.{ext}"
         write(filename, geometry, field_data, ["col"], **meta)
         result = read(filename)[3][0]
         assert np.array_equal(result, np.array([1, 2, 3]))
         assert result.dtype == result_dtype
+
+
+def test_read_data_types_numeric_with_null(test_gpkg_nulls):
+    fields = read(test_gpkg_nulls)[3]
+
+    for i, field in enumerate(fields):
+        # last value should be np.nan
+        assert np.isnan(field[-1])
+
+        # all integer fields should be cast to float64; float32 should be preserved
+        if i == 9:
+            assert field.dtype == "float32"
+        else:
+            assert field.dtype == "float64"
+
