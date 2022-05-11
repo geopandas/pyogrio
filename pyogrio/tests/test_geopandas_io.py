@@ -463,6 +463,21 @@ def test_write_empty_dataframe(tmpdir, driver, ext):
     assert_geodataframe_equal(df, expected)
 
 
+def test_write_empty_dataframe_unsupported(tmp_path):
+    # Writing empty dataframe to .geojsons results in a 0 byte file, which
+    # is invalid to read again.
+    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+
+    filename = tmp_path / "test.geojsons"
+    write_dataframe(expected, filename)
+
+    assert filename.exists()
+    with pytest.raises(
+        Exception, match=".* not recognized as a supported file format."
+    ):
+        _ = read_dataframe(filename)
+
+
 def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     original_df = read_dataframe(naturalearth_lowres)
 
