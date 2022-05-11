@@ -447,25 +447,21 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-@pytest.mark.parametrize(
-    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
-)
-def test_write_empty_dataframe(tmpdir, driver, ext):
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsons"])
+def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
-    write_dataframe(expected, filename, driver=driver)
+    filename = tmp_path / f"test{ext}"
+    write_dataframe(expected, filename)
 
-    assert os.path.exists(filename)
-
+    assert filename.exists()
     df = read_dataframe(filename)
-
     assert_geodataframe_equal(df, expected)
 
 
 def test_write_empty_dataframe_unsupported(tmp_path):
-    # Writing empty dataframe to .geojsons results in a 0 byte file, which
-    # is invalid to read again.
+    # Writing empty dataframe to .geojsons results in a 0 byte file, which is invalid 
+    # to read again. More info here: https://github.com/geopandas/pyogrio/issues/94
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
     filename = tmp_path / "test.geojsons"
