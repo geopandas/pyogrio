@@ -462,9 +462,10 @@ def test_write_empty_dataframe(tmp_path, ext):
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
-def test_write_empty_dataframe_unsupported(tmp_path, ext):
-    # Writing empty dataframe to .geojsons results in a 0 byte file, which is invalid
-    # to read again. More info here: https://github.com/geopandas/pyogrio/issues/94
+def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
+    # Writing empty dataframe to .geojsons or .geojsonl results logically in a 0 byte
+    # file, but gdal isn't able to read those again at the time of writing.
+    # Issue logged here: https://github.com/geopandas/pyogrio/issues/94
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
     filename = tmp_path / f"test{ext}"
