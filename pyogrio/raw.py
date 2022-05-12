@@ -16,6 +16,7 @@ DRIVERS = {
     ".json": "GeoJSON",
     ".geojson": "GeoJSON",
     ".geojsons": "GeoJSONSeq",
+    ".geojsonl": "GeoJSONSeq",
     ".fgb": "FlatGeobuf",
 }
 
