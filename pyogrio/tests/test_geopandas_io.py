@@ -11,7 +11,6 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
-    DRIVERS_REORDER_ROWS,
 )
 from pyogrio.tests.conftest import ALL_EXTS
 
@@ -420,7 +419,11 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / f"test{ext}"
 
-    write_dataframe(input_gdf, output_path)
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to evade the rows being reordered
+        write_dataframe(input_gdf, output_path, spatial_index=False)
+    else:
+        write_dataframe(input_gdf, output_path)
 
     assert output_path.exists()
     result_gdf = read_dataframe(output_path)
@@ -430,12 +433,6 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
         assert len(geometry_types) == 1
     else:
         assert len(geometry_types) == 2
-
-    if DRIVERS[ext] in DRIVERS_REORDER_ROWS:
-        # These formats reorder features, so sort
-        sort_columns = [col for col in result_gdf.columns if col != "geometry"]
-        result_gdf = result_gdf.sort_values(by=sort_columns).reset_index(drop=True)
-        input_gdf = input_gdf.sort_values(by=sort_columns).reset_index(drop=True)
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
@@ -583,14 +580,16 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     )
 
     filename = tmp_path / f"test{ext}"
-    write_dataframe(df, filename)
+
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to evade the rows being reordereds
+        write_dataframe(df, filename, spatial_index=False)
+    else:
+        write_dataframe(df, filename)
 
     # Drivers that support mixed geometries will default to "Unknown" geometry type
     assert read_info(filename)["geometry_type"] == "Unknown"
     result = read_dataframe(filename)
-    if DRIVERS[ext] in DRIVERS_REORDER_ROWS:
-        # These drivers reorder the rows when writing, so re-sort
-        result = result.sort_values("col").reset_index(drop=True)
     assert_geodataframe_equal(result, df)
 
 

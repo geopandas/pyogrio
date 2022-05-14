@@ -25,12 +25,6 @@ DRIVERS_NO_MIXED_SINGLE_MULTI = {
 }
 
 
-DRIVERS_REORDER_ROWS = {
-    "FlatGeobuf",
-    "GeoJSONSeq",
-}
-
-
 def read(
     path_or_buffer,
     /,
