@@ -218,7 +218,7 @@ setup(
     long_description_content_type="text/markdown",
     long_description=open("README.md").read(),
     python_requires=">=3.8",
-    install_requires=["numpy"],
+    install_requires=["certifi", "numpy"],
     extras_require={
         "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
