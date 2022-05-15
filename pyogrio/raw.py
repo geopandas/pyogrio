@@ -150,6 +150,24 @@ def read(
     return result
 
 
+def detect_driver(path):
+    # try to infer driver from path
+    parts = os.path.splitext(path)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver explicitly"
+        )
+
+    ext = parts[1].lower()
+    driver = DRIVERS.get(ext, None)
+    if driver is None:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver explicitly"
+        )
+
+    return driver
+
+
 def write(
     path,
     geometry,
@@ -168,19 +186,7 @@ def write(
         raise ValueError("geometry_type must be provided")
 
     if driver is None:
-        # try to infer driver from path
-        parts = os.path.splitext(path)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
-
-        ext = parts[1].lower()
-        driver = DRIVERS.get(ext, None)
-        if driver is None:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
+        driver = detect_driver(path)
 
     if promote_to_multi is None:
         promote_to_multi = (

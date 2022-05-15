@@ -1,5 +1,6 @@
 from pyogrio._env import GDALEnv
-from pyogrio.raw import read, write
+from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI
+from pyogrio.raw import detect_driver, read, write
 
 
 def _stringify_path(path):
@@ -168,7 +169,14 @@ def read_dataframe(
 
 # TODO: handle index properly
 def write_dataframe(
-    df, path, layer=None, driver=None, encoding=None, geometry_type=None, **kwargs
+    df,
+    path,
+    layer=None,
+    driver=None,
+    encoding=None,
+    layer_geometry_type=None,
+    promote_to_multi=None,
+    **kwargs,
 ):
     """
     Write GeoPandas GeoDataFrame to an OGR file format.
@@ -185,21 +193,23 @@ def write_dataframe(
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
-    geometry_type : string, optional (default: None)
-        By default, the geometry type of the file will be inferred from the
-        data. For drivers that do not support mixed singular and multi
-        geometry types, singular geometry types are converted to their
-        corresponding multi type. If the data contains multiple primitive
-        geometry types, the output layer will get "Geometry" as geometry type.
+    layer_geometry_type : string, optional (default: None)
+        By default, the geometry type of the layer will be inferred from the
+        data, after applying the promote_to_multi logic. If the data only contains a
+        single geometry type (after applying the logic of promote_to_multi), this type
+        is used for the layer. If the data (still) contains mixed geometry types, the
+        output layer will get "Geometry" as geometry type.
 
-        The following options can influence this default behaviour:
-
-        - "PROMOTE_TO_MULTI": any singular geometry in the data will allways be
-          converted to its corresponding multi geometry type.
-        - "Unknown": regardless of the contents of the input data, the
-          geometry type of the output layer will be set to "Geometry". No automatic
-          promotion to multi types will happen.
-
+        If specified, this won't influence the data in any way, but the layer type will
+        be forced to the type specified. Mind that in most cases this will either
+        result in errors when writing the file or in invalid files, so use with
+        caution. Possible values are: "Unknown", "Point", "LineString", "Polygon",
+        "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
+    promote_to_multi : bool, optional (default: None)
+        If True, will convert singular geometry types in the data to their
+        corresponding multi geometry type for writing. By default, will convert convert
+        mixed singular and multi geometry types to multi geometry types for drivers
+        that do not support mixed singular and geometry types.
     **kwargs
         The kwargs passed to OGR.
     """
@@ -220,6 +230,9 @@ def write_dataframe(
     if not isinstance(df, gp.GeoDataFrame):
         raise ValueError("'df' must be a GeoDataFrame")
 
+    if driver is None:
+        driver = detect_driver(path)
+
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) == 0:
         raise ValueError("'df' does not have a geometry column")
@@ -230,16 +243,6 @@ def write_dataframe(
             "Multiple geometry columns are not supported for output using OGR."
         )
 
-    supported_geometry_types = ["unknown", "promote_to_multi"]
-    if (
-        geometry_type is not None
-        and geometry_type.lower() not in supported_geometry_types
-    ):
-        raise ValueError(
-            f"geometry_type {geometry_type} is not a valid option, "
-            f"use one of: {supported_geometry_types}"
-        )
-
     geometry_column = geometry_columns[0]
     geometry = df[geometry_column]
     fields = [c for c in df.columns if not c == geometry_column]
@@ -247,25 +250,41 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
-    # Determine geometry_type to be used to write the file.
-    promote_to_multi = None
-    geometry_type_write = "Unknown"
-    if not df.empty and not (
-        geometry_type is not None and geometry_type.lower() == "unknown"
-    ):
-        geometry_types = geometry.type.unique()
-        if len(geometry_types) == 1:
-            geometry_type_write = geometry_types[0]
-        elif len(geometry_types == 2):
-            if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
-                geometry_type_write = "MultiPolygon"
-            elif "LineString" in geometry_types and "MultiLineString" in geometry_types:
-                geometry_type_write = "MultiLineString"
-            elif "Point" in geometry_types and "MultiPoint" in geometry_types:
-                geometry_type_write = "MultiPoint"
+    # Determine layer_geometry_type and/or promote_to_multi
+    if layer_geometry_type is None or promote_to_multi is None:
+        tmp_layer_geometry_type = "Unknown"
 
-        if geometry_type is not None and geometry_type.lower() == "promote_to_multi":
-            promote_to_multi = True
+        # If there is data, infer layer geometry type + promote_to_multi
+        if not df.empty:
+            geometry_types = geometry.type.unique()
+            if len(geometry_types) == 1:
+                layer_geometry_type = geometry_types[0]
+            elif len(geometry_types == 2):
+                # Check if the types are corresponding multi + single types
+                if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
+                    mixed_multi_single = "MultiPolygon"
+                elif (
+                    "LineString" in geometry_types
+                    and "MultiLineString" in geometry_types
+                ):
+                    mixed_multi_single = "MultiLineString"
+                elif "Point" in geometry_types and "MultiPoint" in geometry_types:
+                    mixed_multi_single = "MultiPoint"
+                else:
+                    mixed_multi_single = None
+
+                # If they are corresponding multi + single types
+                if (
+                    mixed_multi_single is not None
+                    and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+                ):
+                    if promote_to_multi is None:
+                        promote_to_multi = True
+                    if promote_to_multi:
+                        tmp_layer_geometry_type = mixed_multi_single
+
+        if layer_geometry_type is None:
+            layer_geometry_type = tmp_layer_geometry_type
 
     crs = None
     if geometry.crs:
@@ -285,7 +304,7 @@ def write_dataframe(
         field_data=field_data,
         fields=fields,
         crs=crs,
-        geometry_type=geometry_type_write,
+        geometry_type=layer_geometry_type,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         **kwargs,

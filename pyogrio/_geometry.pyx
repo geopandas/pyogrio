@@ -101,24 +101,18 @@ cdef str get_geometry_type(void *ogr_layer):
     return GEOMETRY_TYPES[ogr_type]
 
 
-cdef int get_geometry_type_code(str geometry_type, bint promote_to_multi) except *:
+cdef int get_geometry_type_code(str geometry_type) except *:
     """Get geometry type code for string geometry type.
 
     Parameters
     ----------
     geometry_type: str
-    promote_to_multi: bint (bool)
 
     Returns
     -------
     int
         geometry type code
     """
-    if promote_to_multi and "Multi" not in geometry_type:
-        geometry_type = (geometry_type
-                .replace("Point", "MultiPoint") 
-                .replace("LineString", "MultiLineString")
-                .replace("Polygon", "MultiPolygon"))
     if geometry_type not in GEOMETRY_TYPE_CODES:
         raise GeometryError(f"Geometry type is not supported: {geometry_type}")
 

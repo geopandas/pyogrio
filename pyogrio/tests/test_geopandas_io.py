@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers, read_info, __gdal_geos_version__
-from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
+from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS,
@@ -516,11 +516,12 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     assert test_withindex_index_filename.exists() is True
 
 
-def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
+def test_write_dataframe_promote_to_multi_geojson(tmp_path, naturalearth_lowres):
+    """Test .geojson, wich supports mixed multi and single geometries."""
     input_gdf = read_dataframe(naturalearth_lowres)
 
-    # Without forced promotion
-    output_path = tmp_path / "test_no_promote.geojson"
+    # promote_to_multi=None (=default): no promotion for .geojson
+    output_path = tmp_path / "test_promote_None.geojson"
     write_dataframe(input_gdf, output_path)
 
     assert output_path.exists()
@@ -528,9 +529,9 @@ def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
     geometry_types = output_gdf.geometry.type.unique()
     assert len(geometry_types) == 2
 
-    # With forced promotion
+    # promote_to_multi=True: force promotion
     output_path = tmp_path / "test_promote.geojson"
-    write_dataframe(input_gdf, output_path, geometry_type="promote_to_multi")
+    write_dataframe(input_gdf, output_path, promote_to_multi=True)
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
@@ -538,11 +539,49 @@ def test_write_dataframe_geometry_type_promote(tmp_path, naturalearth_lowres):
     assert len(geometry_types) == 1
 
 
+def test_write_dataframe_promote_to_multi_fgb(tmp_path, naturalearth_lowres):
+    """Test .fgb, which needs promotion to save mixed multi and single geometries."""
+    input_gdf = read_dataframe(naturalearth_lowres)
+
+    # promote_to_multi=None (=default), promotion for .fgb
+    output_path = tmp_path / "test_promote_None.fgb"
+    write_dataframe(input_gdf, output_path)
+
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = output_gdf.geometry.type.unique()
+    assert len(geometry_types) == 1
+    output_info = read_info(output_path)
+    assert output_info["geometry_type"] == "MultiPolygon"
+
+    # promote_to_multi=True: force promotion
+    output_path = tmp_path / "test_promote_True.fgb"
+    write_dataframe(input_gdf, output_path, promote_to_multi=True)
+
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = output_gdf.geometry.type.unique()
+    assert len(geometry_types) == 1
+    output_info = read_info(output_path)
+    assert output_info["geometry_type"] == "MultiPolygon"
+
+    # promote_to_multi=False: prohibit promotion
+    output_path = tmp_path / "test_promote_False.fgb"
+    write_dataframe(input_gdf, output_path, promote_to_multi=False)
+
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = output_gdf.geometry.type.unique()
+    assert len(geometry_types) == 2
+    output_info = read_info(output_path)
+    assert output_info["geometry_type"] == "Unknown"
+
+
 def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
 
     # Without forced unknown
-    output_path = tmp_path / "test_no_unknown.gpkg"
+    output_path = tmp_path / "test_no_unknown.fgb"
     write_dataframe(input_gdf, output_path)
 
     assert output_path.exists()
@@ -554,8 +593,8 @@ def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
     assert geometry_types[0] == "MultiPolygon"
 
     # With forced unknown
-    output_path = tmp_path / "test_unknown.gpkg"
-    write_dataframe(input_gdf, output_path, geometry_type="unknown")
+    output_path = tmp_path / "test_unknown.fgb"
+    write_dataframe(input_gdf, output_path, layer_geometry_type="Unknown")
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
@@ -563,7 +602,32 @@ def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
     assert output_info["geometry_type"] == "Unknown"
     # No promotion should be done
     geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 2
+    assert len(geometry_types) == 1
+
+
+def test_write_dataframe_geometry_types(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = tmp_path / "test.gpkg"
+    write_dataframe(df, filename, layer_geometry_type="Unknown")
+    assert read_info(filename)["geometry_type"] == "Unknown"
+
+    write_dataframe(df, filename, layer_geometry_type="Polygon")
+    assert read_info(filename)["geometry_type"] == "Polygon"
+
+    write_dataframe(df, filename, layer_geometry_type="MultiPolygon")
+    assert read_info(filename)["geometry_type"] == "MultiPolygon"
+
+    write_dataframe(df, filename, layer_geometry_type="LineString")
+    assert read_info(filename)["geometry_type"] == "LineString"
+
+    write_dataframe(df, filename, layer_geometry_type="Point")
+    assert read_info(filename)["geometry_type"] == "Point"
+
+    with pytest.raises(
+        GeometryError, match="Geometry type is not supported: NotSupported"
+    ):
+        write_dataframe(df, filename, layer_geometry_type="NotSupported")
 
 
 @pytest.mark.parametrize(

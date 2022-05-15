@@ -1231,7 +1231,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     ### Get geometry type
     # TODO: this is brittle for 3D / ZM / M types
     # TODO: fail on M / ZM types
-    geometry_code = get_geometry_type_code(geometry_type or "Unknown", promote_to_multi)
+    geometry_code = get_geometry_type_code(geometry_type or "Unknown")
 
     ### Create the layer
     try:
