@@ -207,7 +207,7 @@ def write_dataframe(
         "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
     promote_to_multi : bool, optional (default: None)
         If True, will convert singular geometry types in the data to their
-        corresponding multi geometry type for writing. By default, will convert convert
+        corresponding multi geometry type for writing. By default, will convert
         mixed singular and multi geometry types to multi geometry types for drivers
         that do not support mixed singular and geometry types.
     **kwargs
@@ -258,7 +258,7 @@ def write_dataframe(
         if not df.empty:
             geometry_types = geometry.type.unique()
             if len(geometry_types) == 1:
-                layer_geometry_type = geometry_types[0]
+                tmp_layer_geometry_type = geometry_types[0]
             elif len(geometry_types == 2):
                 # Check if the types are corresponding multi + single types
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:

@@ -436,9 +436,9 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
-    is_json = ext in [".geojsons", ".geojson", ".json"]
-    # In .geojsons the vertices are reordered, so normalize
-    is_jsons = ext == ".geojsons"
+    is_json = ext in [".json", ".geojson", ".geojsonl"]
+    # In .geojsonl the vertices are reordered, so normalize
+    is_jsons = ext == ".geojsonl"
 
     assert_geodataframe_equal(
         result_gdf,
@@ -473,7 +473,7 @@ def to_multipolygon(geometries):
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsons"])
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
@@ -490,7 +490,7 @@ def test_write_empty_dataframe_unsupported(tmp_path):
     # is invalid to read again.
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
-    filename = tmp_path / "test.geojsons"
+    filename = tmp_path / "test.geojsonl"
     write_dataframe(expected, filename)
 
     assert filename.exists()

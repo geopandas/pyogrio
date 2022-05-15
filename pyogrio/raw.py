@@ -10,18 +10,19 @@ with GDALEnv():
 
 
 DRIVERS = {
-    ".gpkg": "GPKG",
-    ".shp": "ESRI Shapefile",
-    ".json": "GeoJSON",
-    ".geojson": "GeoJSON",
-    ".geojsons": "GeoJSONSeq",
     ".fgb": "FlatGeobuf",
+    ".geojson": "GeoJSON",
+    ".geojsonl": "GeoJSONSeq",
+    ".geojsons": "GeoJSONSeq",
+    ".gpkg": "GPKG",
+    ".json": "GeoJSON",
+    ".shp": "ESRI Shapefile",
 }
 
 
 DRIVERS_NO_MIXED_SINGLE_MULTI = {
-    "GPKG",
     "FlatGeobuf",
+    "GPKG",
 }
 
 
