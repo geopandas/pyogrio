@@ -106,7 +106,7 @@ cdef int get_geometry_type_code(str geometry_type) except *:
 
     Parameters
     ----------
-    geometry_type: str
+    geometry_type : str
 
     Returns
     -------
