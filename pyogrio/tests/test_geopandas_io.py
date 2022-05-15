@@ -557,7 +557,8 @@ def test_write_dataframe_promote_to_multi_fgb(tmp_path, naturalearth_lowres):
 
     # promote_to_multi=True: force promotion
     output_path = tmp_path / "test_promote_True.fgb"
-    write_dataframe(input_gdf, output_path, promote_to_multi=True)
+    input_single_gdf = input_gdf[input_gdf.geom_type == "Polygon"]
+    write_dataframe(input_single_gdf, output_path, promote_to_multi=True)
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)

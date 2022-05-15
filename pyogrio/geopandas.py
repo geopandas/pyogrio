@@ -259,6 +259,13 @@ def write_dataframe(
             geometry_types = geometry.type.unique()
             if len(geometry_types) == 1:
                 tmp_layer_geometry_type = geometry_types[0]
+                if promote_to_multi:
+                    if tmp_layer_geometry_type == "Polygon":
+                        tmp_layer_geometry_type = "MultiPolygon"
+                    elif tmp_layer_geometry_type == "LineString":
+                        tmp_layer_geometry_type = "MultiLineString"
+                    elif tmp_layer_geometry_type == "Point":
+                        tmp_layer_geometry_type = "MultiPoint"
             elif len(geometry_types == 2):
                 # Check if the types are corresponding multi + single types
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
