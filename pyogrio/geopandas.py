@@ -201,10 +201,12 @@ def write_dataframe(
         output layer will get "Geometry" as geometry type.
 
         If specified, this won't influence the data in any way, but the layer type will
-        be forced to the type specified. Mind that in most cases this will either
-        result in errors when writing the file or in invalid files, so use with
-        caution. Possible values are: "Unknown", "Point", "LineString", "Polygon",
-        "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
+        (typically) be forced to the type specified. Use this parameter with caution,
+        as using another layer geometry type than the default one will often result in
+        errors when writing the file, can be ignored by the driver or can result
+        in invalid files. Possible values are: "Unknown", "Point", "LineString",
+        "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon" or
+        "GeometryCollection".
     promote_to_multi : bool, optional (default: None)
         If True, will convert singular geometry types in the data to their
         corresponding multi geometry type for writing. By default, will convert
