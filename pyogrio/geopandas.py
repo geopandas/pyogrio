@@ -199,18 +199,20 @@ def write_dataframe(
         is used for the layer. If the data (still) contains mixed geometry types, the
         output layer geometry type will be set to "Unknown".
 
-        If specified, this won't influence the data in any way, but the layer type will
-        (typically) be forced to the type specified. Use this parameter with caution,
-        as using another layer geometry type than the default one will often result in
-        errors when writing the file, can be ignored by the driver or can result
-        in invalid files. Possible values are: "Unknown", "Point", "LineString",
-        "Polygon", "MultiPoint", "MultiLineString", "MultiPolygon" or
-        "GeometryCollection".
+        This parameter does not modify the geometry, but the layer type may be forced
+        to this value. Use this parameter with caution because using a non-default
+        layer geometry type may result in errors when writing the file, may be ignored
+        by the driver, or may result in invalid files. Possible values are: "Unknown",
+        "Point", "LineString", "Polygon", "MultiPoint", "MultiLineString",
+        "MultiPolygon" or "GeometryCollection".
     promote_to_multi : bool, optional (default: None)
         If True, will convert singular geometry types in the data to their
         corresponding multi geometry type for writing. By default, will convert
         mixed singular and multi geometry types to multi geometry types for drivers
-        that do not support mixed singular and geometry types.
+        that do not support mixed singular and multi geometry types. If False, geometry
+        types will not be promoted, which may result in errors or invalid files when
+        attempting to write mixed singular and multi geometry types to drivers that do
+        not support such combinations.
     **kwargs
         The kwargs passed to OGR.
     """
