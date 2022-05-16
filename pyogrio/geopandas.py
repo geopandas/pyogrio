@@ -197,7 +197,7 @@ def write_dataframe(
         data, after applying the promote_to_multi logic. If the data only contains a
         single geometry type (after applying the logic of promote_to_multi), this type
         is used for the layer. If the data (still) contains mixed geometry types, the
-        output layer will get "Geometry" as geometry type.
+        output layer geometry type will be set to "Unknown".
 
         If specified, this won't influence the data in any way, but the layer type will
         (typically) be forced to the type specified. Use this parameter with caution,
