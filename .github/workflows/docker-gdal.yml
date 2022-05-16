@@ -33,8 +33,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --no-cache-dir -U pip wheel
-          python3 -m pip install --no-cache-dir cython~=0.29
-          python3 -m pip install --no-cache-dir --no-build-isolation --no-use-pep517 -e .[dev,test,geopandas]
+          python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
 
       - name: Test with pytest
         run: |
