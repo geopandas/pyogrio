@@ -29,7 +29,7 @@ def prepare_testfile(testfile_path, dst_dir, ext):
         return dst_path
     gdf = pyogrio.read_dataframe(testfile_path)
     if ext == ".fgb":
-        # For .fgb, spatial_index=False to evade the rows being reordereds
+        # For .fgb, spatial_index=False to avoid the rows being reordered
         pyogrio.write_dataframe(gdf, dst_path, spatial_index=False)
     else:
         pyogrio.write_dataframe(gdf, dst_path)

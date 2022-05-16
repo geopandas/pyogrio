@@ -261,36 +261,35 @@ def write_dataframe(
             geometry_types = geometry.type.unique()
             if len(geometry_types) == 1:
                 tmp_layer_geometry_type = geometry_types[0]
-                if promote_to_multi:
-                    if tmp_layer_geometry_type == "Polygon":
-                        tmp_layer_geometry_type = "MultiPolygon"
-                    elif tmp_layer_geometry_type == "LineString":
-                        tmp_layer_geometry_type = "MultiLineString"
-                    elif tmp_layer_geometry_type == "Point":
-                        tmp_layer_geometry_type = "MultiPoint"
+                if promote_to_multi and tmp_layer_geometry_type in (
+                    "Point",
+                    "LineString",
+                    "Polygon",
+                ):
+                    tmp_layer_geometry_type = f"Multi{tmp_layer_geometry_type}"
             elif len(geometry_types == 2):
                 # Check if the types are corresponding multi + single types
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
-                    mixed_multi_single = "MultiPolygon"
+                    multi_type = "MultiPolygon"
                 elif (
                     "LineString" in geometry_types
                     and "MultiLineString" in geometry_types
                 ):
-                    mixed_multi_single = "MultiLineString"
+                    multi_type = "MultiLineString"
                 elif "Point" in geometry_types and "MultiPoint" in geometry_types:
-                    mixed_multi_single = "MultiPoint"
+                    multi_type = "MultiPoint"
                 else:
-                    mixed_multi_single = None
+                    multi_type = None
 
                 # If they are corresponding multi + single types
                 if (
-                    mixed_multi_single is not None
+                    multi_type is not None
                     and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
                 ):
                     if promote_to_multi is None:
                         promote_to_multi = True
                     if promote_to_multi:
-                        tmp_layer_geometry_type = mixed_multi_single
+                        tmp_layer_geometry_type = multi_type
 
         if layer_geometry_type is None:
             layer_geometry_type = tmp_layer_geometry_type

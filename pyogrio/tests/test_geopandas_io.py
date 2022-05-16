@@ -55,8 +55,6 @@ def test_read_dataframe(naturalearth_lowres_all_ext):
         "geometry",
     ]
 
-    assert df.geometry.iloc[0].type in ["Polygon", "MultiPolygon"]
-
 
 def test_read_dataframe_vsi(naturalearth_lowres_vsi):
     df = read_dataframe(naturalearth_lowres_vsi[1])
@@ -431,9 +429,9 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
     geometry_types = result_gdf.geometry.type.unique()
     if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
-        assert len(geometry_types) == 1
+        assert geometry_types == ["MultiPolygon"]
     else:
-        assert len(geometry_types) == 2
+        assert len(set(geometry_types).intersection(("Polygon", "MultiPolygon"))) == 2
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
@@ -517,94 +515,43 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     assert test_withindex_index_filename.exists() is True
 
 
-def test_write_dataframe_promote_to_multi_geojson(tmp_path, naturalearth_lowres):
-    """Test .geojson, wich supports mixed multi and single geometries."""
+@pytest.mark.parametrize(
+    "ext, promote_to_multi, layer_geometry_type, "
+    "expected_geometry_types, expected_layer_geometry_type",
+    [
+        (".geojson", None, None, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", True, None, ["MultiPolygon"], "MultiPolygon"),
+        (".geojson", False, None, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".fgb", None, None, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", True, None, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", False, None, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
+    ],
+)
+def test_write_dataframe_promote_to_multi(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    layer_geometry_type,
+    expected_geometry_types,
+    expected_layer_geometry_type,
+):
     input_gdf = read_dataframe(naturalearth_lowres)
 
-    # promote_to_multi=None (=default): no promotion for .geojson
-    output_path = tmp_path / "test_promote_None.geojson"
-    write_dataframe(input_gdf, output_path)
+    output_path = tmp_path / f"test_promote{ext}"
+    write_dataframe(
+        input_gdf,
+        output_path,
+        promote_to_multi=promote_to_multi,
+        layer_geometry_type=layer_geometry_type,
+    )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 2
-
-    # promote_to_multi=True: force promotion
-    output_path = tmp_path / "test_promote.geojson"
-    write_dataframe(input_gdf, output_path, promote_to_multi=True)
-
-    assert output_path.exists()
-    output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 1
-
-
-def test_write_dataframe_promote_to_multi_fgb(tmp_path, naturalearth_lowres):
-    """Test .fgb, which needs promotion to save mixed multi and single geometries."""
-    input_gdf = read_dataframe(naturalearth_lowres)
-
-    # promote_to_multi=None (=default), promotion for .fgb
-    output_path = tmp_path / "test_promote_None.fgb"
-    write_dataframe(input_gdf, output_path)
-
-    assert output_path.exists()
-    output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 1
-    output_info = read_info(output_path)
-    assert output_info["geometry_type"] == "MultiPolygon"
-
-    # promote_to_multi=True: force promotion
-    output_path = tmp_path / "test_promote_True.fgb"
-    input_single_gdf = input_gdf[input_gdf.geom_type == "Polygon"]
-    write_dataframe(input_single_gdf, output_path, promote_to_multi=True)
-
-    assert output_path.exists()
-    output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 1
-    output_info = read_info(output_path)
-    assert output_info["geometry_type"] == "MultiPolygon"
-
-    # promote_to_multi=False: prohibit promotion
-    output_path = tmp_path / "test_promote_False.fgb"
-    write_dataframe(input_gdf, output_path, promote_to_multi=False)
-
-    assert output_path.exists()
-    output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 2
-    output_info = read_info(output_path)
-    assert output_info["geometry_type"] == "Unknown"
-
-
-def test_write_dataframe_geometry_type_unknown(tmp_path, naturalearth_lowres):
-    input_gdf = read_dataframe(naturalearth_lowres)
-
-    # Without forced unknown
-    output_path = tmp_path / "test_no_unknown.fgb"
-    write_dataframe(input_gdf, output_path)
-
-    assert output_path.exists()
-    output_info = read_info(output_path)
-    assert output_info["geometry_type"] == "MultiPolygon"
-    output_gdf = read_dataframe(output_path)
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 1
-    assert geometry_types[0] == "MultiPolygon"
-
-    # With forced unknown
-    output_path = tmp_path / "test_unknown.fgb"
-    write_dataframe(input_gdf, output_path, layer_geometry_type="Unknown")
-
-    assert output_path.exists()
-    output_gdf = read_dataframe(output_path)
-    output_info = read_info(output_path)
-    assert output_info["geometry_type"] == "Unknown"
-    # No promotion should be done
-    geometry_types = output_gdf.geometry.type.unique()
-    assert len(geometry_types) == 1
+    geometry_types = sorted(output_gdf.geometry.type.unique())
+    assert geometry_types == expected_geometry_types
+    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
 
 
 def test_write_dataframe_geometry_types(tmp_path, naturalearth_lowres):
@@ -648,7 +595,7 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     filename = tmp_path / f"test{ext}"
 
     if ext == ".fgb":
-        # For .fgb, spatial_index=False to evade the rows being reordereds
+        # For .fgb, spatial_index=False to avoid the rows being reordered
         write_dataframe(df, filename, spatial_index=False)
     else:
         write_dataframe(df, filename)
