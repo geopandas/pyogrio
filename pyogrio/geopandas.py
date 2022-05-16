@@ -199,12 +199,12 @@ def write_dataframe(
         is used for the layer. If the data (still) contains mixed geometry types, the
         output layer geometry type will be set to "Unknown".
 
-        This parameter does not modify the geometry, but the layer type may be forced
-        to this value. Use this parameter with caution because using a non-default
-        layer geometry type may result in errors when writing the file, may be ignored
-        by the driver, or may result in invalid files. Possible values are: "Unknown",
-        "Point", "LineString", "Polygon", "MultiPoint", "MultiLineString",
-        "MultiPolygon" or "GeometryCollection".
+        This parameter does not modify the geometry, but the layer type of the written
+        file may be forced to this value. Use this parameter with caution because using
+        a non-default layer geometry type may result in errors when writing the file,
+        may be ignored by the driver, or may result in invalid files. Possible values
+        are: "Unknown", "Point", "LineString", "Polygon", "MultiPoint",
+        "MultiLineString", "MultiPolygon" or "GeometryCollection".
     promote_to_multi : bool, optional (default: None)
         If True, will convert singular geometry types in the data to their
         corresponding multi geometry type for writing. By default, will convert
@@ -282,10 +282,7 @@ def write_dataframe(
                     multi_type = None
 
                 # If they are corresponding multi + single types
-                if (
-                    multi_type is not None
-                    and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
-                ):
+                if multi_type is not None and driver in DRIVERS_NO_MIXED_SINGLE_MULTI:
                     if promote_to_multi is None:
                         promote_to_multi = True
                     if promote_to_multi:
