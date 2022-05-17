@@ -1114,6 +1114,7 @@ cdef infer_field_types(list dtypes):
 
     return field_types
 
+
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,

@@ -1,4 +1,3 @@
-from pyogrio._env import GDALEnv
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI
 from pyogrio.raw import detect_driver, read, write
 
@@ -199,11 +198,11 @@ def write_dataframe(
         is used for the layer. If the data (still) contains mixed geometry types, the
         output layer geometry type will be set to "Unknown".
 
-        This parameter does not modify the geometry, but the layer type of the written
-        file may be forced to this value. Use this parameter with caution because using
-        a non-default layer geometry type may result in errors when writing the file,
-        may be ignored by the driver, or may result in invalid files. Possible values
-        are: "Unknown", "Point", "LineString", "Polygon", "MultiPoint",
+        This parameter does not modify the geometry, but it will try to force the layer
+        type of the output file to this value. Use this parameter with caution because
+        using a non-default layer geometry type may result in errors when writing the
+        file, may be ignored by the driver, or may result in invalid files. Possible
+        values are: "Unknown", "Point", "LineString", "Polygon", "MultiPoint",
         "MultiLineString", "MultiPolygon" or "GeometryCollection".
     promote_to_multi : bool, optional (default: None)
         If True, will convert singular geometry types in the data to their
@@ -267,7 +266,7 @@ def write_dataframe(
                     "Polygon",
                 ):
                     tmp_layer_geometry_type = f"Multi{tmp_layer_geometry_type}"
-            elif len(geometry_types == 2):
+            elif len(geometry_types) == 2:
                 # Check if the types are corresponding multi + single types
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
                     multi_type = "MultiPolygon"
@@ -282,8 +281,11 @@ def write_dataframe(
                     multi_type = None
 
                 # If they are corresponding multi + single types
-                if multi_type is not None and driver in DRIVERS_NO_MIXED_SINGLE_MULTI:
-                    if promote_to_multi is None:
+                if multi_type is not None:
+                    if (
+                        promote_to_multi is None
+                        and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+                    ):
                         promote_to_multi = True
                     if promote_to_multi:
                         tmp_layer_geometry_type = multi_type

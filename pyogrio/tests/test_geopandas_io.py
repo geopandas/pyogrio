@@ -261,7 +261,7 @@ def test_read_sql(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
     assert len(df.columns) == 6
     assert len(df) == 3
-    assert sorted(df.iso_a3.tolist()) == ["CAN", "MEX", "USA"]
+    assert df.iso_a3.tolist() == ["CAN", "USA", "MEX"]
 
     sql = """SELECT *
                FROM naturalearth_lowres
@@ -313,7 +313,7 @@ def test_read_sql_columns_where(naturalearth_lowres_all_ext):
     )
     assert len(df.columns) == 3
     assert len(df) == 3
-    assert sorted(df.iso_a3_renamed.tolist()) == ["CAN", "MEX", "USA"]
+    assert df.iso_a3_renamed.tolist() == ["CAN", "USA", "MEX"]
 
 
 def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
@@ -328,7 +328,7 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
     )
     assert len(df.columns) == 3
     assert len(df) == 2
-    assert sorted(df.iso_a3_renamed.tolist()) == ["MEX", "USA"]
+    assert df.iso_a3_renamed.tolist() == ["USA", "MEX"]
 
 
 def test_read_sql_skip_max(naturalearth_lowres_all_ext):
@@ -431,7 +431,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
         assert geometry_types == ["MultiPolygon"]
     else:
-        assert len(set(geometry_types).intersection(("Polygon", "MultiPolygon"))) == 2
+        assert set(geometry_types) == set(["MultiPolygon", "Polygon"])
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
@@ -645,11 +645,27 @@ def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     [ext for ext in ALL_EXTS if ext not in ".shp"],
 )
 def test_write_dataframe_truly_mixed(tmp_path, ext):
-    from shapely.geometry import Point, LineString, box
+    from shapely.geometry import (
+        box,
+        LineString,
+        MultiLineString,
+        MultiPoint,
+        MultiPolygon,
+        Point,
+    )
+
+    geometry = [
+        Point(0, 0),
+        LineString([(0, 0), (1, 1)]),
+        box(0, 0, 1, 1),
+        MultiPoint([Point(1, 1), Point(2, 2)]),
+        MultiLineString([LineString([(1, 1), (2, 2)]), LineString([(2, 2), (3, 3)])]),
+        MultiPolygon([box(1, 1, 2, 2), box(2, 2, 3, 3)]),
+    ]
 
     df = gp.GeoDataFrame(
-        {"col": [1.0, 2.0, 3.0]},
-        geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
+        {"col": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]},
+        geometry=geometry,
         crs="EPSG:4326",
     )
 
@@ -664,7 +680,7 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     # Drivers that support mixed geometries will default to "Unknown" geometry type
     assert read_info(filename)["geometry_type"] == "Unknown"
     result = read_dataframe(filename)
-    assert_geodataframe_equal(result, df)
+    assert_geodataframe_equal(result, df, check_geom_type=True)
 
 
 def test_write_dataframe_truly_mixed_invalid(tmp_path):
