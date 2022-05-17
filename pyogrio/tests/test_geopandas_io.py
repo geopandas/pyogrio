@@ -516,19 +516,60 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type, "
-    "expected_geometry_types, expected_layer_geometry_type",
+    "ext, promote_to_multi, expected_geometry_types, expected_layer_geometry_type",
     [
-        (".geojson", None, None, ["MultiPolygon", "Polygon"], "Unknown"),
-        (".geojson", True, None, ["MultiPolygon"], "MultiPolygon"),
-        (".geojson", False, None, ["MultiPolygon", "Polygon"], "Unknown"),
-        (".fgb", None, None, ["MultiPolygon"], "MultiPolygon"),
-        (".fgb", True, None, ["MultiPolygon"], "MultiPolygon"),
-        (".fgb", False, None, ["MultiPolygon", "Polygon"], "Unknown"),
-        (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".fgb", None, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", True, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", False, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", True, ["MultiPolygon"], "MultiPolygon"),
+        (".geojson", False, ["MultiPolygon", "Polygon"], "Unknown"),
     ],
 )
 def test_write_dataframe_promote_to_multi(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    expected_geometry_types,
+    expected_layer_geometry_type,
+):
+    input_gdf = read_dataframe(naturalearth_lowres)
+
+    output_path = tmp_path / f"test_promote{ext}"
+    write_dataframe(
+        input_gdf,
+        output_path,
+        promote_to_multi=promote_to_multi,
+    )
+
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = sorted(output_gdf.geometry.type.unique())
+    assert geometry_types == expected_geometry_types
+    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+
+
+@pytest.mark.parametrize(
+    "ext, promote_to_multi, layer_geometry_type, "
+    "expected_geometry_types, expected_layer_geometry_type",
+    [
+        (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".geojson", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Polygon", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "MultiPolygon", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Point", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", True, "Unknown", ["MultiPolygon"], "MultiPolygon"),
+        (".gpkg", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".gpkg", None, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".gpkg", None, "Polygon", ["MultiPolygon"], "Polygon"),
+        (".gpkg", None, "MultiPolygon", ["MultiPolygon"], "MultiPolygon"),
+        (".gpkg", None, "Point", ["MultiPolygon"], "Point"),
+        (".gpkg", True, "Unknown", ["MultiPolygon"], "Unknown"),
+    ],
+)
+def test_write_dataframe_promote_to_multi_layer_geom_type(
     tmp_path,
     naturalearth_lowres,
     ext,
@@ -539,7 +580,7 @@ def test_write_dataframe_promote_to_multi(
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
-    output_path = tmp_path / f"test_promote{ext}"
+    output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
     write_dataframe(
         input_gdf,
         output_path,
@@ -554,25 +595,38 @@ def test_write_dataframe_promote_to_multi(
     assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
 
 
-def test_write_dataframe_geometry_types(tmp_path, naturalearth_lowres):
+@pytest.mark.parametrize(
+    "ext, promote_to_multi, layer_geometry_type",
+    [
+        (".fgb", False, "MultiPolygon"),
+        (".fgb", False, "Polygon"),
+        (".fgb", None, "Point"),
+        (".fgb", None, "Polygon"),
+    ],
+)
+def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    layer_geometry_type,
+):
+    input_gdf = read_dataframe(naturalearth_lowres)
+
+    output_path = tmp_path / f"test{ext}"
+    with pytest.raises(FeatureError, match="Mismatched geometry type"):
+        write_dataframe(
+            input_gdf,
+            output_path,
+            promote_to_multi=promote_to_multi,
+            layer_geometry_type=layer_geometry_type,
+        )
+
+
+def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
-    filename = tmp_path / "test.gpkg"
-    write_dataframe(df, filename, layer_geometry_type="Unknown")
-    assert read_info(filename)["geometry_type"] == "Unknown"
-
-    write_dataframe(df, filename, layer_geometry_type="Polygon")
-    assert read_info(filename)["geometry_type"] == "Polygon"
-
-    write_dataframe(df, filename, layer_geometry_type="MultiPolygon")
-    assert read_info(filename)["geometry_type"] == "MultiPolygon"
-
-    write_dataframe(df, filename, layer_geometry_type="LineString")
-    assert read_info(filename)["geometry_type"] == "LineString"
-
-    write_dataframe(df, filename, layer_geometry_type="Point")
-    assert read_info(filename)["geometry_type"] == "Point"
-
+    filename = tmp_path / "test.geojson"
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
@@ -606,7 +660,7 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     assert_geodataframe_equal(result, df)
 
 
-def test_write_dataframe_truly_mixed_unsupported(tmp_path):
+def test_write_dataframe_truly_mixed_invalid(tmp_path):
     # Shapefile doesn't support generic "Geometry" / "Unknown" type
     # for mixed geometries
     from shapely.geometry import Point, LineString, box
