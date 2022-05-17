@@ -18,10 +18,9 @@ def test_autodetect_driver(tmp_path, naturalearth_lowres, ext):
 
     assert testfile.suffix == ext
     assert testfile.exists()
-    meta, _, geometry, fields = read(naturalearth_lowres)
+    meta, _, geometry, fields = read(testfile)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
 
@@ -35,9 +34,6 @@ def test_autodetect_driver(tmp_path, naturalearth_lowres, ext):
 
     assert len(fields) == 5
     assert len(geometry) == len(fields[0])
-
-    # quick test that WKB is a Polygon type
-    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
 
 
 def test_read(naturalearth_lowres):
