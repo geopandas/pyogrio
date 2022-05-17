@@ -449,28 +449,6 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     )
 
 
-def to_multipolygon(geometries):
-    """
-    Convert single part polygons to multipolygons.
-    Parameters
-    ----------
-    geometries : ndarray of pygeos geometries
-        can be mixed polygon and multipolygon types
-    Returns
-    -------
-    ndarray of pygeos geometries, all multipolygon types
-    """
-    import pygeos
-
-    ix = pygeos.get_type_id(geometries) == 3
-    if ix.sum():
-        geometries = geometries.copy()
-        geometries[ix] = np.apply_along_axis(
-            pygeos.multipolygons, arr=(np.expand_dims(geometries[ix], 1)), axis=1
-        )
-    return geometries
-
-
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 def test_write_empty_dataframe(tmp_path, ext):
