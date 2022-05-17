@@ -567,6 +567,11 @@ def test_write_dataframe_promote_to_multi(
         (".gpkg", None, "MultiPolygon", ["MultiPolygon"], "MultiPolygon"),
         (".gpkg", None, "Point", ["MultiPolygon"], "Point"),
         (".gpkg", True, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".shp", False, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "Polygon", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "MultiPolygon", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", True, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
     ],
 )
 def test_write_dataframe_promote_to_multi_layer_geom_type(
@@ -596,12 +601,13 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type",
+    "ext, promote_to_multi, layer_geometry_type, expected_raises_match",
     [
-        (".fgb", False, "MultiPolygon"),
-        (".fgb", False, "Polygon"),
-        (".fgb", None, "Point"),
-        (".fgb", None, "Polygon"),
+        (".fgb", False, "MultiPolygon", "Mismatched geometry type"),
+        (".fgb", False, "Polygon", "Mismatched geometry type"),
+        (".fgb", None, "Point", "Mismatched geometry type"),
+        (".fgb", None, "Polygon", "Mismatched geometry type"),
+        (".shp", None, "Point", "Could not add feature to layer at index"),
     ],
 )
 def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
@@ -610,11 +616,12 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     ext,
     promote_to_multi,
     layer_geometry_type,
+    expected_raises_match,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test{ext}"
-    with pytest.raises(FeatureError, match="Mismatched geometry type"):
+    with pytest.raises(FeatureError, match=expected_raises_match):
         write_dataframe(
             input_gdf,
             output_path,
