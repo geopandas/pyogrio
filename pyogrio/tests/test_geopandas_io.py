@@ -448,19 +448,34 @@ def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize(
-    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
+    "ext", [ext for ext in ALL_EXTS if ext not in [".geojsonl", ".geojsons"]]
 )
-def test_write_empty_dataframe(tmpdir, driver, ext):
+def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
-    write_dataframe(expected, filename, driver=driver)
+    filename = tmp_path / f"test{ext}"
+    write_dataframe(expected, filename)
 
-    assert os.path.exists(filename)
-
+    assert filename.exists()
     df = read_dataframe(filename)
-
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
+def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
+    # Writing empty dataframe to .geojsons or .geojsonl results logically in a 0 byte
+    # file, but gdal isn't able to read those again at the time of writing.
+    # Issue logged here: https://github.com/geopandas/pyogrio/issues/94
+    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+
+    filename = tmp_path / f"test{ext}"
+    write_dataframe(expected, filename)
+
+    assert filename.exists()
+    with pytest.raises(
+        Exception, match=".* not recognized as a supported file format."
+    ):
+        _ = read_dataframe(filename)
 
 
 def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):

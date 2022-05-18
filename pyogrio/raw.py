@@ -14,6 +14,9 @@ DRIVERS = {
     ".gpkg": "GPKG",
     ".shp": "ESRI Shapefile",
     ".json": "GeoJSON",
+    ".geojson": "GeoJSON",
+    ".geojsons": "GeoJSONSeq",
+    ".geojsonl": "GeoJSONSeq",
     ".fgb": "FlatGeobuf",
 }
 
