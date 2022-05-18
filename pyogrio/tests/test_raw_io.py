@@ -44,7 +44,7 @@ def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     meta, _, geometry, fields = read(testfile)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] in ("Polygon", "Unknown")
+    assert meta["geometry_type"] in ("MultiPolygon", "Polygon", "Unknown")
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
 
