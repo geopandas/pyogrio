@@ -15,8 +15,19 @@ import sys
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
-gdal_dll_dir = None
 
+try:
+    # set GDAL_CURL_CA_BUNDLE / PROJ_CURL_CA_BUNDLE for GDAL >= 3.2
+    import certifi
+
+    ca_bundle = certifi.where()
+    os.environ.setdefault("GDAL_CURL_CA_BUNDLE", ca_bundle)
+    os.environ.setdefault("PROJ_CURL_CA_BUNDLE", ca_bundle)
+except ImportError:
+    pass
+
+
+gdal_dll_dir = None
 
 if platform.system() == "Windows" and sys.version_info >= (3, 8):
     # if loading of extension modules fails, search for gdal dll directory

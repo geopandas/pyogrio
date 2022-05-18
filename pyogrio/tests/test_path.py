@@ -109,23 +109,23 @@ def test_path_absolute(data_dir):
     # pathlib path
     path = data_dir / "naturalearth_lowres/naturalearth_lowres.shp"
     df = pyogrio.read_dataframe(path)
-    len(df) == 177
+    assert len(df) == 177
 
     # str path
     df = pyogrio.read_dataframe(str(path))
-    len(df) == 177
+    assert len(df) == 177
 
 
 def test_path_relative(data_dir):
     with change_cwd(data_dir):
         df = pyogrio.read_dataframe("naturalearth_lowres/naturalearth_lowres.shp")
-    len(df) == 177
+    assert len(df) == 177
 
 
 def test_uri_local_file(data_dir):
     uri = "file://" + str(data_dir / "naturalearth_lowres/naturalearth_lowres.shp")
     df = pyogrio.read_dataframe(uri)
-    len(df) == 177
+    assert len(df) == 177
 
 
 def test_zip_path(naturalearth_lowres_vsi):
