@@ -6,8 +6,9 @@ from numpy import array_equal
 import pytest
 
 from pyogrio import list_layers, list_drivers
-from pyogrio.raw import read, write
+from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
+from pyogrio.tests.conftest import prepare_testfile
 
 
 def test_read(naturalearth_lowres):
@@ -31,6 +32,32 @@ def test_read(naturalearth_lowres):
 
     # quick test that WKB is a Polygon type
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
+    # Test all supported autodetect drivers
+    testfile = prepare_testfile(naturalearth_lowres, dst_dir=tmp_path, ext=ext)
+
+    assert testfile.suffix == ext
+    assert testfile.exists()
+    meta, _, geometry, fields = read(testfile)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry_type"] in ("Polygon", "Unknown")
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (5,)
+
+    assert meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(fields) == 5
+    assert len(geometry) == len(fields[0])
 
 
 def test_read_invalid_layer(naturalearth_lowres):
@@ -407,4 +434,3 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float32"
         else:
             assert field.dtype == "float64"
-
