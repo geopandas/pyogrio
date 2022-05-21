@@ -419,7 +419,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     output_path = tmp_path / f"test{ext}"
 
     if ext == ".fgb":
-        # For .fgb, spatial_index=False to evade the rows being reordered
+        # For .fgb, spatial_index=False to avoid the rows being reordered
         write_dataframe(input_gdf, output_path, spatial_index=False)
     else:
         write_dataframe(input_gdf, output_path)
