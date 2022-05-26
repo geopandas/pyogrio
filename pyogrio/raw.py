@@ -2,22 +2,27 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
-from pyogrio.errors import DataSourceError
 from pyogrio.util import vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    from pyogrio._io import ogr_read, ogr_write
     from pyogrio._ogr import buffer_to_virtual_file, remove_virtual_file
 
 
 DRIVERS = {
-    ".gpkg": "GPKG",
-    ".shp": "ESRI Shapefile",
-    ".json": "GeoJSON",
-    ".geojson": "GeoJSON",
-    ".geojsons": "GeoJSONSeq",
-    ".geojsonl": "GeoJSONSeq",
     ".fgb": "FlatGeobuf",
+    ".geojson": "GeoJSON",
+    ".geojsonl": "GeoJSONSeq",
+    ".geojsons": "GeoJSONSeq",
+    ".gpkg": "GPKG",
+    ".json": "GeoJSON",
+    ".shp": "ESRI Shapefile",
+}
+
+
+DRIVERS_NO_MIXED_SINGLE_MULTI = {
+    "FlatGeobuf",
+    "GPKG",
 }
 
 
@@ -113,7 +118,7 @@ def read(
     if isinstance(path_or_buffer, bytes):
         from_buffer = True
         ext = ""
-        is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
+        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
         if is_zipped:
             ext = ".zip"
         path = buffer_to_virtual_file(path_or_buffer, ext=ext)
@@ -146,6 +151,24 @@ def read(
     return result
 
 
+def detect_driver(path):
+    # try to infer driver from path
+    parts = os.path.splitext(path)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver explicitly"
+        )
+
+    ext = parts[1].lower()
+    driver = DRIVERS.get(ext, None)
+    if driver is None:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver explicitly"
+        )
+
+    return driver
+
+
 def write(
     path,
     geometry,
@@ -157,26 +180,20 @@ def write(
     geometry_type=None,
     crs=None,
     encoding=None,
+    promote_to_multi=None,
     **kwargs,
 ):
-
     if geometry_type is None:
         raise ValueError("geometry_type must be provided")
 
     if driver is None:
-        # try to infer driver from path
-        parts = os.path.splitext(path)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
+        driver = detect_driver(path)
 
-        ext = parts[1].lower()
-        driver = DRIVERS.get(ext, None)
-        if driver is None:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
+    if promote_to_multi is None:
+        promote_to_multi = (
+            geometry_type.startswith("Multi")
+            and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+        )
 
     if crs is None:
         warnings.warn(
@@ -195,5 +212,6 @@ def write(
         fields=fields,
         crs=crs,
         encoding=encoding,
+        promote_to_multi=promote_to_multi,
         **kwargs,
     )
