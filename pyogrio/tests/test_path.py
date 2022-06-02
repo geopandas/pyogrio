@@ -281,8 +281,7 @@ def test_url():
 def test_url_dataframe():
     url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
 
-    result = pyogrio.read_dataframe(url)
-    assert len(result[2]) == 177
+    assert len(pyogrio.read_dataframe(url)) == 177
 
 
 @pytest.mark.network
