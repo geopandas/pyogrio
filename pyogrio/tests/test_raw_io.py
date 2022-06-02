@@ -434,3 +434,12 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float32"
         else:
             assert field.dtype == "float64"
+
+
+def test_read_unsupported_types(test_ogr_types_list):
+    fields = read(test_ogr_types_list)[3]
+    # list field gets skipped, only integer field is read
+    assert len(fields) == 1
+
+    fields = read(test_ogr_types_list, columns=["int64"])[3]
+    assert len(fields) == 1
