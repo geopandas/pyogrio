@@ -197,7 +197,7 @@ cdef extern from "ogr_api.h":
     int64_t         OGR_F_GetFID(OGRFeatureH feature)
     OGRGeometryH    OGR_F_GetGeometryRef(OGRFeatureH feature)
     GByte*          OGR_F_GetFieldAsBinary(OGRFeatureH feature, int n, int *s)
-    int             OGR_F_GetFieldAsDateTime(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, int *s, int *z)
+    int             OGR_F_GetFieldAsDateTimeEx(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, float *s, int *z)
     double          OGR_F_GetFieldAsDouble(OGRFeatureH feature, int n)
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
     long            OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)

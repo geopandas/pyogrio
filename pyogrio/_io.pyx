@@ -7,6 +7,7 @@
 import datetime
 import locale
 import logging
+import math
 import os
 import warnings
 
@@ -31,20 +32,20 @@ log = logging.getLogger(__name__)
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
 FIELD_TYPES = [
-    'int32',        # OFTInteger, Simple 32bit integer
-    None,           # OFTIntegerList, List of 32bit integers, not supported
-    'float64',      # OFTReal, Double Precision floating point
-    None,           # OFTRealList, List of doubles, not supported
-    'object',       # OFTString, String of UTF-8 chars
-    None,           # OFTStringList, Array of strings, not supported
-    None,           # OFTWideString, deprecated, not supported
-    None,           # OFTWideStringList, deprecated, not supported
-    'object',       #  OFTBinary, Raw Binary data
-    'datetime64[D]',# OFTDate, Date
-    None,           # OFTTime, Time, NOTE: not directly supported in numpy
-    'datetime64[s]',# OFTDateTime, Date and Time
-    'int64',        # OFTInteger64, Single 64bit integer
-    None            # OFTInteger64List, List of 64bit integers, not supported
+    'int32',         # OFTInteger, Simple 32bit integer
+    None,            # OFTIntegerList, List of 32bit integers, not supported
+    'float64',       # OFTReal, Double Precision floating point
+    None,            # OFTRealList, List of doubles, not supported
+    'object',        # OFTString, String of UTF-8 chars
+    None,            # OFTStringList, Array of strings, not supported
+    None,            # OFTWideString, deprecated, not supported
+    None,            # OFTWideStringList, deprecated, not supported
+    'object',        #  OFTBinary, Raw Binary data
+    'datetime64[D]', # OFTDate, Date
+    None,            # OFTTime, Time, NOTE: not directly supported in numpy
+    'datetime64[us]',# OFTDateTime, Date and Time
+    'int64',         # OFTInteger64, Single 64bit integer
+    None             # OFTInteger64List, List of 64bit integers, not supported
 ]
 
 FIELD_SUBTYPES = {
@@ -508,7 +509,7 @@ cdef process_fields(
     cdef int day = 0
     cdef int hour = 0
     cdef int minute = 0
-    cdef int second = 0
+    cdef float fsecond = 0.0
     cdef int timezone = 0
 
     for j in range(n_fields):
@@ -554,8 +555,13 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            success = OGR_F_GetFieldAsDateTime(
-                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
+            success = OGR_F_GetFieldAsDateTimeEx(
+                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
+
+            ms, ss = math.modf(fsecond)
+            second = int(ss)
+            # fsecond has millisecond accuracy
+            microsecond = round(ms * 1000) * 1000
 
             if not success:
                 data[i] = np.datetime64('NaT')
@@ -564,7 +570,7 @@ cdef process_fields(
                 data[i] = datetime.date(year, month, day).isoformat()
 
             elif field_type == OFTDateTime:
-                data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
+                data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
