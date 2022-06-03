@@ -43,7 +43,7 @@ FIELD_TYPES = [
     'object',        #  OFTBinary, Raw Binary data
     'datetime64[D]', # OFTDate, Date
     None,            # OFTTime, Time, NOTE: not directly supported in numpy
-    'datetime64[us]',# OFTDateTime, Date and Time
+    'datetime64[ms]',# OFTDateTime, Date and Time
     'int64',         # OFTInteger64, Single 64bit integer
     None             # OFTInteger64List, List of 64bit integers, not supported
 ]
