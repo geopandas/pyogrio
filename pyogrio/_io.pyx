@@ -335,6 +335,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     fields = np.empty(shape=(field_count, 4), dtype=object)
     fields_view = fields[:,:]
 
+    skipped_fields = False
+
     for i in range(field_count):
         try:
             ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
@@ -350,6 +352,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
         if not np_type:
+            skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
             continue
@@ -364,6 +367,11 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         fields_view[i,1] = field_type
         fields_view[i,2] = field_name
         fields_view[i,3] = np_type
+
+    if skipped_fields:
+        # filter out skipped fields
+        mask = np.array([idx is not None for idx in fields[:, 0]])
+        fields = fields[mask]
 
     return fields
 
