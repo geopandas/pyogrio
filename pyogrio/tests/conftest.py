@@ -80,3 +80,8 @@ def test_gpkg_nulls():
 @pytest.fixture(scope="session")
 def test_ogr_types_list():
     return _data_dir / "test_ogr_types_list.geojson"
+
+
+@pytest.fixture(scope="session")
+def test_datetime():
+    return _data_dir / "test_datetime.geojson"

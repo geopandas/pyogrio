@@ -443,3 +443,10 @@ def test_read_unsupported_types(test_ogr_types_list):
 
     fields = read(test_ogr_types_list, columns=["int64"])[3]
     assert len(fields) == 1
+
+
+def test_read_datetime_millisecond(test_datetime):
+    field = read(test_datetime)[3][0]
+    assert field.dtype == "datetime64[ms]"
+    assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
+    assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
