@@ -8,7 +8,7 @@ import pyogrio
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
-ALL_EXTS = [".shp", ".gpkg", ".json"]
+ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
 
 
 def pytest_report_header(config):
@@ -28,7 +28,11 @@ def prepare_testfile(testfile_path, dst_dir, ext):
     if dst_path.exists():
         return dst_path
     gdf = pyogrio.read_dataframe(testfile_path)
-    pyogrio.write_dataframe(gdf, dst_path)
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to avoid the rows being reordered
+        pyogrio.write_dataframe(gdf, dst_path, spatial_index=False)
+    else:
+        pyogrio.write_dataframe(gdf, dst_path)
     return dst_path
 
 
@@ -71,3 +75,8 @@ def test_fgdb_vsi():
 @pytest.fixture(scope="session")
 def test_gpkg_nulls():
     return _data_dir / "test_gpkg_nulls.gpkg"
+
+
+@pytest.fixture(scope="session")
+def test_ogr_types_list():
+    return _data_dir / "test_ogr_types_list.geojson"

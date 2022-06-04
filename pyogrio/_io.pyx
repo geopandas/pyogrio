@@ -334,6 +334,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     fields = np.empty(shape=(field_count, 4), dtype=object)
     fields_view = fields[:,:]
 
+    skipped_fields = False
+
     for i in range(field_count):
         try:
             ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
@@ -349,6 +351,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
         if not np_type:
+            skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
             continue
@@ -363,6 +366,11 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         fields_view[i,1] = field_type
         fields_view[i,2] = field_name
         fields_view[i,3] = np_type
+
+    if skipped_fields:
+        # filter out skipped fields
+        mask = np.array([idx is not None for idx in fields[:, 0]])
+        fields = fields[mask]
 
     return fields
 
@@ -1118,7 +1126,7 @@ cdef infer_field_types(list dtypes):
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, **kwargs):
+    str crs, str geometry_type, str encoding, bint promote_to_multi=False, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1131,6 +1139,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
@@ -1237,7 +1246,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     ### Create the layer
     try:
         ogr_layer = exc_wrap_pointer(
-                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
                         <OGRwkbGeometryType>geometry_code, options))
 
     except Exception as exc:
@@ -1253,7 +1262,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         if options != NULL:
             CSLDestroy(<char**>options)
             options = NULL
-
 
     ### Create the fields
     field_types = infer_field_types([field.dtype for field in field_data])
@@ -1324,6 +1332,15 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_G_DestroyGeometry(ogr_geometry)
                     ogr_geometry = NULL
                 raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
+
+            # Convert to multi type
+            if promote_to_multi:
+                if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+                    ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
+                elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+                    ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
+                elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+                    ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
 
             # Set the geometry on the feature
             # this assumes ownership of the geometry and it's cleanup

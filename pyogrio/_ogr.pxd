@@ -240,6 +240,9 @@ cdef extern from "ogr_api.h":
     int             OGR_G_Is3D(OGRGeometryH geometry)
     void            OGR_G_Set3D(OGRGeometryH geometry, int is3D)
     int             OGR_G_WkbSize(OGRGeometryH geometry)
+    OGRGeometryH    OGR_G_ForceToMultiPoint(OGRGeometryH geometry)
+    OGRGeometryH    OGR_G_ForceToMultiLineString(OGRGeometryH geometry)
+    OGRGeometryH    OGR_G_ForceToMultiPolygon(OGRGeometryH geometry)
 
     int                 OGR_GT_HasM(OGRwkbGeometryType eType)
     int                 OGR_GT_HasZ(OGRwkbGeometryType eType)
