@@ -67,12 +67,12 @@ def list_layers(path_or_buffer, /):
         array of pairs of [<layer name>, <layer geometry type>]
         Note: geometry is `None` for nonspatial layers.
     """
-    path, from_buffer = get_vsi_path(path_or_buffer)
+    path, buffer = get_vsi_path(path_or_buffer)
 
     try:
         result = ogr_list_layers(path)
     finally:
-        if from_buffer:
+        if buffer is not None:
             remove_virtual_file(path)
     return result
 
@@ -115,7 +115,7 @@ def read_bounds(
         fids are global IDs read from the FID field of the dataset
         bounds are ndarray of shape(4, n) containig ``xmin``, ``ymin``, ``xmax``, ``ymax``
     """
-    path, from_buffer = get_vsi_path(path_or_buffer)
+    path, buffer = get_vsi_path(path_or_buffer)
 
     try:   
         result = ogr_read_bounds(
@@ -127,7 +127,7 @@ def read_bounds(
             bbox=bbox,
         )
     finally:
-        if from_buffer:
+        if buffer is not None:
             remove_virtual_file(path)
     return result
 
@@ -162,12 +162,12 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
                 "features": <feature count>
             }
     """
-    path, from_buffer = get_vsi_path(path_or_buffer)
+    path, buffer = get_vsi_path(path_or_buffer)
 
     try:   
         result = ogr_read_info(path, layer=layer, encoding=encoding)
     finally:
-        if from_buffer:
+        if buffer is not None:
             remove_virtual_file(path)
     return result
 

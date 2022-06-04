@@ -13,9 +13,9 @@ def get_vsi_path(path_or_buffer):
     if hasattr(path_or_buffer, "read"):
         path_or_buffer = path_or_buffer.read()
 
-    from_buffer = False
+    buffer = None
     if isinstance(path_or_buffer, bytes):
-        from_buffer = True
+        buffer = path_or_buffer
         ext = ""
         is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
         if is_zipped:
@@ -26,7 +26,7 @@ def get_vsi_path(path_or_buffer):
     else:
         path = vsi_path(str(path_or_buffer))
 
-    return path, from_buffer
+    return path, buffer
 
 
 def vsi_path(path: str) -> str:

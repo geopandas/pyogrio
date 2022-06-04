@@ -111,7 +111,7 @@ def read(
             "geometry": "<geometry type>"
         }
     """
-    path, from_buffer = get_vsi_path(path_or_buffer)
+    path, buffer = get_vsi_path(path_or_buffer)
 
     try:
         result = ogr_read(
@@ -131,7 +131,7 @@ def read(
             return_fids=return_fids,
         )
     finally:
-        if from_buffer:
+        if buffer is not None:
             remove_virtual_file(path)
 
     return result
