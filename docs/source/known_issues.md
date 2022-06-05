@@ -54,3 +54,12 @@ with obscure error messages.
 
 Date fields are not yet fully supported. These will be supported in a future
 release.
+
+## Support for reading and writing DateTimes
+
+Currently only reading datetime values is supported.
+
+GDAL only supports datetimes at a millisecond resolution. Reading data will thus
+give at most millisecond resolution (`datetime64[ms]` data type), even though
+the data is cast `datetime64[ns]` data type when reading into a data frame
+using `pyogrio.read_dataframe()`.
