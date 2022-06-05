@@ -21,6 +21,7 @@
 -   add `layer_geometry_type` to `write_dataframe` to set geometry type for layer (#85)
 -   Use certifi to set `GDAL_CURL_CA_BUNDLE` / `PROJ_CURL_CA_BUNDLE` defaults (#97)
 -   automatically detect driver for `.geojson`, `.geojsonl` and `.geojsons` files (#101)
+-   read DateTime fields with millisecond accuracy (#111)
 
 ### Breaking changes
 
