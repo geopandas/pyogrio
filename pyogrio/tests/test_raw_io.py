@@ -422,6 +422,25 @@ def test_read_write_data_types_numeric(tmp_path, ext):
         assert result.dtype == result_dtype
 
 
+def test_read_write_datetime(tmp_path):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2, dtype=object
+    )
+    field_data = [
+        np.array(['2005-02-01', '2005-02-02'], dtype="datetime64[D]"),
+        np.array(['2001-01-01T12:00', '2002-02-03T13:56:03.172'], dtype="datetime64"),
+    ]
+    fields = ["datetime64_d", "datetime64_ns"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
+    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+
+
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 
