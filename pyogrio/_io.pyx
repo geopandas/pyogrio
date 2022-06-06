@@ -79,7 +79,7 @@ DTYPE_OGR_FIELD_TYPES = {
     'float64': (OFTReal, OFSTNone),
 
     'datetime64[D]': (OFTDate, OFSTNone),
-    'datetime64[ms]': (OFTDateTime, OFSTNone),
+    'datetime64': (OFTDateTime, OFSTNone),
 }
 
 
@@ -1123,7 +1123,12 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
-        # TODO: datetime types
+        elif dtype.name.startswith("datetime64"):
+            # datetime dtype precision is specified with eg. [ms], but this isn't
+            # usefull when writing to gdal.
+            field_type, field_subtype = DTYPE_OGR_FIELD_TYPES["datetime64"]
+            field_types_view[i, 0] = field_type
+            field_types_view[i, 1] = field_subtype
 
         else:
             raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
@@ -1403,7 +1408,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
                 elif field_type == OFTDateTime:
                     # TODO: what to do with tzinfo?
-                    datetime = field_value.astype(object)
+                    datetime = field_value.astype("datetime64[ms]").astype(object)
                     OGR_F_SetFieldDateTimeEx(
                         ogr_feature,
                         field_idx,
