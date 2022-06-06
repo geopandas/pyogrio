@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import numpy as np
@@ -707,6 +708,26 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
+def test_write_read_mixed_column_values(tmp_path, ext):
+    from shapely.geometry import Point
+
+    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
+    geoms = [Point(0, 0) for _ in mixed_values]
+    test_gdf = gp.GeoDataFrame(
+        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
+    )
+    output_path = tmp_path / f"test_write_mixed_column.{ext}"
+    write_dataframe(test_gdf, output_path)
+    output_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(output_gdf)
+    for idx, value in enumerate(mixed_values):
+        if value in (None, np.nan):
+            assert output_gdf["mixed"][idx] is None
+        else:
+            assert output_gdf["mixed"][idx] == str(value)
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
 def test_write_read_null(tmp_path, ext):
     from shapely.geometry import Point
 
@@ -716,7 +737,6 @@ def test_write_read_null(tmp_path, ext):
         "geometry": [geom, geom, geom],
         "float64": [1.0, None, np.nan],
         "object_str": ["test", None, np.nan],
-        "mixed": ["test", 1.0, np.nan],
     }
     test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
     write_dataframe(test_gdf, output_path)
@@ -728,6 +748,3 @@ def test_write_read_null(tmp_path, ext):
     assert result_gdf["object_str"][0] == "test"
     assert result_gdf["object_str"][1] is None
     assert result_gdf["object_str"][2] is None
-    assert result_gdf["mixed"][0] == "test"
-    assert result_gdf["mixed"][1] == "1.0"
-    assert result_gdf["mixed"][2] is None
