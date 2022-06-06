@@ -425,9 +425,7 @@ def test_read_write_data_types_numeric(tmp_path, ext):
 def test_read_write_datetime(tmp_path):
     field_data = [
         np.array(["2005-02-01", "2005-02-02"], dtype="datetime64[D]"),
-        np.array(
-            ["2001-01-01T12:00", "2002-02-03T13:56:03"], dtype="datetime64[s]"
-        ),
+        np.array(["2001-01-01T12:00", "2002-02-03T13:56:03"], dtype="datetime64[s]"),
         np.array(
             ["2001-01-01T12:00", "2002-02-03T13:56:03.072"], dtype="datetime64[ms]"
         ),
@@ -443,7 +441,7 @@ def test_read_write_datetime(tmp_path):
     )
     meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
 
-    filename = tmp_path / "test.gpkg"
+    filename = tmp_path / f"test.gpkg"
     write(filename, geometry, field_data, fields, **meta)
     result = read(filename)[3]
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
