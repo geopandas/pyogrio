@@ -716,6 +716,7 @@ def test_write_read_null(tmp_path, ext):
         "geometry": [geom, geom, geom],
         "float64": [1.0, None, np.nan],
         "object_str": ["test", None, np.nan],
+        "mixed": ["test", 1.0, np.nan],
     }
     test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
     write_dataframe(test_gdf, output_path)
@@ -727,3 +728,6 @@ def test_write_read_null(tmp_path, ext):
     assert result_gdf["object_str"][0] == "test"
     assert result_gdf["object_str"][1] is None
     assert result_gdf["object_str"][2] is None
+    assert result_gdf["mixed"][0] == "test"
+    assert result_gdf["mixed"][1] == "1.0"
+    assert result_gdf["mixed"][2] is None
