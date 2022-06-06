@@ -210,6 +210,16 @@ cdef extern from "ogr_api.h":
     void            OGR_F_SetFieldString(OGRFeatureH feature, int n, char *value)
     void            OGR_F_SetFieldBinary(OGRFeatureH feature, int n, int l, unsigned char *value)
     void            OGR_F_SetFieldNull(OGRFeatureH feature, int n)  # new in GDAL 2.2
+    void            OGR_F_SetFieldDateTimeEx(
+                            OGRFeatureH hFeat,
+                            int iField,
+                            int nYear,
+                            int nMonth,
+                            int nDay,
+                            int nHour,
+                            int nMinute,
+                            float fSecond,
+                            int nTZFlag)
     OGRErr          OGR_F_SetGeometryDirectly(OGRFeatureH feature, OGRGeometryH geometry)
 
     OGRFeatureDefnH     OGR_FD_Create(const char *name)

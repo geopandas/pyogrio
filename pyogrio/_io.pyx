@@ -77,8 +77,10 @@ DTYPE_OGR_FIELD_TYPES = {
     'float32': (OFTReal,OFSTFloat32),
     'float': (OFTReal, OFSTNone),
     'float64': (OFTReal, OFSTNone)
-}
 
+    'datetime64[D]', (OFTDate, OFSTNone),
+    'datetime64[ms]',(OFTDateTime, OFSTNone),
+}
 
 
 cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
@@ -1385,6 +1387,20 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 elif field_type == OFTReal:
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
+                elif field_type in (OFTDate, OFTDateTime):
+                    datetime = field_value.astype(object)
+                    OGR_F_SetFieldDateTimeEx(
+                        ogr_feature,
+                        field_idx,
+                        datetime.year,
+                        datetime.month,
+                        datetime.day,
+                        datetime.hour,
+                        datetime.minute,
+                        float(f"{datetime.second}.{datetime.microsecond}"),
+                        datetime.tzinfo
+                    )
+                
                 else:
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")
 
