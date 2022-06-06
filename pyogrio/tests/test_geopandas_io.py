@@ -707,8 +707,7 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert df.crs.equals(expected.crs)
 
 
-@pytest.mark.parametrize("ext", ALL_EXTS)
-def test_write_read_mixed_column_values(tmp_path, ext):
+def test_write_read_mixed_column_values(tmp_path):
     from shapely.geometry import Point
 
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
@@ -716,7 +715,7 @@ def test_write_read_mixed_column_values(tmp_path, ext):
     test_gdf = gp.GeoDataFrame(
         {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
     )
-    output_path = tmp_path / f"test_write_mixed_column.{ext}"
+    output_path = tmp_path / "test_write_mixed_column.gpkg"
     write_dataframe(test_gdf, output_path)
     output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
