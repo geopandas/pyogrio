@@ -706,11 +706,10 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert df.crs.equals(expected.crs)
 
 
-@pytest.mark.parametrize("ext", ALL_EXTS)
-def test_write_read_null(tmp_path, ext):
+def test_write_read_null(tmp_path):
     from shapely.geometry import Point
 
-    output_path = tmp_path / f"test_write_nan.{ext}"
+    output_path = tmp_path / f"test_write_nan.gpkg"
     geom = Point(0, 0)
     test_data = {
         "geometry": [geom, geom, geom],
