@@ -1360,13 +1360,14 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 field_value = field_data[field_idx][i]
                 field_type = field_types[field_idx][0]
 
-                if field_value is None:
-                    OGR_F_SetFieldNull(ogr_feature, field_idx)
-
-                elif field_type == OFTString:
+                if field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
-                    if isinstance(field_value, float) and isnan(field_value):
+                    if (
+                        field_value is None 
+                        or (isinstance(field_value, float) and isnan(field_value))
+                    ):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
+
                     else:
                         if not isinstance(field_value, str):
                             field_value = str(field_value)

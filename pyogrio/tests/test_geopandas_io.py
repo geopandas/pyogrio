@@ -727,11 +727,10 @@ def test_write_read_mixed_column_values(tmp_path, ext):
             assert output_gdf["mixed"][idx] == str(value)
 
 
-@pytest.mark.parametrize("ext", ALL_EXTS)
-def test_write_read_null(tmp_path, ext):
+def test_write_read_null(tmp_path):
     from shapely.geometry import Point
 
-    output_path = tmp_path / f"test_write_nan.{ext}"
+    output_path = tmp_path / "test_write_nan.gpkg"
     geom = Point(0, 0)
     test_data = {
         "geometry": [geom, geom, geom],
