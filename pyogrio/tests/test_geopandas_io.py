@@ -704,7 +704,3 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
     assert df.crs.equals(expected.crs)
-
-
-def test_write_read_datetime(tmp_path):
-    

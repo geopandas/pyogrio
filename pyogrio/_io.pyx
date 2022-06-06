@@ -1412,7 +1412,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                         datetime.day,
                         datetime.hour,
                         datetime.minute,
-                        float(f"{datetime.second}.{datetime.microsecond}"),
+                        float(f"{datetime.second}.{datetime.microsecond:06d}"),
                         0
                     )
 

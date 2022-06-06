@@ -429,7 +429,7 @@ def test_read_write_datetime(tmp_path):
     )
     field_data = [
         np.array(['2005-02-01', '2005-02-02'], dtype="datetime64[D]"),
-        np.array(['2001-01-01T12:00', '2002-02-03T13:56:03.172'], dtype="datetime64"),
+        np.array(['2001-01-01T12:00', '2002-02-03T13:56:03.072'], dtype="datetime64"),
     ]
     fields = ["datetime64_d", "datetime64_ns"]
     meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
