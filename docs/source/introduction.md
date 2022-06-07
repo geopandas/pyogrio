@@ -319,7 +319,7 @@ By default, the appropriate driver is inferred from the extension of the filenam
 
 If you want to write in another file format supported by GDAL or if you want to
 overrule the default driver for an extension, you can specify the driver with the
-`driver` keyword.
+`driver` keyword, e.g. `driver="GPKG"`.
 
 ## Reading from compressed files / archives
 
