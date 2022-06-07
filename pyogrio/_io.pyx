@@ -1407,7 +1407,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     )
 
                 elif field_type == OFTDateTime:
-                    # TODO: what to do with tzinfo?
+                    # TODO: add support for timezones
                     datetime = field_value.astype("datetime64[ms]").astype(object)
                     OGR_F_SetFieldDateTimeEx(
                         ogr_feature,
@@ -1417,7 +1417,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                         datetime.day,
                         datetime.hour,
                         datetime.minute,
-                        float(f"{datetime.second}.{datetime.microsecond:06d}"),
+                        datetime.second + datetime.microsecond / 10**6,
                         0
                     )
 
