@@ -1393,7 +1393,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTDate:
-                    datetime = field_value.astype(object)
+                    datetime = field_value.item()
                     OGR_F_SetFieldDateTimeEx(
                         ogr_feature,
                         field_idx,
