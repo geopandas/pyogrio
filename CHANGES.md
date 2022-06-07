@@ -22,8 +22,8 @@
 -   Use certifi to set `GDAL_CURL_CA_BUNDLE` / `PROJ_CURL_CA_BUNDLE` defaults (#97)
 -   automatically detect driver for `.geojson`, `.geojsonl` and `.geojsons` files (#101)
 -   read DateTime fields with millisecond accuracy (#111)
--   add support to write object columns that contain types different than string (#)
 -   support writing object columns with np.nan values (#118)
+-   add support to write object columns that contain types different than string (#125)
 
 ### Breaking changes
 
