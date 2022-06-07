@@ -80,7 +80,7 @@ CURLSCHEMES = set([k for k, v in SCHEMES.items() if v == "curl"])
 
 
 def _parse_uri(path: str):
-    """ "
+    """
     Parse a URI
 
     Returns a tuples of (path, archive, scheme)
