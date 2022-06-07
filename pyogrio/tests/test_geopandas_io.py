@@ -704,3 +704,25 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
     assert df.crs.equals(expected.crs)
+
+
+def test_write_read_null(tmp_path):
+    from shapely.geometry import Point
+
+    output_path = tmp_path / f"test_write_nan.gpkg"
+    geom = Point(0, 0)
+    test_data = {
+        "geometry": [geom, geom, geom],
+        "float64": [1.0, None, np.nan],
+        "object_str": ["test", None, np.nan],
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
+    write_dataframe(test_gdf, output_path)
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+    assert result_gdf["float64"][0] == 1.0
+    assert pd.isna(result_gdf["float64"][1])
+    assert pd.isna(result_gdf["float64"][2])
+    assert result_gdf["object_str"][0] == "test"
+    assert result_gdf["object_str"][1] is None
+    assert result_gdf["object_str"][2] is None
