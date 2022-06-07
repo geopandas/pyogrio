@@ -1411,7 +1411,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
                 elif field_type == OFTDateTime:
                     # TODO: add support for timezones
-                    datetime = field_value.astype("datetime64[ms]").astype(object)
+                    datetime = field_value.astype("datetime64[ms]").item()
                     OGR_F_SetFieldDateTimeEx(
                         ogr_feature,
                         field_idx,
