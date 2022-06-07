@@ -185,7 +185,7 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
 @pytest.mark.network
 def test_url():
     df = pyogrio.read_dataframe(
-        "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
+        "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"  # NOQA
     )
     assert len(df) == 177
 

@@ -20,12 +20,14 @@ with GDALEnv():
 
 
 def test_gdal_data():
-    # test will fail if GDAL data files cannot be found, indicating an installation error
+    # test will fail if GDAL data files cannot be found, indicating an
+    # installation error
     assert has_gdal_data()
 
 
 def test_proj_data():
-    # test will fail if PROJ data files cannot be found, indicating an installation error
+    # test will fail if PROJ data files cannot be found, indicating an
+    # installation error
     assert has_proj_data()
 
 

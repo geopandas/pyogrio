@@ -295,7 +295,7 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     [
         driver
         for driver in list_drivers(write=True)
-        if not driver in ("ESRI Shapefile", "GPKG", "GeoJSON")
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
     ],
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):

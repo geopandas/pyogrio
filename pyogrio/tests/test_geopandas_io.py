@@ -122,7 +122,7 @@ def test_read_null_values(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert df.SEGMENT_NAME.isnull().max() == True
+    assert df.SEGMENT_NAME.isnull().max()
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
 
 
@@ -694,7 +694,7 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
 def test_write_read_null(tmp_path):
     from shapely.geometry import Point
 
-    output_path = tmp_path / f"test_write_nan.gpkg"
+    output_path = tmp_path / "test_write_nan.gpkg"
     geom = Point(0, 0)
     test_data = {
         "geometry": [geom, geom, geom],
@@ -725,7 +725,7 @@ def test_write_read_null(tmp_path):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
