@@ -8,10 +8,7 @@ import pytest
 from pyogrio import list_layers, read_info, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
-from pyogrio.raw import (
-    DRIVERS,
-    DRIVERS_NO_MIXED_SINGLE_MULTI,
-)
+from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -410,10 +407,7 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize(
-    "ext",
-    ALL_EXTS,
-)
+@pytest.mark.parametrize("ext", ALL_EXTS)
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / f"test{ext}"
@@ -517,11 +511,7 @@ def test_write_dataframe_promote_to_multi(
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test_promote{ext}"
-    write_dataframe(
-        input_gdf,
-        output_path,
-        promote_to_multi=promote_to_multi,
-    )
+    write_dataframe(input_gdf, output_path, promote_to_multi=promote_to_multi)
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
@@ -620,10 +610,7 @@ def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
         write_dataframe(df, filename, layer_geometry_type="NotSupported")
 
 
-@pytest.mark.parametrize(
-    "ext",
-    [ext for ext in ALL_EXTS if ext not in ".shp"],
-)
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
 def test_write_dataframe_truly_mixed(tmp_path, ext):
     from shapely.geometry import (
         box,
@@ -644,9 +631,7 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     ]
 
     df = gp.GeoDataFrame(
-        {"col": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]},
-        geometry=geometry,
-        crs="EPSG:4326",
+        {"col": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}, geometry=geometry, crs="EPSG:4326"
     )
 
     filename = tmp_path / f"test{ext}"
@@ -726,3 +711,35 @@ def test_write_read_null(tmp_path):
     assert result_gdf["object_str"][0] == "test"
     assert result_gdf["object_str"][1] is None
     assert result_gdf["object_str"][2] is None
+
+
+@pytest.mark.parametrize(
+    "wkt,geom_types",
+    [
+        ("Point Z (0 0 0)", ["2.5D Point", "Point Z"]),
+        ("LineString Z (0 0 0, 1 1 0)", ["2.5D LineString", "LineString Z"]),
+        ("Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))", ["2.5D Polygon", "Polygon Z"]),
+        ("MultiPoint Z (0 0 0, 1 1 0)", ["2.5D MultiPoint", "MultiPoint Z"]),
+        (
+            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))",
+            ["2.5D MultiLineString", "MultiLineString Z"],
+        ),
+        (
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            ["2.5D MultiPolygon", "MultiPolygon Z"],
+        ),
+        (
+            "GeometryCollection Z (Point Z (0 0 0))",
+            ["2.5D GeometryCollection", "GeometryCollection Z"],
+        ),
+    ],
+)
+def test_write_geometry_z_types(tmp_path, wkt, geom_types):
+    pygeos = pytest.importorskip("pygeos")
+    filename = tmp_path / "test.fgb"
+
+    gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
+    for geom_type in geom_types:
+        write_dataframe(gdf, filename, layer_geometry_type=geom_type)
+        df = read_dataframe(filename)
+        assert_geodataframe_equal(df, gdf)

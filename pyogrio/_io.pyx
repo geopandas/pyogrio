@@ -1152,7 +1152,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
-    cdef int geometry_code
+    cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
     cdef int num_records = len(geometry)
@@ -1363,7 +1363,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 if field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
                     if (
-                        field_value is None 
+                        field_value is None
                         or (isinstance(field_value, float) and isnan(field_value))
                     ):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
