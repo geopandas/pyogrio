@@ -14,6 +14,7 @@ import warnings
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
+from libc.math cimport isnan
 
 cimport cython
 import numpy as np
@@ -1359,22 +1360,24 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 field_value = field_data[field_idx][i]
                 field_type = field_types[field_idx][0]
 
-                if field_value is None:
-                    OGR_F_SetFieldNull(ogr_feature, field_idx)
-
-                elif field_type == OFTString:
+                if field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
-                    try:
-                        # this will fail for strings mixed with nans
-                        value_b = field_value.encode("UTF-8")
+                    if (
+                        field_value is None 
+                        or (isinstance(field_value, float) and isnan(field_value))
+                    ):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
 
-                    except AttributeError:
-                        raise ValueError(f"Could not encode value '{field_value}' in field '{fields[field_idx]}' to string")
+                    else:
+                        try:
+                            value_b = field_value.encode("UTF-8")
+                            OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
-                    except Exception:
-                        raise
+                        except AttributeError:
+                            raise ValueError(f"Could not encode value '{field_value}' in field '{fields[field_idx]}' to string")
 
-                    OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
+                        except Exception:
+                            raise
 
                 elif field_type == OFTInteger:
                     OGR_F_SetFieldInteger(ogr_feature, field_idx, field_value)
