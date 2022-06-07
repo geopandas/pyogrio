@@ -302,20 +302,24 @@ This function supports options to subset features from the dataset:
 
 ## Write a GeoPandas GeoDataFrame
 
-To write a `GeoDataFrame` `df` to a file. `driver` defaults to `ESRI Shapefile`
-(for now) but can be manually specified using one of the supported drivers for
-writing (above):
+You can write a `GeoDataFrame` `df` to a file as follows:
 
 ```python
 >>> from pyogrio import write_dataframe
->>> write_dataframe(df, '/tmp/test.shp', driver="GPKG")
+>>> write_dataframe(df, "/tmp/test.gpkg")
 ```
 
-The appropriate driver is also inferred automatically (where possible) from the
-extension of the filename:
-`.shp`: `ESRI Shapefile`
-`.gpkg`: `GPKG`
-`.json`: `GeoJSON`
+By default, the appropriate driver is inferred from the extension of the filename:
+
+-   ".fgb": [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)
+-   ".geojson", ".json": [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
+-   ".geojsonl", ".geojsons": [GeoJSONSeq](https://gdal.org/drivers/vector/geojsonseq.html)
+-   ".gpkg": [GPKG](https://gdal.org/drivers/vector/gpkg.html)
+-   ".shp": [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html)
+
+If you want to write in another file format supported by GDAL or if you want to
+overrule the default driver for an extension, you can specify the driver with the
+`driver` keyword.
 
 ## Reading from compressed files / archives
 
