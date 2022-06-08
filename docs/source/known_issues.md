@@ -52,5 +52,16 @@ Pyogrio does not currently validate attribute values or geometry types before
 attempting to write to the output file. Invalid types may crash during writing
 with obscure error messages.
 
-Date fields are not yet fully supported. These will be supported in a future
-release.
+## Support for reading and writing DateTimes
+
+GDAL only supports datetimes at a millisecond resolution. Reading data will thus
+give at most millisecond resolution (`datetime64[ms]` data type), even though
+the data is cast `datetime64[ns]` data type when reading into a data frame
+using `pyogrio.read_dataframe()`. When writing, only precision up to ms is retained.
+
+Not all file formats have dedicated support to store datetime data, like ESRI 
+Shapefile. For such formats, or if you require precision > ms, a workaround is to
+convert the datetimes to string.
+
+Timezone information is ignored at the moment, both when reading and when writing
+datetime columns.

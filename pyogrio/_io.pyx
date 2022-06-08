@@ -7,12 +7,14 @@
 import datetime
 import locale
 import logging
+import math
 import os
 import warnings
 
 from libc.stdint cimport uint8_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
+from libc.math cimport isnan
 
 cimport cython
 import numpy as np
@@ -31,20 +33,20 @@ log = logging.getLogger(__name__)
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
 FIELD_TYPES = [
-    'int32',        # OFTInteger, Simple 32bit integer
-    None,           # OFTIntegerList, List of 32bit integers, not supported
-    'float64',      # OFTReal, Double Precision floating point
-    None,           # OFTRealList, List of doubles, not supported
-    'object',       # OFTString, String of UTF-8 chars
-    None,           # OFTStringList, Array of strings, not supported
-    None,           # OFTWideString, deprecated, not supported
-    None,           # OFTWideStringList, deprecated, not supported
-    'object',       #  OFTBinary, Raw Binary data
-    'datetime64[D]',# OFTDate, Date
-    None,           # OFTTime, Time, NOTE: not directly supported in numpy
-    'datetime64[s]',# OFTDateTime, Date and Time
-    'int64',        # OFTInteger64, Single 64bit integer
-    None            # OFTInteger64List, List of 64bit integers, not supported
+    'int32',         # OFTInteger, Simple 32bit integer
+    None,            # OFTIntegerList, List of 32bit integers, not supported
+    'float64',       # OFTReal, Double Precision floating point
+    None,            # OFTRealList, List of doubles, not supported
+    'object',        # OFTString, String of UTF-8 chars
+    None,            # OFTStringList, Array of strings, not supported
+    None,            # OFTWideString, deprecated, not supported
+    None,            # OFTWideStringList, deprecated, not supported
+    'object',        #  OFTBinary, Raw Binary data
+    'datetime64[D]', # OFTDate, Date
+    None,            # OFTTime, Time, NOTE: not directly supported in numpy
+    'datetime64[ms]',# OFTDateTime, Date and Time
+    'int64',         # OFTInteger64, Single 64bit integer
+    None             # OFTInteger64List, List of 64bit integers, not supported
 ]
 
 FIELD_SUBTYPES = {
@@ -75,9 +77,11 @@ DTYPE_OGR_FIELD_TYPES = {
 
     'float32': (OFTReal,OFSTFloat32),
     'float': (OFTReal, OFSTNone),
-    'float64': (OFTReal, OFSTNone)
-}
+    'float64': (OFTReal, OFSTNone),
 
+    'datetime64[D]': (OFTDate, OFSTNone),
+    'datetime64': (OFTDateTime, OFSTNone),
+}
 
 
 cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
@@ -334,6 +338,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     fields = np.empty(shape=(field_count, 4), dtype=object)
     fields_view = fields[:,:]
 
+    skipped_fields = False
+
     for i in range(field_count):
         try:
             ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
@@ -349,6 +355,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
         if not np_type:
+            skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
             continue
@@ -363,6 +370,11 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
         fields_view[i,1] = field_type
         fields_view[i,2] = field_name
         fields_view[i,3] = np_type
+
+    if skipped_fields:
+        # filter out skipped fields
+        mask = np.array([idx is not None for idx in fields[:, 0]])
+        fields = fields[mask]
 
     return fields
 
@@ -508,7 +520,7 @@ cdef process_fields(
     cdef int day = 0
     cdef int hour = 0
     cdef int minute = 0
-    cdef int second = 0
+    cdef float fsecond = 0.0
     cdef int timezone = 0
 
     for j in range(n_fields):
@@ -554,8 +566,13 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            success = OGR_F_GetFieldAsDateTime(
-                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &second, &timezone)
+            success = OGR_F_GetFieldAsDateTimeEx(
+                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
+
+            ms, ss = math.modf(fsecond)
+            second = int(ss)
+            # fsecond has millisecond accuracy
+            microsecond = round(ms * 1000) * 1000
 
             if not success:
                 data[i] = np.datetime64('NaT')
@@ -564,7 +581,7 @@ cdef process_fields(
                 data[i] = datetime.date(year, month, day).isoformat()
 
             elif field_type == OFTDateTime:
-                data[i] = datetime.datetime(year, month, day, hour, minute, second).isoformat()
+                data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -1107,7 +1124,12 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
-        # TODO: datetime types
+        elif dtype.name.startswith("datetime64"):
+            # datetime dtype precision is specified with eg. [ms], but this isn't
+            # usefull when writing to gdal.
+            field_type, field_subtype = DTYPE_OGR_FIELD_TYPES["datetime64"]
+            field_types_view[i, 0] = field_type
+            field_types_view[i, 1] = field_subtype
 
         else:
             raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
@@ -1118,7 +1140,7 @@ cdef infer_field_types(list dtypes):
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, **kwargs):
+    str crs, str geometry_type, str encoding, bint promote_to_multi=False, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1131,12 +1153,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
-    cdef int geometry_code
+    cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
     cdef int num_records = len(geometry)
@@ -1237,7 +1260,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     ### Create the layer
     try:
         ogr_layer = exc_wrap_pointer(
-                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
                         <OGRwkbGeometryType>geometry_code, options))
 
     except Exception as exc:
@@ -1253,7 +1276,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         if options != NULL:
             CSLDestroy(<char**>options)
             options = NULL
-
 
     ### Create the fields
     field_types = infer_field_types([field.dtype for field in field_data])
@@ -1325,6 +1347,15 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     ogr_geometry = NULL
                 raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
+            # Convert to multi type
+            if promote_to_multi:
+                if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+                    ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
+                elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+                    ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
+                elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+                    ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
+
             # Set the geometry on the feature
             # this assumes ownership of the geometry and it's cleanup
             err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
@@ -1336,22 +1367,24 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 field_value = field_data[field_idx][i]
                 field_type = field_types[field_idx][0]
 
-                if field_value is None:
-                    OGR_F_SetFieldNull(ogr_feature, field_idx)
-
-                elif field_type == OFTString:
+                if field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
-                    try:
-                        # this will fail for strings mixed with nans
-                        value_b = field_value.encode("UTF-8")
+                    if (
+                        field_value is None
+                        or (isinstance(field_value, float) and isnan(field_value))
+                    ):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
 
-                    except AttributeError:
-                        raise ValueError(f"Could not encode value '{field_value}' in field '{fields[field_idx]}' to string")
+                    else:
+                        try:
+                            value_b = field_value.encode("UTF-8")
+                            OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
-                    except Exception:
-                        raise
+                        except AttributeError:
+                            raise ValueError(f"Could not encode value '{field_value}' in field '{fields[field_idx]}' to string")
 
-                    OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
+                        except Exception:
+                            raise
 
                 elif field_type == OFTInteger:
                     OGR_F_SetFieldInteger(ogr_feature, field_idx, field_value)
@@ -1361,6 +1394,35 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
                 elif field_type == OFTReal:
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
+
+                elif field_type == OFTDate:
+                    datetime = field_value.item()
+                    OGR_F_SetFieldDateTimeEx(
+                        ogr_feature,
+                        field_idx,
+                        datetime.year,
+                        datetime.month,
+                        datetime.day,
+                        0,
+                        0,
+                        0.0,
+                        0
+                    )
+
+                elif field_type == OFTDateTime:
+                    # TODO: add support for timezones
+                    datetime = field_value.astype("datetime64[ms]").item()
+                    OGR_F_SetFieldDateTimeEx(
+                        ogr_feature,
+                        field_idx,
+                        datetime.year,
+                        datetime.month,
+                        datetime.day,
+                        datetime.hour,
+                        datetime.minute,
+                        datetime.second + datetime.microsecond / 10**6,
+                        0
+                    )
 
                 else:
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")

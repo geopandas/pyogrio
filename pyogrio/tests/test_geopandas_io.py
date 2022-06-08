@@ -8,6 +8,7 @@ import pytest
 from pyogrio import list_layers, read_info, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
+from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -40,8 +41,6 @@ def spatialite_available(path):
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
-    assert isinstance(df, gp.GeoDataFrame)
-
     assert df.crs == "EPSG:4326"
     assert len(df) == 177
     assert df.columns.tolist() == [
@@ -52,8 +51,6 @@ def test_read_dataframe(naturalearth_lowres_all_ext):
         "gdp_md_est",
         "geometry",
     ]
-
-    assert df.geometry.iloc[0].type == "MultiPolygon"
 
 
 def test_read_dataframe_vsi(naturalearth_lowres_vsi):
@@ -410,57 +407,70 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize(
-    "driver,ext",
-    [
-        ("ESRI Shapefile", "shp"),
-        ("GeoJSON", "geojson"),
-        ("GeoJSONSeq", "geojsons"),
-        ("GPKG", "gpkg"),
-    ],
-)
-def test_write_dataframe(tmpdir, naturalearth_lowres, driver, ext):
-    expected = read_dataframe(naturalearth_lowres)
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
 
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
-    write_dataframe(expected, filename, driver=driver)
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to avoid the rows being reordered
+        write_dataframe(input_gdf, output_path, spatial_index=False)
+    else:
+        write_dataframe(input_gdf, output_path)
 
-    assert os.path.exists(filename)
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
 
-    df = read_dataframe(filename)
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert geometry_types == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == set(["MultiPolygon", "Polygon"])
 
-    if driver != "GeoJSONSeq":
-        # GeoJSONSeq driver I/O reorders features and / or vertices, and does
-        # not support roundtrip comparison
+    # Coordinates are not precisely equal when written to JSON
+    # dtypes do not necessarily round-trip precisely through JSON
+    is_json = ext in [".json", ".geojson", ".geojsonl"]
+    # In .geojsonl the vertices are reordered, so normalize
+    is_jsons = ext == ".geojsonl"
 
-        # Coordinates are not precisely equal when written to JSON
-        # dtypes do not necessarily round-trip precisely through JSON
-        is_json = driver == "GeoJSON"
-
-        assert_geodataframe_equal(
-            df,
-            expected,
-            check_less_precise=is_json,
-            check_index_type=False,
-            check_dtype=not is_json,
-        )
+    assert_geodataframe_equal(
+        result_gdf,
+        input_gdf,
+        check_less_precise=is_json,
+        check_index_type=False,
+        check_dtype=not is_json,
+        normalize=is_jsons,
+    )
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-@pytest.mark.parametrize(
-    "driver,ext", [("ESRI Shapefile", "shp"), ("GeoJSON", "geojson"), ("GPKG", "gpkg")]
-)
-def test_write_empty_dataframe(tmpdir, driver, ext):
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
-    write_dataframe(expected, filename, driver=driver)
+    filename = tmp_path / f"test{ext}"
+    write_dataframe(expected, filename)
 
-    assert os.path.exists(filename)
-
+    assert filename.exists()
     df = read_dataframe(filename)
-
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
+def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
+    # Writing empty dataframe to .geojsons or .geojsonl results logically in a 0 byte
+    # file, but gdal isn't able to read those again at the time of writing.
+    # Issue logged here: https://github.com/geopandas/pyogrio/issues/94
+    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+
+    filename = tmp_path / f"test{ext}"
+    write_dataframe(expected, filename)
+
+    assert filename.exists()
+    with pytest.raises(
+        Exception, match=".* not recognized as a supported file format."
+    ):
+        _ = read_dataframe(filename)
 
 
 def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
@@ -479,50 +489,166 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     assert test_withindex_index_filename.exists() is True
 
 
-def test_write_dataframe_geometry_type(tmp_path, naturalearth_lowres):
-    df = read_dataframe(naturalearth_lowres)
+@pytest.mark.parametrize(
+    "ext, promote_to_multi, expected_geometry_types, expected_layer_geometry_type",
+    [
+        (".fgb", None, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", True, ["MultiPolygon"], "MultiPolygon"),
+        (".fgb", False, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", True, ["MultiPolygon"], "MultiPolygon"),
+        (".geojson", False, ["MultiPolygon", "Polygon"], "Unknown"),
+    ],
+)
+def test_write_dataframe_promote_to_multi(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    expected_geometry_types,
+    expected_layer_geometry_type,
+):
+    input_gdf = read_dataframe(naturalearth_lowres)
 
-    filename = tmp_path / "test.gpkg"
-    write_dataframe(df, filename, geometry_type="Unknown")
-    assert read_info(filename)["geometry_type"] == "Unknown"
+    output_path = tmp_path / f"test_promote{ext}"
+    write_dataframe(input_gdf, output_path, promote_to_multi=promote_to_multi)
 
-    write_dataframe(df, filename, geometry_type="Polygon")
-    assert read_info(filename)["geometry_type"] == "Polygon"
-
-    write_dataframe(df, filename, geometry_type="MultiPolygon")
-    assert read_info(filename)["geometry_type"] == "MultiPolygon"
-
-    with pytest.raises(
-        GeometryError, match="Geometry type is not supported: NotSupported"
-    ):
-        write_dataframe(df, filename, geometry_type="NotSupported")
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = sorted(output_gdf.geometry.type.unique())
+    assert geometry_types == expected_geometry_types
+    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
 
 
 @pytest.mark.parametrize(
-    "driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg"), ("FlatGeobuf", "fgb")]
+    "ext, promote_to_multi, layer_geometry_type, "
+    "expected_geometry_types, expected_layer_geometry_type",
+    [
+        (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".geojson", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Polygon", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "MultiPolygon", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", None, "Point", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".geojson", True, "Unknown", ["MultiPolygon"], "MultiPolygon"),
+        (".gpkg", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
+        (".gpkg", None, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".gpkg", None, "Polygon", ["MultiPolygon"], "Polygon"),
+        (".gpkg", None, "MultiPolygon", ["MultiPolygon"], "MultiPolygon"),
+        (".gpkg", None, "Point", ["MultiPolygon"], "Point"),
+        (".gpkg", True, "Unknown", ["MultiPolygon"], "Unknown"),
+        (".shp", False, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "Polygon", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", None, "MultiPolygon", ["MultiPolygon", "Polygon"], "Polygon"),
+        (".shp", True, "Unknown", ["MultiPolygon", "Polygon"], "Polygon"),
+    ],
 )
-def test_write_mixed_geometries(tmp_path, driver, ext):
-    from shapely.geometry import Point, LineString, box
+def test_write_dataframe_promote_to_multi_layer_geom_type(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    layer_geometry_type,
+    expected_geometry_types,
+    expected_layer_geometry_type,
+):
+    input_gdf = read_dataframe(naturalearth_lowres)
 
-    df = gp.GeoDataFrame(
-        {"col": [1.0, 2.0, 3.0]},
-        geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
-        crs="EPSG:4326",
+    output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
+    write_dataframe(
+        input_gdf,
+        output_path,
+        promote_to_multi=promote_to_multi,
+        layer_geometry_type=layer_geometry_type,
     )
 
-    filename = tmp_path / f"test.{ext}"
-    write_dataframe(df, filename, driver=driver)
+    assert output_path.exists()
+    output_gdf = read_dataframe(output_path)
+    geometry_types = sorted(output_gdf.geometry.type.unique())
+    assert geometry_types == expected_geometry_types
+    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+
+
+@pytest.mark.parametrize(
+    "ext, promote_to_multi, layer_geometry_type, expected_raises_match",
+    [
+        (".fgb", False, "MultiPolygon", "Mismatched geometry type"),
+        (".fgb", False, "Polygon", "Mismatched geometry type"),
+        (".fgb", None, "Point", "Mismatched geometry type"),
+        (".fgb", None, "Polygon", "Mismatched geometry type"),
+        (".shp", None, "Point", "Could not add feature to layer at index"),
+    ],
+)
+def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
+    tmp_path,
+    naturalearth_lowres,
+    ext,
+    promote_to_multi,
+    layer_geometry_type,
+    expected_raises_match,
+):
+    input_gdf = read_dataframe(naturalearth_lowres)
+
+    output_path = tmp_path / f"test{ext}"
+    with pytest.raises(FeatureError, match=expected_raises_match):
+        write_dataframe(
+            input_gdf,
+            output_path,
+            promote_to_multi=promote_to_multi,
+            layer_geometry_type=layer_geometry_type,
+        )
+
+
+def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = tmp_path / "test.geojson"
+    with pytest.raises(
+        GeometryError, match="Geometry type is not supported: NotSupported"
+    ):
+        write_dataframe(df, filename, layer_geometry_type="NotSupported")
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
+def test_write_dataframe_truly_mixed(tmp_path, ext):
+    from shapely.geometry import (
+        box,
+        LineString,
+        MultiLineString,
+        MultiPoint,
+        MultiPolygon,
+        Point,
+    )
+
+    geometry = [
+        Point(0, 0),
+        LineString([(0, 0), (1, 1)]),
+        box(0, 0, 1, 1),
+        MultiPoint([Point(1, 1), Point(2, 2)]),
+        MultiLineString([LineString([(1, 1), (2, 2)]), LineString([(2, 2), (3, 3)])]),
+        MultiPolygon([box(1, 1, 2, 2), box(2, 2, 3, 3)]),
+    ]
+
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]}, geometry=geometry, crs="EPSG:4326"
+    )
+
+    filename = tmp_path / f"test{ext}"
+
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to avoid the rows being reordered
+        write_dataframe(df, filename, spatial_index=False)
+    else:
+        write_dataframe(df, filename)
 
     # Drivers that support mixed geometries will default to "Unknown" geometry type
     assert read_info(filename)["geometry_type"] == "Unknown"
     result = read_dataframe(filename)
-    if driver == "FlatGeobuf":
-        # FlatGeobuf results in mixed row order in case of mixed geometries
-        result = result.sort_values("col").reset_index(drop=True)
-    assert_geodataframe_equal(result, df)
+    assert_geodataframe_equal(result, df, check_geom_type=True)
 
 
-def test_write_mixed_geometries_unsupported(tmp_path):
+def test_write_dataframe_truly_mixed_invalid(tmp_path):
     # Shapefile doesn't support generic "Geometry" / "Unknown" type
     # for mixed geometries
     from shapely.geometry import Point, LineString, box
@@ -539,7 +665,7 @@ def test_write_mixed_geometries_unsupported(tmp_path):
         r"write non-point \(LINESTRING\) geometry to point shapefile."
     )
     with pytest.raises(FeatureError, match=msg):
-        write_dataframe(df, tmp_path / "test.shp", driver="ESRI Shapefile")
+        write_dataframe(df, tmp_path / "test.shp")
 
 
 @pytest.mark.filterwarnings(
@@ -563,3 +689,57 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
     assert df.crs.equals(expected.crs)
+
+
+def test_write_read_null(tmp_path):
+    from shapely.geometry import Point
+
+    output_path = tmp_path / f"test_write_nan.gpkg"
+    geom = Point(0, 0)
+    test_data = {
+        "geometry": [geom, geom, geom],
+        "float64": [1.0, None, np.nan],
+        "object_str": ["test", None, np.nan],
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
+    write_dataframe(test_gdf, output_path)
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+    assert result_gdf["float64"][0] == 1.0
+    assert pd.isna(result_gdf["float64"][1])
+    assert pd.isna(result_gdf["float64"][2])
+    assert result_gdf["object_str"][0] == "test"
+    assert result_gdf["object_str"][1] is None
+    assert result_gdf["object_str"][2] is None
+
+
+@pytest.mark.parametrize(
+    "wkt,geom_types",
+    [
+        ("Point Z (0 0 0)", ["2.5D Point", "Point Z"]),
+        ("LineString Z (0 0 0, 1 1 0)", ["2.5D LineString", "LineString Z"]),
+        ("Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))", ["2.5D Polygon", "Polygon Z"]),
+        ("MultiPoint Z (0 0 0, 1 1 0)", ["2.5D MultiPoint", "MultiPoint Z"]),
+        (
+            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))",
+            ["2.5D MultiLineString", "MultiLineString Z"],
+        ),
+        (
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            ["2.5D MultiPolygon", "MultiPolygon Z"],
+        ),
+        (
+            "GeometryCollection Z (Point Z (0 0 0))",
+            ["2.5D GeometryCollection", "GeometryCollection Z"],
+        ),
+    ],
+)
+def test_write_geometry_z_types(tmp_path, wkt, geom_types):
+    pygeos = pytest.importorskip("pygeos")
+    filename = tmp_path / "test.fgb"
+
+    gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
+    for geom_type in geom_types:
+        write_dataframe(gdf, filename, layer_geometry_type=geom_type)
+        df = read_dataframe(filename)
+        assert_geodataframe_equal(df, gdf)

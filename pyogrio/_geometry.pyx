@@ -45,6 +45,16 @@ GEOMETRY_TYPES = {
 
 GEOMETRY_TYPE_CODES = {v:k for k, v in GEOMETRY_TYPES.items()}
 
+# add additional aliases from Simple Features WKT types with Z
+GEOMETRY_TYPE_CODES.update({
+    'Point Z': wkbPoint25D,
+    'LineString Z': wkbLineString25D,
+    'Polygon Z': wkbPolygon25D,
+    'MultiPoint Z': wkbMultiPoint25D,
+    'MultiLineString Z': wkbMultiLineString25D,
+    'MultiPolygon Z': wkbMultiPolygon25D,
+    'GeometryCollection Z': wkbGeometryCollection25D
+})
 
 # 2.5D also represented using negative numbers not enumerated above
 GEOMETRY_TYPES.update({
@@ -101,7 +111,7 @@ cdef str get_geometry_type(void *ogr_layer):
     return GEOMETRY_TYPES[ogr_type]
 
 
-cdef int get_geometry_type_code(str geometry_type) except *:
+cdef OGRwkbGeometryType get_geometry_type_code(str geometry_type) except *:
     """Get geometry type code for string geometry type.
 
     Parameters
