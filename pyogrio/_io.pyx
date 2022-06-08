@@ -77,9 +77,11 @@ DTYPE_OGR_FIELD_TYPES = {
 
     'float32': (OFTReal,OFSTFloat32),
     'float': (OFTReal, OFSTNone),
-    'float64': (OFTReal, OFSTNone)
-}
+    'float64': (OFTReal, OFSTNone),
 
+    'datetime64[D]': (OFTDate, OFSTNone),
+    'datetime64': (OFTDateTime, OFSTNone),
+}
 
 
 cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
@@ -1122,7 +1124,12 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
-        # TODO: datetime types
+        elif dtype.name.startswith("datetime64"):
+            # datetime dtype precision is specified with eg. [ms], but this isn't
+            # usefull when writing to gdal.
+            field_type, field_subtype = DTYPE_OGR_FIELD_TYPES["datetime64"]
+            field_types_view[i, 0] = field_type
+            field_types_view[i, 1] = field_subtype
 
         else:
             raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
@@ -1387,6 +1394,35 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
                 elif field_type == OFTReal:
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
+
+                elif field_type == OFTDate:
+                    datetime = field_value.item()
+                    OGR_F_SetFieldDateTimeEx(
+                        ogr_feature,
+                        field_idx,
+                        datetime.year,
+                        datetime.month,
+                        datetime.day,
+                        0,
+                        0,
+                        0.0,
+                        0
+                    )
+
+                elif field_type == OFTDateTime:
+                    # TODO: add support for timezones
+                    datetime = field_value.astype("datetime64[ms]").item()
+                    OGR_F_SetFieldDateTimeEx(
+                        ogr_feature,
+                        field_idx,
+                        datetime.year,
+                        datetime.month,
+                        datetime.day,
+                        datetime.hour,
+                        datetime.minute,
+                        datetime.second + datetime.microsecond / 10**6,
+                        0
+                    )
 
                 else:
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")

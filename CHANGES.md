@@ -23,6 +23,7 @@
 -   automatically detect driver for `.geojson`, `.geojsonl` and `.geojsons` files (#101)
 -   read DateTime fields with millisecond accuracy (#111)
 -   support writing object columns with np.nan values (#118)
+-   support writing datetime columns (#120)
 
 ### Breaking changes
 
