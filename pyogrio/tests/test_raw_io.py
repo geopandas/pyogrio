@@ -422,6 +422,46 @@ def test_read_write_data_types_numeric(tmp_path, ext):
         assert result.dtype == result_dtype
 
 
+def test_read_write_datetime(tmp_path):
+    field_data = [
+        np.array(["2005-02-01", "2005-02-02"], dtype="datetime64[D]"),
+        np.array(["2001-01-01T12:00", "2002-02-03T13:56:03"], dtype="datetime64[s]"),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072"], dtype="datetime64[ms]"
+        ),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072"], dtype="datetime64[ns]"
+        ),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072123456"],
+            dtype="datetime64[ns]",
+        ),
+    ]
+    fields = [
+        "datetime64_d",
+        "datetime64_s",
+        "datetime64_ms",
+        "datetime64_ns",
+        "datetime64_precise_ns",
+    ]
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2, dtype=object
+    )
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    for idx, field in enumerate(fields):
+        if field == "datetime64_precise_ns":
+            # gdal rounds datetimes to ms
+            assert np.array_equal(result[idx], field_data[idx].astype("datetime64[ms]"))
+        else:
+            assert np.array_equal(result[idx], field_data[idx])
+
+
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 

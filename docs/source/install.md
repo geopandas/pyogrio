@@ -2,8 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.10 and GDAL 2.4.x - 3.2.x
-(prior versions will not be supported)
+Supports Python 3.8 - 3.10 and GDAL 3.1.x - 3.5.x
 
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
 
@@ -24,24 +23,34 @@ I/O support.
 
 ### PyPI
 
-Ready-to-use (compiled) distributions are not yet available on PyPI because it
-depends on including compiled binary dependencies. We are planning to release
-compiled distributions on PyPI for Linux and MacOS relatively soon.
+This package is available on [PyPI](https://pypi.org/project/pyogrio/) for Linux,
+MacOS, and Windows.
 
-We are unlikely to release Windows packages on PyPI in the near future due to
-the complexity of packaging binary packages for Windows. If you are interested
-in helping us develop a packaging pipeline for Windows, please reach out!
+```bash
+pip install pyogrio --pre
+```
 
-### Common installation errors
+(Once 0.4.0 is officially released, you can omit the `--pre`)
+
+This installs binary wheels that include GDAL.
+
+If you get installation errors about Cython or GDAL not being available, this is
+most likely due to the installation process falling back to installing from the
+source distribution because the available wheels are not compatible with your
+platform.
+
+Note: binary wheels are currently limited to x86_64 architectures.
+
+### Troubleshooting installation errors
 
 If you install GeoPandas or Fiona using `pip`, you may encounter issues related
 to incompatibility of the exact GDAL library pre-installed with Fiona and the
-version of GDAL that gets compiled with Pyogrio (right now you do this manually).
+version of GDAL that gets compiled with Pyogrio.
 
-This may show up as an exception like
-this:
+This may show up as an exception like this for a supported driver (e.g.,
+`ESRI Shapefile`):
 
-```
+```Python
 pyogrio.errors.DataSourceError: Could not obtain driver ...
 ```
 
