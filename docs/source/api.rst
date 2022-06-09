@@ -12,4 +12,3 @@ GeoPandas integration
 
 .. automodule:: pyogrio
     :members: read_dataframe, write_dataframe
-    :noindex:
