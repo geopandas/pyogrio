@@ -8,6 +8,13 @@ import pyogrio
 import pyogrio.raw
 from pyogrio.util import vsi_path
 
+try:
+    import geopandas as gp
+
+    has_geopandas = True
+except ImportError:
+    has_geopandas = False
+
 
 @contextlib.contextmanager
 def change_cwd(path):
@@ -101,10 +108,17 @@ def test_vsi_handling_read_functions(naturalearth_lowres_vsi):
     result = pyogrio.read_bounds(path)
     assert len(result[0]) == 177
 
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_vsi_handling_read_dataframe(naturalearth_lowres_vsi):
+    path, _ = naturalearth_lowres_vsi
+    path = "zip://" + str(path)
+
     result = pyogrio.read_dataframe(path)
     assert len(result) == 177
 
 
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 def test_path_absolute(data_dir):
     # pathlib path
     path = data_dir / "naturalearth_lowres/naturalearth_lowres.shp"
@@ -117,12 +131,40 @@ def test_path_absolute(data_dir):
 
 
 def test_path_relative(data_dir):
+    path = "naturalearth_lowres/naturalearth_lowres.shp"
+
+    with change_cwd(data_dir):
+        result = pyogrio.raw.read(path)
+        assert len(result[2]) == 177
+
+        result = pyogrio.read_info(path)
+        assert result["features"] == 177
+
+        result = pyogrio.read_bounds(path)
+        assert len(result[0]) == 177
+
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_path_relative_dataframe(data_dir):
     with change_cwd(data_dir):
         df = pyogrio.read_dataframe("naturalearth_lowres/naturalearth_lowres.shp")
-    assert len(df) == 177
+        assert len(df) == 177
 
 
 def test_uri_local_file(data_dir):
+    path = "file://" + str(data_dir / "naturalearth_lowres/naturalearth_lowres.shp")
+    result = pyogrio.raw.read(path)
+    assert len(result[2]) == 177
+
+    result = pyogrio.read_info(path)
+    assert result["features"] == 177
+
+    result = pyogrio.read_bounds(path)
+    assert len(result[0]) == 177
+
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_uri_local_file_dataframe(data_dir):
     uri = "file://" + str(data_dir / "naturalearth_lowres/naturalearth_lowres.shp")
     df = pyogrio.read_dataframe(uri)
     assert len(df) == 177
@@ -133,19 +175,58 @@ def test_zip_path(naturalearth_lowres_vsi):
     path_zip = "zip://" + str(path)
 
     # absolute zip path
-    df = pyogrio.read_dataframe(path_zip)
-    assert len(df) == 177
+    result = pyogrio.raw.read(path)
+    assert len(result[2]) == 177
+
+    result = pyogrio.read_info(path)
+    assert result["features"] == 177
+
+    result = pyogrio.read_bounds(path)
+    assert len(result[0]) == 177
+
+    # absolute vsizip path
+    result = pyogrio.raw.read(path_vsi)
+    assert len(result[2]) == 177
+
+    result = pyogrio.read_info(path_vsi)
+    assert result["features"] == 177
+
+    result = pyogrio.read_bounds(path_vsi)
+    assert len(result[0]) == 177
 
     # relative zip path
+    relative_path = "zip://" + path.name
     with change_cwd(path.parent):
-        df = pyogrio.read_dataframe("zip://" + path.name)
+        result = pyogrio.raw.read(relative_path)
+        assert len(result[2]) == 177
+
+        result = pyogrio.read_info(relative_path)
+        assert result["features"] == 177
+
+        result = pyogrio.read_bounds(relative_path)
+        assert len(result[0]) == 177
+
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_zip_path_dataframe(naturalearth_lowres_vsi):
+    path, path_vsi = naturalearth_lowres_vsi
+    path_zip = "zip://" + str(path)
+
+    # absolute zip path
+    df = pyogrio.read_dataframe(path_zip)
     assert len(df) == 177
 
     # absolute vsizip path
     df = pyogrio.read_dataframe(path_vsi)
     assert len(df) == 177
 
+    # relative zip path
+    with change_cwd(path.parent):
+        df = pyogrio.read_dataframe("zip://" + path.name)
+        assert len(df) == 177
 
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 def test_detect_zip_path(tmp_path, naturalearth_lowres):
     # create a zipfile with 2 shapefiles in a set of subdirectories
     df = pyogrio.read_dataframe(naturalearth_lowres, where="iso_a3 in ('CAN', 'PER')")
@@ -184,17 +265,44 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
 
 @pytest.mark.network
 def test_url():
-    df = pyogrio.read_dataframe(
-        "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
-    )
-    assert len(df) == 177
+    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
+
+    result = pyogrio.raw.read(url)
+    assert len(result[2]) == 177
+
+    result = pyogrio.read_info(url)
+    assert result["features"] == 177
+
+    result = pyogrio.read_bounds(url)
+    assert len(result[0]) == 177
+
+
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_url_dataframe():
+    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
+
+    assert len(pyogrio.read_dataframe(url)) == 177
 
 
 @pytest.mark.network
 def test_url_with_zip():
-    df = pyogrio.read_dataframe(
-        "zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip"
-    )
+    url = "zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip"
+
+    result = pyogrio.raw.read(url)
+    assert len(result[2]) == 67
+
+    result = pyogrio.read_info(url)
+    assert result["features"] == 67
+
+    result = pyogrio.read_bounds(url)
+    assert len(result[0]) == 67
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_url_with_zip_dataframe():
+    url = "zip+https://s3.amazonaws.com/fiona-testing/coutwildrnp.zip"
+    df = pyogrio.read_dataframe(url)
     assert len(df) == 67
 
 
@@ -205,5 +313,20 @@ def aws_env_setup(monkeypatch):
 
 @pytest.mark.network
 def test_uri_s3(aws_env_setup):
+    url = "zip+s3://fiona-testing/coutwildrnp.zip"
+
+    result = pyogrio.raw.read(url)
+    assert len(result[2]) == 67
+
+    result = pyogrio.read_info(url)
+    assert result["features"] == 67
+
+    result = pyogrio.read_bounds(url)
+    assert len(result[0]) == 67
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
+def test_uri_s3_dataframe(aws_env_setup):
     df = pyogrio.read_dataframe("zip+s3://fiona-testing/coutwildrnp.zip")
     assert len(df) == 67
