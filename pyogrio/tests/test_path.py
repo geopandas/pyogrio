@@ -9,7 +9,7 @@ import pyogrio.raw
 from pyogrio.util import vsi_path
 
 try:
-    import geopandas as gp
+    import geopandas  # NOQA
 
     has_geopandas = True
 except ImportError:
@@ -175,13 +175,13 @@ def test_zip_path(naturalearth_lowres_vsi):
     path_zip = "zip://" + str(path)
 
     # absolute zip path
-    result = pyogrio.raw.read(path)
+    result = pyogrio.raw.read(path_zip)
     assert len(result[2]) == 177
 
-    result = pyogrio.read_info(path)
+    result = pyogrio.read_info(path_zip)
     assert result["features"] == 177
 
-    result = pyogrio.read_bounds(path)
+    result = pyogrio.read_bounds(path_zip)
     assert len(result[0]) == 177
 
     # absolute vsizip path
@@ -279,7 +279,7 @@ def test_url():
 
 @pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 def test_url_dataframe():
-    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
+    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"  # NOQA
 
     assert len(pyogrio.read_dataframe(url)) == 177
 
