@@ -51,6 +51,15 @@
 -   fix passing gdal creation parameters in `write_dataframe` (#62)
 -   fix passing kwargs to GDAL in `write_dataframe` (#67)
 
+### Contributors
+
+People with a “+” by their names contributed a patch for the first time.
+
+-   Brendan Ward
+-   Joris Van den Bossche
+-   Martin Fleischmann
+-   Pieter Roggemans +
+
 ## 0.3.0
 
 ### Major enhancements
