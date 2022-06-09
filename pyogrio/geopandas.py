@@ -183,7 +183,7 @@ def write_dataframe(
     ----------
     df : GeoDataFrame
         The data to write. For attribute columns of the "object" dtype, all values will
-        be converted to strings to be written to the output file.
+        be converted to strings to be written to the output file, except None and np.nan, which will be set to NULL in the output file.
     path : str
         path to file
     layer :str, optional (default: None)
