@@ -1376,6 +1376,9 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
 
                     else:
+                        if not isinstance(field_value, str):
+                            field_value = str(field_value)
+
                         try:
                             value_b = field_value.encode("UTF-8")
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
