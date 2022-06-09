@@ -740,6 +740,6 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
     gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
     for geom_type in geom_types:
-        write_dataframe(gdf, filename, layer_geometry_type=geom_type)
+        write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
