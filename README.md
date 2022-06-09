@@ -24,25 +24,27 @@ such as tables in a ESRI File Geodatabase, or antiquated DBF files.
 Pyogrio also enables you to write `GeoDataFrames` to at least a few different
 OGR vector data source formats.
 
-Read the documentation for more information: [https://pyogrio.readthedocs.io](https://pyogrio.readthedocs.io/en/latest/).
+Read the documentation for more information:
+[https://pyogrio.readthedocs.io](https://pyogrio.readthedocs.io/en/latest/).
 
 WARNING: Pyogrio is still at an early version and the API is subject to
-substantial change.
+substantial change. Please see [CHANGES](CHANGES.md).
 
 ## Requirements
 
-Supports Python 3.8 - 3.10 and GDAL 3.0.x - 3.4.x
-(GDAL 2.4 _may_ work but is untested; prior versions will not be supported)
+Supports Python 3.8 - 3.10 and GDAL 3.1.x - 3.5.x.
 
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
 
 ## Installation
 
-Pyogrio is currently available on [conda-forge](https://anaconda.org/conda-forge/pyogrio)
-for Linux, MacOS, and Windows. Ready-to-use (compiled) distributions are not yet
-available on PyPI, but we're planning to work on that soon.
+Pyogrio is currently available on
+[conda-forge](https://anaconda.org/conda-forge/pyogrio)
+and [PyPI](https://pypi.org/project/pyogrio/)
+for Linux, MacOS, and Windows.
 
-Please read the [installation documentation](https://pyogrio.readthedocs.io/en/latest/install.html)
+Please read the
+[installation documentation](https://pyogrio.readthedocs.io/en/latest/install.html)
 for more information.
 
 ## Supported vector formats

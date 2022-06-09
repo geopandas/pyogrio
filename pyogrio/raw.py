@@ -2,11 +2,11 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
-from pyogrio.util import vsi_path
+from pyogrio.util import get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_write
-    from pyogrio._ogr import buffer_to_virtual_file, remove_virtual_file
+    from pyogrio._ogr import remove_virtual_file
 
 
 DRIVERS = {
@@ -111,21 +111,7 @@ def read(
             "geometry": "<geometry type>"
         }
     """
-    if hasattr(path_or_buffer, "read"):
-        path_or_buffer = path_or_buffer.read()
-
-    from_buffer = False
-    if isinstance(path_or_buffer, bytes):
-        from_buffer = True
-        ext = ""
-        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
-        if is_zipped:
-            ext = ".zip"
-        path = buffer_to_virtual_file(path_or_buffer, ext=ext)
-        if is_zipped:
-            path = "/vsizip/" + path
-    else:
-        path = vsi_path(str(path_or_buffer))
+    path, buffer = get_vsi_path(path_or_buffer)
 
     try:
         result = ogr_read(
@@ -145,7 +131,7 @@ def read(
             return_fids=return_fids,
         )
     finally:
-        if from_buffer:
+        if buffer is not None:
             remove_virtual_file(path)
 
     return result
