@@ -11,4 +11,5 @@ GeoPandas integration
 ---------------------
 
 .. automodule:: pyogrio.geopandas
-    :members: read_dataframe, write_dataframe
+.. autofunction:: pyogrio.read_dataframe
+.. autofunction:: pyogrio.write_dataframe
