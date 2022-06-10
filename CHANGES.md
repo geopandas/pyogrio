@@ -59,6 +59,7 @@ People with a “+” by their names contributed a patch for the first time.
 -   Joris Van den Bossche
 -   Martin Fleischmann
 -   Pieter Roggemans +
+-   Wei Ji Leong +
 
 ## 0.3.0
 
