@@ -78,7 +78,13 @@ def list_layers(path_or_buffer, /):
 
 
 def read_bounds(
-    path_or_buffer, /, layer=None, skip_features=0, max_features=None, where=None, bbox=None
+    path_or_buffer,
+    /,
+    layer=None,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
 ):
     """Read bounds of each feature.
 
@@ -113,11 +119,12 @@ def read_bounds(
     -------
     tuple of (fids, bounds)
         fids are global IDs read from the FID field of the dataset
-        bounds are ndarray of shape(4, n) containig ``xmin``, ``ymin``, ``xmax``, ``ymax``
+        bounds are ndarray of shape(4, n) containing ``xmin``, ``ymin``, ``xmax``,
+        ``ymax``
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
-    try:   
+    try:
         result = ogr_read_bounds(
             path,
             layer=layer,
@@ -164,7 +171,7 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
-    try:   
+    try:
         result = ogr_read_info(path, layer=layer, encoding=encoding)
     finally:
         if buffer is not None:

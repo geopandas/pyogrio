@@ -17,7 +17,7 @@ def get_vsi_path(path_or_buffer):
     if isinstance(path_or_buffer, bytes):
         buffer = path_or_buffer
         ext = ""
-        is_zipped = path_or_buffer[:4].startswith(b'PK\x03\x04')
+        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
         if is_zipped:
             ext = ".zip"
         path = buffer_to_virtual_file(path_or_buffer, ext=ext)
@@ -80,7 +80,7 @@ CURLSCHEMES = set([k for k, v in SCHEMES.items() if v == "curl"])
 
 
 def _parse_uri(path: str):
-    """"
+    """
     Parse a URI
 
     Returns a tuples of (path, archive, scheme)

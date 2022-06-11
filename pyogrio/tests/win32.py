@@ -84,4 +84,3 @@ if platform.system() == "Windows":
             test_write_geojson(tmpdir, naturalearth_lowres)
         except Exception as ex:
             print(ex)
-
