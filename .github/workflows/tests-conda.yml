@@ -24,12 +24,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.9", "3.10"]
-        environment-file: environment.yml
+        environment-file: "environment.yml"
         include:
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.10"
-            environment-file: environment-minimal.yml
+            environment-file: "environment-minimal.yml"
 
     steps:
       - name: Checkout repo
