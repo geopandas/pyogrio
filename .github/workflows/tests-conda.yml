@@ -24,12 +24,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.9", "3.10"]
-        environment-file: "environment.yml"
+        env: "environment.yml"
         include:
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.10"
-            environment-file: "environment-minimal.yml"
+            env: "environment-minimal.yml"
 
     steps:
       - name: Checkout repo
@@ -38,7 +38,7 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/provision-with-micromamba@main
         with:
-          environment-file: ci/${{ matrix.environment-file }}
+          environment-file: ci/${{ matrix.env }}
           extra-specs: python=${{ matrix.python }}
           cache-env: true
 
