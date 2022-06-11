@@ -18,7 +18,7 @@
 -   support use of a sql statement in read_dataframe (#70)
 -   correctly write geometry type for layer when dataset has multiple geometry types (#82)
 -   support reading `bool`, `int16`, `float32` into correct dtypes (#83)
--   add `layer_geometry_type` to `write_dataframe` to set geometry type for layer (#85)
+-   add `geometry_type` to `write_dataframe` to set geometry type for layer (#85)
 -   Use certifi to set `GDAL_CURL_CA_BUNDLE` / `PROJ_CURL_CA_BUNDLE` defaults (#97)
 -   automatically detect driver for `.geojson`, `.geojsonl` and `.geojsons` files (#101)
 -   read DateTime fields with millisecond accuracy (#111)
@@ -39,9 +39,9 @@
 -   by default, writing GeoDataFrames with mixed singular and multi geometry
     types will automatically promote to the multi type if the driver does not
     support mixed geometry types (e.g., `FGB`, though it can write mixed geometry
-    types if `layer_geometry_type` is set to `"Unknown"`)
+    types if `geometry_type` is set to `"Unknown"`)
 -   the geometry type of datasets with multiple geometry types will be set to
-    `"Unknown"` unless overridden using `layer_geometry_type`. Note:
+    `"Unknown"` unless overridden using `geometry_type`. Note:
     `"Unknown"` may be ignored by some drivers (e.g., shapefile)
 
 ### Bug fixes
@@ -50,6 +50,10 @@
 -   raise error if layer cannot be opened (#35)
 -   fix passing gdal creation parameters in `write_dataframe` (#62)
 -   fix passing kwargs to GDAL in `write_dataframe` (#67)
+
+### Changes from 0.4.0a1
+
+-   `layer_geometry_type` introduced in 0.4.0a1 was renamed to `geometry_type` for consistency
 
 ## 0.3.0
 
