@@ -123,7 +123,7 @@ def test_read_null_values(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert df.SEGMENT_NAME.isnull().max() == True
+    assert df.SEGMENT_NAME.isnull().max()
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
 
 
@@ -491,7 +491,7 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, expected_geometry_types, expected_layer_geometry_type",
+    "ext, promote_to_multi, expected_geometry_types, expected_geometry_type",
     [
         (".fgb", None, ["MultiPolygon"], "MultiPolygon"),
         (".fgb", True, ["MultiPolygon"], "MultiPolygon"),
@@ -507,7 +507,7 @@ def test_write_dataframe_promote_to_multi(
     ext,
     promote_to_multi,
     expected_geometry_types,
-    expected_layer_geometry_type,
+    expected_geometry_type,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
@@ -518,12 +518,12 @@ def test_write_dataframe_promote_to_multi(
     output_gdf = read_dataframe(output_path)
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
-    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+    assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type, "
-    "expected_geometry_types, expected_layer_geometry_type",
+    "ext, promote_to_multi, geometry_type, "
+    "expected_geometry_types, expected_geometry_type",
     [
         (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
         (".geojson", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
@@ -550,9 +550,9 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     naturalearth_lowres,
     ext,
     promote_to_multi,
-    layer_geometry_type,
+    geometry_type,
     expected_geometry_types,
-    expected_layer_geometry_type,
+    expected_geometry_type,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
@@ -561,18 +561,18 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
         input_gdf,
         output_path,
         promote_to_multi=promote_to_multi,
-        layer_geometry_type=layer_geometry_type,
+        geometry_type=geometry_type,
     )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
-    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+    assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type, expected_raises_match",
+    "ext, promote_to_multi, geometry_type, expected_raises_match",
     [
         (".fgb", False, "MultiPolygon", "Mismatched geometry type"),
         (".fgb", False, "Polygon", "Mismatched geometry type"),
@@ -586,7 +586,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     naturalearth_lowres,
     ext,
     promote_to_multi,
-    layer_geometry_type,
+    geometry_type,
     expected_raises_match,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
@@ -597,7 +597,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
             input_gdf,
             output_path,
             promote_to_multi=promote_to_multi,
-            layer_geometry_type=layer_geometry_type,
+            geometry_type=geometry_type,
         )
 
 
@@ -608,7 +608,7 @@ def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
-        write_dataframe(df, filename, layer_geometry_type="NotSupported")
+        write_dataframe(df, filename, geometry_type="NotSupported")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
@@ -745,7 +745,7 @@ def test_write_read_null(tmp_path):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
@@ -760,6 +760,6 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
     gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
     for geom_type in geom_types:
-        write_dataframe(gdf, filename, layer_geometry_type=geom_type)
+        write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)

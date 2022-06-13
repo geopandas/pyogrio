@@ -10,6 +10,5 @@ Core
 GeoPandas integration
 ---------------------
 
-.. automodule:: pyogrio
-    :members: read_dataframe, write_dataframe
-    :noindex:
+.. autofunction:: pyogrio.read_dataframe
+.. autofunction:: pyogrio.write_dataframe
