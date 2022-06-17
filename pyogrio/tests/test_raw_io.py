@@ -496,7 +496,8 @@ def test_read_datetime_millisecond(test_datetime):
 def test_read_write_null_geometry(tmp_path, ext):
     # Point(0, 0), null
     geometry = np.array(
-        [bytes.fromhex("010100000000000000000000000000000000000000"), None], dtype=object
+        [bytes.fromhex("010100000000000000000000000000000000000000"), None],
+        dtype=object,
     )
     field_data = [np.array([1, 2], dtype="int32")]
     fields = ["col"]
