@@ -492,7 +492,8 @@ def test_read_datetime_millisecond(test_datetime):
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
 
-def test_read_write_null_geometry(tmp_path):
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_read_write_null_geometry(tmp_path, ext):
     # Point(0, 0), null
     geometry = np.array(
         [bytes.fromhex("010100000000000000000000000000000000000000"), None], dtype=object
@@ -501,7 +502,7 @@ def test_read_write_null_geometry(tmp_path):
     fields = ["col"]
     meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
 
-    filename = tmp_path / "test.gpkg"
+    filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
     result_geometry, result_fields = read(filename)[2:]
     assert np.array_equal(result_geometry, geometry)
