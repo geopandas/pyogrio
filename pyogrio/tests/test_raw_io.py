@@ -490,3 +490,19 @@ def test_read_datetime_millisecond(test_datetime):
     assert field.dtype == "datetime64[ms]"
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
+
+
+def test_read_write_null_geometry(tmp_path):
+    # Point(0, 0), null
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000"), None], dtype=object
+    )
+    field_data = [np.array([1, 2], dtype="int32")]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, fields, **meta)
+    result_geometry, result_fields = read(filename)[2:]
+    assert np.array_equal(result_geometry, geometry)
+    assert np.array_equal(result_fields[0], field_data[0])
