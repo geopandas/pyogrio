@@ -1331,36 +1331,37 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
             wkb = geometry[i]
-            wkbtype = bytearray(wkb)[1]
-            # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
-            # use "little" if the first byte == 1
-            ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
-            if ogr_geometry == NULL:
-                raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
+            if wkb is not None:
+                wkbtype = bytearray(wkb)[1]
+                # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
+                # use "little" if the first byte == 1
+                ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
+                if ogr_geometry == NULL:
+                    raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
 
-            # import the WKB
-            wkb_buffer = wkb
-            err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
-            if err:
-                if ogr_geometry != NULL:
-                    OGR_G_DestroyGeometry(ogr_geometry)
-                    ogr_geometry = NULL
-                raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
+                # import the WKB
+                wkb_buffer = wkb
+                err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
+                if err:
+                    if ogr_geometry != NULL:
+                        OGR_G_DestroyGeometry(ogr_geometry)
+                        ogr_geometry = NULL
+                    raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
-            # Convert to multi type
-            if promote_to_multi:
-                if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
-                    ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
-                elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
-                    ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
-                elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
-                    ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
+                # Convert to multi type
+                if promote_to_multi:
+                    if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+                        ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
+                    elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+                        ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
+                    elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+                        ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
 
-            # Set the geometry on the feature
-            # this assumes ownership of the geometry and it's cleanup
-            err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
-            if err:
-                raise GeometryError(f"Could not set geometry for feature at index {i}") from None
+                # Set the geometry on the feature
+                # this assumes ownership of the geometry and it's cleanup
+                err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
+                if err:
+                    raise GeometryError(f"Could not set geometry for feature at index {i}") from None
 
             # Set field values
             for field_idx in range(num_fields):

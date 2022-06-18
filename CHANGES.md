@@ -25,6 +25,7 @@
 -   support writing object columns with np.nan values (#118)
 -   add support to write object columns that contain types different than string (#125)
 -   support writing datetime columns (#120)
+-   support for writing missing (null) geometries (#59)
 
 ### Breaking changes
 
