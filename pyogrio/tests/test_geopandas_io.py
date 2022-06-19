@@ -2,8 +2,6 @@ from datetime import datetime
 import os
 
 import numpy as np
-import pandas as pd
-from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers, read_info, __gdal_geos_version__
@@ -13,6 +11,9 @@ from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
+    import pandas as pd
+    from pandas.testing import assert_frame_equal, assert_index_equal
+
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
 

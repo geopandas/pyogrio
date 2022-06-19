@@ -4,7 +4,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import pytest
 
 from pyogrio import __gdal_version_string__, __version__, list_drivers
-import pyogrio
+from pyogrio.raw import read, write
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
@@ -27,12 +27,16 @@ def prepare_testfile(testfile_path, dst_dir, ext):
     dst_path = dst_dir / f"{testfile_path.stem}{ext}"
     if dst_path.exists():
         return dst_path
-    gdf = pyogrio.read_dataframe(testfile_path)
+
+    meta, _, geometry, field_data = read(testfile_path)
+
     if ext == ".fgb":
         # For .fgb, spatial_index=False to avoid the rows being reordered
-        pyogrio.write_dataframe(gdf, dst_path, spatial_index=False)
-    else:
-        pyogrio.write_dataframe(gdf, dst_path)
+        meta["spatial_index"] = False
+        # allow mixed Polygons/MultiPolygons type
+        meta["geometry_type"] = "Unknown"
+
+    write(dst_path, geometry, field_data, **meta)
     return dst_path
 
 
