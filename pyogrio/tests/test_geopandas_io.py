@@ -17,6 +17,8 @@ try:
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
 
+    from shapely.geometry import Point
+
     has_geopandas = True
 except ImportError:
     has_geopandas = False
@@ -668,6 +670,20 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path):
     )
     with pytest.raises(FeatureError, match=msg):
         write_dataframe(df, tmp_path / "test.shp")
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".fgb"])
+@pytest.mark.parametrize(
+    "geoms",
+    [[None, Point(1, 1)], [Point(1, 1), None], [None, Point(1, 1, 2)], [None, None]],
+)
+def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext):
+    filename = tmp_path / f"test{ext}"
+
+    df = gp.GeoDataFrame({"col": [1.0, 2.0]}, geometry=geoms, crs="EPSG:4326")
+    write_dataframe(df, filename)
+    result = read_dataframe(filename)
+    assert_geodataframe_equal(result, df)
 
 
 @pytest.mark.filterwarnings(
