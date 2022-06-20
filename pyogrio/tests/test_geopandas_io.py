@@ -18,18 +18,16 @@ try:
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
-
-    has_geopandas = True
 except ImportError:
-    has_geopandas = False
+    pass
+
+
+pytest.importorskip("geopandas")
 
 
 # Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
 # cannot verify it
 has_geos = __gdal_geos_version__ is not None
-
-
-pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
 
 def spatialite_available(path):
