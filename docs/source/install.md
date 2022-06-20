@@ -27,10 +27,8 @@ This package is available on [PyPI](https://pypi.org/project/pyogrio/) for Linux
 MacOS, and Windows.
 
 ```bash
-pip install pyogrio --pre
+pip install pyogrio
 ```
-
-(Once 0.4.0 is officially released, you can omit the `--pre`)
 
 This installs binary wheels that include GDAL.
 
