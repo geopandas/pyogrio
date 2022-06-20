@@ -224,6 +224,7 @@ def write_dataframe(
     try:
         import geopandas as gp
         from geopandas.array import to_wkb
+        import pandas as pd
 
         # if geopandas is available so is pyproj
         from pyproj.enums import WktVersion
@@ -262,7 +263,7 @@ def write_dataframe(
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
-            geometry_types = geometry.type.unique()
+            geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
                 if promote_to_multi and tmp_geometry_type in (
