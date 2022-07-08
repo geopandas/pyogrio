@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 import numpy as np
 from numpy import array_equal
@@ -513,7 +514,24 @@ def test_read_write_null_geometry(tmp_path, ext):
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
 @pytest.mark.parametrize(
     "read_encoding,write_encoding",
-    [(None, None), ("UTF-8", None), (None, "UTF-8"), ("UTF-8", "UTF-8")],
+    [
+        pytest.param(
+            None,
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        pytest.param(
+            "UTF-8",
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        (None, "UTF-8"),
+        ("UTF-8", "UTF-8"),
+    ],
 )
 def test_encoding_io(tmp_path, ext, read_encoding, write_encoding):
     # Point(0, 0)
@@ -542,7 +560,24 @@ def test_encoding_io(tmp_path, ext, read_encoding, write_encoding):
 
 @pytest.mark.parametrize(
     "read_encoding,write_encoding",
-    [(None, None), ("UTF-8", None), (None, "UTF-8"), ("UTF-8", "UTF-8")],
+    [
+        pytest.param(
+            None,
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        pytest.param(
+            "UTF-8",
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        (None, "UTF-8"),
+        ("UTF-8", "UTF-8"),
+    ],
 )
 def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
     # Point(0, 0)
