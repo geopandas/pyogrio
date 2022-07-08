@@ -585,4 +585,3 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         assert np.array_equal(
             fields, read_info(filename, encoding=read_encoding)["fields"]
         )
-

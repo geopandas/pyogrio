@@ -5,7 +5,7 @@
 ### Bug fixes
 
 -   use user-provided `encoding` when reading files instead of using default
-    encoding of data source type
+    encoding of data source type (#139)
 
 ## 0.4.0
 
