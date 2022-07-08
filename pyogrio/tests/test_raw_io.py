@@ -5,7 +5,7 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers
+from pyogrio import list_layers, list_drivers, read_info
 from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile
@@ -508,3 +508,81 @@ def test_read_write_null_geometry(tmp_path, ext):
     result_geometry, result_fields = read(filename)[2:]
     assert np.array_equal(result_geometry, geometry)
     assert np.array_equal(result_fields[0], field_data[0])
+
+
+@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize(
+    "read_encoding,write_encoding",
+    [(None, None), ("UTF-8", None), (None, "UTF-8"), ("UTF-8", "UTF-8")],
+)
+def test_encoding_io(tmp_path, ext, read_encoding, write_encoding):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+    arabic = "العربية"
+    cree = "ᓀᐦᐃᔭᐍᐏᐣ"
+    mandarin = "中文"
+    field_data = [
+        np.array([arabic], dtype=object),
+        np.array([cree], dtype=object),
+        np.array([mandarin], dtype=object),
+    ]
+    fields = [arabic, cree, mandarin]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=write_encoding)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+
+    actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename, encoding=read_encoding)["fields"])
+
+
+@pytest.mark.parametrize(
+    "read_encoding,write_encoding",
+    [(None, None), ("UTF-8", None), (None, "UTF-8"), ("UTF-8", "UTF-8")],
+)
+def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+    arabic = "العربية"
+    cree = "ᓀᐦᐃᔭᐍᐏᐣ"
+    mandarin = "中文"
+    field_data = [
+        np.array([arabic], dtype=object),
+        np.array([cree], dtype=object),
+        np.array([mandarin], dtype=object),
+    ]
+
+    # Field names are longer than 10 bytes and get truncated badly (not at UTF-8
+    # character level)  by GDAL when output to shapefile, so we have to truncate
+    # before writing
+    fields = [arabic[:5], cree[:3], mandarin]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding="UTF-8")
+
+    filename = tmp_path / "test.shp"
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    write(filename, geometry, field_data, fields, **meta)
+
+    actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename, encoding=read_encoding)["fields"])
+
+    # verify that if cpg file is not present, that user-provided encoding is used,
+    # otherwise it defaults to ISO-8859-1
+    if read_encoding is not None:
+        os.unlink(str(filename).replace(".shp", ".cpg"))
+        actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+        assert np.array_equal(fields, actual_meta["fields"])
+        assert np.array_equal(field_data, actual_field_data)
+        assert np.array_equal(
+            fields, read_info(filename, encoding=read_encoding)["fields"]
+        )
+

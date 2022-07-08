@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.4.1 (in progress)
+
+### Bug fixes
+
+-   use user-provided `encoding` when reading files instead of using default
+    encoding of data source type
+
 ## 0.4.0
 
 ### Major enhancements

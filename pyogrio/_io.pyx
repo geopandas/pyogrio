@@ -842,10 +842,11 @@ def ogr_read(
 
         crs = get_crs(ogr_layer)
 
-        # Encoding is derived from the dataset, from the user, or from the system locale
+        # Encoding is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
         encoding = (
-            detect_encoding(ogr_dataset, ogr_layer)
-            or encoding
+            encoding
+            or detect_encoding(ogr_dataset, ogr_layer)
             or locale.getpreferredencoding()
         )
 
@@ -982,10 +983,11 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
-    # Encoding is derived from the dataset, from the user, or from the system locale
+    # Encoding is derived from the user, from the dataset capabilities / type,
+    # or from the system locale
     encoding = (
-        detect_encoding(ogr_dataset, ogr_layer)
-        or encoding
+        encoding
+        or detect_encoding(ogr_dataset, ogr_layer)
         or locale.getpreferredencoding()
     )
 
