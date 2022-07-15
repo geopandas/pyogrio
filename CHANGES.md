@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.4.1 (in progress)
+
+### Bug fixes
+
+-   always convert non-linear geometry types to linear geometry types (#140)
+
 ## 0.4.0
 
 ### Major enhancements
