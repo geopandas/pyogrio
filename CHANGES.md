@@ -4,7 +4,8 @@
 
 ### Bug fixes
 
--   always convert non-linear geometry types to linear geometry types (#140)
+-   always convert curve or surface geometry types to linear geometry types,
+    such as lines or polygons (#140)
 
 ## 0.4.0
 

@@ -474,7 +474,6 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
 
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRwkbGeometryType ogr_geometry_type
-    cdef OGRwkbGeometryType linear_geometry_type
 
     cdef unsigned char *wkb = NULL
     cdef int ret_length
