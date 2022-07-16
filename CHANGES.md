@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.4.1 (in progress)
+
+### Bug fixes
+
+-   always convert curve or surface geometry types to linear geometry types,
+    such as lines or polygons (#140)
+
 ## 0.4.0
 
 ### Major enhancements
