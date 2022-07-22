@@ -4,9 +4,10 @@
 
 ### Bug fixes
 
+-   use user-provided `encoding` when reading files instead of using default
+    encoding of data source type (#139)
 -   always convert curve or surface geometry types to linear geometry types,
     such as lines or polygons (#140)
-
 ## 0.4.0
 
 ### Major enhancements
