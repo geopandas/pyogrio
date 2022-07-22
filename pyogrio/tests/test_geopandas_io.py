@@ -778,3 +778,10 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
+
+
+def test_read_multisurface(data_dir):
+    df = read_dataframe(data_dir / "test_multisurface.gpkg")
+
+    # MultiSurface should be converted to MultiPolygon
+    assert df.geometry.type.tolist() == ["MultiPolygon"]
