@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
--   register GDAL drivers during initial import of pyogrio
+-   register GDAL drivers during initial import of pyogrio (#145)
 
 ## 0.4.1
 
