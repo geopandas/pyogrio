@@ -13,11 +13,13 @@ with GDALEnv():
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
         remove_virtual_file,
+        _register_drivers,
     )
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
     _init_gdal_data()
     _init_proj_data()
+    _register_drivers()
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()

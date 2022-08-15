@@ -116,9 +116,6 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     cdef void* ogr_driver = NULL
     cdef char **open_opts = NULL
 
-    # Register all drivers
-    GDALAllRegister()
-
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
 

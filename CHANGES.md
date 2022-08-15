@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## O.4.2
+
+### Bug fixes
+
+-   register GDAL drivers during initial import of pyogrio (#145)
+
 ## 0.4.1
 
 ### Bug fixes
