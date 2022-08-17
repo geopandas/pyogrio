@@ -445,7 +445,7 @@ def test_read_write_datetime(tmp_path):
         "datetime64_ms",
         "datetime64_ns",
         "datetime64_precise_ns",
-        "datetime64_nat",
+        "datetime64_ms_nat",
     ]
 
     # Point(0, 0)
