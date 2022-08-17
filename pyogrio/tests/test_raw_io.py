@@ -462,7 +462,7 @@ def test_read_write_datetime(tmp_path):
             # gdal rounds datetimes to ms
             assert np.array_equal(result[idx], field_data[idx].astype("datetime64[ms]"))
         else:
-            assert np.array_equal(result[idx], field_data[idx])
+            assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
