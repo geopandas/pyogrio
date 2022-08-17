@@ -437,6 +437,10 @@ def test_read_write_datetime(tmp_path):
             ["2001-01-01T12:00", "2002-02-03T13:56:03.072123456"],
             dtype="datetime64[ns]",
         ),
+        np.array(
+            [np.datetime64('NaT'), np.datetime64('NaT')],
+            dtype="datetime64",
+        ),
     ]
     fields = [
         "datetime64_d",
@@ -444,6 +448,7 @@ def test_read_write_datetime(tmp_path):
         "datetime64_ms",
         "datetime64_ns",
         "datetime64_precise_ns",
+        "datetime64_nat",
     ]
 
     # Point(0, 0)
