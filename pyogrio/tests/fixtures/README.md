@@ -74,3 +74,12 @@ with fiona.open(filename, "a") as c:
 NOTE: Reading boolean values into GeoPandas using Fiona backend treats those
 values as `None` and column dtype as `object`; Pyogrio treats those values as
 `np.nan` and column dtype as `float64`.
+
+### GPKG test with MultiSurface
+
+This was extracted from https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHDPlusHR/Beta/GDB/NHDPLUS_H_0308_HU4_GDB.zip
+`NHDWaterbody` layer using ogr2ogr:
+
+```bash
+ogr2ogr test_mixed_surface.gpkg NHDPLUS_H_0308_HU4_GDB.gdb NHDWaterbody -where '"NHDPlusID" = 15000300070477' -select "NHDPlusID"
+```

@@ -27,10 +27,8 @@ This package is available on [PyPI](https://pypi.org/project/pyogrio/) for Linux
 MacOS, and Windows.
 
 ```bash
-pip install pyogrio --pre
+pip install pyogrio
 ```
-
-(Once 0.4.0 is officially released, you can omit the `--pre`)
 
 This installs binary wheels that include GDAL.
 
@@ -74,6 +72,10 @@ GDAL paths), or either the `GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and
 `GDAL_VERSION` environment variables need to be set.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
+
+Pyogrio follows the
+[GeoPandas Style Guide](https://geopandas.org/en/stable/community/contributing.html#style-guide-linting) and uses `Black` and `Flake8` to ensure consistent
+formatting.
 
 Run `python setup.py develop` to build the extensions in Cython.
 

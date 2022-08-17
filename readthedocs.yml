@@ -1,6 +1,11 @@
 version: 2
 formats: []
 
+build:
+  os: "ubuntu-22.04"
+  tools:
+    python: "mambaforge-4.10"
+
 sphinx:
   configuration: docs/source/conf.py
 

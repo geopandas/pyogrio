@@ -172,7 +172,7 @@ def write_dataframe(
     layer=None,
     driver=None,
     encoding=None,
-    layer_geometry_type=None,
+    geometry_type=None,
     promote_to_multi=None,
     **kwargs,
 ):
@@ -181,6 +181,11 @@ def write_dataframe(
 
     Parameters
     ----------
+    df : GeoDataFrame
+        The data to write. For attribute columns of the "object" dtype,
+        all values will be converted to strings to be written to the
+        output file, except None and np.nan, which will be set to NULL
+        in the output file.
     path : str
         path to file
     layer :str, optional (default: None)
@@ -191,7 +196,7 @@ def write_dataframe(
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.
-    layer_geometry_type : string, optional (default: None)
+    geometry_type : string, optional (default: None)
         By default, the geometry type of the layer will be inferred from the
         data, after applying the promote_to_multi logic. If the data only contains a
         single geometry type (after applying the logic of promote_to_multi), this type
@@ -219,6 +224,7 @@ def write_dataframe(
     try:
         import geopandas as gp
         from geopandas.array import to_wkb
+        import pandas as pd
 
         # if geopandas is available so is pyproj
         from pyproj.enums import WktVersion
@@ -251,21 +257,21 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = [df[f].values for f in fields]
 
-    # Determine layer_geometry_type and/or promote_to_multi
-    if layer_geometry_type is None or promote_to_multi is None:
-        tmp_layer_geometry_type = "Unknown"
+    # Determine geometry_type and/or promote_to_multi
+    if geometry_type is None or promote_to_multi is None:
+        tmp_geometry_type = "Unknown"
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
-            geometry_types = geometry.type.unique()
+            geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
-                tmp_layer_geometry_type = geometry_types[0]
-                if promote_to_multi and tmp_layer_geometry_type in (
+                tmp_geometry_type = geometry_types[0]
+                if promote_to_multi and tmp_geometry_type in (
                     "Point",
                     "LineString",
                     "Polygon",
                 ):
-                    tmp_layer_geometry_type = f"Multi{tmp_layer_geometry_type}"
+                    tmp_geometry_type = f"Multi{tmp_geometry_type}"
             elif len(geometry_types) == 2:
                 # Check if the types are corresponding multi + single types
                 if "Polygon" in geometry_types and "MultiPolygon" in geometry_types:
@@ -288,10 +294,10 @@ def write_dataframe(
                     ):
                         promote_to_multi = True
                     if promote_to_multi:
-                        tmp_layer_geometry_type = multi_type
+                        tmp_geometry_type = multi_type
 
-        if layer_geometry_type is None:
-            layer_geometry_type = tmp_layer_geometry_type
+        if geometry_type is None:
+            geometry_type = tmp_geometry_type
 
     crs = None
     if geometry.crs:
@@ -311,7 +317,7 @@ def write_dataframe(
         field_data=field_data,
         fields=fields,
         crs=crs,
-        geometry_type=layer_geometry_type,
+        geometry_type=geometry_type,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         **kwargs,

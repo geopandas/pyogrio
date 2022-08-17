@@ -142,14 +142,16 @@ def detect_driver(path):
     parts = os.path.splitext(path)
     if len(parts) != 2:
         raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver explicitly"
+            f"Could not infer driver from path: {path}; please specify driver "
+            "explicitly"
         )
 
     ext = parts[1].lower()
     driver = DRIVERS.get(ext, None)
     if driver is None:
         raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver explicitly"
+            f"Could not infer driver from path: {path}; please specify driver "
+            "explicitly"
         )
 
     return driver

@@ -1,8 +1,7 @@
+from datetime import datetime
 import os
 
 import numpy as np
-import pandas as pd
-from pandas.testing import assert_frame_equal, assert_index_equal
 import pytest
 
 from pyogrio import list_layers, read_info, __gdal_geos_version__
@@ -12,20 +11,23 @@ from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
+    import pandas as pd
+    from pandas.testing import assert_frame_equal, assert_index_equal
+
     import geopandas as gp
     from geopandas.testing import assert_geodataframe_equal
 
-    has_geopandas = True
+    from shapely.geometry import Point
 except ImportError:
-    has_geopandas = False
+    pass
+
+
+pytest.importorskip("geopandas")
 
 
 # Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
 # cannot verify it
 has_geos = __gdal_geos_version__ is not None
-
-
-pytestmark = pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 
 
 def spatialite_available(path):
@@ -122,7 +124,7 @@ def test_read_null_values(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert df.SEGMENT_NAME.isnull().max() == True
+    assert df.SEGMENT_NAME.isnull().max()
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
 
 
@@ -490,7 +492,7 @@ def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, expected_geometry_types, expected_layer_geometry_type",
+    "ext, promote_to_multi, expected_geometry_types, expected_geometry_type",
     [
         (".fgb", None, ["MultiPolygon"], "MultiPolygon"),
         (".fgb", True, ["MultiPolygon"], "MultiPolygon"),
@@ -506,7 +508,7 @@ def test_write_dataframe_promote_to_multi(
     ext,
     promote_to_multi,
     expected_geometry_types,
-    expected_layer_geometry_type,
+    expected_geometry_type,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
@@ -517,12 +519,12 @@ def test_write_dataframe_promote_to_multi(
     output_gdf = read_dataframe(output_path)
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
-    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+    assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type, "
-    "expected_geometry_types, expected_layer_geometry_type",
+    "ext, promote_to_multi, geometry_type, "
+    "expected_geometry_types, expected_geometry_type",
     [
         (".fgb", None, "Unknown", ["MultiPolygon"], "Unknown"),
         (".geojson", False, "Unknown", ["MultiPolygon", "Polygon"], "Unknown"),
@@ -549,9 +551,9 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     naturalearth_lowres,
     ext,
     promote_to_multi,
-    layer_geometry_type,
+    geometry_type,
     expected_geometry_types,
-    expected_layer_geometry_type,
+    expected_geometry_type,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
@@ -560,18 +562,18 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
         input_gdf,
         output_path,
         promote_to_multi=promote_to_multi,
-        layer_geometry_type=layer_geometry_type,
+        geometry_type=geometry_type,
     )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
-    assert read_info(output_path)["geometry_type"] == expected_layer_geometry_type
+    assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
 @pytest.mark.parametrize(
-    "ext, promote_to_multi, layer_geometry_type, expected_raises_match",
+    "ext, promote_to_multi, geometry_type, expected_raises_match",
     [
         (".fgb", False, "MultiPolygon", "Mismatched geometry type"),
         (".fgb", False, "Polygon", "Mismatched geometry type"),
@@ -585,7 +587,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     naturalearth_lowres,
     ext,
     promote_to_multi,
-    layer_geometry_type,
+    geometry_type,
     expected_raises_match,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
@@ -596,7 +598,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
             input_gdf,
             output_path,
             promote_to_multi=promote_to_multi,
-            layer_geometry_type=layer_geometry_type,
+            geometry_type=geometry_type,
         )
 
 
@@ -607,7 +609,7 @@ def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
-        write_dataframe(df, filename, layer_geometry_type="NotSupported")
+        write_dataframe(df, filename, geometry_type="NotSupported")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
@@ -668,6 +670,20 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path):
         write_dataframe(df, tmp_path / "test.shp")
 
 
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".fgb"])
+@pytest.mark.parametrize(
+    "geoms",
+    [[None, Point(1, 1)], [Point(1, 1), None], [None, Point(1, 1, 2)], [None, None]],
+)
+def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext):
+    filename = tmp_path / f"test{ext}"
+
+    df = gp.GeoDataFrame({"col": [1.0, 2.0]}, geometry=geoms, crs="EPSG:4326")
+    write_dataframe(df, filename)
+    result = read_dataframe(filename)
+    assert_geodataframe_equal(result, df)
+
+
 @pytest.mark.filterwarnings(
     "ignore: You will likely lose important projection information"
 )
@@ -691,10 +707,29 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert df.crs.equals(expected.crs)
 
 
+def test_write_read_mixed_column_values(tmp_path):
+    from shapely.geometry import Point
+
+    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
+    geoms = [Point(0, 0) for _ in mixed_values]
+    test_gdf = gp.GeoDataFrame(
+        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
+    )
+    output_path = tmp_path / "test_write_mixed_column.gpkg"
+    write_dataframe(test_gdf, output_path)
+    output_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(output_gdf)
+    for idx, value in enumerate(mixed_values):
+        if value in (None, np.nan):
+            assert output_gdf["mixed"][idx] is None
+        else:
+            assert output_gdf["mixed"][idx] == str(value)
+
+
 def test_write_read_null(tmp_path):
     from shapely.geometry import Point
 
-    output_path = tmp_path / f"test_write_nan.gpkg"
+    output_path = tmp_path / "test_write_nan.gpkg"
     geom = Point(0, 0)
     test_data = {
         "geometry": [geom, geom, geom],
@@ -725,7 +760,7 @@ def test_write_read_null(tmp_path):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
@@ -740,6 +775,13 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
     gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
     for geom_type in geom_types:
-        write_dataframe(gdf, filename, layer_geometry_type=geom_type)
+        write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
+
+
+def test_read_multisurface(data_dir):
+    df = read_dataframe(data_dir / "test_multisurface.gpkg")
+
+    # MultiSurface should be converted to MultiPolygon
+    assert df.geometry.type.tolist() == ["MultiPolygon"]

@@ -7,6 +7,11 @@ on:
   pull_request:
   workflow_dispatch:
 
+# cancel running jobs on new commit to PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: ${{ matrix.os }} (Python ${{ matrix.python }})
@@ -19,6 +24,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.9", "3.10"]
+        env: ["environment.yml"]
+        include:
+          # minimal environment without optional dependencies
+          - os: "ubuntu-latest"
+            python: "3.10"
+            env: "environment-minimal.yml"
 
     steps:
       - name: Checkout repo
@@ -27,7 +38,7 @@ jobs:
       - name: Install Conda environment with Micromamba
         uses: mamba-org/provision-with-micromamba@main
         with:
-          environment-file: ci/environment.yml
+          environment-file: ci/${{ matrix.env }}
           extra-specs: python=${{ matrix.python }}
           cache-env: true
 

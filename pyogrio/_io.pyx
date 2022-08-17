@@ -116,9 +116,6 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     cdef void* ogr_driver = NULL
     cdef char **open_opts = NULL
 
-    # Register all drivers
-    GDALAllRegister()
-
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
 
@@ -473,6 +470,8 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
 cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d):
 
     cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRwkbGeometryType ogr_geometry_type
+
     cdef unsigned char *wkb = NULL
     cdef int ret_length
 
@@ -482,12 +481,18 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
         geom_view[i] = None
     else:
         try:
+            ogr_geometry_type = OGR_G_GetGeometryType(ogr_geometry)
+
             # if geometry has M values, these need to be removed first
             if (OGR_G_IsMeasured(ogr_geometry)):
                 OGR_G_SetMeasured(ogr_geometry, 0)
 
             if force_2d and OGR_G_Is3D(ogr_geometry):
                 OGR_G_Set3D(ogr_geometry, 0)
+
+            # if non-linear (e.g., curve), force to linear type
+            if OGR_GT_IsNonLinear(ogr_geometry_type):
+                ogr_geometry = OGR_G_GetLinearGeometry(ogr_geometry, 0, NULL)
 
             ret_length = OGR_G_WkbSize(ogr_geometry)
             wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
@@ -842,10 +847,11 @@ def ogr_read(
 
         crs = get_crs(ogr_layer)
 
-        # Encoding is derived from the dataset, from the user, or from the system locale
+        # Encoding is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
         encoding = (
-            detect_encoding(ogr_dataset, ogr_layer)
-            or encoding
+            encoding
+            or detect_encoding(ogr_dataset, ogr_layer)
             or locale.getpreferredencoding()
         )
 
@@ -982,10 +988,11 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
-    # Encoding is derived from the dataset, from the user, or from the system locale
+    # Encoding is derived from the user, from the dataset capabilities / type,
+    # or from the system locale
     encoding = (
-        detect_encoding(ogr_dataset, ogr_layer)
-        or encoding
+        encoding
+        or detect_encoding(ogr_dataset, ogr_layer)
         or locale.getpreferredencoding()
     )
 
@@ -1331,36 +1338,37 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
             wkb = geometry[i]
-            wkbtype = bytearray(wkb)[1]
-            # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
-            # use "little" if the first byte == 1
-            ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
-            if ogr_geometry == NULL:
-                raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
+            if wkb is not None:
+                wkbtype = bytearray(wkb)[1]
+                # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
+                # use "little" if the first byte == 1
+                ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
+                if ogr_geometry == NULL:
+                    raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
 
-            # import the WKB
-            wkb_buffer = wkb
-            err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
-            if err:
-                if ogr_geometry != NULL:
-                    OGR_G_DestroyGeometry(ogr_geometry)
-                    ogr_geometry = NULL
-                raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
+                # import the WKB
+                wkb_buffer = wkb
+                err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
+                if err:
+                    if ogr_geometry != NULL:
+                        OGR_G_DestroyGeometry(ogr_geometry)
+                        ogr_geometry = NULL
+                    raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
 
-            # Convert to multi type
-            if promote_to_multi:
-                if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
-                    ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
-                elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
-                    ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
-                elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
-                    ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
+                # Convert to multi type
+                if promote_to_multi:
+                    if wkbtype in (wkbPoint, wkbPoint25D, wkbPointM, wkbPointZM):
+                        ogr_geometry = OGR_G_ForceToMultiPoint(ogr_geometry)
+                    elif wkbtype in (wkbLineString, wkbLineString25D, wkbLineStringM, wkbLineStringZM):
+                        ogr_geometry = OGR_G_ForceToMultiLineString(ogr_geometry)
+                    elif wkbtype in (wkbPolygon, wkbPolygon25D, wkbPolygonM, wkbPolygonZM):
+                        ogr_geometry = OGR_G_ForceToMultiPolygon(ogr_geometry)
 
-            # Set the geometry on the feature
-            # this assumes ownership of the geometry and it's cleanup
-            err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
-            if err:
-                raise GeometryError(f"Could not set geometry for feature at index {i}") from None
+                # Set the geometry on the feature
+                # this assumes ownership of the geometry and it's cleanup
+                err = OGR_F_SetGeometryDirectly(ogr_feature, ogr_geometry)
+                if err:
+                    raise GeometryError(f"Could not set geometry for feature at index {i}") from None
 
             # Set field values
             for field_idx in range(num_fields):
@@ -1376,6 +1384,9 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
 
                     else:
+                        if not isinstance(field_value, str):
+                            field_value = str(field_value)
+
                         try:
                             value_b = field_value.encode("UTF-8")
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
