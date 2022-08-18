@@ -1407,7 +1407,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTDate:
-                    if field_value is None or np.isnat(field_value):
+                    if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
                         datetime = field_value.item()
@@ -1424,7 +1424,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                         )
 
                 elif field_type == OFTDateTime:
-                    if field_value is None or np.isnat(field_value):
+                    if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
                         # TODO: add support for timezones
