@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   register GDAL drivers during initial import of pyogrio (#145)
+-   support writing NAT values in a datetime column (#146)
 
 ## 0.4.1
 
