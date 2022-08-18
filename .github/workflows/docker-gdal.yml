@@ -30,16 +30,16 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
-      - uses: actions/checkout@v3
-
       - name: Install packages
         run: |
-          apt-get update && apt-get install -y python3-pip
+          apt-get update && apt-get install -y git python3-pip
+
+      - uses: actions/checkout@v3
 
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --no-cache-dir -U pip wheel
-          python3 -m pip install --no-cache-dir --no-use-pep517 -e .[dev,test,geopandas]
+          python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
 
       - name: Test with pytest
         run: |
