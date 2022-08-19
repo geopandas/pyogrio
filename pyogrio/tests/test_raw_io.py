@@ -176,7 +176,9 @@ def test_read_bbox_invalid(naturalearth_lowres, bbox):
 def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        geometry, fields = read(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))[2:]
+        geometry, fields = read(
+            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+        )[2:]
 
     assert len(geometry) == 0
 
