@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   register GDAL drivers during initial import of pyogrio (#145)
+-   fix error when reading .gpkg with bbox (#150)
 
 ## 0.4.1
 
