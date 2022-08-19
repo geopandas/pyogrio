@@ -179,13 +179,8 @@ def test_read_where(naturalearth_lowres_all_ext):
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where_invalid(naturalearth_lowres_all_ext):
-    if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
-        # Geopackage doesn't raise, but returns empty df?
-        gdf = read_dataframe(naturalearth_lowres_all_ext, where="invalid")
-        assert len(gdf) == 0
-    else:
-        with pytest.raises(ValueError, match="Invalid SQL"):
-            read_dataframe(naturalearth_lowres_all_ext, where="invalid")
+    with pytest.raises(ValueError, match="Invalid SQL"):
+        read_dataframe(naturalearth_lowres_all_ext, where="invalid")
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])

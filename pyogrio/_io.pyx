@@ -635,7 +635,7 @@ cdef get_features(
 
     else:
         geometries = None
-
+    
     n_fields = fields.shape[0]
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
@@ -646,16 +646,28 @@ cdef get_features(
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+    i = 0
+    while True:
+        if max_features > 0 and i == max_features:
+            break
 
-    for i in range(count):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}") from None
+            # No more rows available, so stop reading
+            break
 
         except CPLE_BaseError as exc:
-            raise FeatureError(str(exc))
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query") from exc
+            else:
+                raise FeatureError(str(exc))
+
+        if i >= count:
+            raise FeatureError(
+                "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
+            ) from None
 
         if return_fids:
             fid_view[i] = OGR_F_GetFID(ogr_feature)
@@ -667,6 +679,15 @@ cdef get_features(
             ogr_feature, i, n_fields, field_data, field_data_view,
             field_indexes, field_ogr_types, encoding
         )
+        i += 1
+
+    # Less rows read than anticipated, so drop empty rows
+    if i < count:
+        if return_fids:
+            fid_data = fid_data[:i]
+        if read_geometry:
+            geometries = geometries[:i]
+        field_data = [data_field[:i] for data_field in field_data]
 
     return fid_data, geometries, field_data
 
