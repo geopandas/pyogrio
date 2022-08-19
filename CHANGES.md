@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   register GDAL drivers during initial import of pyogrio (#145)
+-   avoid duplicate count of available features (#151)
 
 ## 0.4.1
 

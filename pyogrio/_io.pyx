@@ -447,20 +447,20 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
         # the count comes back as -1 if the where clause above is invalid but not rejected as error
         name = OGR_L_GetName(ogr_layer)
         warnings.warn(f"Layer '{name}' does not have any features to read")
-        feature_count = 0
-        skip_features = 0
-        max_features = 0
+        return 0, 0
 
-    else:
-        # validate skip_features, max_features
-        if skip_features < 0 or skip_features >= feature_count:
-            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+    # validate skip_features, max_features
+    if skip_features < 0 or skip_features >= feature_count:
+        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
 
-        if max_features < 0:
-            raise ValueError("'max_features' must be >= 0")
+    if max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
 
-        if max_features > feature_count:
-            max_features = feature_count
+    elif max_features == 0:
+        max_features = feature_count - skip_features
+
+    elif max_features > feature_count:
+        max_features = feature_count
 
     return skip_features, max_features
 
@@ -606,31 +606,18 @@ cdef get_features(
     cdef int n_fields
     cdef int i
     cdef int field_index
-    cdef int count
-
-    # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
-
-    count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if count < 0:
-        # sometimes this comes back as -1 if there is an error with the where clause, etc
-        count = 0
 
     if skip_features > 0:
-        count = count - skip_features
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-    if max_features > 0:
-        count = max_features
-
     if return_fids:
-        fid_data = np.empty(shape=(count), dtype=np.int64)
+        fid_data = np.empty(shape=(max_features), dtype=np.int64)
         fid_view = fid_data[:]
     else:
         fid_data = None
 
     if read_geometry:
-        geometries = np.empty(shape=(count, ), dtype='object')
+        geometries = np.empty(shape=(max_features, ), dtype='object')
         geom_view = geometries[:]
 
     else:
@@ -641,13 +628,13 @@ cdef get_features(
     field_ogr_types = fields[:,1]
 
     field_data = [
-        np.empty(shape=(count, ),
+        np.empty(shape=(max_features, ),
         dtype=fields[field_index,3]) for field_index in range(n_fields)
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
-    for i in range(count):
+    for i in range(max_features):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
@@ -687,12 +674,7 @@ cdef get_features_by_fid(
     cdef int i
     cdef int fid
     cdef int field_index
-    cdef int count
-
-    # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
-
-    count = len(fids)
+    cdef int count = len(fids)
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
@@ -746,30 +728,17 @@ cdef get_bounds(
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGREnvelope ogr_envelope # = NULL
     cdef int i
-    cdef int count
-
-    # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
-
-    count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if count < 0:
-        # sometimes this comes back as -1 if there is an error with the where clause, etc
-        count = 0
 
     if skip_features > 0:
-        count = count - skip_features
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-    if max_features > 0:
-        count = max_features
-
-    fid_data = np.empty(shape=(count), dtype=np.int64)
+    fid_data = np.empty(shape=(max_features), dtype=np.int64)
     fid_view = fid_data[:]
 
-    bounds_data = np.empty(shape=(4, count), dtype='float64')
+    bounds_data = np.empty(shape=(4, max_features), dtype='float64')
     bounds_view = bounds_data[:]
 
-    for i in range(count):
+    for i in range(max_features):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
@@ -844,6 +813,9 @@ def ogr_read(
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
+
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
 
         crs = get_crs(ogr_layer)
 
@@ -958,6 +930,9 @@ def ogr_read_bounds(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
+
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
 
     # Apply the attribute filter
     if where is not None and where != "":
