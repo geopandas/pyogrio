@@ -790,15 +790,28 @@ cdef get_bounds(
     bounds_data = np.empty(shape=(4, count), dtype='float64')
     bounds_view = bounds_data[:]
 
-    for i in range(count):
+    i = 0
+    while True:
+        if max_features > 0 and i == max_features:
+            break
+
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}") from None
+            # No more rows available, so stop reading
+            break
 
         except CPLE_BaseError as exc:
-            raise FeatureError(str(exc))
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query") from exc
+            else:
+                raise FeatureError(str(exc))
+
+        if i >= count:
+            raise FeatureError(
+                "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
+            ) from None
 
         fid_view[i] = OGR_F_GetFID(ogr_feature)
 
@@ -813,6 +826,13 @@ cdef get_bounds(
             bounds_view[1, i] = ogr_envelope.MinY
             bounds_view[2, i] = ogr_envelope.MaxX
             bounds_view[3, i] = ogr_envelope.MaxY
+
+        i += 1
+
+    # Less rows read than anticipated, so drop empty rows
+    if i < count:
+        fid_data = fid_data[:i]
+        bounds_data = bounds_data[:, :i]
 
     return fid_data, bounds_data
 

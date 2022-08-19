@@ -318,7 +318,7 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
         sql_dialect="OGRSQL",
         columns=["iso_a3_renamed", "name"],
         where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-        bbox=(-140, 20, -100, 40),
+        bbox=(-140, 20, -100, 45),
     )
     assert len(df.columns) == 3
     assert len(df) == 2

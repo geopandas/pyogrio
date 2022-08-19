@@ -109,9 +109,9 @@ def test_read_bounds_skip_features(naturalearth_lowres):
     assert fids[0] == 10
 
 
-def test_read_bounds_where_invalid(naturalearth_lowres):
+def test_read_bounds_where_invalid(naturalearth_lowres_all_ext):
     with pytest.raises(ValueError, match="Invalid SQL"):
-        read_bounds(naturalearth_lowres, where="invalid")
+        read_bounds(naturalearth_lowres_all_ext, where="invalid")
 
 
 def test_read_bounds_where(naturalearth_lowres):
@@ -128,18 +128,23 @@ def test_read_bounds_bbox_invalid(naturalearth_lowres, bbox):
         read_bounds(naturalearth_lowres, bbox=bbox)
 
 
-def test_read_bounds_bbox(naturalearth_lowres):
+def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        fids, bounds = read_bounds(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))
+        fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
 
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
 
-    fids, bounds = read_bounds(naturalearth_lowres, bbox=(-140, 20, -100, 40))
+    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
 
     assert fids.shape == (2,)
-    assert array_equal(fids, [4, 27])  # USA, MEX
+    if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # fid in gpkg is 1-based
+        assert array_equal(fids, [5, 28])  # USA, MEX
+    else:
+        # fid in other formats is 0-based
+        assert array_equal(fids, [4, 27])  # USA, MEX
 
     assert bounds.shape == (4, 2)
     assert allclose(
