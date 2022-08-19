@@ -200,7 +200,7 @@ def test_read_bbox(naturalearth_lowres_all_ext):
         df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
         assert len(df) == 0
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 40))
+    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
     assert len(df) == 2
     assert np.array_equal(df.iso_a3, ["USA", "MEX"])
 
