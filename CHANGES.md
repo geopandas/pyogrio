@@ -5,7 +5,8 @@
 ### Bug fixes
 
 -   register GDAL drivers during initial import of pyogrio (#145)
--   fixes an error when reading GPKG with bbox filter + that no error is raised when an
+-   fixes an error when reading GPKG with bbox filter (#150) 
+-   properly raises error when invalid where clause is used on a GPKG (#150)
     invalid where clause is used on a GPKG (#150)
 
 ## 0.4.1
