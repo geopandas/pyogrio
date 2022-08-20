@@ -635,7 +635,7 @@ cdef get_features(
 
     else:
         geometries = None
-    
+
     n_fields = fields.shape[0]
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
@@ -661,8 +661,8 @@ cdef get_features(
         except CPLE_BaseError as exc:
             if "failed to prepare SQL" in str(exc):
                 raise ValueError(f"Invalid SQL query") from exc
-            else:
-                raise FeatureError(str(exc))
+
+            raise FeatureError(str(exc))
 
         if i >= count:
             raise FeatureError(
