@@ -681,7 +681,10 @@ cdef get_features(
         )
         i += 1
 
-    # Less rows read than anticipated, so drop empty rows
+    # There may be fewer rows available than expected from OGR_L_GetFeatureCount, 
+    # such as features with bounding boxes that intersect the bbox
+    # but do not themselves intersect the bbox.
+    # Empty rows are dropped.
     if i < count:
         if return_fids:
             fid_data = fid_data[:i]
