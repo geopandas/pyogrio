@@ -666,9 +666,13 @@ cdef get_features(
 
         if i >= count:
             raise FeatureError(
-                "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
+                "GDAL returned more records than expected based on the count of "
+                "records that may meet your combination of filters against this "
+                "dataset.  Please open an issue on Github "
+                "(https://github.com/geopandas/pyogrio/issues) to report encountering "
+                "this error."
             ) from None
-
+            
         if return_fids:
             fid_view[i] = OGR_F_GetFID(ogr_feature)
 
