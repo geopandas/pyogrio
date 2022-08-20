@@ -607,6 +607,9 @@ cdef get_features(
     cdef int i
     cdef int field_index
 
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
+
     if skip_features > 0:
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
@@ -676,6 +679,9 @@ cdef get_features_by_fid(
     cdef int field_index
     cdef int count = len(fids)
 
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
+
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
         geom_view = geometries[:]
@@ -728,6 +734,9 @@ cdef get_bounds(
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGREnvelope ogr_envelope # = NULL
     cdef int i
+
+    # make sure layer is read from beginning
+    OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
@@ -813,9 +822,6 @@ def ogr_read(
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
-
-        # make sure layer is read from beginning
-        OGR_L_ResetReading(ogr_layer)
 
         crs = get_crs(ogr_layer)
 
@@ -930,9 +936,6 @@ def ogr_read_bounds(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
-
-    # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
 
     # Apply the attribute filter
     if where is not None and where != "":
