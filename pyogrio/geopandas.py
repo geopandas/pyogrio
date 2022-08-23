@@ -33,6 +33,7 @@ def read_dataframe(
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
+    use_arrow=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -146,7 +147,15 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        use_arrow=use_arrow,
     )
+
+    if use_arrow:
+        table = index
+        df = table.to_pandas()
+        geometry_name = meta["geometry_name"] or df.columns[-1]
+        df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+        return gp.GeoDataFrame(df, geometry="geometry")
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}

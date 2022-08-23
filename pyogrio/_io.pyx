@@ -11,7 +11,7 @@ import math
 import os
 import warnings
 
-from libc.stdint cimport uint8_t
+from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
@@ -928,6 +928,142 @@ def ogr_read(
         fid_data,
         geometries,
         field_data
+    )
+
+
+def ogr_read_arrow(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    object where=None,
+    tuple bbox=None,
+    object fids=None,
+    str sql=None,
+    str sql_dialect=None,
+    int return_fids=False,
+    **kwargs):
+
+    cdef int err = 0
+    cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef int feature_count = 0
+    cdef double xmin, ymin, xmax, ymax
+    cdef ArrowArrayStream stream
+    cdef ArrowSchema schema
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    if fids is not None:
+        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
+                "'skip_features' or 'max_features'"
+            )
+        fids = np.asarray(fids, dtype=np.intc)
+
+    if sql is not None and layer is not None:
+        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    try:
+        if sql is None:
+            # layer defaults to index 0
+            if layer is None:
+                layer = 0
+            ogr_layer = get_ogr_layer(ogr_dataset, layer)
+        else:
+            ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
+
+        crs = get_crs(ogr_layer)
+
+        # Encoding is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
+        encoding = (
+            encoding
+            or detect_encoding(ogr_dataset, ogr_layer)
+            or locale.getpreferredencoding()
+        )
+
+        fields = get_fields(ogr_layer, encoding)
+
+        if columns is not None:
+            # Fields are matched exactly by name, duplicates are dropped.
+            # Find index of each field into fields
+            idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
+            fields = fields[idx, :]
+
+        geometry_type = get_geometry_type(ogr_layer)
+
+        geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
+
+        if fids is not None:
+            raise ValueError("reading by FID not supported for arrow")
+
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
+
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_spatial_filter(ogr_layer, bbox)
+
+        # Limit feature range to available range
+        skip_features, max_features = validate_feature_range(
+            ogr_layer, skip_features, max_features
+        )
+
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
+
+        if not OGR_L_GetArrowStream(ogr_layer, &stream, NULL):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+
+        stream_ptr = <uintptr_t> &stream
+
+        import pyarrow as pa
+        table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
+
+        # fid_data, geometries, field_data = get_features(
+        #     ogr_layer,
+        #     fields,
+        #     encoding,
+        #     read_geometry=read_geometry and geometry_type is not None,
+        #     force_2d=force_2d,
+        #     skip_features=skip_features,
+        #     max_features=max_features,
+        #     return_fids=return_fids
+        # )
+
+        meta = {
+            'crs': crs,
+            'encoding': encoding,
+            'fields': fields[:,2], # return only names
+            'geometry_type': geometry_type,
+            'geometry_name': geometry_name,
+        }
+
+    finally:
+        pass
+        if ogr_dataset != NULL:
+            if sql is not None:
+                GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
+
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
+
+    return (
+        meta,
+        table,
+        None, #geometries,
+        None, #field_data
     )
 
 
