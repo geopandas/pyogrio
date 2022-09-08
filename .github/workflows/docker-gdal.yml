@@ -41,6 +41,11 @@ jobs:
           python3 -m pip install --no-cache-dir -U pip wheel
           python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
 
+      - name: Install pyarrow
+        if: matrix.container == "osgeo/gdal:ubuntu-small-latest"
+        run: |
+          python3 -m pip install pyarrow
+
       - name: Test with pytest
         run: |
           pytest --cov=pyogrio --cov-report term-missing pyogrio/tests
