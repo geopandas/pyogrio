@@ -116,6 +116,12 @@ def read(
 
     try:
         if use_arrow:
+            try:
+                import pyarrow  # noqa
+            except ImportError:
+                raise RuntimeError(
+                    "the 'pyarrow' package is required to read using arrow"
+                )
             func = ogr_read_arrow
         else:
             func = ogr_read
