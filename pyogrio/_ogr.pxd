@@ -283,7 +283,6 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
     int                     OGR_L_GetFeatureCount(OGRLayerH layer, int m)
     void                    OGR_L_SetSpatialFilterRect(OGRLayerH layer, double xmin, double ymin, double xmax, double ymax)
-    int8_t                  OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
@@ -294,6 +293,12 @@ cdef extern from "ogr_api.h":
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
     const char*     OLCFastSpatialFilter
+
+
+IF CTE_GDAL_VERSION >= (3, 6, 0):
+
+    cdef extern from "ogr_api.h":
+        int8_t OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
 
 cdef extern from "gdal.h":
