@@ -55,3 +55,10 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
         columns=["geometry"]
     )
     assert_frame_equal(result, expected)
+
+
+def test_read_arrow_nested_types(test_ogr_types_list):
+    # with arrow, list types are supported
+    result = read_dataframe(test_ogr_types_list, use_arrow=True)
+    assert "list_int64" in result.columns
+    assert result["list_int64"][0].tolist() == [0, 1]

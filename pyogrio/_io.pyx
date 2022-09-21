@@ -303,7 +303,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     return None
 
 
-cdef get_fields(OGRLayerH ogr_layer, str encoding):
+cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     """Get field names and types for layer.
 
     Parameters
@@ -311,6 +311,9 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     ogr_layer : pointer to open OGR layer
     encoding : str
         encoding to use when reading field name
+    use_arrow : bool, default False
+        If using arrow, all types are supported, and we don't have to
+        raise warnings
 
     Returns
     -------
@@ -354,7 +357,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
 
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
-        if not np_type:
+        if not np_type and not use_arrow:
             skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
@@ -992,7 +995,7 @@ def ogr_read_arrow(
             or locale.getpreferredencoding()
         )
 
-        fields = get_fields(ogr_layer, encoding)
+        fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
         ignored_fields = []
         if columns is not None:
@@ -1028,7 +1031,7 @@ def ogr_read_arrow(
                 field_c = field_b
                 fields_c = CSLAddString(fields_c, field_c)
 
-            OGR_L_SetIgnoredFields(ogr_layer, fields_c)
+            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
@@ -1046,17 +1049,6 @@ def ogr_read_arrow(
         import pyarrow as pa
         table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
 
-        # fid_data, geometries, field_data = get_features(
-        #     ogr_layer,
-        #     fields,
-        #     encoding,
-        #     read_geometry=read_geometry and geometry_type is not None,
-        #     force_2d=force_2d,
-        #     skip_features=skip_features,
-        #     max_features=max_features,
-        #     return_fids=return_fids
-        # )
-
         meta = {
             'crs': crs,
             'encoding': encoding,
@@ -1066,7 +1058,9 @@ def ogr_read_arrow(
         }
 
     finally:
-        pass
+        if fields_c != NULL:
+            CSLDestroy(fields_c)
+            fields_c = NULL
         if ogr_dataset != NULL:
             if sql is not None:
                 GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
