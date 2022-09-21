@@ -153,9 +153,12 @@ def read_dataframe(
     if use_arrow:
         table = index
         df = table.to_pandas()
-        geometry_name = meta["geometry_name"] or df.columns[-1]
-        df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
-        return gp.GeoDataFrame(df, geometry="geometry")
+        geometry_name = meta["geometry_name"] or "wkb_geometry"
+        if geometry_name in df.columns:
+            df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+            return gp.GeoDataFrame(df, geometry="geometry")
+        else:
+            return df
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}

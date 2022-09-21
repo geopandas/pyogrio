@@ -3,6 +3,8 @@ import pytest
 from pyogrio import __gdal_version__, read_dataframe
 
 try:
+    import pandas as pd
+    from pandas.testing import assert_frame_equal
     from geopandas.testing import assert_geodataframe_equal
 except ImportError:
     pass
@@ -38,3 +40,18 @@ def test_read_arrow(naturalearth_lowres_all_ext):
 def test_read_arrow_columns(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, columns=["continent"])
     assert result.columns.tolist() == ["OGC_FID", "continent", "geometry"]
+
+
+def test_read_arrow_layer_without_geometry(test_fgdb_vsi):
+    result = read_dataframe(test_fgdb_vsi, layer="basetable", use_arrow=True)
+    assert type(result) is pd.DataFrame
+
+
+def test_read_arrow_ignore_geometry(naturalearth_lowres):
+    result = read_dataframe(naturalearth_lowres, use_arrow=True, read_geometry=False)
+    assert type(result) is pd.DataFrame
+
+    expected = read_dataframe(naturalearth_lowres, use_arrow=True).drop(
+        columns=["geometry"]
+    )
+    assert_frame_equal(result, expected)
