@@ -440,9 +440,11 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     ----------
     ogr_layer : pointer to open OGR layer
     skip_features : number of features to skip from beginning of available range
-    max_features : number of features to read from available range
+    max_features : maximum number of features to read from available range
     """
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    num_features = max_features
+
     if feature_count <= 0:
         # the count comes back as -1 if the where clause above is invalid but not rejected as error
         name = OGR_L_GetName(ogr_layer)
@@ -457,12 +459,12 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
         raise ValueError("'max_features' must be >= 0")
 
     elif max_features == 0:
-        max_features = feature_count - skip_features
+        num_features = feature_count - skip_features
 
     elif max_features > feature_count:
-        max_features = feature_count
+        num_features = feature_count
 
-    return skip_features, max_features
+    return skip_features, num_features
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -598,7 +600,7 @@ cdef get_features(
     uint8_t read_geometry,
     uint8_t force_2d,
     int skip_features,
-    int max_features,
+    int num_features,
     uint8_t return_fids
 ):
 
@@ -614,13 +616,13 @@ cdef get_features(
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
     if return_fids:
-        fid_data = np.empty(shape=(max_features), dtype=np.int64)
+        fid_data = np.empty(shape=(num_features), dtype=np.int64)
         fid_view = fid_data[:]
     else:
         fid_data = None
 
     if read_geometry:
-        geometries = np.empty(shape=(max_features, ), dtype='object')
+        geometries = np.empty(shape=(num_features, ), dtype='object')
         geom_view = geometries[:]
 
     else:
@@ -631,13 +633,13 @@ cdef get_features(
     field_ogr_types = fields[:,1]
 
     field_data = [
-        np.empty(shape=(max_features, ),
+        np.empty(shape=(num_features, ),
         dtype=fields[field_index,3]) for field_index in range(n_fields)
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
-    for i in range(max_features):
+    for i in range(num_features):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
@@ -728,7 +730,7 @@ cdef get_features_by_fid(
 cdef get_bounds(
     OGRLayerH ogr_layer,
     int skip_features,
-    int max_features):
+    int num_features):
 
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
@@ -741,13 +743,13 @@ cdef get_bounds(
     if skip_features > 0:
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-    fid_data = np.empty(shape=(max_features), dtype=np.int64)
+    fid_data = np.empty(shape=(num_features), dtype=np.int64)
     fid_view = fid_data[:]
 
-    bounds_data = np.empty(shape=(4, max_features), dtype='float64')
+    bounds_data = np.empty(shape=(4, num_features), dtype='float64')
     bounds_view = bounds_data[:]
 
-    for i in range(max_features):
+    for i in range(num_features):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
@@ -868,7 +870,7 @@ def ogr_read(
                 apply_spatial_filter(ogr_layer, bbox)
 
             # Limit feature range to available range
-            skip_features, max_features = validate_feature_range(
+            skip_features, num_features = validate_feature_range(
                 ogr_layer, skip_features, max_features
             )
 
@@ -879,7 +881,7 @@ def ogr_read(
                 read_geometry=read_geometry and geometry_type is not None,
                 force_2d=force_2d,
                 skip_features=skip_features,
-                max_features=max_features,
+                num_features=num_features,
                 return_fids=return_fids
             )
 
@@ -946,9 +948,9 @@ def ogr_read_bounds(
         apply_spatial_filter(ogr_layer, bbox)
 
     # Limit feature range to available range
-    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
+    skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
-    return get_bounds(ogr_layer, skip_features, max_features)
+    return get_bounds(ogr_layer, skip_features, num_features)
 
 
 def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
