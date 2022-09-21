@@ -124,9 +124,6 @@ def ogr_list_drivers():
     cdef int i
     cdef char *name_c
 
-    # Register all drivers
-    GDALAllRegister()
-
     drivers = dict()
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
@@ -272,3 +269,8 @@ def init_proj_data():
         return
 
     warnings.warn("Could not detect PROJ data files.  Set PROJ_LIB environment variable to the correct path.", RuntimeWarning)
+
+
+def _register_drivers():
+    # Register all drivers
+    GDALAllRegister()

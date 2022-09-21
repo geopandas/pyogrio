@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## O.4.2
+
+### Bug fixes
+
+-   register GDAL drivers during initial import of pyogrio (#145)
+-   support writing "not a time" (NaT) values in a datetime column (#146)
+-   fixes an error when reading GPKG with bbox filter (#150) 
+-   properly raises error when invalid where clause is used on a GPKG (#150)
+-   avoid duplicate count of available features (#151)
+
 ## 0.4.1
 
 ### Bug fixes
