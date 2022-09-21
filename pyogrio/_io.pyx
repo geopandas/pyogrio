@@ -440,29 +440,31 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     ----------
     ogr_layer : pointer to open OGR layer
     skip_features : number of features to skip from beginning of available range
-    max_features : number of features to read from available range
+    max_features : maximum number of features to read from available range
     """
     feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    num_features = max_features
+
     if feature_count <= 0:
         # the count comes back as -1 if the where clause above is invalid but not rejected as error
         name = OGR_L_GetName(ogr_layer)
         warnings.warn(f"Layer '{name}' does not have any features to read")
-        feature_count = 0
-        skip_features = 0
-        max_features = 0
+        return 0, 0
 
-    else:
-        # validate skip_features, max_features
-        if skip_features < 0 or skip_features >= feature_count:
-            raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+    # validate skip_features, max_features
+    if skip_features < 0 or skip_features >= feature_count:
+        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
 
-        if max_features < 0:
-            raise ValueError("'max_features' must be >= 0")
+    if max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
 
-        if max_features > feature_count:
-            max_features = feature_count
+    elif max_features == 0:
+        num_features = feature_count - skip_features
 
-    return skip_features, max_features
+    elif max_features > feature_count:
+        num_features = feature_count
+
+    return skip_features, num_features
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -598,7 +600,7 @@ cdef get_features(
     uint8_t read_geometry,
     uint8_t force_2d,
     int skip_features,
-    int max_features,
+    int num_features,
     uint8_t return_fids
 ):
 
@@ -606,31 +608,21 @@ cdef get_features(
     cdef int n_fields
     cdef int i
     cdef int field_index
-    cdef int count
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
 
-    count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if count < 0:
-        # sometimes this comes back as -1 if there is an error with the where clause, etc
-        count = 0
-
     if skip_features > 0:
-        count = count - skip_features
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-    if max_features > 0:
-        count = max_features
-
     if return_fids:
-        fid_data = np.empty(shape=(count), dtype=np.int64)
+        fid_data = np.empty(shape=(num_features), dtype=np.int64)
         fid_view = fid_data[:]
     else:
         fid_data = None
 
     if read_geometry:
-        geometries = np.empty(shape=(count, ), dtype='object')
+        geometries = np.empty(shape=(num_features, ), dtype='object')
         geom_view = geometries[:]
 
     else:
@@ -641,14 +633,14 @@ cdef get_features(
     field_ogr_types = fields[:,1]
 
     field_data = [
-        np.empty(shape=(count, ),
+        np.empty(shape=(num_features, ),
         dtype=fields[field_index,3]) for field_index in range(n_fields)
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
     i = 0
     while True:
-        if max_features > 0 and i == max_features:
+        if num_features > 0 and i == num_features:
             break
 
         try:
@@ -664,7 +656,7 @@ cdef get_features(
 
             raise FeatureError(str(exc))
 
-        if i >= count:
+        if i >= num_features:
             raise FeatureError(
                 "GDAL returned more records than expected based on the count of "
                 "records that may meet your combination of filters against this "
@@ -672,7 +664,7 @@ cdef get_features(
                 "(https://github.com/geopandas/pyogrio/issues) to report encountering "
                 "this error."
             ) from None
-            
+
         if return_fids:
             fid_view[i] = OGR_F_GetFID(ogr_feature)
 
@@ -685,11 +677,11 @@ cdef get_features(
         )
         i += 1
 
-    # There may be fewer rows available than expected from OGR_L_GetFeatureCount, 
+    # There may be fewer rows available than expected from OGR_L_GetFeatureCount,
     # such as features with bounding boxes that intersect the bbox
     # but do not themselves intersect the bbox.
     # Empty rows are dropped.
-    if i < count:
+    if i < num_features:
         if return_fids:
             fid_data = fid_data[:i]
         if read_geometry:
@@ -715,12 +707,10 @@ cdef get_features_by_fid(
     cdef int i
     cdef int fid
     cdef int field_index
-    cdef int count
+    cdef int count = len(fids)
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
-
-    count = len(fids)
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype='object')
@@ -768,38 +758,28 @@ cdef get_features_by_fid(
 cdef get_bounds(
     OGRLayerH ogr_layer,
     int skip_features,
-    int max_features):
+    int num_features):
 
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGREnvelope ogr_envelope # = NULL
     cdef int i
-    cdef int count
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
 
-    count = OGR_L_GetFeatureCount(ogr_layer, 1)
-    if count < 0:
-        # sometimes this comes back as -1 if there is an error with the where clause, etc
-        count = 0
-
     if skip_features > 0:
-        count = count - skip_features
         OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-    if max_features > 0:
-        count = max_features
-
-    fid_data = np.empty(shape=(count), dtype=np.int64)
+    fid_data = np.empty(shape=(num_features), dtype=np.int64)
     fid_view = fid_data[:]
 
-    bounds_data = np.empty(shape=(4, count), dtype='float64')
+    bounds_data = np.empty(shape=(4, num_features), dtype='float64')
     bounds_view = bounds_data[:]
 
     i = 0
     while True:
-        if max_features > 0 and i == max_features:
+        if num_features > 0 and i == num_features:
             break
 
         try:
@@ -815,7 +795,7 @@ cdef get_bounds(
             else:
                 raise FeatureError(str(exc))
 
-        if i >= count:
+        if i >= num_features:
             raise FeatureError(
                 "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
             ) from None
@@ -837,7 +817,7 @@ cdef get_bounds(
         i += 1
 
     # Less rows read than anticipated, so drop empty rows
-    if i < count:
+    if i < num_features:
         fid_data = fid_data[:i]
         bounds_data = bounds_data[:, :i]
 
@@ -938,7 +918,7 @@ def ogr_read(
                 apply_spatial_filter(ogr_layer, bbox)
 
             # Limit feature range to available range
-            skip_features, max_features = validate_feature_range(
+            skip_features, num_features = validate_feature_range(
                 ogr_layer, skip_features, max_features
             )
 
@@ -949,7 +929,7 @@ def ogr_read(
                 read_geometry=read_geometry and geometry_type is not None,
                 force_2d=force_2d,
                 skip_features=skip_features,
-                max_features=max_features,
+                num_features=num_features,
                 return_fids=return_fids
             )
 
@@ -1016,9 +996,9 @@ def ogr_read_bounds(
         apply_spatial_filter(ogr_layer, bbox)
 
     # Limit feature range to available range
-    skip_features, max_features = validate_feature_range(ogr_layer, skip_features, max_features)
+    skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
-    return get_bounds(ogr_layer, skip_features, max_features)
+    return get_bounds(ogr_layer, skip_features, num_features)
 
 
 def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
@@ -1455,33 +1435,39 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTDate:
-                    datetime = field_value.item()
-                    OGR_F_SetFieldDateTimeEx(
-                        ogr_feature,
-                        field_idx,
-                        datetime.year,
-                        datetime.month,
-                        datetime.day,
-                        0,
-                        0,
-                        0.0,
-                        0
-                    )
+                    if np.isnat(field_value):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
+                    else:
+                        datetime = field_value.item()
+                        OGR_F_SetFieldDateTimeEx(
+                            ogr_feature,
+                            field_idx,
+                            datetime.year,
+                            datetime.month,
+                            datetime.day,
+                            0,
+                            0,
+                            0.0,
+                            0
+                        )
 
                 elif field_type == OFTDateTime:
-                    # TODO: add support for timezones
-                    datetime = field_value.astype("datetime64[ms]").item()
-                    OGR_F_SetFieldDateTimeEx(
-                        ogr_feature,
-                        field_idx,
-                        datetime.year,
-                        datetime.month,
-                        datetime.day,
-                        datetime.hour,
-                        datetime.minute,
-                        datetime.second + datetime.microsecond / 10**6,
-                        0
-                    )
+                    if np.isnat(field_value):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
+                    else:
+                        # TODO: add support for timezones
+                        datetime = field_value.astype("datetime64[ms]").item()
+                        OGR_F_SetFieldDateTimeEx(
+                            ogr_feature,
+                            field_idx,
+                            datetime.year,
+                            datetime.month,
+                            datetime.day,
+                            datetime.hour,
+                            datetime.minute,
+                            datetime.second + datetime.microsecond / 10**6,
+                            0
+                        )
 
                 else:
                     raise NotImplementedError(f"OGR field type is not supported for writing: {field_type}")

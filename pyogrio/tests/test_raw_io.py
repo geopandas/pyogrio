@@ -439,6 +439,8 @@ def test_read_write_datetime(tmp_path):
             ["2001-01-01T12:00", "2002-02-03T13:56:03.072123456"],
             dtype="datetime64[ns]",
         ),
+        # Remark: a None value is automatically converted to np.datetime64("NaT")
+        np.array([np.datetime64("NaT"), None], dtype="datetime64[ms]"),
     ]
     fields = [
         "datetime64_d",
@@ -446,6 +448,7 @@ def test_read_write_datetime(tmp_path):
         "datetime64_ms",
         "datetime64_ns",
         "datetime64_precise_ns",
+        "datetime64_ms_nat",
     ]
 
     # Point(0, 0)
@@ -462,7 +465,7 @@ def test_read_write_datetime(tmp_path):
             # gdal rounds datetimes to ms
             assert np.array_equal(result[idx], field_data[idx].astype("datetime64[ms]"))
         else:
-            assert np.array_equal(result[idx], field_data[idx])
+            assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
