@@ -16,17 +16,19 @@
 // under the License.
 
 // This file is an extract https://github.com/apache/arrow/blob/master/cpp/src/arrow/c/abi.h
+// commit 9cbb8a1a626ee301cfe85905b6c18c5d880e176b (2022-06-14)
 // WARNING: DO NOT MODIFY the content as it would break interoperability !
 
 #pragma once
-
-/*! @cond Doxygen_Suppress */
 
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#ifndef ARROW_C_DATA_INTERFACE
+#define ARROW_C_DATA_INTERFACE
 
 #define ARROW_FLAG_DICTIONARY_ORDERED 1
 #define ARROW_FLAG_NULLABLE 2
@@ -64,7 +66,11 @@ struct ArrowArray {
   // Opaque producer-specific data
   void* private_data;
 };
-// EXPERIMENTAL: C stream interface
+
+#endif  // ARROW_C_DATA_INTERFACE
+
+#ifndef ARROW_C_STREAM_INTERFACE
+#define ARROW_C_STREAM_INTERFACE
 
 struct ArrowArrayStream {
   // Callback to get the stream type
@@ -102,8 +108,8 @@ struct ArrowArrayStream {
   void* private_data;
 };
 
+#endif  // ARROW_C_STREAM_INTERFACE
+
 #ifdef __cplusplus
 }
 #endif
-
-/*! @endcond */
