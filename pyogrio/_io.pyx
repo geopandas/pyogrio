@@ -1036,13 +1036,11 @@ def ogr_read_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        IF CTE_GDAL_VERSION >= (3, 6, 0):
-
-            if not OGR_L_GetArrowStream(ogr_layer, &stream, NULL):
-                raise RuntimeError("Failed to open ArrowArrayStream from Layer")
-
-        ELSE:
+        IF CTE_GDAL_VERSION < (3, 6, 0):
             raise RuntimeError("Need GDAL>=3.6 for Arrow support")
+        
+        if not OGR_L_GetArrowStream(ogr_layer, &stream, NULL):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         stream_ptr = <uintptr_t> &stream
 
