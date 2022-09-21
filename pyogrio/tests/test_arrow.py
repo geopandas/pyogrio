@@ -33,3 +33,8 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     else:
         check_less_precise = False
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
+
+
+def test_read_arrow_columns(naturalearth_lowres):
+    result = read_dataframe(naturalearth_lowres, use_arrow=True, columns=["continent"])
+    assert result.columns.tolist() == ["OGC_FID", "continent", "geometry"]

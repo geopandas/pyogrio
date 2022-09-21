@@ -953,8 +953,8 @@ def ogr_read_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef int feature_count = 0
-    cdef double xmin, ymin, xmax, ymax
+    cdef char **fields_c = NULL
+    cdef const char *field_c = NULL
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
@@ -994,11 +994,12 @@ def ogr_read_arrow(
 
         fields = get_fields(ogr_layer, encoding)
 
+        ignored_fields = []
         if columns is not None:
             # Fields are matched exactly by name, duplicates are dropped.
-            # Find index of each field into fields
-            idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
-            fields = fields[idx, :]
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+        if not read_geometry:
+            ignored_fields.append("OGR_GEOMETRY")
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -1019,6 +1020,15 @@ def ogr_read_arrow(
         skip_features, max_features = validate_feature_range(
             ogr_layer, skip_features, max_features
         )
+
+        # Limit to specified columns
+        if ignored_fields:
+            for field in ignored_fields:
+                field_b = field.encode("utf-8")
+                field_c = field_b
+                fields_c = CSLAddString(fields_c, field_c)
+
+            OGR_L_SetIgnoredFields(ogr_layer, fields_c)
 
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
