@@ -966,12 +966,12 @@ def ogr_read_arrow(
     path_c = path_b
 
     if fids is not None:
-        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
-            raise ValueError(
-                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
-                "'skip_features' or 'max_features'"
-            )
-        fids = np.asarray(fids, dtype=np.intc)
+        raise ValueError("reading by FID is not supported for Arrow")
+
+    if skip_features or max_features:
+        raise ValueError(
+            "specifying 'skip_features' or 'max_features' is not supported for Arrow"
+        )
 
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
@@ -1009,9 +1009,6 @@ def ogr_read_arrow(
 
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
-        if fids is not None:
-            raise ValueError("reading by FID not supported for arrow")
-
         # Apply the attribute filter
         if where is not None and where != "":
             apply_where_filter(ogr_layer, where)
@@ -1019,11 +1016,6 @@ def ogr_read_arrow(
         # Apply the spatial filter
         if bbox is not None:
             apply_spatial_filter(ogr_layer, bbox)
-
-        # Limit feature range to available range
-        skip_features, max_features = validate_feature_range(
-            ogr_layer, skip_features, max_features
-        )
 
         # Limit to specified columns
         if ignored_fields:
@@ -1048,6 +1040,7 @@ def ogr_read_arrow(
 
         stream_ptr = <uintptr_t> &stream
 
+        # stream has to be consumed before the Dataset is closed
         import pyarrow as pa
         table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
 
