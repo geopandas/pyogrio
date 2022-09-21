@@ -958,6 +958,7 @@ def ogr_read_arrow(
     cdef OGRLayerH ogr_layer = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
+    cdef char **options = NULL
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
@@ -1033,13 +1034,16 @@ def ogr_read_arrow(
 
             OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
+        if not return_fids:
+            options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
+
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
         IF CTE_GDAL_VERSION < (3, 6, 0):
             raise RuntimeError("Need GDAL>=3.6 for Arrow support")
         
-        if not OGR_L_GetArrowStream(ogr_layer, &stream, NULL):
+        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         stream_ptr = <uintptr_t> &stream
@@ -1056,6 +1060,7 @@ def ogr_read_arrow(
         }
 
     finally:
+        CSLDestroy(options)
         if fields_c != NULL:
             CSLDestroy(fields_c)
             fields_c = NULL
