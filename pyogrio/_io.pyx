@@ -638,16 +638,32 @@ cdef get_features(
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+    i = 0
+    while True:
+        if num_features > 0 and i == num_features:
+            break
 
-    for i in range(num_features):
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}") from None
+            # No more rows available, so stop reading
+            break
 
         except CPLE_BaseError as exc:
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query") from exc
+
             raise FeatureError(str(exc))
+
+        if i >= num_features:
+            raise FeatureError(
+                "GDAL returned more records than expected based on the count of "
+                "records that may meet your combination of filters against this "
+                "dataset.  Please open an issue on Github "
+                "(https://github.com/geopandas/pyogrio/issues) to report encountering "
+                "this error."
+            ) from None
 
         if return_fids:
             fid_view[i] = OGR_F_GetFID(ogr_feature)
@@ -659,6 +675,18 @@ cdef get_features(
             ogr_feature, i, n_fields, field_data, field_data_view,
             field_indexes, field_ogr_types, encoding
         )
+        i += 1
+
+    # There may be fewer rows available than expected from OGR_L_GetFeatureCount,
+    # such as features with bounding boxes that intersect the bbox
+    # but do not themselves intersect the bbox.
+    # Empty rows are dropped.
+    if i < num_features:
+        if return_fids:
+            fid_data = fid_data[:i]
+        if read_geometry:
+            geometries = geometries[:i]
+        field_data = [data_field[:i] for data_field in field_data]
 
     return fid_data, geometries, field_data
 
@@ -749,15 +777,28 @@ cdef get_bounds(
     bounds_data = np.empty(shape=(4, num_features), dtype='float64')
     bounds_view = bounds_data[:]
 
-    for i in range(num_features):
+    i = 0
+    while True:
+        if num_features > 0 and i == num_features:
+            break
+
         try:
             ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
         except NullPointerError:
-            raise FeatureError(f"Could not read feature at index {i}") from None
+            # No more rows available, so stop reading
+            break
 
         except CPLE_BaseError as exc:
-            raise FeatureError(str(exc))
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query") from exc
+            else:
+                raise FeatureError(str(exc))
+
+        if i >= num_features:
+            raise FeatureError(
+                "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
+            ) from None
 
         fid_view[i] = OGR_F_GetFID(ogr_feature)
 
@@ -772,6 +813,13 @@ cdef get_bounds(
             bounds_view[1, i] = ogr_envelope.MinY
             bounds_view[2, i] = ogr_envelope.MaxX
             bounds_view[3, i] = ogr_envelope.MaxY
+
+        i += 1
+
+    # Less rows read than anticipated, so drop empty rows
+    if i < num_features:
+        fid_data = fid_data[:i]
+        bounds_data = bounds_data[:, :i]
 
     return fid_data, bounds_data
 

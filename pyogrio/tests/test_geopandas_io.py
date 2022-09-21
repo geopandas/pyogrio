@@ -179,13 +179,8 @@ def test_read_where(naturalearth_lowres_all_ext):
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where_invalid(naturalearth_lowres_all_ext):
-    if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
-        # Geopackage doesn't raise, but returns empty df?
-        gdf = read_dataframe(naturalearth_lowres_all_ext, where="invalid")
-        assert len(gdf) == 0
-    else:
-        with pytest.raises(ValueError, match="Invalid SQL"):
-            read_dataframe(naturalearth_lowres_all_ext, where="invalid")
+    with pytest.raises(ValueError, match="Invalid SQL"):
+        read_dataframe(naturalearth_lowres_all_ext, where="invalid")
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
@@ -200,7 +195,7 @@ def test_read_bbox(naturalearth_lowres_all_ext):
         df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
         assert len(df) == 0
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 40))
+    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
     assert len(df) == 2
     assert np.array_equal(df.iso_a3, ["USA", "MEX"])
 
@@ -323,7 +318,7 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
         sql_dialect="OGRSQL",
         columns=["iso_a3_renamed", "name"],
         where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-        bbox=(-140, 20, -100, 40),
+        bbox=(-140, 20, -100, 45),
     )
     assert len(df.columns) == 3
     assert len(df) == 2
