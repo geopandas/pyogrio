@@ -60,10 +60,12 @@ def get_gdal_config():
 
     if include_dir and library_dir and gdal_version_str:
         gdal_libs = ["gdal"]
+
         if platform.system() == "Windows":
             # NOTE: libgdal on conda-forge now builds the library as "gdal" instead
             # of "gdal_i", but older Windows builds still use "gdal_i"
-            gdal_libs.append("gdal_i")
+            if (Path(library_dir) / "gdal_i.lib").exists():
+                gdal_libs = ["gdal_i"]
 
         return {
             "include_dirs": [include_dir],
