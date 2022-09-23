@@ -990,6 +990,9 @@ def ogr_read_arrow(
     path_b = path.encode('utf-8')
     path_c = path_b
 
+    if force_2d:
+        raise ValueError("forcing 2D is not supported for Arrow")
+
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
 
