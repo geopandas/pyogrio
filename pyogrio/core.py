@@ -10,6 +10,7 @@ with GDALEnv():
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
+        get_gdal_data_path as _get_gdal_data_path,
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
         remove_virtual_file,
@@ -218,3 +219,13 @@ def get_gdal_config_option(name):
     """
 
     return _get_gdal_config_option(name)
+
+
+def get_gdal_data_path():
+    """Get the path to the directory GDAL uses to read data files.
+
+    Returns
+    -------
+    str, or None if data directory was not found
+    """
+    return _get_gdal_data_path()

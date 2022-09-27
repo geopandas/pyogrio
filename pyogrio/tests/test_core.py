@@ -9,6 +9,7 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
     get_gdal_config_option,
+    get_gdal_data_path,
 )
 
 from pyogrio._env import GDALEnv
@@ -29,6 +30,12 @@ def test_proj_data():
     # test will fail if PROJ data files cannot be found, indicating an
     # installation error
     assert has_proj_data()
+
+
+def test_get_gdal_data_path():
+    # test will fail if the function returns None, which means that GDAL
+    # cannot find data files, indicating an installation error
+    assert isinstance(get_gdal_data_path(), str)
 
 
 def test_gdal_geos_version():
