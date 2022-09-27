@@ -62,8 +62,8 @@ def get_gdal_config():
         gdal_libs = ["gdal"]
 
         if platform.system() == "Windows":
-            # NOTE: libgdal on conda-forge now builds the library as "gdal" instead
-            # of "gdal_i", but older Windows builds still use "gdal_i"
+            # NOTE: if libgdal is built for Windows using CMake, it is now "gdal",
+            # but older Windows builds still use "gdal_i"
             if (Path(library_dir) / "gdal_i.lib").exists():
                 gdal_libs = ["gdal_i"]
 
