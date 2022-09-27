@@ -170,6 +170,9 @@ jobs:
           popd
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
+          ls $VCPKG_INSTALLATION_ROOT/installed/x64-windows/share
+          ls $VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/proj
+          ls $VCPKG_INSTALLATION_ROOT/installed/x64-windows/share/proj/data
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
