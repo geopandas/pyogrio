@@ -195,9 +195,11 @@ def test_read_bbox(naturalearth_lowres_all_ext):
         df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
         assert len(df) == 0
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
     assert len(df) == 2
-    assert np.array_equal(df.iso_a3, ["USA", "MEX"])
+
+    # GPKG records are in reverse order
+    assert np.array_equal(sorted(df.iso_a3), ["CRI", "PAN"])
 
 
 def test_read_fids(naturalearth_lowres_all_ext):
@@ -317,12 +319,13 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
         sql=sql,
         sql_dialect="OGRSQL",
         columns=["iso_a3_renamed", "name"],
-        where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
-        bbox=(-140, 20, -100, 45),
+        where="iso_a3_renamed IN ('CRI', 'PAN')",
+        bbox=(-85, 8, -80, 10),
     )
     assert len(df.columns) == 3
     assert len(df) == 2
-    assert df.iso_a3_renamed.tolist() == ["USA", "MEX"]
+    # GPKG records are in reverse order
+    assert sorted(df.iso_a3_renamed.tolist()) == ["CRI", "PAN"]
 
 
 def test_read_sql_skip_max(naturalearth_lowres_all_ext):

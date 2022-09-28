@@ -138,22 +138,27 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
 
-    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
 
     assert fids.shape == (2,)
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # GPKG results are in opposite order
+
         # fid in gpkg is 1-based
-        assert array_equal(fids, [5, 28])  # USA, MEX
+        fids = fids[::-1]
+        bounds = bounds.T[::-1].T
+
+        assert array_equal(fids, [34, 35])  # PAN, CRI
     else:
         # fid in other formats is 0-based
-        assert array_equal(fids, [4, 27])  # USA, MEX
+        assert array_equal(fids, [33, 34])  # PAN, CRI
 
     assert bounds.shape == (4, 2)
     assert allclose(
         bounds.T,
         [
-            [-171.791111, 18.916190, -66.964660, 71.357764],
-            [-117.127760, 14.538829, -86.811982, 32.720830],
+            [-82.96578305, 7.22054149, -77.24256649, 9.61161001],
+            [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
 
