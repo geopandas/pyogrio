@@ -1,10 +1,8 @@
 FROM quay.io/pypa/manylinux2014_x86_64:2022-04-18-1d09d31
 
-RUN yum install -y curl unzip zip tar python3
+RUN yum install -y curl unzip zip tar
 
-RUN export PATH="/opt/python/cp38-cp38/bin:$PATH"
-
-RUN which python
+RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 
