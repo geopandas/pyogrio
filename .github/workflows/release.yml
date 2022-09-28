@@ -129,7 +129,7 @@ jobs:
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2019"
-            triplet: "x64-windows"
+            triplet: "x64-windows-release"
             # windows requires windows-specific paths
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
