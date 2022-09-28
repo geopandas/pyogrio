@@ -185,8 +185,7 @@ def test_read_bbox(naturalearth_lowres_all_ext):
     geometry, fields = read(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))[2:]
 
     assert len(geometry) == 2
-    # GPKG results are in reverse order
-    assert np.array_equal(sorted(fields[3]), ["CRI", "PAN"])
+    assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
 def test_read_fids(naturalearth_lowres):

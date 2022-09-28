@@ -142,12 +142,7 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
 
     assert fids.shape == (2,)
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        # GPKG results are in opposite order
-
         # fid in gpkg is 1-based
-        fids = fids[::-1]
-        bounds = bounds.T[::-1].T
-
         assert array_equal(fids, [34, 35])  # PAN, CRI
     else:
         # fid in other formats is 0-based
