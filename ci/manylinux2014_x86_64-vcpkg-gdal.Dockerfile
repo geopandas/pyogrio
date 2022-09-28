@@ -1,6 +1,7 @@
 FROM quay.io/pypa/manylinux2014_x86_64:2022-04-18-1d09d31
 
-RUN yum install -y curl unzip zip tar
+# kernel-devel is required for building openssl
+RUN yum install -y curl unzip zip tar kernel-devel
 
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
