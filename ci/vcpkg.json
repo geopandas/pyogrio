@@ -4,7 +4,8 @@
     "dependencies": [
         {
             "name": "gdal",
-            "default-features": false
+            "default-features": false,
+            "features": ["recommended-features", "curl", "geos", "libspatialite"]
         }
     ],
     "builtin-baseline": "1ea1da790eb4b1c699c84085f197747a2178c88e"
