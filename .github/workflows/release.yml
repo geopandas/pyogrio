@@ -78,43 +78,43 @@ jobs:
           cd ..
           python3 -m pytest --pyargs pyogrio.tests -v
 
-  build-wheels-linux:
-    name: Build wheels on Linux
-    runs-on: "ubuntu-20.04"
+  # build-wheels-linux:
+  #   name: Build wheels on Linux
+  #   runs-on: "ubuntu-20.04"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-        with:
-          install: true
-          buildkitd-flags: --debug
+  #     - name: Set up Docker Buildx
+  #       id: buildx
+  #       uses: docker/setup-buildx-action@v1
+  #       with:
+  #         install: true
+  #         buildkitd-flags: --debug
 
-      - name: Build Docker image with vcpkg and gdal
-        # using build-push-action (without push) to make use of cache arguments
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
-          tags: manylinux-vcpkg-gdal:latest
-          push: false
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-        env:
-          BUILDKIT_PROGRESS: plain
+  #     - name: Build Docker image with vcpkg and gdal
+  #       # using build-push-action (without push) to make use of cache arguments
+  #       uses: docker/build-push-action@v2
+  #       with:
+  #         context: .
+  #         file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+  #         tags: manylinux-vcpkg-gdal:latest
+  #         push: false
+  #         load: true
+  #         cache-from: type=gha
+  #         cache-to: type=gha,mode=max
+  #       env:
+  #         BUILDKIT_PROGRESS: plain
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.3.1
 
-      - uses: actions/upload-artifact@v2
-        with:
-          path: ./wheelhouse/*.whl
+  #     - uses: actions/upload-artifact@v2
+  #       with:
+  #         path: ./wheelhouse/*.whl
 
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }}
@@ -123,10 +123,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-11"
-            triplet: "x64-osx-dynamic"
-            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
-            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+          # - os: "macos-11"
+          #   triplet: "x64-osx-dynamic"
+          #   vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+          #   vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2019"
             triplet: "x64-windows"
@@ -186,17 +186,18 @@ jobs:
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-    needs: [build-wheels-linux, build-wheels-mac-win]
+    # needs: [build-wheels-linux, build-wheels-mac-win]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-11"]
+        # os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-11"]
+        os: ["windows-latest"]
         python-version: ["3.8", "3.9"]
         include:
           # TODO macOS is failing on py 3.10 because of shapely failure
-          - os: "ubuntu-20.04"
-            python-version: "3.10"
+          # - os: "ubuntu-20.04"
+          #   python-version: "3.10"
           - os: "windows-latest"
             python-version: "3.10"
 
