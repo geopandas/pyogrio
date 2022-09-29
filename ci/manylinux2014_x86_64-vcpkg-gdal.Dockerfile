@@ -1,7 +1,7 @@
 FROM quay.io/pypa/manylinux2014_x86_64:2022-04-18-1d09d31
 
-# kernel-devel is required for building openssl
-RUN yum install -y curl unzip zip tar kernel-devel
+# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
+RUN yum install -y curl unzip zip tar perl-IPC-Cmd
 
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
