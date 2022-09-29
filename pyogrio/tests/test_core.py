@@ -19,6 +19,11 @@ with GDALEnv():
     from pyogrio._ogr import has_gdal_data, has_proj_data
 
 
+# Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
+# cannot verify it
+has_geos = __gdal_geos_version__ is not None
+
+
 def test_gdal_data():
     # test will fail if GDAL data files cannot be found, indicating an
     # installation error
@@ -156,6 +161,32 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
             [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
+
+
+def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
+    # If GEOS is present and used by GDAL, bbox filter will be based on intersection
+    # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
+    # will be based on overlap of bounding boxes instead
+    fids, _ = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+
+    if not has_geos:
+        # bboxes for CAN, RUS overlap but do not intersect geometries
+        assert fids.shape == (4,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [4, 5, 19, 28])  # CAN, USA, RUS, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [3, 4, 18, 27])  # CAN, USA, RUS, MEX
+
+    else:
+        assert fids.shape == (2,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [5, 28])  # USA, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [4, 27])  # USA, MEX
 
 
 def test_read_info(naturalearth_lowres):

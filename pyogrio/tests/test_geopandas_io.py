@@ -323,7 +323,6 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
     )
     assert len(df.columns) == 3
     assert len(df) == 2
-    # records may be in different order
     assert df.iso_a3_renamed.tolist() == ["PAN", "CRI"]
 
 
