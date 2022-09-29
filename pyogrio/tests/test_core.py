@@ -2,6 +2,7 @@ from numpy import array_equal, allclose
 import pytest
 
 from pyogrio import (
+    __gdal_version__,
     __gdal_geos_version__,
     list_drivers,
     list_layers,
@@ -17,11 +18,6 @@ with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
     from pyogrio._ogr import has_gdal_data, has_proj_data
-
-
-# Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
-# cannot verify it
-has_geos = __gdal_geos_version__ is not None
 
 
 def test_gdal_data():
@@ -163,13 +159,17 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     )
 
 
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 4, 0),
+    reason="Cannot determine if GEOS is present or absent for GDAL < 3.4",
+)
 def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
     # If GEOS is present and used by GDAL, bbox filter will be based on intersection
     # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
     # will be based on overlap of bounding boxes instead
     fids, _ = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
 
-    if not has_geos:
+    if __gdal_geos_version__ is None:
         # bboxes for CAN, RUS overlap but do not intersect geometries
         assert fids.shape == (4,)
         if naturalearth_lowres_all_ext.suffix == ".gpkg":
