@@ -1,3 +1,9 @@
+try:
+    import shapely  # noqa
+    import shapely.geos  # noqa
+except Exception:
+    pass
+
 from pyogrio.core import (
     list_drivers,
     list_layers,
