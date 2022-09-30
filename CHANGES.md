@@ -2,6 +2,11 @@
 
 ## O.4.2
 
+### Improvements
+
+-   new `get_gdal_data_path()` utility funtion to check the path of the data
+    directory detected by GDAL (#160)
+
 ### Bug fixes
 
 -   register GDAL drivers during initial import of pyogrio (#145)
