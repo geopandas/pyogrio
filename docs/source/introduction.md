@@ -177,50 +177,57 @@ with the bbox.
 
 Note: the `bbox` values must be in the same CRS as the dataset.
 
+Note: if GEOS is present and used by GDAL, only geometries that intersect `bbox`
+will be returned; if GEOS is not available or not used by GDAL, all geometries
+with bounding boxes that intersect this bbox will be returned.
+`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+
 ## Execute a sql query
 
-You can use the `sql` parameter to execute a sql query on a dataset. 
+You can use the `sql` parameter to execute a sql query on a dataset.
 
-Depending on the dataset, you can use different sql dialects. By default, if 
-the dataset natively supports sql, the sql statement will be passed through 
+Depending on the dataset, you can use different sql dialects. By default, if
+the dataset natively supports sql, the sql statement will be passed through
 as such. Hence, the sql query should be written in the relevant native sql
 dialect (e.g. [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)/
-[Sqlite](https://gdal.org/drivers/vector/sqlite.html), 
-[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource 
-doesn't natively support sql (e.g. 
-[ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html), 
-[FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose 
-between '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)' 
-(the default) and  
-'[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)'. 
-For SELECT statements the 'SQLITE' dialect tends to provide more spatial 
-features as all 
-[spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html) 
+[Sqlite](https://gdal.org/drivers/vector/sqlite.html),
+[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource
+doesn't natively support sql (e.g.
+[ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html),
+[FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose
+between '[OGRSQL](https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect)'
+(the default) and
+'[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect)'.
+For SELECT statements the 'SQLITE' dialect tends to provide more spatial
+features as all
+[spatialite](https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html)
 functions can be used. If gdal is not built with spatialite support in SQLite,
-you can use ``sql_dialect="INDIRECT_SQLITE"`` to be able to use spatialite 
-functions on native SQLite files like Geopackage. 
+you can use `sql_dialect="INDIRECT_SQLITE"` to be able to use spatialite
+functions on native SQLite files like Geopackage.
 
-You can combine a sql query with other parameters that will filter the 
-dataset. When using ``columns``, ``skip_features``, ``max_features``, and/or 
-``where`` it is important to note that they will be applied AFTER the sql 
+You can combine a sql query with other parameters that will filter the
+dataset. When using `columns`, `skip_features`, `max_features`, and/or
+`where` it is important to note that they will be applied AFTER the sql
 statement, so these are some things you need to be aware of:
-- if you specify an alias for a column in the sql statement, you need to 
-  specify this alias when using the ``columns`` keyword.
-- ``skip_features`` and ``max_features`` will be applied on the rows returned 
-  by the sql query, not on the original dataset.
 
-For the ``bbox`` parameter, depending on the combination of the dialect of the 
+-   if you specify an alias for a column in the sql statement, you need to
+    specify this alias when using the `columns` keyword.
+-   `skip_features` and `max_features` will be applied on the rows returned
+    by the sql query, not on the original dataset.
+
+For the `bbox` parameter, depending on the combination of the dialect of the
 sql query and the dataset, a spatial index will be used or not, e.g.:
-- ESRI Shapefile: spatial index is used with 'OGRSQL', not with 'SQLITE'.
-- Geopackage: spatial index is always used.
 
-The following sql query returns the 5 Western European countries with the most 
+-   ESRI Shapefile: spatial index is used with 'OGRSQL', not with 'SQLITE'.
+-   Geopackage: spatial index is always used.
+
+The following sql query returns the 5 Western European countries with the most
 neighbours:
 
 ```python
 >>> sql = """
         SELECT geometry, name,
-               (SELECT count(*)  
+               (SELECT count(*)
                   FROM ne_10m_admin_0_countries layer_sub
                  WHERE ST_Intersects(layer.geometry, layer_sub.geometry)) AS nb_neighbours
           FROM ne_10m_admin_0_countries layer

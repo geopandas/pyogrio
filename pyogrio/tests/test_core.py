@@ -2,6 +2,7 @@ from numpy import array_equal, allclose
 import pytest
 
 from pyogrio import (
+    __gdal_version__,
     __gdal_geos_version__,
     list_drivers,
     list_layers,
@@ -145,24 +146,54 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
 
-    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
 
     assert fids.shape == (2,)
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
         # fid in gpkg is 1-based
-        assert array_equal(fids, [5, 28])  # USA, MEX
+        assert array_equal(fids, [34, 35])  # PAN, CRI
     else:
         # fid in other formats is 0-based
-        assert array_equal(fids, [4, 27])  # USA, MEX
+        assert array_equal(fids, [33, 34])  # PAN, CRI
 
     assert bounds.shape == (4, 2)
     assert allclose(
         bounds.T,
         [
-            [-171.791111, 18.916190, -66.964660, 71.357764],
-            [-117.127760, 14.538829, -86.811982, 32.720830],
+            [-82.96578305, 7.22054149, -77.24256649, 9.61161001],
+            [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
+
+
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 4, 0),
+    reason="Cannot determine if GEOS is present or absent for GDAL < 3.4",
+)
+def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
+    # If GEOS is present and used by GDAL, bbox filter will be based on intersection
+    # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
+    # will be based on overlap of bounding boxes instead
+    fids, _ = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+
+    if __gdal_geos_version__ is None:
+        # bboxes for CAN, RUS overlap but do not intersect geometries
+        assert fids.shape == (4,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [4, 5, 19, 28])  # CAN, USA, RUS, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [3, 4, 18, 27])  # CAN, USA, RUS, MEX
+
+    else:
+        assert fids.shape == (2,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [5, 28])  # USA, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [4, 27])  # USA, MEX
 
 
 def test_read_info(naturalearth_lowres):

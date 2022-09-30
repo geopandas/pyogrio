@@ -116,7 +116,10 @@ def read_bounds(
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
-        box.  This must be in the same CRS as the dataset.
+        box.  This must be in the same CRS as the dataset.  If GEOS is present
+        and used by GDAL, only geometries that intersect this bbox will be
+        returned; if GEOS is not available or not used by GDAL, all geometries
+        with bounding boxes that intersect this bbox will be returned.
 
     Returns
     -------
