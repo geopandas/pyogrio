@@ -36,6 +36,10 @@ def prepare_testfile(testfile_path, dst_dir, ext):
         # allow mixed Polygons/MultiPolygons type
         meta["geometry_type"] = "Unknown"
 
+    elif ext == ".gpkg":
+        # For .gpkg, spatial_index=False to avoid the rows being reordered
+        meta["spatial_index"] = False
+
     write(dst_path, geometry, field_data, **meta)
     return dst_path
 

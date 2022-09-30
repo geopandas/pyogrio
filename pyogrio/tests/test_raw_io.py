@@ -182,10 +182,10 @@ def test_read_bbox(naturalearth_lowres_all_ext):
 
     assert len(geometry) == 0
 
-    geometry, fields = read(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))[2:]
 
     assert len(geometry) == 2
-    assert np.array_equal(fields[3], ["USA", "MEX"])
+    assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
 def test_read_fids(naturalearth_lowres):
