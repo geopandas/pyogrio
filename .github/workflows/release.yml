@@ -150,7 +150,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.5.1-cache0
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.5.1-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -159,6 +159,7 @@ jobs:
         run: |
           brew reinstall automake
           echo $(which aclocal)
+          gcc --version
 
       - name: Install GDAL
         env:
@@ -227,7 +228,7 @@ jobs:
         run: |
           cd ..
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          python -m pytest --pyargs pyogrio.tests -v
+          python -m pytest --pyargs pyogrio.tests -v --log-cli-level=DEBUG 
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
