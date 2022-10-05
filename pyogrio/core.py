@@ -10,6 +10,7 @@ with GDALEnv():
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
+        get_gdal_data_path as _get_gdal_data_path,
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
         remove_virtual_file,
@@ -115,7 +116,10 @@ def read_bounds(
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
-        box.  This must be in the same CRS as the dataset.
+        box.  This must be in the same CRS as the dataset.  If GEOS is present
+        and used by GDAL, only geometries that intersect this bbox will be
+        returned; if GEOS is not available or not used by GDAL, all geometries
+        with bounding boxes that intersect this bbox will be returned.
 
     Returns
     -------
@@ -218,3 +222,13 @@ def get_gdal_config_option(name):
     """
 
     return _get_gdal_config_option(name)
+
+
+def get_gdal_data_path():
+    """Get the path to the directory GDAL uses to read data files.
+
+    Returns
+    -------
+    str, or None if data directory was not found
+    """
+    return _get_gdal_data_path()

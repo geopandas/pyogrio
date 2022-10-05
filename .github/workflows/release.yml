@@ -223,6 +223,7 @@ jobs:
           python -m pip install --pre --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
+      # NOTE: GEOS is not available on macOS / Linux runners
       - name: Run tests
         shell: bash
         run: |
