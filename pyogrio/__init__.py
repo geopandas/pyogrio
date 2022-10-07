@@ -1,4 +1,6 @@
 try:
+    # we try importing shapely, to ensure it is imported (and it can load its
+    # own GEOS copy) before we load GDAL and its linked GEOS
     import shapely  # noqa
     import shapely.geos  # noqa
 except Exception:

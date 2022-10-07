@@ -159,7 +159,6 @@ jobs:
         run: |
           brew reinstall automake
           echo $(which aclocal)
-          gcc --version
 
       - name: Install GDAL
         env:
@@ -219,17 +218,15 @@ jobs:
         run: |
           python -m pip install -r ci/requirements-wheel-test.txt
           python -m pip install --no-deps geopandas
-          ls wheelhouse/artifact
           python -m pip install --pre --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
-      # NOTE: GEOS is not available on macOS / Linux runners
       - name: Run tests
         shell: bash
         run: |
           cd ..
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          python -m pytest --pyargs pyogrio.tests -v --log-cli-level=DEBUG 
+          python -m pytest --pyargs pyogrio.tests -v
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
