@@ -1,13 +1,15 @@
 import json
 import os
+import sys
 
 import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers
-from pyogrio.raw import read, write
+from pyogrio import list_layers, list_drivers, read_info
+from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
+from pyogrio.tests.conftest import prepare_testfile
 
 
 def test_read(naturalearth_lowres):
@@ -31,6 +33,32 @@ def test_read(naturalearth_lowres):
 
     # quick test that WKB is a Polygon type
     assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
+    # Test all supported autodetect drivers
+    testfile = prepare_testfile(naturalearth_lowres, dst_dir=tmp_path, ext=ext)
+
+    assert testfile.suffix == ext
+    assert testfile.exists()
+    meta, _, geometry, fields = read(testfile)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry_type"] in ("MultiPolygon", "Polygon", "Unknown")
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (5,)
+
+    assert meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(fields) == 5
+    assert len(geometry) == len(fields[0])
 
 
 def test_read_invalid_layer(naturalearth_lowres):
@@ -145,17 +173,19 @@ def test_read_bbox_invalid(naturalearth_lowres, bbox):
         read(naturalearth_lowres, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres):
+def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        geometry, fields = read(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))[2:]
+        geometry, fields = read(
+            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+        )[2:]
 
     assert len(geometry) == 0
 
-    geometry, fields = read(naturalearth_lowres, bbox=(-140, 20, -100, 40))[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))[2:]
 
     assert len(geometry) == 2
-    assert np.array_equal(fields[3], ["USA", "MEX"])
+    assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
 def test_read_fids(naturalearth_lowres):
@@ -215,7 +245,7 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
         read(naturalearth_lowres, fids=[1], where="iso_a3 = 'CAN'")
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
-        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 40))
+        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 45))
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], skip_features=5)
@@ -268,7 +298,7 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     [
         driver
         for driver in list_drivers(write=True)
-        if not driver in ("ESRI Shapefile", "GPKG", "GeoJSON")
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
     ],
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
@@ -299,3 +329,299 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+
+def assert_equal_result(result1, result2):
+    meta1, index1, geometry1, field_data1 = result1
+    meta2, index2, geometry2, field_data2 = result2
+
+    assert np.array_equal(meta1["fields"], meta2["fields"])
+    assert np.array_equal(index1, index2)
+    # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
+    # the WKB values are not exactly equal, therefore parsing with pygeos to compare
+    # with tolerance
+    pygeos = pytest.importorskip("pygeos")
+    assert pygeos.equals_exact(
+        pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
+    ).all()
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+
+
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
+def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
+    meta, index, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    with open(filename, "rb") as f:
+        buffer = f.read()
+
+    result2 = read(buffer)
+    assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
+    path, vsi_path = naturalearth_lowres_vsi
+    meta, index, geometry, field_data = read(vsi_path)
+
+    with open(path, "rb") as f:
+        buffer = f.read()
+
+    result2 = read(buffer)
+    assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
+def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
+    meta, index, geometry, field_data = read(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    with open(filename, "rb") as f:
+        result2 = read(f)
+
+    assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_data_types_numeric(tmp_path, ext):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    field_data = [
+        np.array([True, False, True], dtype="bool"),
+        np.array([1, 2, 3], dtype="int16"),
+        np.array([1, 2, 3], dtype="int32"),
+        np.array([1, 2, 3], dtype="int64"),
+        np.array([1, 2, 3], dtype="float32"),
+        np.array([1, 2, 3], dtype="float64"),
+    ]
+    fields = ["bool", "int16", "int32", "int64", "float32", "float64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
+    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+
+    # other integer data types that don't roundtrip exactly
+    # these are generally promoted to a larger integer type except for uint64
+    for i, (dtype, result_dtype) in enumerate(
+        [
+            ("int8", "int16"),
+            ("uint8", "int16"),
+            ("uint16", "int32"),
+            ("uint32", "int64"),
+            ("uint64", "int64"),
+        ]
+    ):
+        field_data = [np.array([1, 2, 3], dtype=dtype)]
+        filename = tmp_path / f"test{i}.{ext}"
+        write(filename, geometry, field_data, ["col"], **meta)
+        result = read(filename)[3][0]
+        assert np.array_equal(result, np.array([1, 2, 3]))
+        assert result.dtype == result_dtype
+
+
+def test_read_write_datetime(tmp_path):
+    field_data = [
+        np.array(["2005-02-01", "2005-02-02"], dtype="datetime64[D]"),
+        np.array(["2001-01-01T12:00", "2002-02-03T13:56:03"], dtype="datetime64[s]"),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072"], dtype="datetime64[ms]"
+        ),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072"], dtype="datetime64[ns]"
+        ),
+        np.array(
+            ["2001-01-01T12:00", "2002-02-03T13:56:03.072123456"],
+            dtype="datetime64[ns]",
+        ),
+        # Remark: a None value is automatically converted to np.datetime64("NaT")
+        np.array([np.datetime64("NaT"), None], dtype="datetime64[ms]"),
+    ]
+    fields = [
+        "datetime64_d",
+        "datetime64_s",
+        "datetime64_ms",
+        "datetime64_ns",
+        "datetime64_precise_ns",
+        "datetime64_ms_nat",
+    ]
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2, dtype=object
+    )
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    for idx, field in enumerate(fields):
+        if field == "datetime64_precise_ns":
+            # gdal rounds datetimes to ms
+            assert np.array_equal(result[idx], field_data[idx].astype("datetime64[ms]"))
+        else:
+            assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
+
+
+def test_read_data_types_numeric_with_null(test_gpkg_nulls):
+    fields = read(test_gpkg_nulls)[3]
+
+    for i, field in enumerate(fields):
+        # last value should be np.nan
+        assert np.isnan(field[-1])
+
+        # all integer fields should be cast to float64; float32 should be preserved
+        if i == 9:
+            assert field.dtype == "float32"
+        else:
+            assert field.dtype == "float64"
+
+
+def test_read_unsupported_types(test_ogr_types_list):
+    fields = read(test_ogr_types_list)[3]
+    # list field gets skipped, only integer field is read
+    assert len(fields) == 1
+
+    fields = read(test_ogr_types_list, columns=["int64"])[3]
+    assert len(fields) == 1
+
+
+def test_read_datetime_millisecond(test_datetime):
+    field = read(test_datetime)[3][0]
+    assert field.dtype == "datetime64[ms]"
+    assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
+    assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_read_write_null_geometry(tmp_path, ext):
+    # Point(0, 0), null
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000"), None],
+        dtype=object,
+    )
+    field_data = [np.array([1, 2], dtype="int32")]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result_geometry, result_fields = read(filename)[2:]
+    assert np.array_equal(result_geometry, geometry)
+    assert np.array_equal(result_fields[0], field_data[0])
+
+
+@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize(
+    "read_encoding,write_encoding",
+    [
+        pytest.param(
+            None,
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        pytest.param(
+            "UTF-8",
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        (None, "UTF-8"),
+        ("UTF-8", "UTF-8"),
+    ],
+)
+def test_encoding_io(tmp_path, ext, read_encoding, write_encoding):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+    arabic = "العربية"
+    cree = "ᓀᐦᐃᔭᐍᐏᐣ"
+    mandarin = "中文"
+    field_data = [
+        np.array([arabic], dtype=object),
+        np.array([cree], dtype=object),
+        np.array([mandarin], dtype=object),
+    ]
+    fields = [arabic, cree, mandarin]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=write_encoding)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+
+    actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename, encoding=read_encoding)["fields"])
+
+
+@pytest.mark.parametrize(
+    "read_encoding,write_encoding",
+    [
+        pytest.param(
+            None,
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        pytest.param(
+            "UTF-8",
+            None,
+            marks=pytest.mark.skipif(
+                sys.platform == "win32", reason="must specify write encoding on Windows"
+            ),
+        ),
+        (None, "UTF-8"),
+        ("UTF-8", "UTF-8"),
+    ],
+)
+def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+    arabic = "العربية"
+    cree = "ᓀᐦᐃᔭᐍᐏᐣ"
+    mandarin = "中文"
+    field_data = [
+        np.array([arabic], dtype=object),
+        np.array([cree], dtype=object),
+        np.array([mandarin], dtype=object),
+    ]
+
+    # Field names are longer than 10 bytes and get truncated badly (not at UTF-8
+    # character level)  by GDAL when output to shapefile, so we have to truncate
+    # before writing
+    fields = [arabic[:5], cree[:3], mandarin]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding="UTF-8")
+
+    filename = tmp_path / "test.shp"
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    write(filename, geometry, field_data, fields, **meta)
+
+    actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename, encoding=read_encoding)["fields"])
+
+    # verify that if cpg file is not present, that user-provided encoding is used,
+    # otherwise it defaults to ISO-8859-1
+    if read_encoding is not None:
+        os.unlink(str(filename).replace(".shp", ".cpg"))
+        actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
+        assert np.array_equal(fields, actual_meta["fields"])
+        assert np.array_equal(field_data, actual_field_data)
+        assert np.array_equal(
+            fields, read_info(filename, encoding=read_encoding)["fields"]
+        )

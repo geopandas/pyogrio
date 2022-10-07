@@ -1,0 +1,62 @@
+name: Conda Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+# cancel running jobs on new commit to PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} (Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2019]
+        python: ["3.9", "3.10"]
+        env: ["environment.yml"]
+        include:
+          # minimal environment without optional dependencies
+          - os: "ubuntu-latest"
+            python: "3.10"
+            env: "environment-minimal.yml"
+          # environment for older Windows libgdal to make sure gdal_i.lib is
+          # properly detected
+          - os: "windows-2019"
+            python: "3.10"
+            env: "environment-libgdal3.5.1.yml"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install Conda environment with Micromamba
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: ci/${{ matrix.env }}
+          extra-specs: python=${{ matrix.python }}
+          cache-env: true
+
+      - name: Set environment variables (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "GDAL_INCLUDE_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/include." >> $GITHUB_ENV
+          echo "GDAL_LIBRARY_PATH=$MAMBA_ROOT_PREFIX/envs/test/Library/lib" >> $GITHUB_ENV
+          echo "GDAL_VERSION=$(gdalinfo --version | cut -c 6-10)" >> $GITHUB_ENV
+
+      - name: Install pyogrio
+        run: pip install -e .
+
+      - name: Test
+        run: |
+          pytest -v -r s pyogrio/tests

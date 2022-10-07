@@ -2,22 +2,33 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
-from pyogrio.util import vsi_path
+from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_read_info, ogr_list_layers, ogr_write
+    from pyogrio._io import ogr_read, ogr_write
+    from pyogrio._ogr import remove_virtual_file
 
 
 DRIVERS = {
-    ".gpkg": "GPKG",
-    ".shp": "ESRI Shapefile",
-    ".json": "GeoJSON",
     ".fgb": "FlatGeobuf",
+    ".geojson": "GeoJSON",
+    ".geojsonl": "GeoJSONSeq",
+    ".geojsons": "GeoJSONSeq",
+    ".gpkg": "GPKG",
+    ".json": "GeoJSON",
+    ".shp": "ESRI Shapefile",
+}
+
+
+DRIVERS_NO_MIXED_SINGLE_MULTI = {
+    "FlatGeobuf",
+    "GPKG",
 }
 
 
 def read(
-    path,
+    path_or_buffer,
+    /,
     layer=None,
     encoding=None,
     columns=None,
@@ -28,6 +39,8 @@ def read(
     where=None,
     bbox=None,
     fids=None,
+    sql=None,
+    sql_dialect=None,
     return_fids=False,
 ):
     """Read OGR data source.
@@ -37,8 +50,8 @@ def read(
 
     Parameters
     ----------
-    path : pathlib.Path or str
-        A dataset path or URI.
+    path_or_buffer : pathlib.Path or str, or bytes buffer
+        A dataset path or URI, or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -70,7 +83,10 @@ def read(
         Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
-        box.  This must be in the same CRS as the dataset.
+        box.  This must be in the same CRS as the dataset.  If GEOS is present
+        and used by GDAL, only geometries that intersect this bbox will be
+        returned; if GEOS is not available or not used by GDAL, all geometries
+        with bounding boxes that intersect this bbox will be returned.
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (`skip_features`, `max_features`,
@@ -98,26 +114,50 @@ def read(
             "geometry": "<geometry type>"
         }
     """
-    path = vsi_path(str(path))
+    path, buffer = get_vsi_path(path_or_buffer)
 
-    if not "://" in path:
-        if not "/vsi" in path.lower() and not os.path.exists(path):
-            raise ValueError(f"'{path}' does not exist")
+    try:
+        result = ogr_read(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
+            return_fids=return_fids,
+        )
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
 
-    return ogr_read(
-        path,
-        layer=layer,
-        encoding=encoding,
-        columns=columns,
-        read_geometry=read_geometry,
-        force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features or 0,
-        where=where,
-        bbox=bbox,
-        fids=fids,
-        return_fids=return_fids,
-    )
+    return result
+
+
+def detect_driver(path):
+    # try to infer driver from path
+    parts = os.path.splitext(path)
+    if len(parts) != 2:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver "
+            "explicitly"
+        )
+
+    ext = parts[1].lower()
+    driver = DRIVERS.get(ext, None)
+    if driver is None:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver "
+            "explicitly"
+        )
+
+    return driver
 
 
 def write(
@@ -131,26 +171,20 @@ def write(
     geometry_type=None,
     crs=None,
     encoding=None,
+    promote_to_multi=None,
     **kwargs,
 ):
-
     if geometry_type is None:
         raise ValueError("geometry_type must be provided")
 
     if driver is None:
-        # try to infer driver from path
-        parts = os.path.splitext(path)
-        if len(parts) != 2:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
+        driver = detect_driver(path)
 
-        ext = parts[1].lower()
-        driver = DRIVERS.get(ext, None)
-        if driver is None:
-            raise ValueError(
-                f"Could not infer driver from path: {path}; please specify driver explicitly"
-            )
+    if promote_to_multi is None:
+        promote_to_multi = (
+            geometry_type.startswith("Multi")
+            and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+        )
 
     if crs is None:
         warnings.warn(
@@ -169,5 +203,6 @@ def write(
         fields=fields,
         crs=crs,
         encoding=encoding,
+        promote_to_multi=promote_to_multi,
         **kwargs,
     )

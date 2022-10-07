@@ -1,5 +1,6 @@
 # Contains declarations against GDAL / OGR API
 from libc.stdint cimport int64_t
+from libc.stdio cimport FILE
 
 
 cdef extern from "cpl_conv.h":
@@ -32,6 +33,16 @@ cdef extern from "cpl_string.h":
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
     void        CSLDestroy(char **list)
     char**      CSLAddString(char **list, const char *string)
+
+
+cdef extern from "cpl_vsi.h" nogil:
+
+    ctypedef FILE VSILFILE
+
+    VSILFILE *VSIFileFromMemBuffer(const char *path, void *data,
+                                   int data_len, int take_ownership)
+    int VSIFCloseL(VSILFILE *fp)
+    int VSIUnlink(const char *path)
 
 
 cdef extern from "ogr_core.h":
@@ -186,7 +197,7 @@ cdef extern from "ogr_api.h":
     int64_t         OGR_F_GetFID(OGRFeatureH feature)
     OGRGeometryH    OGR_F_GetGeometryRef(OGRFeatureH feature)
     GByte*          OGR_F_GetFieldAsBinary(OGRFeatureH feature, int n, int *s)
-    int             OGR_F_GetFieldAsDateTime(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, int *s, int *z)
+    int             OGR_F_GetFieldAsDateTimeEx(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, float *s, int *z)
     double          OGR_F_GetFieldAsDouble(OGRFeatureH feature, int n)
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
     long            OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
@@ -199,6 +210,16 @@ cdef extern from "ogr_api.h":
     void            OGR_F_SetFieldString(OGRFeatureH feature, int n, char *value)
     void            OGR_F_SetFieldBinary(OGRFeatureH feature, int n, int l, unsigned char *value)
     void            OGR_F_SetFieldNull(OGRFeatureH feature, int n)  # new in GDAL 2.2
+    void            OGR_F_SetFieldDateTimeEx(
+                            OGRFeatureH hFeat,
+                            int iField,
+                            int nYear,
+                            int nMonth,
+                            int nDay,
+                            int nHour,
+                            int nMinute,
+                            float fSecond,
+                            int nTZFlag)
     OGRErr          OGR_F_SetGeometryDirectly(OGRFeatureH feature, OGRGeometryH geometry)
 
     OGRFeatureDefnH     OGR_FD_Create(const char *name)
@@ -219,19 +240,25 @@ cdef extern from "ogr_api.h":
 
     void            OGR_Fld_SetSubType(OGRFieldDefnH fielddefn, OGRFieldSubType subtype)
 
-    OGRGeometryH    OGR_G_CreateGeometry(int wkbtypecode)
-    void            OGR_G_DestroyGeometry(OGRGeometryH geometry)
-    void            OGR_G_ExportToWkb(OGRGeometryH geometry, int endianness, unsigned char *buffer)
-    void            OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
-    OGRErr          OGR_G_ImportFromWkb(OGRGeometryH geometry, const void *bytes, int nbytes)
-    int             OGR_G_IsMeasured(OGRGeometryH geometry)
-    void            OGR_G_SetMeasured(OGRGeometryH geometry, int isMeasured)
-    int             OGR_G_Is3D(OGRGeometryH geometry)
-    void            OGR_G_Set3D(OGRGeometryH geometry, int is3D)
-    int             OGR_G_WkbSize(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_CreateGeometry(int wkbtypecode)
+    void                OGR_G_DestroyGeometry(OGRGeometryH geometry)
+    void                OGR_G_ExportToWkb(OGRGeometryH geometry, int endianness, unsigned char *buffer)
+    void                OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
+    OGRwkbGeometryType  OGR_G_GetGeometryType(OGRGeometryH)
+    OGRGeometryH        OGR_G_GetLinearGeometry(OGRGeometryH hGeom, double dfMaxAngleStepSizeDegrees, char **papszOptions)
+    OGRErr              OGR_G_ImportFromWkb(OGRGeometryH geometry, const void *bytes, int nbytes)
+    int                 OGR_G_IsMeasured(OGRGeometryH geometry)
+    void                OGR_G_SetMeasured(OGRGeometryH geometry, int isMeasured)
+    int                 OGR_G_Is3D(OGRGeometryH geometry)
+    void                OGR_G_Set3D(OGRGeometryH geometry, int is3D)
+    int                 OGR_G_WkbSize(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_ForceToMultiPoint(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_ForceToMultiLineString(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_ForceToMultiPolygon(OGRGeometryH geometry)
 
     int                 OGR_GT_HasM(OGRwkbGeometryType eType)
     int                 OGR_GT_HasZ(OGRwkbGeometryType eType)
+    int                 OGR_GT_IsNonLinear(OGRwkbGeometryType eType)
     OGRwkbGeometryType  OGR_GT_SetModifier(OGRwkbGeometryType eType, int setZ, int setM)
 
     OGRErr                  OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
@@ -313,6 +340,12 @@ cdef extern from "gdal.h":
     int             GDALDatasetGetLayerCount(GDALDatasetH ds)
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
+    OGRLayerH       GDALDatasetExecuteSQL(
+                            GDALDatasetH ds,
+                            const char* pszStatement,
+                            OGRGeometryH hSpatialFilter,
+                            const char* pszDialect)
+    void            GDALDatasetReleaseResultSet(GDALDatasetH, OGRLayerH)
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)

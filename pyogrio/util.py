@@ -2,30 +2,58 @@ import re
 import sys
 from urllib.parse import urlparse
 
+from pyogrio._env import GDALEnv
+
+with GDALEnv():
+    from pyogrio._ogr import buffer_to_virtual_file
+
+
+def get_vsi_path(path_or_buffer):
+
+    if hasattr(path_or_buffer, "read"):
+        path_or_buffer = path_or_buffer.read()
+
+    buffer = None
+    if isinstance(path_or_buffer, bytes):
+        buffer = path_or_buffer
+        ext = ""
+        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
+        if is_zipped:
+            ext = ".zip"
+        path = buffer_to_virtual_file(path_or_buffer, ext=ext)
+        if is_zipped:
+            path = "/vsizip/" + path
+    else:
+        path = vsi_path(str(path_or_buffer))
+
+    return path, buffer
+
 
 def vsi_path(path: str) -> str:
     """
     Ensure path is a local path or a GDAL-compatible vsi path.
 
     """
+
+    # path is already in GDAL format
+    if path.startswith("/vsi"):
+        return path
+
     # Windows drive letters (e.g. "C:\") confuse `urlparse` as they look like
     # URL schemes
     if sys.platform == "win32" and re.match("^[a-zA-Z]\\:", path):
-        return path
-
-    elif path.startswith("/vsi"):
-        return path
-
-    elif re.match("^[a-z0-9\\+]*://", path):
-
-        path, archive, scheme = _parse_uri(path)
-        if not scheme:
+        if not path.split("!")[0].endswith(".zip"):
             return path
 
+        # prefix then allow to proceed with remaining parsing
+        path = f"zip://{path}"
+
+    path, archive, scheme = _parse_uri(path)
+
+    if scheme or archive or path.endswith(".zip"):
         return _construct_vsi_path(path, archive, scheme)
 
-    else:
-        return path
+    return path
 
 
 # Supported URI schemes and their mapping to GDAL's VSI suffix.
@@ -52,7 +80,7 @@ CURLSCHEMES = set([k for k, v in SCHEMES.items() if v == "curl"])
 
 
 def _parse_uri(path: str):
-    """"
+    """
     Parse a URI
 
     Returns a tuples of (path, archive, scheme)
@@ -69,11 +97,11 @@ def _parse_uri(path: str):
 
     # if the scheme is not one of GDAL's supported schemes, return raw path
     if parts.scheme and not all(p in SCHEMES for p in parts.scheme.split("+")):
-        return path, None, None
+        return path, "", ""
 
     # we have a URI
     path = parts.path
-    scheme = parts.scheme or None
+    scheme = parts.scheme or ""
 
     if parts.query:
         path += "?" + parts.query
@@ -82,29 +110,33 @@ def _parse_uri(path: str):
         path = parts.netloc + path
 
     parts = path.split("!")
-    path = parts.pop() if parts else None
-    archive = parts.pop() if parts else None
+    path = parts.pop() if parts else ""
+    archive = parts.pop() if parts else ""
     return (path, archive, scheme)
 
 
 def _construct_vsi_path(path, archive, scheme) -> str:
     """Convert a parsed path to a GDAL VSI path"""
 
-    if scheme.split("+")[-1] in CURLSCHEMES:
-        suffix = "{}://".format(scheme.split("+")[-1])
-    else:
-        suffix = ""
+    prefix = ""
+    suffix = ""
+    schemes = scheme.split("+")
 
-    prefix = "/".join(
-        "vsi{0}".format(SCHEMES[p]) for p in scheme.split("+") if p != "file"
-    )
+    if "zip" not in schemes and (archive.endswith(".zip") or path.endswith(".zip")):
+        schemes.insert(0, "zip")
+
+    if schemes:
+        prefix = "/".join(
+            "vsi{0}".format(SCHEMES[p]) for p in schemes if p and p != "file"
+        )
+
+        if schemes[-1] in CURLSCHEMES:
+            suffix = f"{schemes[-1]}://"
 
     if prefix:
         if archive:
-            result = "/{}/{}{}/{}".format(prefix, suffix, archive, path.lstrip("/"))
+            return "/{}/{}{}/{}".format(prefix, suffix, archive, path.lstrip("/"))
         else:
-            result = "/{}/{}{}".format(prefix, suffix, path)
-    else:
-        result = path
+            return "/{}/{}{}".format(prefix, suffix, path)
 
-    return result
+    return path

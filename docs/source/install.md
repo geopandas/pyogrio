@@ -2,8 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.10 and GDAL 2.4.x - 3.2.x
-(prior versions will not be supported)
+Supports Python 3.8 - 3.10 and GDAL 3.1.x - 3.5.x
 
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
 
@@ -24,24 +23,32 @@ I/O support.
 
 ### PyPI
 
-Ready-to-use (compiled) distributions are not yet available on PyPI because it
-depends on including compiled binary dependencies. We are planning to release
-compiled distributions on PyPI for Linux and MacOS relatively soon.
+This package is available on [PyPI](https://pypi.org/project/pyogrio/) for Linux,
+MacOS, and Windows.
 
-We are unlikely to release Windows packages on PyPI in the near future due to
-the complexity of packaging binary packages for Windows. If you are interested
-in helping us develop a packaging pipeline for Windows, please reach out!
+```bash
+pip install pyogrio
+```
 
-### Common installation errors
+This installs binary wheels that include GDAL.
+
+If you get installation errors about Cython or GDAL not being available, this is
+most likely due to the installation process falling back to installing from the
+source distribution because the available wheels are not compatible with your
+platform.
+
+Note: binary wheels are currently limited to x86_64 architectures.
+
+### Troubleshooting installation errors
 
 If you install GeoPandas or Fiona using `pip`, you may encounter issues related
 to incompatibility of the exact GDAL library pre-installed with Fiona and the
-version of GDAL that gets compiled with Pyogrio (right now you do this manually).
+version of GDAL that gets compiled with Pyogrio.
 
-This may show up as an exception like
-this:
+This may show up as an exception like this for a supported driver (e.g.,
+`ESRI Shapefile`):
 
-```
+```Python
 pyogrio.errors.DataSourceError: Could not obtain driver ...
 ```
 
@@ -61,10 +68,14 @@ Clone this repository to a local folder.
 
 Install an appropriate distribution of GDAL for your system. Either
 `gdal-config` must be on your system path (to automatically determine the
-GDAL paths), or either the `GDAL_INCLUDE_PATH` and `GDAL_LIBRARY_PATH`
-environment variables need to be set.
+GDAL paths), or either the `GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and
+`GDAL_VERSION` environment variables need to be set.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
+
+Pyogrio follows the
+[GeoPandas Style Guide](https://geopandas.org/en/stable/community/contributing.html#style-guide-linting) and uses `Black` and `Flake8` to ensure consistent
+formatting.
 
 Run `python setup.py develop` to build the extensions in Cython.
 
@@ -83,19 +94,20 @@ To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
 cannot be automatically determined.
 
-Assuming GDAL is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`
-and `GDAL_LIBRARY_PATH` environment variables and build as follows:
+Assuming GDAL 3.4.1 is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`,
+`GDAL_LIBRARY_PATH` and `GDAL_VERSION` environment variables and build as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=C:\GDAL\include
 set GDAL_LIBRARY_PATH=C:\GDAL\lib
+set GDAL_VERSION=3.4.1
 python -m pip install --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 Alternatively, you can pass those options also as command-line parameters:
 
 ```bash
-python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --no-deps --force-reinstall --no-use-pep517 -e . -v
+python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --install-option="--gdalversion=3.4.1" --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 The location of the GDAL DLLs must be on your system `PATH`.

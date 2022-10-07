@@ -1,5 +1,6 @@
 import os
 import sys
+from uuid import uuid4
 import warnings
 
 from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr
@@ -38,6 +39,23 @@ def get_gdal_version():
 def get_gdal_version_string():
     cdef const char* version = GDALVersionInfo("RELEASE_NAME")
     return get_string(version)
+
+
+IF CTE_GDAL_VERSION >= (3, 4, 0):
+
+    cdef extern from "ogr_api.h":
+        bint OGRGetGEOSVersion(int *pnMajor, int *pnMinor, int *pnPatch)
+
+
+def get_gdal_geos_version():
+    cdef int major, minor, revision
+
+    IF CTE_GDAL_VERSION >= (3, 4, 0):
+        if not OGRGetGEOSVersion(&major, &minor, &revision):
+            return None
+        return (major, minor, revision)
+    ELSE:
+        return None
 
 
 def set_gdal_config_options(dict options):
@@ -106,9 +124,6 @@ def ogr_list_drivers():
     cdef int i
     cdef char *name_c
 
-    # Register all drivers
-    GDALAllRegister()
-
     drivers = dict()
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
@@ -120,6 +135,30 @@ def ogr_list_drivers():
         drivers[name] = DRIVERS.get(name, '?')
 
     return drivers
+
+
+def buffer_to_virtual_file(bytesbuf, ext=''):
+    """Maps a bytes buffer to a virtual file.
+    `ext` is empty or begins with a period and contains at most one period.
+
+    This (and remove_virtual_file) is originally copied from the Fiona project
+    (https://github.com/Toblerity/Fiona/blob/c388e9adcf9d33e3bb04bf92b2ff210bbce452d9/fiona/ogrext.pyx#L1863-L1879)
+    """
+
+    vsi_filename = f"/vsimem/{uuid4().hex + ext}"
+
+    vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("UTF-8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
+
+    if vsi_handle == NULL:
+        raise OSError('failed to map buffer to file')
+    if VSIFCloseL(vsi_handle) != 0:
+        raise OSError('failed to close mapped file handle')
+
+    return vsi_filename
+
+
+def remove_virtual_file(vsi_filename):
+    return VSIUnlink(vsi_filename.encode("UTF-8"))
 
 
 cdef void set_proj_search_path(str path):
@@ -142,6 +181,16 @@ def has_gdal_data():
         return True
 
     return False
+
+
+def get_gdal_data_path():
+    """
+    Get the path to the directory GDAL uses to read data files. 
+    """
+    cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
+    if path_c != NULL:
+        return get_string(path_c).rstrip("header.dxf")
+    return None
 
 
 def has_proj_data():
@@ -230,3 +279,8 @@ def init_proj_data():
         return
 
     warnings.warn("Could not detect PROJ data files.  Set PROJ_LIB environment variable to the correct path.", RuntimeWarning)
+
+
+def _register_drivers():
+    # Register all drivers
+    GDALAllRegister()

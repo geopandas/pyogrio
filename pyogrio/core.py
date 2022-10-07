@@ -1,24 +1,30 @@
 from pyogrio._env import GDALEnv
-from pyogrio.util import vsi_path
+from pyogrio.util import get_vsi_path
 
 
 with GDALEnv():
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
+        get_gdal_geos_version,
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
         get_gdal_config_option as _get_gdal_config_option,
+        get_gdal_data_path as _get_gdal_data_path,
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
+        remove_virtual_file,
+        _register_drivers,
     )
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
     _init_gdal_data()
     _init_proj_data()
+    _register_drivers()
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()
+    __gdal_geos_version__ = get_gdal_geos_version()
 
 
 def list_drivers(read=False, write=False):
@@ -49,7 +55,7 @@ def list_drivers(read=False, write=False):
     return drivers
 
 
-def list_layers(path):
+def list_layers(path_or_buffer, /):
     """List layers available in an OGR data source.
 
     NOTE: includes both spatial and nonspatial layers.
@@ -64,12 +70,24 @@ def list_layers(path):
         array of pairs of [<layer name>, <layer geometry type>]
         Note: geometry is `None` for nonspatial layers.
     """
+    path, buffer = get_vsi_path(path_or_buffer)
 
-    return ogr_list_layers(str(path))
+    try:
+        result = ogr_list_layers(path)
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
+    return result
 
 
 def read_bounds(
-    path, layer=None, skip_features=0, max_features=None, where=None, bbox=None
+    path_or_buffer,
+    /,
+    layer=None,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
 ):
     """Read bounds of each feature.
 
@@ -98,27 +116,36 @@ def read_bounds(
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
-        box.  This must be in the same CRS as the dataset.
+        box.  This must be in the same CRS as the dataset.  If GEOS is present
+        and used by GDAL, only geometries that intersect this bbox will be
+        returned; if GEOS is not available or not used by GDAL, all geometries
+        with bounding boxes that intersect this bbox will be returned.
 
     Returns
     -------
     tuple of (fids, bounds)
         fids are global IDs read from the FID field of the dataset
-        bounds are ndarray of shape(4, n) containig ``xmin``, ``ymin``, ``xmax``, ``ymax``
+        bounds are ndarray of shape(4, n) containing ``xmin``, ``ymin``, ``xmax``,
+        ``ymax``
     """
-    path = vsi_path(str(path))
+    path, buffer = get_vsi_path(path_or_buffer)
 
-    return ogr_read_bounds(
-        path,
-        layer=layer,
-        skip_features=skip_features,
-        max_features=max_features or 0,
-        where=where,
-        bbox=bbox,
-    )
+    try:
+        result = ogr_read_bounds(
+            path,
+            layer=layer,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+        )
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
+    return result
 
 
-def read_info(path, layer=None, encoding=None):
+def read_info(path_or_buffer, /, layer=None, encoding=None):
     """Read information about an OGR data source.
 
     ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
@@ -148,8 +175,14 @@ def read_info(path, layer=None, encoding=None):
                 "features": <feature count>
             }
     """
-    path = vsi_path(str(path))
-    return ogr_read_info(path, layer=layer, encoding=encoding)
+    path, buffer = get_vsi_path(path_or_buffer)
+
+    try:
+        result = ogr_read_info(path, layer=layer, encoding=encoding)
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
+    return result
 
 
 def set_gdal_config_options(options):
@@ -189,3 +222,13 @@ def get_gdal_config_option(name):
     """
 
     return _get_gdal_config_option(name)
+
+
+def get_gdal_data_path():
+    """Get the path to the directory GDAL uses to read data files.
+
+    Returns
+    -------
+    str, or None if data directory was not found
+    """
+    return _get_gdal_data_path()

@@ -2,14 +2,20 @@
 
 ## Support for null values
 
-Some data sources support NULL or otherwise unset field values. These cannot be properly
-stored into the ndarray for certain types. If NULL or unset values are encountered,
-the following occurs:
+Some data sources support NULL or otherwise unset field values. These cannot be
+properly stored into the ndarray for certain types. If NULL or unset values are
+encountered, the following occurs:
 
 -   If the field is a string type, NULL values are represented as None
--   If the field is an integer type (np.int32, np.int64), the field data are
-    re-cast to np.float64 values, and NULL values are represented as np.nan
+-   If the field is a boolean or an integer type (np.int32, np.int64), the field
+    data are re-cast to np.float64 values, and NULL values are represented as
+    np.nan
 -   If the field is a date or datetime type, the field is set as np.datetime64('NaT')
+
+Note: detection of NULL or otherwise unset field values is limited to the subset
+of records that are read from the data layer, which means that reading different
+subsets of records may yield different data types for the same columns. You
+can use `read_info()` to determine the original data types of each column.
 
 ## No support for measured geometries
 
@@ -46,5 +52,16 @@ Pyogrio does not currently validate attribute values or geometry types before
 attempting to write to the output file. Invalid types may crash during writing
 with obscure error messages.
 
-Date fields are not yet fully supported. These will be supported in a future
-release.
+## Support for reading and writing DateTimes
+
+GDAL only supports datetimes at a millisecond resolution. Reading data will thus
+give at most millisecond resolution (`datetime64[ms]` data type), even though
+the data is cast `datetime64[ns]` data type when reading into a data frame
+using `pyogrio.read_dataframe()`. When writing, only precision up to ms is retained.
+
+Not all file formats have dedicated support to store datetime data, like ESRI 
+Shapefile. For such formats, or if you require precision > ms, a workaround is to
+convert the datetimes to string.
+
+Timezone information is ignored at the moment, both when reading and when writing
+datetime columns.
