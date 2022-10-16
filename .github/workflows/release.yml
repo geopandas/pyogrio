@@ -124,23 +124,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: "macos-11"
-          #   triplet: "x64-osx-dynamic"
-          #   vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
-          #   vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+          - os: "macos-11"
+            triplet: "x64-osx-dynamic"
+            arch: x86_64
+            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "macos-11"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
-            cmake_osx_architectures: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          # - os: "windows-2019"
-          #   triplet: "x64-windows"
-          #   # windows requires windows-specific paths
-          #   vcpkg_cache: "c:\\vcpkg\\installed"
-          #   vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+          - os: "windows-2019"
+            triplet: "x64-windows"
+            arch: AMD64
+            # windows requires windows-specific paths
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     env:
       MACOSX_DEPLOYMENT_TARGET: "11"
@@ -171,7 +172,6 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_osx_architectures }}
         shell: bash
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
@@ -187,7 +187,6 @@ jobs:
         uses: pypa/cibuildwheel@v2.3.1
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          CMAKE_OSX_ARCHITECTURES: ${{ matrix.cmake_osx_architectures }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v2
