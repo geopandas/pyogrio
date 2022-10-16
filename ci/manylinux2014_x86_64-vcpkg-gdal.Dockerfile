@@ -31,3 +31,6 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
 # setting git safe directory is required for properly building wheels when
 # git >= 2.35.3
 RUN git config --global --add safe.directory "*"
+
+# reset to original python version
+RUN ln -s /usr/bin/python3.6 /usr/bin/python3
