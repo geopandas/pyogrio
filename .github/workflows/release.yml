@@ -124,7 +124,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-10.15"
+          - os: "macos-11"
             triplet: "x64-osx-dynamic"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -201,7 +201,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["macos-latest"]
+        os: ["macos-10.15", "macos-latest"]
         # os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-11"]
         python-version: ["3.8", "3.9"]
         # include:
