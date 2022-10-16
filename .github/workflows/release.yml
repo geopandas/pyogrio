@@ -129,7 +129,7 @@ jobs:
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2019"
-            triplet: "x64-windows-release"
+            triplet: "x64-windows"
             # windows requires windows-specific paths
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
@@ -150,7 +150,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.5.2-cache0
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.5.2-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
