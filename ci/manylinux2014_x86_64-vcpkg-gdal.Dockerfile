@@ -33,4 +33,4 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
 RUN git config --global --add safe.directory "*"
 
 # reset to original python version
-RUN ln -s /usr/bin/python3.6 /usr/bin/python3
+RUN rm /usr/bin/python3 && ln -s /usr/bin/python3.6 /usr/bin/python3
