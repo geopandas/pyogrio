@@ -190,12 +190,6 @@ jobs:
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-11"]
         python-version: ["3.8", "3.9", "3.10", "3.11-dev"]
-        include:
-          # TODO macOS is failing on py 3.10 because of shapely failure
-          - os: "ubuntu-20.04"
-            python-version: "3.10"
-          - os: "windows-latest"
-            python-version: "3.10"
 
     steps:
       - name: Checkout
