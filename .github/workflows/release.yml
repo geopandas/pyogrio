@@ -150,7 +150,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.4.2-cache4
+          key: ${{ matrix.os }}-x86_64-vcpkg-gdal3.5.2-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -221,7 +221,6 @@ jobs:
           python -m pip install --pre --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
-      # NOTE: GEOS is not available on macOS / Linux runners
       - name: Run tests
         shell: bash
         run: |
