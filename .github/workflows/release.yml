@@ -81,7 +81,6 @@ jobs:
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: "ubuntu-20.04"
-    if: ${{ false }}
 
     steps:
       - name: Checkout
@@ -143,9 +142,6 @@ jobs:
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
-    # env:
-    #   MACOSX_DEPLOYMENT_TARGET: "11"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -186,6 +182,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.3.1
         env:
+          # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
@@ -195,21 +192,19 @@ jobs:
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-    # needs: [build-wheels-linux, build-wheels-mac-win]
-    needs: [build-wheels-mac-win]
+    needs: [build-wheels-linux, build-wheels-mac-win]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ["macos-10.15", "macos-latest"]
-        # os: ["ubuntu-20.04", "windows-latest", "macos-latest", "macos-11"]
+        os: ["ubuntu-20.04", "windows-latest", "macos-10.15", "macos-latest"]
         python-version: ["3.8", "3.9"]
-        # include:
-        #   # TODO macOS is failing on py 3.10 because of shapely failure
-        #   - os: "ubuntu-20.04"
-        #     python-version: "3.10"
-        #   - os: "windows-latest"
-        #     python-version: "3.10"
+        include:
+          # TODO macOS is failing on py 3.10 because of shapely failure
+          - os: "ubuntu-20.04"
+            python-version: "3.10"
+          - os: "windows-latest"
+            python-version: "3.10"
 
     steps:
       - name: Checkout
