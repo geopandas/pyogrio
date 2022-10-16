@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2014_x86_64:2022-04-18-1d09d31
+FROM quay.io/pypa/manylinux2014_x86_64:2022-10-15-9332546
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN yum install -y curl unzip zip tar perl-IPC-Cmd
@@ -31,6 +31,3 @@ RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
 # setting git safe directory is required for properly building wheels when
 # git >= 2.35.3
 RUN git config --global --add safe.directory "*"
-
-# reset to original python version
-RUN rm /usr/bin/python3 && ln -s /usr/bin/python3.6 /usr/bin/python3
