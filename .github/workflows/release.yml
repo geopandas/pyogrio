@@ -124,7 +124,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-11"
+          - os: "macos-10.15"
             triplet: "x64-osx-dynamic"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -143,8 +143,8 @@ jobs:
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "11"
+    # env:
+    #   MACOSX_DEPLOYMENT_TARGET: "11"
 
     steps:
       - name: Checkout
