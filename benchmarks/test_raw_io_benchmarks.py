@@ -95,14 +95,14 @@ def test_read_only_meta_modres1(naturalearth_modres1, benchmark):
 
 @pytest.mark.benchmark(group="write-lowres")
 def test_write_lowres_shp(tmpdir, naturalearth_lowres, benchmark):
-    meta, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), "test.shp")
     benchmark(write, filename, geometry, field_data, driver="ESRI Shapefile", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
 def test_write_lowres_gpkg(tmpdir, naturalearth_lowres, benchmark):
-    meta, geometry, field_data = read(naturalearth_lowres)
+    meta, _, geometry, field_data = read(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), "test.gpkg")
     benchmark(write, filename, geometry, field_data, driver="GPKG", **meta)
 
