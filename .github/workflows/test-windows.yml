@@ -52,7 +52,7 @@ jobs:
           key: ${{ runner.os }}-gdal-${{ matrix.GDAL_VERSION }}
 
       - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.0.2
+        uses: microsoft/setup-msbuild@v1.1.3
 
       - name: Download GDAL
         run: |
