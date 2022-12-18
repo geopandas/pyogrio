@@ -7,3 +7,5 @@ dependencies:
   - pytest
   - pygeos
   - geopandas-base
+  - pyarrow
+
