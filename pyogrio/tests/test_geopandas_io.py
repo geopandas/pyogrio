@@ -770,7 +770,7 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
     filename = tmp_path / "test.fgb"
 
-    gdf = gp.GeoDataFrame(geometry=[from_wkt(wkt)], crs="EPSG:4326")
+    gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
