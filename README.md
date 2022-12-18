@@ -34,7 +34,7 @@ substantial change. Please see [CHANGES](CHANGES.md).
 
 Supports Python 3.8 - 3.10 and GDAL 3.1.x - 3.5.x.
 
-Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
+Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` or `shapely>=2`.
 
 ## Installation
 
