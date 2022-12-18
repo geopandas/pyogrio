@@ -30,6 +30,11 @@ jobs:
           - os: "ubuntu-latest"
             python: "3.10"
             env: "environment-minimal.yml"
+          # environment for older Windows libgdal to make sure gdal_i.lib is
+          # properly detected
+          - os: "windows-2019"
+            python: "3.10"
+            env: "environment-libgdal3.5.1.yml"
 
     steps:
       - name: Checkout repo

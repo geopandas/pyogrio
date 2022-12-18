@@ -17,10 +17,10 @@ build-verbosity = 3
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-linux-dynamic"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.4.1"
+GDAL_VERSION = "3.5.2"
 PYOGRIO_PACKAGE_DATA = 1
-GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
-PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
+GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj"
 
 [tool.cibuildwheel.macos]
 repair-wheel-command = [
@@ -29,13 +29,13 @@ repair-wheel-command = [
 ]
 
 [tool.cibuildwheel.macos.environment]
-VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-osx-dynamic"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.4.1"
+GDAL_VERSION = "3.5.2"
 PYOGRIO_PACKAGE_DATA = 1
-GDAL_DATA = "$VCPKG_INSTALL/share/gdal/gdal"
-PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
+GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj"
 
 [tool.cibuildwheel.windows]
 before-build = "pip install delvewheel"
@@ -45,7 +45,7 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.4.1"
+GDAL_VERSION = "3.5.2"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
-PROJ_LIB = "$VCPKG_INSTALL/share/proj/data"
+PROJ_LIB = "$VCPKG_INSTALL/share/proj"

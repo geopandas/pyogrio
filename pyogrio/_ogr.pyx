@@ -183,6 +183,16 @@ def has_gdal_data():
     return False
 
 
+def get_gdal_data_path():
+    """
+    Get the path to the directory GDAL uses to read data files. 
+    """
+    cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
+    if path_c != NULL:
+        return get_string(path_c).rstrip("header.dxf")
+    return None
+
+
 def has_proj_data():
     """Verify that PROJ library data files are correctly found.
 
