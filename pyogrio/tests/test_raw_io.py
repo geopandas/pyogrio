@@ -341,10 +341,10 @@ def assert_equal_result(result1, result2):
     # the WKB values are not exactly equal, therefore parsing with pygeos to compare
     # with tolerance
     try:
-        from pygeos import from_wkb, equals_exact
+        from shapely import from_wkb, equals_exact
     except ImportError:
         try:
-            from shapely import from_wkb, equals_exact
+            from pygeos import from_wkb, equals_exact
         except ImportError:
             pytest.skip("Test requires pygeos or shapely>=2")
     assert equals_exact(
