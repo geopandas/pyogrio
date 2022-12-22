@@ -232,7 +232,7 @@ setup(
         "dev": ["Cython"],
         "test": ["pytest", "pytest-cov"],
         "benchmark": ["pytest-benchmark"],
-        "geopandas": ["pygeos", "geopandas"],
+        "geopandas": ["geopandas"],
     },
     include_package_data=True,
     cmdclass=cmdclass,

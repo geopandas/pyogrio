@@ -19,7 +19,6 @@ from pyogrio import __version__
 
 autodoc_mock_imports = [
     "geopandas",
-    "pygeos",
 ]
 
 # -- Project information -----------------------------------------------------
