@@ -221,7 +221,8 @@ def write_dataframe(
         attempting to write mixed singular and multi geometry types to drivers that do
         not support such combinations.
     **kwargs
-        The kwargs passed to OGR.
+        Additional driver-specific dataset or layer creation options passed
+        to OGR.
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:

@@ -6,7 +6,7 @@ from pyogrio.util import get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_write
-    from pyogrio._ogr import remove_virtual_file
+    from pyogrio._ogr import remove_virtual_file, _get_driver_metadata_item
 
 
 DRIVERS = {
@@ -160,6 +160,21 @@ def detect_driver(path):
     return driver
 
 
+def _parse_options_names(xml):
+    """Convert metadata xml to list of names"""
+    # Based on Fiona's meta.py
+    # (https://github.com/Toblerity/Fiona/blob/91c13ad8424641557a4e5f038f255f9b657b1bc5/fiona/meta.py)
+    import xml.etree.ElementTree as ET
+
+    options = []
+    if xml:
+        root = ET.fromstring(xml)
+        for option in root.iter("Option"):
+            options.append(option.attrib["name"])
+
+    return options
+
+
 def write(
     path,
     geometry,
@@ -193,6 +208,29 @@ def write(
             "systems."
         )
 
+    # preprocess kwargs and split in dataset and layer creation options
+    dataset_kwargs = {}
+    layer_kwargs = {}
+    if kwargs:
+        dataset_options = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        # layer_options = _parse_options_names(
+        #     _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        # )
+        for k, v in kwargs.items():
+            if v is None:
+                continue
+            k = k.upper()
+            if isinstance(v, bool):
+                v = "ON" if v else "OFF"
+            else:
+                v = str(v)
+            if k in dataset_options:
+                dataset_kwargs[k] = v
+            else:
+                layer_kwargs[k] = v
+
     ogr_write(
         str(path),
         layer=layer,
@@ -204,5 +242,6 @@ def write(
         crs=crs,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
-        **kwargs,
+        dataset_kwargs=dataset_kwargs,
+        layer_kwargs=layer_kwargs,
     )
