@@ -169,6 +169,8 @@ jobs:
         shell: bash
         run: |
           cd $VCPKG_INSTALLATION_ROOT
+          git status
+          git reset --hard
           git pull
           git checkout fa8c401dfa632944959f5006dcb5f18a301b9408
 
