@@ -169,8 +169,9 @@ jobs:
         shell: bash
         run: |
           cd $VCPKG_INSTALLATION_ROOT
-          git status
+          # on mac the clone is not clean, otherwise git pull fails
           git reset --hard
+          # pull latest version to ensure the required commit with GDAL 3.6 is available
           git pull
           git checkout fa8c401dfa632944959f5006dcb5f18a301b9408
 
