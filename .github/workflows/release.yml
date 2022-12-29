@@ -165,6 +165,13 @@ jobs:
           brew reinstall automake
           echo $(which aclocal)
 
+      - name: Checkout specific version of vcpkg
+        shell: bash
+        run: |
+          cd $VCPKG_INSTALLATION_ROOT
+          git pull
+          git checkout fa8c401dfa632944959f5006dcb5f18a301b9408
+
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
