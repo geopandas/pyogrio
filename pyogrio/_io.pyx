@@ -1265,6 +1265,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
         except Exception as exc:
             OGRReleaseDataSource(ogr_dataset)
+            ogr_dataset = NULL
+            if dataset_options != NULL:
+                CSLDestroy(<char**>dataset_options)
+                dataset_options = NULL
             raise exc
 
 
@@ -1306,6 +1310,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         if ogr_crs != NULL:
             OSRRelease(ogr_crs)
             ogr_crs = NULL
+
+        if dataset_options != NULL:
+            CSLDestroy(<char**>dataset_options)
+            dataset_options = NULL
 
         if layer_options != NULL:
             CSLDestroy(<char**>layer_options)
