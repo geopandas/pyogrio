@@ -1202,9 +1202,6 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef int num_records = len(geometry)
     cdef int num_fields = len(field_data) if field_data else 0
 
-    print(dataset_kwargs)
-    print(layer_kwargs)
-
     if len(field_data) != len(fields):
         raise ValueError("field_data and fields must be same length")
 

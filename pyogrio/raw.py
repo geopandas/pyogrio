@@ -170,9 +170,32 @@ def _parse_options_names(xml):
     if xml:
         root = ET.fromstring(xml)
         for option in root.iter("Option"):
+            if option.attrib.get("scope", "vector") == "raster":
+                continue
             options.append(option.attrib["name"])
 
     return options
+
+
+def _preprocess_options_key_value(options):
+    """
+    Preprocess options, eg `spatial_index=True` gets converted
+    to `SPATIAL_INDEX="YES"`.
+    """
+    if not isinstance(options, dict):
+        raise TypeError(f"Expected a dict as options, got {type(options)}")
+
+    result = {}
+    for k, v in options.items():
+        if v is None:
+            continue
+        k = k.upper()
+        if isinstance(v, bool):
+            v = "ON" if v else "OFF"
+        else:
+            v = str(v)
+        result[k] = v
+    return result
 
 
 def write(
@@ -187,6 +210,8 @@ def write(
     crs=None,
     encoding=None,
     promote_to_multi=None,
+    dataset_options=None,
+    layer_options=None,
     **kwargs,
 ):
     if geometry_type is None:
@@ -209,27 +234,23 @@ def write(
         )
 
     # preprocess kwargs and split in dataset and layer creation options
-    dataset_kwargs = {}
-    layer_kwargs = {}
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
     if kwargs:
-        dataset_options = _parse_options_names(
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
             _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
         )
-        # layer_options = _parse_options_names(
-        #     _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
-        # )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
         for k, v in kwargs.items():
-            if v is None:
-                continue
-            k = k.upper()
-            if isinstance(v, bool):
-                v = "ON" if v else "OFF"
-            else:
-                v = str(v)
-            if k in dataset_options:
+            if k in dataset_option_names:
                 dataset_kwargs[k] = v
-            else:
+            elif k in layer_option_names:
                 layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
     ogr_write(
         str(path),

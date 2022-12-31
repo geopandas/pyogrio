@@ -471,20 +471,63 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         _ = read_dataframe(filename)
 
 
-def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
-    original_df = read_dataframe(naturalearth_lowres)
+def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
 
     test_noindex_filename = tmp_path / "test_gdalparams_noindex.shp"
-    write_dataframe(original_df, test_noindex_filename, SPATIAL_INDEX="NO")
+    write_dataframe(df, test_noindex_filename, SPATIAL_INDEX="NO")
     assert test_noindex_filename.exists() is True
     test_noindex_index_filename = tmp_path / "test_gdalparams_noindex.qix"
     assert test_noindex_index_filename.exists() is False
 
     test_withindex_filename = tmp_path / "test_gdalparams_withindex.shp"
-    write_dataframe(original_df, test_withindex_filename, SPATIAL_INDEX="YES")
+    write_dataframe(df, test_withindex_filename, SPATIAL_INDEX="YES")
     assert test_withindex_filename.exists() is True
     test_withindex_index_filename = tmp_path / "test_gdalparams_withindex.qix"
     assert test_withindex_index_filename.exists() is True
+
+    # using explicit layer_options instead
+    test_noindex_filename = tmp_path / "test_gdalparams_noindex2.shp"
+    write_dataframe(df, test_noindex_filename, layer_options=dict(spatial_index=False))
+    assert test_noindex_filename.exists() is True
+    test_noindex_index_filename = tmp_path / "test_gdalparams_noindex2.qix"
+    assert test_noindex_index_filename.exists() is False
+
+    test_withindex_filename = tmp_path / "test_gdalparams_withindex2.shp"
+    write_dataframe(df, test_withindex_filename, layer_options=dict(spatial_index=True))
+    assert test_withindex_filename.exists() is True
+    test_withindex_index_filename = tmp_path / "test_gdalparams_withindex2.qix"
+    assert test_withindex_index_filename.exists() is True
+
+
+def _get_gpkg_table_names(path):
+    import sqlite3
+
+    con = sqlite3.connect(path)
+    cursor = con.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    result = cursor.fetchall()
+    return [res[0] for res in result]
+
+
+def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    test_default_filename = tmp_path / "test_default.gpkg"
+    write_dataframe(df, test_default_filename)
+    assert "gpkg_ogr_contents" in _get_gpkg_table_names(test_default_filename)
+
+    test_no_contents_filename = tmp_path / "test_no_contents.gpkg"
+    write_dataframe(df, test_default_filename, ADD_GPKG_OGR_CONTENTS="NO")
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename)
+
+    test_no_contents_filename2 = tmp_path / "test_no_contents2.gpkg"
+    write_dataframe(
+        df,
+        test_no_contents_filename2,
+        dataset_options=dict(add_gpkg_ogr_contents=False),
+    )
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename2)
 
 
 @pytest.mark.parametrize(
