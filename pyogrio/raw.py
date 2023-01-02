@@ -42,9 +42,8 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
-    use_arrow=False,
 ):
-    """Read OGR data source.
+    """Read OGR data source into numpy arrays.
 
     IMPORTANT: non-linear geometry types (e.g., MultiSurface) are converted
     to their linear approximations.
@@ -118,17 +117,60 @@ def read(
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
-        if use_arrow:
-            try:
-                import pyarrow  # noqa
-            except ImportError:
-                raise RuntimeError(
-                    "the 'pyarrow' package is required to read using arrow"
-                )
-            func = ogr_read_arrow
-        else:
-            func = ogr_read
-        result = func(
+        result = ogr_read(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
+            return_fids=return_fids,
+        )
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
+
+    return result
+
+
+def read_arrow(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    force_2d=False,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
+    fids=None,
+    sql=None,
+    sql_dialect=None,
+    return_fids=False,
+):
+    """
+    Read OGR data source into a pyarrow Table.
+
+    See docstring of `read` for details.
+    """
+    try:
+        import pyarrow  # noqa
+    except ImportError:
+        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
+
+    path, buffer = get_vsi_path(path_or_buffer)
+
+    try:
+        result = ogr_read_arrow(
             path,
             layer=layer,
             encoding=encoding,
