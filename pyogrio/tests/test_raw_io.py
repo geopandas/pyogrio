@@ -340,9 +340,15 @@ def assert_equal_result(result1, result2):
     # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
     # the WKB values are not exactly equal, therefore parsing with pygeos to compare
     # with tolerance
-    pygeos = pytest.importorskip("pygeos")
-    assert pygeos.equals_exact(
-        pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
+    try:
+        from shapely import from_wkb, equals_exact
+    except ImportError:
+        try:
+            from pygeos import from_wkb, equals_exact
+        except ImportError:
+            pytest.skip("Test requires pygeos or shapely>=2")
+    assert equals_exact(
+        from_wkb(geometry1), from_wkb(geometry2), tolerance=0.00001
     ).all()
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 

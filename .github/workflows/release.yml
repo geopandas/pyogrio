@@ -155,7 +155,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.5.2-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.1-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -164,6 +164,16 @@ jobs:
         run: |
           brew reinstall automake
           echo $(which aclocal)
+
+      - name: Checkout specific version of vcpkg
+        shell: bash
+        run: |
+          cd $VCPKG_INSTALLATION_ROOT
+          # on mac the clone is not clean, otherwise git pull fails
+          git reset --hard
+          # pull latest version to ensure the required commit with GDAL 3.6 is available
+          git pull
+          git checkout fa8c401dfa632944959f5006dcb5f18a301b9408
 
       - name: Install GDAL
         env:
@@ -198,7 +208,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-10.15", "macos-latest"]
-        python-version: ["3.8", "3.9", "3.10", "3.11-dev"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
       - name: Checkout

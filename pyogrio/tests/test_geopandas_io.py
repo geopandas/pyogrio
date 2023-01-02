@@ -766,10 +766,11 @@ def test_write_read_null(tmp_path):
     ],
 )
 def test_write_geometry_z_types(tmp_path, wkt, geom_types):
-    pygeos = pytest.importorskip("pygeos")
+    from geopandas.array import from_wkt
+
     filename = tmp_path / "test.fgb"
 
-    gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
+    gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
