@@ -5,7 +5,7 @@ from pyogrio._env import GDALEnv
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_write
+    from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
     from pyogrio._ogr import remove_virtual_file
 
 
@@ -42,6 +42,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    use_arrow=False,
 ):
     """Read OGR data source.
 
@@ -117,7 +118,17 @@ def read(
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
-        result = ogr_read(
+        if use_arrow:
+            try:
+                import pyarrow  # noqa
+            except ImportError:
+                raise RuntimeError(
+                    "the 'pyarrow' package is required to read using arrow"
+                )
+            func = ogr_read_arrow
+        else:
+            func = ogr_read
+        result = func(
             path,
             layer=layer,
             encoding=encoding,

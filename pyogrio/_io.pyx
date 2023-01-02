@@ -11,7 +11,7 @@ import math
 import os
 import warnings
 
-from libc.stdint cimport uint8_t
+from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
@@ -300,7 +300,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     return None
 
 
-cdef get_fields(OGRLayerH ogr_layer, str encoding):
+cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     """Get field names and types for layer.
 
     Parameters
@@ -308,6 +308,9 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     ogr_layer : pointer to open OGR layer
     encoding : str
         encoding to use when reading field name
+    use_arrow : bool, default False
+        If using arrow, all types are supported, and we don't have to
+        raise warnings
 
     Returns
     -------
@@ -351,7 +354,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
 
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
-        if not np_type:
+        if not np_type and not use_arrow:
             skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
@@ -953,6 +956,147 @@ def ogr_read(
         fid_data,
         geometries,
         field_data
+    )
+
+
+def ogr_read_arrow(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    object where=None,
+    tuple bbox=None,
+    object fids=None,
+    str sql=None,
+    str sql_dialect=None,
+    int return_fids=False,
+    **kwargs):
+
+    cdef int err = 0
+    cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef char **fields_c = NULL
+    cdef const char *field_c = NULL
+    cdef char **options = NULL
+    cdef ArrowArrayStream stream
+    cdef ArrowSchema schema
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    if force_2d:
+        raise ValueError("forcing 2D is not supported for Arrow")
+
+    if fids is not None:
+        raise ValueError("reading by FID is not supported for Arrow")
+
+    if skip_features or max_features:
+        raise ValueError(
+            "specifying 'skip_features' or 'max_features' is not supported for Arrow"
+        )
+
+    if sql is not None and layer is not None:
+        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    try:
+        if sql is None:
+            # layer defaults to index 0
+            if layer is None:
+                layer = 0
+            ogr_layer = get_ogr_layer(ogr_dataset, layer)
+        else:
+            ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
+
+        crs = get_crs(ogr_layer)
+
+        # Encoding is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
+        encoding = (
+            encoding
+            or detect_encoding(ogr_dataset, ogr_layer)
+            or locale.getpreferredencoding()
+        )
+
+        fields = get_fields(ogr_layer, encoding, use_arrow=True)
+
+        ignored_fields = []
+        if columns is not None:
+            # Fields are matched exactly by name, duplicates are dropped.
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+        if not read_geometry:
+            ignored_fields.append("OGR_GEOMETRY")
+
+        geometry_type = get_geometry_type(ogr_layer)
+
+        geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
+
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
+
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_spatial_filter(ogr_layer, bbox)
+
+        # Limit to specified columns
+        if ignored_fields:
+            for field in ignored_fields:
+                field_b = field.encode("utf-8")
+                field_c = field_b
+                fields_c = CSLAddString(fields_c, field_c)
+
+            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
+
+        if not return_fids:
+            options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
+
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
+
+        IF CTE_GDAL_VERSION < (3, 6, 0):
+            raise RuntimeError("Need GDAL>=3.6 for Arrow support")
+        
+        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+
+        stream_ptr = <uintptr_t> &stream
+
+        # stream has to be consumed before the Dataset is closed
+        import pyarrow as pa
+        table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
+
+        meta = {
+            'crs': crs,
+            'encoding': encoding,
+            'fields': fields[:,2], # return only names
+            'geometry_type': geometry_type,
+            'geometry_name': geometry_name,
+        }
+
+    finally:
+        CSLDestroy(options)
+        if fields_c != NULL:
+            CSLDestroy(fields_c)
+            fields_c = NULL
+        if ogr_dataset != NULL:
+            if sql is not None:
+                GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
+
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
+
+    return (
+        meta,
+        table,
+        None, #geometries,
+        None, #field_data
     )
 
 
