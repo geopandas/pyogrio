@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.5.0
+
+### Major enhancements
+
+-   Support for reading based on Arrow as the transfer mechanism of the data
+    from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be installed).
+    This can be enabled by passing `use_arrow=True` to `pyogrio.read_dataframe`
+    (or by using `pyogrio.raw.read_arrow` directly), and provides a further
+    speed-up (#155, #191).
+
 ## O.4.2
 
 ### Improvements

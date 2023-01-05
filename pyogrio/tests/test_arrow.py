@@ -1,6 +1,7 @@
 import pytest
 
 from pyogrio import __gdal_version__, read_dataframe
+from pyogrio.raw import read_arrow
 
 try:
     import pandas as pd
@@ -11,7 +12,7 @@ except ImportError:
 
 
 pytest.importorskip("geopandas")
-pytest.importorskip("pyarrow")
+pyarrow = pytest.importorskip("pyarrow")
 
 pytestmark = pytest.mark.skipif(
     __gdal_version__ < (3, 6, 0), reason="Arrow tests require GDAL>=3.6"
@@ -67,3 +68,9 @@ def test_read_arrow_nested_types(test_ogr_types_list):
     result = read_dataframe(test_ogr_types_list, use_arrow=True)
     assert "list_int64" in result.columns
     assert result["list_int64"][0].tolist() == [0, 1]
+
+
+def test_read_arrow_raw(naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+    assert isinstance(meta, dict)
+    assert isinstance(table, pyarrow.Table)
