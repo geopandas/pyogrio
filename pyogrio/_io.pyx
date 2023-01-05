@@ -847,6 +847,8 @@ def ogr_read(
     cdef int err = 0
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
+    cdef const char *field_c = NULL
+    cdef char **fields_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
@@ -888,11 +890,27 @@ def ogr_read(
 
         fields = get_fields(ogr_layer, encoding)
 
+        ignored_fields = []
         if columns is not None:
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
+
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+
+        if not read_geometry:
+            ignored_fields.append("OGR_GEOMETRY")
+
+        # Instruct GDAL to ignore reading fields not
+        # included in output columns for faster I/O
+        if ignored_fields:
+            for field in ignored_fields:
+                field_b = field.encode("utf-8")
+                field_c = field_b
+                fields_c = CSLAddString(fields_c, field_c)
+
+            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -1062,7 +1080,7 @@ def ogr_read_arrow(
 
         IF CTE_GDAL_VERSION < (3, 6, 0):
             raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-        
+
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
@@ -1216,7 +1234,7 @@ def ogr_list_layers(str path):
 
 # NOTE: all modes are write-only
 # some data sources have multiple layers
-cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
+cdef void * ogr_create(const char* path_c, const char* driver_c, char** options) except NULL:
     cdef void *ogr_driver = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
@@ -1232,7 +1250,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
 
     # Create the dataset
     try:
-        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, NULL))
+        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
 
     except NullPointerError:
         raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}") from None
@@ -1314,14 +1332,16 @@ cdef infer_field_types(list dtypes):
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, bint promote_to_multi=False, **kwargs):
+    str crs, str geometry_type, str encoding, object dataset_kwargs,
+    object layer_kwargs, bint promote_to_multi=False):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
     cdef const char *crs_c = NULL
     cdef const char *encoding_c = NULL
-    cdef char **options = NULL
+    cdef char **dataset_options = NULL
+    cdef char **layer_options = NULL
     cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
@@ -1388,7 +1408,12 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
     # either it didn't exist or could not open it in write mode
     if ogr_dataset == NULL:
-        ogr_dataset = ogr_create(path_c, driver_c)
+        for k, v in dataset_kwargs.items():
+            k = k.encode('UTF-8')
+            v = v.encode('UTF-8')
+            dataset_options = CSLAddNameValue(dataset_options, <const char *>k, <const char *>v)
+
+        ogr_dataset = ogr_create(path_c, driver_c, dataset_options)
 
     ### Create the CRS
     if crs is not None:
@@ -1397,6 +1422,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
 
         except Exception as exc:
             OGRReleaseDataSource(ogr_dataset)
+            ogr_dataset = NULL
+            if dataset_options != NULL:
+                CSLDestroy(<char**>dataset_options)
+                dataset_options = NULL
             raise exc
 
 
@@ -1409,22 +1438,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
         # encoding as an option.
         encoding_b = encoding.upper().encode('UTF-8')
         encoding_c = encoding_b
-        options = CSLSetNameValue(options, "ENCODING", encoding_c)
+        layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
 
     # Setup other layer creation options
-    for k, v in kwargs.items():
-        if v is None:
-            continue
-
-        k = k.upper().encode('UTF-8')
-
-        if isinstance(v, bool):
-            v = ('ON' if v else 'OFF').encode('utf-8')
-        else:
-            v = str(v).encode('utf-8')
-
-        options = CSLAddNameValue(options, <const char *>k, <const char *>v)
-
+    for k, v in layer_kwargs.items():
+        k = k.encode('UTF-8')
+        v = v.encode('UTF-8')
+        layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
 
     ### Get geometry type
     # TODO: this is brittle for 3D / ZM / M types
@@ -1435,7 +1455,8 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     try:
         ogr_layer = exc_wrap_pointer(
                 GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
-                        <OGRwkbGeometryType>geometry_code, options))
+                                       <OGRwkbGeometryType>geometry_code,
+                                       layer_options))
 
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
@@ -1447,9 +1468,13 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             OSRRelease(ogr_crs)
             ogr_crs = NULL
 
-        if options != NULL:
-            CSLDestroy(<char**>options)
-            options = NULL
+        if dataset_options != NULL:
+            CSLDestroy(<char**>dataset_options)
+            dataset_options = NULL
+
+        if layer_options != NULL:
+            CSLDestroy(<char**>layer_options)
+            layer_options = NULL
 
     ### Create the fields
     field_types = infer_field_types([field.dtype for field in field_data])

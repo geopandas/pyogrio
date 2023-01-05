@@ -513,7 +513,9 @@ def test_read_write_null_geometry(tmp_path, ext):
     )
     field_data = [np.array([1, 2], dtype="int32")]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    if ext == "gpkg":
+        meta["spatial_index"] = False
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
