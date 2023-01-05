@@ -471,33 +471,31 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         _ = read_dataframe(filename)
 
 
-def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres):
+@pytest.mark.parametrize("spatial_index", [False, True])
+def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres, spatial_index):
     df = read_dataframe(naturalearth_lowres)
 
-    test_noindex_filename = tmp_path / "test_gdalparams_noindex.shp"
-    write_dataframe(df, test_noindex_filename, SPATIAL_INDEX="NO")
-    assert test_noindex_filename.exists() is True
-    test_noindex_index_filename = tmp_path / "test_gdalparams_noindex.qix"
-    assert test_noindex_index_filename.exists() is False
-
-    test_withindex_filename = tmp_path / "test_gdalparams_withindex.shp"
-    write_dataframe(df, test_withindex_filename, SPATIAL_INDEX="YES")
-    assert test_withindex_filename.exists() is True
-    test_withindex_index_filename = tmp_path / "test_gdalparams_withindex.qix"
-    assert test_withindex_index_filename.exists() is True
+    outfilename1 = tmp_path / "test1.shp"
+    write_dataframe(df, outfilename1, SPATIAL_INDEX="YES" if spatial_index else "NO")
+    assert outfilename1.exists() is True
+    index_filename1 = tmp_path / "test1.qix"
+    assert index_filename1.exists() is spatial_index
 
     # using explicit layer_options instead
-    test_noindex_filename = tmp_path / "test_gdalparams_noindex2.shp"
-    write_dataframe(df, test_noindex_filename, layer_options=dict(spatial_index=False))
-    assert test_noindex_filename.exists() is True
-    test_noindex_index_filename = tmp_path / "test_gdalparams_noindex2.qix"
-    assert test_noindex_index_filename.exists() is False
+    outfilename2 = tmp_path / "test2.shp"
+    write_dataframe(df, outfilename2, layer_options=dict(spatial_index=spatial_index))
+    assert outfilename2.exists() is True
+    index_filename2 = tmp_path / "test2.qix"
+    assert index_filename2.exists() is spatial_index
 
-    test_withindex_filename = tmp_path / "test_gdalparams_withindex2.shp"
-    write_dataframe(df, test_withindex_filename, layer_options=dict(spatial_index=True))
-    assert test_withindex_filename.exists() is True
-    test_withindex_index_filename = tmp_path / "test_gdalparams_withindex2.qix"
-    assert test_withindex_index_filename.exists() is True
+
+def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    # geojson has no spatial index, so passing keyword should raise
+    outfilename = tmp_path / "test.geojson"
+    with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
+        write_dataframe(df, outfilename, spatial_index=True)
 
 
 def _get_gpkg_table_names(path):

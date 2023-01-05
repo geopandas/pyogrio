@@ -181,9 +181,9 @@ def _parse_options_names(xml):
     if xml:
         root = ET.fromstring(xml)
         for option in root.iter("Option"):
-            if option.attrib.get("scope", "vector") == "raster":
-                continue
-            options.append(option.attrib["name"])
+            # some options explicitly have scope='raster'
+            if option.attrib.get("scope", "vector") != "raster":
+                options.append(option.attrib["name"])
 
     return options
 
@@ -194,7 +194,7 @@ def _preprocess_options_key_value(options):
     to `SPATIAL_INDEX="YES"`.
     """
     if not isinstance(options, dict):
-        raise TypeError(f"Expected a dict as options, got {type(options)}")
+        raise TypeError(f"Expected options to be a dict, got {type(options)}")
 
     result = {}
     for k, v in options.items():
