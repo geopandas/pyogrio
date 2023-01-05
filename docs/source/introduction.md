@@ -416,11 +416,11 @@ For instance, you can use creation options to create a spatial index for a
 >>> write_dataframe(df, "/tmp/test.shp", spatial_index=True)
 ```
 
-You can use upper case to match the GDAL options exactly (creation options are
-converted to uppercase by default):
+You can use upper case option names and values to match the GDAL options exactly
+(creation options are converted to uppercase by default):
 
 ```python
->>> write_dataframe(df, '/tmp/test.shp', SPATIAL_INDEX=True)
+>>> write_dataframe(df, '/tmp/test.shp', SPATIAL_INDEX="YES")
 ```
 
 You can also use a dictionary to specify either `dataset_options` or
