@@ -7,6 +7,9 @@ Supports Python 3.8 - 3.11 and GDAL 3.1.x - 3.6.x
 Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos`
 or `geopandas>=0.12` with `shapely>=2`.
 
+Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
+a further speed-up when specifying `use_arrow=True`.
+
 ## Installation
 
 ### Conda-forge

@@ -7,3 +7,5 @@ dependencies:
   - pytest
   - shapely>=2
   - geopandas-base
+  - pyarrow
+
