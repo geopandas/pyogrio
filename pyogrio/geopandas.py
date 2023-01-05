@@ -1,5 +1,5 @@
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI
-from pyogrio.raw import detect_driver, read, write
+from pyogrio.raw import detect_driver, read, read_arrow, write
 
 
 def _stringify_path(path):
@@ -115,6 +115,10 @@ def read_dataframe(
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
+    use_arrow : bool, default False
+        Whether to use Arrow as the transfer mechanism of the read data
+        from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
+        installed). When enabled, this provides a further speed-up.
 
     Returns
     -------
@@ -135,7 +139,8 @@ def read_dataframe(
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
-    meta, index, geometry, field_data = read(
+    read_func = read_arrow if use_arrow else read
+    result = read_func(
         path_or_buffer,
         layer=layer,
         encoding=encoding,
@@ -150,11 +155,10 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
-        use_arrow=use_arrow,
     )
 
     if use_arrow:
-        table = index
+        meta, table = result
         df = table.to_pandas()
         geometry_name = meta["geometry_name"] or "wkb_geometry"
         if geometry_name in df.columns:
@@ -162,6 +166,8 @@ def read_dataframe(
             return gp.GeoDataFrame(df, geometry="geometry")
         else:
             return df
+
+    meta, index, geometry, field_data = result
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}

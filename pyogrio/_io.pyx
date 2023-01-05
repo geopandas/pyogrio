@@ -1110,12 +1110,7 @@ def ogr_read_arrow(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-    return (
-        meta,
-        table,
-        None, #geometries,
-        None, #field_data
-    )
+    return meta, table
 
 
 def ogr_read_bounds(
