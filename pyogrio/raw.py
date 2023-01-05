@@ -183,6 +183,7 @@ def write(
     crs=None,
     encoding=None,
     promote_to_multi=None,
+    append=False,
     **kwargs,
 ):
     if geometry_type is None:
@@ -215,5 +216,6 @@ def write(
         crs=crs,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
+        append=append,
         **kwargs,
     )

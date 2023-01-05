@@ -471,6 +471,36 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         _ = read_dataframe(filename)
 
 
+def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / "test.gpkg"
+
+    write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
+
+    assert os.path.exists(output_path)
+    assert np.array_equal(list_layers(output_path), [["first", "MultiPolygon"]])
+
+    write_dataframe(input_gdf, output_path, layer="second", promote_to_multi=True)
+    assert np.array_equal(
+        list_layers(output_path),
+        [["first", "MultiPolygon"], ["second", "MultiPolygon"]],
+    )
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path)
+
+    assert os.path.exists(output_path)
+    assert len(read_dataframe(output_path)) == 177
+
+    write_dataframe(input_gdf, output_path, append=True)
+    assert len(read_dataframe(output_path)) == 354
+
+
 def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
     original_df = read_dataframe(naturalearth_lowres)
 

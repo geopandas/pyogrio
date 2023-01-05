@@ -189,6 +189,7 @@ def write_dataframe(
     encoding=None,
     geometry_type=None,
     promote_to_multi=None,
+    append=False,
     **kwargs,
 ):
     """
@@ -232,6 +233,10 @@ def write_dataframe(
         types will not be promoted, which may result in errors or invalid files when
         attempting to write mixed singular and multi geometry types to drivers that do
         not support such combinations.
+    append : bool, optional (default: False)
+        If True, the data source specified by path already exists, and the
+        driver supports appending to an existing data source, will cause the
+        data to be appended to the existing records in the data source.
     **kwargs
         The kwargs passed to OGR.
     """
@@ -335,5 +340,6 @@ def write_dataframe(
         geometry_type=geometry_type,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
+        append=append,
         **kwargs,
     )

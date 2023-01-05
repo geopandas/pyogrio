@@ -125,7 +125,6 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     else:
         flags |= GDAL_OF_READONLY
 
-    # TODO: other open opts from fiona
     open_opts = CSLAddNameValue(open_opts, "VALIDATE_OPEN_OPTIONS", "NO")
 
     try:
@@ -1062,7 +1061,7 @@ def ogr_read_arrow(
 
         IF CTE_GDAL_VERSION < (3, 6, 0):
             raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-        
+
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
@@ -1316,10 +1315,10 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
-# TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
 def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, bint promote_to_multi=False, **kwargs):
+    str crs, str geometry_type, str encoding, bint promote_to_multi=False,
+    bint append=False, **kwargs):
 
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1361,21 +1360,19 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
 
-    layer_b = layer.encode('UTF-8')
-    layer_c = layer_b
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
     # GPKG might be the only multi-layer writeable type.  TODO: check this
     if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq', 'FlatGeobuf') and os.path.exists(path):
-        os.unlink(path)
+        if not append:
+            os.unlink(path)
 
-    # TODO: invert this: if exists then try to update it, if that doesn't work then always create
+    layer_exists = False
     if os.path.exists(path):
         try:
             ogr_dataset = ogr_open(path_c, 1, None)
 
-            # If layer exists, delete it.
             for i in range(GDALDatasetGetLayerCount(ogr_dataset)):
                 name = OGR_L_GetName(GDALDatasetGetLayer(ogr_dataset, i))
                 if layer == name.decode('UTF-8'):
@@ -1383,11 +1380,17 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     break
 
             if layer_idx >= 0:
-                GDALDatasetDeleteLayer(ogr_dataset, layer_idx)
+                layer_exists = True
 
-        except DataSourceError:
-            # open failed, so create from scratch
-            # force delete it first
+                if not append:
+                    GDALDatasetDeleteLayer(ogr_dataset, layer_idx)
+
+        except DataSourceError as e:
+            # open failed
+            if append:
+                raise e
+
+            # otherwise create from scratch
             os.unlink(path)
             ogr_dataset = NULL
 
@@ -1395,8 +1398,12 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     if ogr_dataset == NULL:
         ogr_dataset = ogr_create(path_c, driver_c)
 
+    # if we are not appending to an existing layer, we need to create
+    # the layer and all associated properties (CRS, field defs, etc)
+    create_layer = not (append and layer_exists)
+
     ### Create the CRS
-    if crs is not None:
+    if create_layer and crs is not None:
         try:
             ogr_crs = create_crs(crs)
 
@@ -1405,42 +1412,48 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             raise exc
 
 
-    ### Create options
-    if not encoding:
-        encoding = locale.getpreferredencoding()
-
-    if driver == 'ESRI Shapefile':
-        # Fiona only sets encoding for shapefiles; other drivers do not support
-        # encoding as an option.
-        encoding_b = encoding.upper().encode('UTF-8')
-        encoding_c = encoding_b
-        options = CSLSetNameValue(options, "ENCODING", encoding_c)
-
-    # Setup other layer creation options
-    for k, v in kwargs.items():
-        if v is None:
-            continue
-
-        k = k.upper().encode('UTF-8')
-
-        if isinstance(v, bool):
-            v = ('ON' if v else 'OFF').encode('utf-8')
-        else:
-            v = str(v).encode('utf-8')
-
-        options = CSLAddNameValue(options, <const char *>k, <const char *>v)
-
-
-    ### Get geometry type
-    # TODO: this is brittle for 3D / ZM / M types
-    # TODO: fail on M / ZM types
-    geometry_code = get_geometry_type_code(geometry_type or "Unknown")
-
     ### Create the layer
+    if create_layer:
+        # Setup layer creation options
+        if not encoding:
+            encoding = locale.getpreferredencoding()
+
+        if driver == 'ESRI Shapefile':
+            # Fiona only sets encoding for shapefiles; other drivers do not support
+            # encoding as an option.
+            encoding_b = encoding.upper().encode('UTF-8')
+            encoding_c = encoding_b
+            options = CSLSetNameValue(options, "ENCODING", encoding_c)
+
+        for k, v in kwargs.items():
+            if v is None:
+                continue
+
+            k = k.upper().encode('UTF-8')
+
+            if isinstance(v, bool):
+                v = ('ON' if v else 'OFF').encode('utf-8')
+            else:
+                v = str(v).encode('utf-8')
+
+            options = CSLAddNameValue(options, <const char *>k, <const char *>v)
+
+        layer_b = layer.encode('UTF-8')
+        layer_c = layer_b
+
+        ### Get geometry type
+        # TODO: this is brittle for 3D / ZM / M types
+        # TODO: fail on M / ZM types
+        geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+
     try:
-        ogr_layer = exc_wrap_pointer(
-                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
-                        <OGRwkbGeometryType>geometry_code, options))
+        if create_layer:
+            ogr_layer = exc_wrap_pointer(
+                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                            geometry_code, options))
+
+        else:
+            ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
 
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
@@ -1456,44 +1469,47 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             CSLDestroy(<char**>options)
             options = NULL
 
-    ### Create the fields
+
     field_types = infer_field_types([field.dtype for field in field_data])
-    for i in range(num_fields):
-        field_type, field_subtype, width, precision = field_types[i]
 
-        name_b = fields[i].encode(encoding)
-        try:
-            ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
+    ### Create the fields
+    if create_layer:
+        for i in range(num_fields):
+            field_type, field_subtype, width, precision = field_types[i]
 
-            # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
-            if field_subtype != OFSTNone:
-                OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
+            name_b = fields[i].encode(encoding)
+            try:
+                ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
 
-            if width:
-                OGR_Fld_SetWidth(ogr_fielddef, width)
+                # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
+                if field_subtype != OFSTNone:
+                    OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
 
-            # TODO: set precision
+                if width:
+                    OGR_Fld_SetWidth(ogr_fielddef, width)
 
-        except:
-            if ogr_fielddef != NULL:
-                OGR_Fld_Destroy(ogr_fielddef)
-                ogr_fielddef = NULL
+                # TODO: set precision
 
-            OGRReleaseDataSource(ogr_dataset)
-            ogr_dataset = NULL
-            raise FieldError(f"Error creating field '{fields[i]}' from field_data") from None
+            except:
+                if ogr_fielddef != NULL:
+                    OGR_Fld_Destroy(ogr_fielddef)
+                    ogr_fielddef = NULL
 
-        try:
-            exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+                OGRReleaseDataSource(ogr_dataset)
+                ogr_dataset = NULL
+                raise FieldError(f"Error creating field '{fields[i]}' from field_data") from None
 
-        except:
-            OGRReleaseDataSource(ogr_dataset)
-            ogr_dataset = NULL
-            raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
+            try:
+                exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
-        finally:
-            if ogr_fielddef != NULL:
-                OGR_Fld_Destroy(ogr_fielddef)
+            except:
+                OGRReleaseDataSource(ogr_dataset)
+                ogr_dataset = NULL
+                raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
+
+            finally:
+                if ogr_fielddef != NULL:
+                    OGR_Fld_Destroy(ogr_fielddef)
 
 
     ### Create the features

@@ -274,6 +274,24 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
     assert os.path.exists(filename)
 
 
+def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write(filename, geometry, field_data, driver="GPKG", layer="first", **meta)
+
+    assert os.path.exists(filename)
+
+    assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
+
+    write(filename, geometry, field_data, driver="GPKG", layer="second", **meta)
+
+    assert np.array_equal(
+        list_layers(filename), [["first", "MultiPolygon"], ["second", "MultiPolygon"]]
+    )
+
+
 def test_write_geojson(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
@@ -291,6 +309,44 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     assert not len(
         set(meta["fields"]).difference(data["features"][0]["properties"].keys())
     )
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+def test_write_append(tmpdir, naturalearth_lowres, ext):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # coerce output layer to MultiPolygon to avoid mixed type errors
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    # write the same records again
+    write(filename, geometry, field_data, append=True, **meta)
+
+    assert read_info(filename)["features"] == 354
+
+
+def test_write_append_unsupported(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # GML does not support append functionality
+    filename = os.path.join(str(tmpdir), "test.gml")
+    write(filename, geometry, field_data, driver="GML", **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    with pytest.raises(DataSourceError):
+        # NOTE: the raw error from GDAL is confusing:
+        # ("not recognized as a supported file format")
+        # TODO: we should probably check for append support ourselves
+        write(filename, geometry, field_data, driver="GML", append=True, **meta)
 
 
 @pytest.mark.parametrize(
