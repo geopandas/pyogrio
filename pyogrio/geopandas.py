@@ -189,6 +189,8 @@ def write_dataframe(
     encoding=None,
     geometry_type=None,
     promote_to_multi=None,
+    dataset_options=None,
+    layer_options=None,
     **kwargs,
 ):
     """
@@ -232,8 +234,20 @@ def write_dataframe(
         types will not be promoted, which may result in errors or invalid files when
         attempting to write mixed singular and multi geometry types to drivers that do
         not support such combinations.
+    dataset_options : dict, optional
+        Dataset creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    layer_options : dict, optional
+        Layer creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
     **kwargs
-        The kwargs passed to OGR.
+        Additional driver-specific dataset or layer creation options passed
+        to OGR. pyogrio will attempt to automatically pass those keywords
+        either as dataset or as layer creation option based on the known
+        options for the specific driver. Alternatively, you can use the
+        explicit `dataset_options` or `layer_options` keywords to manually
+        do this (for example if an option exists as both dataset and layer
+        option).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
@@ -335,5 +349,7 @@ def write_dataframe(
         geometry_type=geometry_type,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
+        dataset_options=dataset_options,
+        layer_options=layer_options,
         **kwargs,
     )
