@@ -33,6 +33,7 @@ def read_dataframe(
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
+    use_arrow=False,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -149,7 +150,18 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        use_arrow=use_arrow,
     )
+
+    if use_arrow:
+        table = index
+        df = table.to_pandas()
+        geometry_name = meta["geometry_name"] or "wkb_geometry"
+        if geometry_name in df.columns:
+            df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+            return gp.GeoDataFrame(df, geometry="geometry")
+        else:
+            return df
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
@@ -178,6 +190,8 @@ def write_dataframe(
     geometry_type=None,
     promote_to_multi=None,
     nan_as_null=True,
+    dataset_options=None,
+    layer_options=None,
     **kwargs,
 ):
     """
@@ -228,8 +242,20 @@ def write_dataframe(
         behaviour is format specific: some formats don't support NaNs by
         default (e.g. GeoJSON will skip this property) or might treat them as
         null anyway (e.g. GeoPackage).
+    dataset_options : dict, optional
+        Dataset creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    layer_options : dict, optional
+        Layer creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
     **kwargs
-        The kwargs passed to OGR.
+        Additional driver-specific dataset or layer creation options passed
+        to OGR. pyogrio will attempt to automatically pass those keywords
+        either as dataset or as layer creation option based on the known
+        options for the specific driver. Alternatively, you can use the
+        explicit `dataset_options` or `layer_options` keywords to manually
+        do this (for example if an option exists as both dataset and layer
+        option).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
@@ -332,5 +358,7 @@ def write_dataframe(
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
+        dataset_options=dataset_options,
+        layer_options=layer_options,
         **kwargs,
     )

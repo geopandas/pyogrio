@@ -5,8 +5,8 @@ from pyogrio._env import GDALEnv
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_write
-    from pyogrio._ogr import remove_virtual_file
+    from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
+    from pyogrio._ogr import remove_virtual_file, _get_driver_metadata_item
 
 
 DRIVERS = {
@@ -42,6 +42,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    use_arrow=False,
 ):
     """Read OGR data source.
 
@@ -117,7 +118,17 @@ def read(
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
-        result = ogr_read(
+        if use_arrow:
+            try:
+                import pyarrow  # noqa
+            except ImportError:
+                raise RuntimeError(
+                    "the 'pyarrow' package is required to read using arrow"
+                )
+            func = ogr_read_arrow
+        else:
+            func = ogr_read
+        result = func(
             path,
             layer=layer,
             encoding=encoding,
@@ -160,6 +171,44 @@ def detect_driver(path):
     return driver
 
 
+def _parse_options_names(xml):
+    """Convert metadata xml to list of names"""
+    # Based on Fiona's meta.py
+    # (https://github.com/Toblerity/Fiona/blob/91c13ad8424641557a4e5f038f255f9b657b1bc5/fiona/meta.py)
+    import xml.etree.ElementTree as ET
+
+    options = []
+    if xml:
+        root = ET.fromstring(xml)
+        for option in root.iter("Option"):
+            # some options explicitly have scope='raster'
+            if option.attrib.get("scope", "vector") != "raster":
+                options.append(option.attrib["name"])
+
+    return options
+
+
+def _preprocess_options_key_value(options):
+    """
+    Preprocess options, eg `spatial_index=True` gets converted
+    to `SPATIAL_INDEX="YES"`.
+    """
+    if not isinstance(options, dict):
+        raise TypeError(f"Expected options to be a dict, got {type(options)}")
+
+    result = {}
+    for k, v in options.items():
+        if v is None:
+            continue
+        k = k.upper()
+        if isinstance(v, bool):
+            v = "ON" if v else "OFF"
+        else:
+            v = str(v)
+        result[k] = v
+    return result
+
+
 def write(
     path,
     geometry,
@@ -173,6 +222,8 @@ def write(
     encoding=None,
     promote_to_multi=None,
     nan_as_null=True,
+    dataset_options=None,
+    layer_options=None,
     **kwargs,
 ):
     if geometry_type is None:
@@ -194,6 +245,25 @@ def write(
             "systems."
         )
 
+    # preprocess kwargs and split in dataset and layer creation options
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
+    if kwargs:
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
+        for k, v in kwargs.items():
+            if k in dataset_option_names:
+                dataset_kwargs[k] = v
+            elif k in layer_option_names:
+                layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+
     ogr_write(
         str(path),
         layer=layer,
@@ -206,5 +276,6 @@ def write(
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
-        **kwargs,
+        dataset_kwargs=dataset_kwargs,
+        layer_kwargs=layer_kwargs,
     )
