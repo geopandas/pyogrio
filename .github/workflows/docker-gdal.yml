@@ -42,7 +42,7 @@ jobs:
           python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
 
       - name: Install pyarrow
-        if: matrix.container == "osgeo/gdal:ubuntu-small-latest"
+        if: matrix.container == 'osgeo/gdal:ubuntu-small-latest'
         run: |
           python3 -m pip install pyarrow
 
