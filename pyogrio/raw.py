@@ -221,6 +221,7 @@ def write(
     crs=None,
     encoding=None,
     promote_to_multi=None,
+    nan_as_null=True,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -274,6 +275,7 @@ def write(
         crs=crs,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
+        nan_as_null=nan_as_null,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
     )

@@ -524,6 +524,76 @@ def test_read_write_null_geometry(tmp_path, ext):
     assert np.array_equal(result_fields[0], field_data[0])
 
 
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_write_float_nan_null(tmp_path, dtype):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    field_data = [np.array([1.5, np.nan], dtype=dtype)]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    fname = tmp_path / "test.geojson"
+
+    # default nan_as_null=True
+    write(fname, geometry, field_data, fields, **meta)
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '{ "col": null }' in content
+
+    # set to False
+    # by default, GDAL will skip the property for GeoJSON if the value is NaN
+    write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '"properties": { }' in content
+
+    # but can instruct GDAL to write NaN to json
+    write(
+        fname,
+        geometry,
+        field_data,
+        fields,
+        **meta,
+        nan_as_null=False,
+        WRITE_NON_FINITE_VALUES="YES",
+    )
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '{ "col": NaN }' in content
+
+
+@pytest.mark.skipif("Arrow" not in list_drivers(), reason="GDAL not built with Arrow")
+def test_write_float_nan_null_arrow(tmp_path):
+    pyarrow = pytest.importorskip("pyarrow")
+    import pyarrow.feather
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    field_data = [np.array([1.5, np.nan], dtype="float64")]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    fname = tmp_path / "test.arrow"
+
+    # default nan_as_null=True
+    write(fname, geometry, field_data, fields, driver="Arrow", **meta)
+    table = pyarrow.feather.read_table(fname)
+    assert table["col"].is_null().to_pylist() == [False, True]
+
+    # set to False
+    write(
+        fname, geometry, field_data, fields, driver="Arrow", nan_as_null=False, **meta
+    )
+    table = pyarrow.feather.read_table(fname)
+    assert table["col"].is_null().to_pylist() == [False, False]
+    pc = pytest.importorskip("pyarrow.compute")
+    assert pc.is_nan(table["col"]).to_pylist() == [False, True]
+
+
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
 @pytest.mark.parametrize(
     "read_encoding,write_encoding",

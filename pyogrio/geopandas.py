@@ -189,6 +189,7 @@ def write_dataframe(
     encoding=None,
     geometry_type=None,
     promote_to_multi=None,
+    nan_as_null=True,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -234,6 +235,13 @@ def write_dataframe(
         types will not be promoted, which may result in errors or invalid files when
         attempting to write mixed singular and multi geometry types to drivers that do
         not support such combinations.
+    nan_as_null : bool, default True
+        For floating point columns (float32 / float64), whether NaN values are
+        written as "null" (missing value). Defaults to True because in pandas
+        NaNs are typically used as missing value. Note that when set to False,
+        behaviour is format specific: some formats don't support NaNs by
+        default (e.g. GeoJSON will skip this property) or might treat them as
+        null anyway (e.g. GeoPackage).
     dataset_options : dict, optional
         Dataset creation option (format specific) passed to OGR. Specify as
         a key-value dictionary.
@@ -349,6 +357,7 @@ def write_dataframe(
         geometry_type=geometry_type,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
+        nan_as_null=nan_as_null,
         dataset_options=dataset_options,
         layer_options=layer_options,
         **kwargs,

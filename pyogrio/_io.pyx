@@ -1336,10 +1336,11 @@ cdef infer_field_types(list dtypes):
 
 # TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
-def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
+def ogr_write(
+    str path, str layer, str driver, geometry, field_data, fields,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
-    object layer_kwargs, bint promote_to_multi=False):
-
+    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
+):
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
@@ -1601,7 +1602,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldInteger64(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTReal:
-                    OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
+                    if nan_as_null and isnan(field_value):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
+                    else:
+                        OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTDate:
                     if np.isnat(field_value):
