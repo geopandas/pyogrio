@@ -392,6 +392,48 @@ You can also read from a URL with this syntax:
 >>> read_dataframe("zip+https://s3.amazonaws.com/bucket/shapefile.zip")
 ```
 
+## Dataset and layer creation options
+
+It is possible to use dataset and layer creation options available for a given
+driver in GDAL (see the relevant
+[GDAL driver page](https://gdal.org/drivers/vector/index.html)). These
+can be passed in as additional `kwargs` to `write_dataframe` or using
+dictionaries for dataset or layer-level options.
+
+Where possible, Pyogrio uses the metadata of the driver to determine if a
+given option is for the dataset or layer level. For drivers where the same
+option is available for both levels, you will need to use `dataset_options`
+or `layer_options` to specify the correct level.
+
+Option names are automatically converted to uppercase.
+
+`True` / `False` values are automatically converted to `'ON'` / `'OFF'`.
+
+For instance, you can use creation options to create a spatial index for a
+[shapefile](https://gdal.org/drivers/vector/shapefile.html#layer-creation-options).
+
+```python
+>>> write_dataframe(df, "/tmp/test.shp", spatial_index=True)
+```
+
+You can use upper case to match the GDAL options exactly (creation options are
+converted to uppercase by default):
+
+```python
+>>> write_dataframe(df, '/tmp/test.shp', SPATIAL_INDEX=True)
+```
+
+You can also use a dictionary to specify either `dataset_options` or
+`layer_options` as appropriate for the driver:
+
+```python
+>>> write_dataframe(df, '/tmp/test.shp', layer_options={"spatial_index": True})
+```
+
+```python
+>>> write_dataframe(df, '/tmp/test.gpkg', dataset_options={"version": "1.0"}, layer_options={"geometry_name": "the_geom"})
+```
+
 ## Configuration options
 
 It is possible to set
