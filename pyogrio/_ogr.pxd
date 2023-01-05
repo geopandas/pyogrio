@@ -325,6 +325,7 @@ cdef extern from "gdal.h":
 
     ctypedef void* GDALDatasetH
     ctypedef void* GDALDriverH
+    ctypedef void * GDALMajorObjectH
 
     void GDALAllRegister()
 
@@ -365,6 +366,7 @@ cdef extern from "gdal.h":
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
+    const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
 
 

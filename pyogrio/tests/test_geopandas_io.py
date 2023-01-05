@@ -501,20 +501,61 @@ def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
     assert len(read_dataframe(output_path)) == 354
 
 
-def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
-    original_df = read_dataframe(naturalearth_lowres)
+@pytest.mark.parametrize("spatial_index", [False, True])
+def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres, spatial_index):
+    df = read_dataframe(naturalearth_lowres)
 
-    test_noindex_filename = tmp_path / "test_gdalparams_noindex.shp"
-    write_dataframe(original_df, test_noindex_filename, SPATIAL_INDEX="NO")
-    assert test_noindex_filename.exists() is True
-    test_noindex_index_filename = tmp_path / "test_gdalparams_noindex.qix"
-    assert test_noindex_index_filename.exists() is False
+    outfilename1 = tmp_path / "test1.shp"
+    write_dataframe(df, outfilename1, SPATIAL_INDEX="YES" if spatial_index else "NO")
+    assert outfilename1.exists() is True
+    index_filename1 = tmp_path / "test1.qix"
+    assert index_filename1.exists() is spatial_index
 
-    test_withindex_filename = tmp_path / "test_gdalparams_withindex.shp"
-    write_dataframe(original_df, test_withindex_filename, SPATIAL_INDEX="YES")
-    assert test_withindex_filename.exists() is True
-    test_withindex_index_filename = tmp_path / "test_gdalparams_withindex.qix"
-    assert test_withindex_index_filename.exists() is True
+    # using explicit layer_options instead
+    outfilename2 = tmp_path / "test2.shp"
+    write_dataframe(df, outfilename2, layer_options=dict(spatial_index=spatial_index))
+    assert outfilename2.exists() is True
+    index_filename2 = tmp_path / "test2.qix"
+    assert index_filename2.exists() is spatial_index
+
+
+def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    # geojson has no spatial index, so passing keyword should raise
+    outfilename = tmp_path / "test.geojson"
+    with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
+        write_dataframe(df, outfilename, spatial_index=True)
+
+
+def _get_gpkg_table_names(path):
+    import sqlite3
+
+    con = sqlite3.connect(path)
+    cursor = con.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    result = cursor.fetchall()
+    return [res[0] for res in result]
+
+
+def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    test_default_filename = tmp_path / "test_default.gpkg"
+    write_dataframe(df, test_default_filename)
+    assert "gpkg_ogr_contents" in _get_gpkg_table_names(test_default_filename)
+
+    test_no_contents_filename = tmp_path / "test_no_contents.gpkg"
+    write_dataframe(df, test_default_filename, ADD_GPKG_OGR_CONTENTS="NO")
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename)
+
+    test_no_contents_filename2 = tmp_path / "test_no_contents2.gpkg"
+    write_dataframe(
+        df,
+        test_no_contents_filename2,
+        dataset_options=dict(add_gpkg_ogr_contents=False),
+    )
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename2)
 
 
 @pytest.mark.parametrize(
