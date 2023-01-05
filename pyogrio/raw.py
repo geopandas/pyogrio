@@ -6,7 +6,11 @@ from pyogrio.util import get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
-    from pyogrio._ogr import remove_virtual_file, _get_driver_metadata_item
+    from pyogrio._ogr import (
+        get_gdal_version,
+        remove_virtual_file,
+        _get_driver_metadata_item,
+    )
 
 
 DRIVERS = {
@@ -274,6 +278,12 @@ def write(
 
     if driver is None:
         driver = detect_driver(path)
+
+    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
+    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
+        raise RuntimeError(
+            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
+        )
 
     if promote_to_multi is None:
         promote_to_multi = (
