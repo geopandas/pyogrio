@@ -20,7 +20,8 @@ jobs:
       matrix:
         container:
           - "osgeo/gdal:ubuntu-small-latest" # >= python 3.8.10
-          - "osgeo/gdal:ubuntu-small-3.5.0" # python 3.8.10
+          - "osgeo/gdal:ubuntu-small-3.6.2" # python 3.10.6
+          - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.8.10
           - "osgeo/gdal:ubuntu-small-3.4.3" # python 3.8.10
           - "osgeo/gdal:ubuntu-small-3.3.3" # python 3.8.10
           - "osgeo/gdal:ubuntu-small-3.2.3" # python 3.8.5
