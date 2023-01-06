@@ -12,7 +12,10 @@ ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
 
 
 def pytest_report_header(config):
-    drivers = ", ".join(sorted(list(list_drivers(read=True).keys())))
+    drivers = ", ".join(
+        f"{driver}({capability})"
+        for driver, capability in sorted(list_drivers().items())
+    )
     return (
         f"pyogrio {__version__}\n"
         f"GDAL {__gdal_version_string__}\n"

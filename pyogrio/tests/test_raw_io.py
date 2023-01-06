@@ -379,14 +379,14 @@ def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
 
 @pytest.mark.parametrize(
     "driver",
-    [
+    {
         driver
-        for driver in list_drivers(write=True)
+        for driver in DRIVERS.values()
         if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
-    ],
+    },
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
-    """Test drivers not specifically tested above"""
+    """Test drivers known to work that are not specifically tested above"""
     meta, _, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
 
     # note: naturalearth_lowres contains mixed polygons / multipolygons, which
@@ -406,6 +406,9 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     assert filename.exists()
 
 
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
+)
 def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 

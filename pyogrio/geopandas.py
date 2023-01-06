@@ -259,6 +259,7 @@ def write_dataframe(
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
         data to be appended to the existing records in the data source.
+        NOTE: append support is limited to specific drivers and GDAL versions.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords

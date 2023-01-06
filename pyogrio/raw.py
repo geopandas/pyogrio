@@ -2,12 +2,15 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
     from pyogrio._ogr import (
         get_gdal_version,
+        get_gdal_version_string,
+        ogr_driver_supports_write,
         remove_virtual_file,
         _get_driver_metadata_item,
     )
@@ -278,6 +281,13 @@ def write(
 
     if driver is None:
         driver = detect_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
 
     # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
     if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):

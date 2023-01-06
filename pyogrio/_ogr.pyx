@@ -100,24 +100,18 @@ def get_gdal_config_option(str name):
     return str_value
 
 
-### Drivers
-# mapping of driver:mode
-# see full list at https://gdal.org/drivers/vector/index.html
-# only for drivers specifically known to operate correctly with pyogrio
-DRIVERS = {
-    # "CSV": "rw",  # TODO: needs geometry conversion method
-    "ESRI Shapefile": "rw",
-    "FlatGeobuf": "rw",
-    "GeoJSON": "rw",
-    "GeoJSONSeq": "rw",
-    "GML": "rw",
-    # "GPX": "rw", # TODO: supports limited geometry types
-    "GPKG": "rw",
-    "OAPIF": "r",
-    "OpenFileGDB": "r",
-    "TopoJSON": "r",
-    # "XLSX": "rw",  # TODO: needs geometry conversion method
-}
+def ogr_driver_supports_write(driver):
+    # exclude drivers known to be unsupported by pyogrio even though they are
+    # supported for write by GDAL
+    if driver in {"CSV", "XLSX"}:
+        return False
+
+
+    # check metadata for driver to see if it supports write
+    if _get_driver_metadata_item(driver, "DCAP_CREATE") == 'YES':
+        return True
+
+    return False
 
 
 def ogr_list_drivers():
@@ -131,9 +125,12 @@ def ogr_list_drivers():
         name_c = <char *>OGR_Dr_GetName(driver)
 
         name = get_string(name_c)
-        # drivers that are not specifically listed have unknown support
-        # this omits any drivers from supported list that are not installed
-        drivers[name] = DRIVERS.get(name, '?')
+
+        if ogr_driver_supports_write(name):
+            drivers[name] = "rw"
+
+        else:
+            drivers[name] = "r"
 
     return drivers
 
@@ -186,7 +183,7 @@ def has_gdal_data():
 
 def get_gdal_data_path():
     """
-    Get the path to the directory GDAL uses to read data files. 
+    Get the path to the directory GDAL uses to read data files.
     """
     cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
     if path_c != NULL:
