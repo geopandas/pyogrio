@@ -103,7 +103,7 @@ def get_gdal_config_option(str name):
 def ogr_driver_supports_write(driver):
     # exclude drivers known to be unsupported by pyogrio even though they are
     # supported for write by GDAL
-    if driver in {"CSV", "XLSX"}:
+    if driver in {"XLSX"}:
         return False
 
 

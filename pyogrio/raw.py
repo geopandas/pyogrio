@@ -271,9 +271,9 @@ def write(
     encoding=None,
     promote_to_multi=None,
     nan_as_null=True,
+    append=False,
     dataset_options=None,
     layer_options=None,
-    append=False,
     **kwargs,
 ):
     if geometry_type is None:
@@ -339,7 +339,7 @@ def write(
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
+        append=append,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
-        append=append,
     )

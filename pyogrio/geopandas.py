@@ -196,9 +196,9 @@ def write_dataframe(
     geometry_type=None,
     promote_to_multi=None,
     nan_as_null=True,
+    append=False,
     dataset_options=None,
     layer_options=None,
-    append=False,
     **kwargs,
 ):
     """
@@ -249,17 +249,17 @@ def write_dataframe(
         behaviour is format specific: some formats don't support NaNs by
         default (e.g. GeoJSON will skip this property) or might treat them as
         null anyway (e.g. GeoPackage).
+    append : bool, optional (default: False)
+        If True, the data source specified by path already exists, and the
+        driver supports appending to an existing data source, will cause the
+        data to be appended to the existing records in the data source.
+        NOTE: append support is limited to specific drivers and GDAL versions.
     dataset_options : dict, optional
         Dataset creation option (format specific) passed to OGR. Specify as
         a key-value dictionary.
     layer_options : dict, optional
         Layer creation option (format specific) passed to OGR. Specify as
         a key-value dictionary.
-    append : bool, optional (default: False)
-        If True, the data source specified by path already exists, and the
-        driver supports appending to an existing data source, will cause the
-        data to be appended to the existing records in the data source.
-        NOTE: append support is limited to specific drivers and GDAL versions.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -370,8 +370,8 @@ def write_dataframe(
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
+        append=append,
         dataset_options=dataset_options,
         layer_options=layer_options,
-        append=append,
         **kwargs,
     )

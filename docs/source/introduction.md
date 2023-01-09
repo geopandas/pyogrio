@@ -340,8 +340,8 @@ overrule the default driver for an extension, you can specify the driver with th
 
 ## Appending to an existing data source
 
-Certain drivers may support the ability to append records to an existing data
-source. See the
+Certain drivers may support the ability to append records to an existing
+data layer in an existing data source. See the
 [GDAL driver listing](https://gdal.org/drivers/vector/index.html)
 for details about the capabilities of a driver for your version of GDAL.
 
