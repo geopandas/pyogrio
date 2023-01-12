@@ -173,17 +173,19 @@ def test_read_bbox_invalid(naturalearth_lowres, bbox):
         read(naturalearth_lowres, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres):
+def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        geometry, fields = read(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))[2:]
+        geometry, fields = read(
+            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+        )[2:]
 
     assert len(geometry) == 0
 
-    geometry, fields = read(naturalearth_lowres, bbox=(-140, 20, -100, 40))[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))[2:]
 
     assert len(geometry) == 2
-    assert np.array_equal(fields[3], ["USA", "MEX"])
+    assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
 def test_read_fids(naturalearth_lowres):
@@ -243,7 +245,7 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
         read(naturalearth_lowres, fids=[1], where="iso_a3 = 'CAN'")
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
-        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 40))
+        read(naturalearth_lowres, fids=[1], bbox=(-140, 20, -100, 45))
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], skip_features=5)
@@ -437,6 +439,8 @@ def test_read_write_datetime(tmp_path):
             ["2001-01-01T12:00", "2002-02-03T13:56:03.072123456"],
             dtype="datetime64[ns]",
         ),
+        # Remark: a None value is automatically converted to np.datetime64("NaT")
+        np.array([np.datetime64("NaT"), None], dtype="datetime64[ms]"),
     ]
     fields = [
         "datetime64_d",
@@ -444,6 +448,7 @@ def test_read_write_datetime(tmp_path):
         "datetime64_ms",
         "datetime64_ns",
         "datetime64_precise_ns",
+        "datetime64_ms_nat",
     ]
 
     # Point(0, 0)
@@ -460,7 +465,7 @@ def test_read_write_datetime(tmp_path):
             # gdal rounds datetimes to ms
             assert np.array_equal(result[idx], field_data[idx].astype("datetime64[ms]"))
         else:
-            assert np.array_equal(result[idx], field_data[idx])
+            assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):

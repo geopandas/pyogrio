@@ -2,6 +2,7 @@ from numpy import array_equal, allclose
 import pytest
 
 from pyogrio import (
+    __gdal_version__,
     __gdal_geos_version__,
     list_drivers,
     list_layers,
@@ -9,6 +10,7 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
     get_gdal_config_option,
+    get_gdal_data_path,
 )
 
 from pyogrio._env import GDALEnv
@@ -29,6 +31,12 @@ def test_proj_data():
     # test will fail if PROJ data files cannot be found, indicating an
     # installation error
     assert has_proj_data()
+
+
+def test_get_gdal_data_path():
+    # test will fail if the function returns None, which means that GDAL
+    # cannot find data files, indicating an installation error
+    assert isinstance(get_gdal_data_path(), str)
 
 
 def test_gdal_geos_version():
@@ -109,9 +117,9 @@ def test_read_bounds_skip_features(naturalearth_lowres):
     assert fids[0] == 10
 
 
-def test_read_bounds_where_invalid(naturalearth_lowres):
+def test_read_bounds_where_invalid(naturalearth_lowres_all_ext):
     with pytest.raises(ValueError, match="Invalid SQL"):
-        read_bounds(naturalearth_lowres, where="invalid")
+        read_bounds(naturalearth_lowres_all_ext, where="invalid")
 
 
 def test_read_bounds_where(naturalearth_lowres):
@@ -128,27 +136,64 @@ def test_read_bounds_bbox_invalid(naturalearth_lowres, bbox):
         read_bounds(naturalearth_lowres, bbox=bbox)
 
 
-def test_read_bounds_bbox(naturalearth_lowres):
+def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     # should return no features
     with pytest.warns(UserWarning, match="does not have any features to read"):
-        fids, bounds = read_bounds(naturalearth_lowres, bbox=(0, 0, 0.00001, 0.00001))
+        fids, bounds = read_bounds(
+            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+        )
 
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
 
-    fids, bounds = read_bounds(naturalearth_lowres, bbox=(-140, 20, -100, 40))
+    fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
 
     assert fids.shape == (2,)
-    assert array_equal(fids, [4, 27])  # USA, MEX
+    if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # fid in gpkg is 1-based
+        assert array_equal(fids, [34, 35])  # PAN, CRI
+    else:
+        # fid in other formats is 0-based
+        assert array_equal(fids, [33, 34])  # PAN, CRI
 
     assert bounds.shape == (4, 2)
     assert allclose(
         bounds.T,
         [
-            [-171.791111, 18.916190, -66.964660, 71.357764],
-            [-117.127760, 14.538829, -86.811982, 32.720830],
+            [-82.96578305, 7.22054149, -77.24256649, 9.61161001],
+            [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
+
+
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 4, 0),
+    reason="Cannot determine if GEOS is present or absent for GDAL < 3.4",
+)
+def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
+    # If GEOS is present and used by GDAL, bbox filter will be based on intersection
+    # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
+    # will be based on overlap of bounding boxes instead
+    fids, _ = read_bounds(naturalearth_lowres_all_ext, bbox=(-140, 20, -100, 45))
+
+    if __gdal_geos_version__ is None:
+        # bboxes for CAN, RUS overlap but do not intersect geometries
+        assert fids.shape == (4,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [4, 5, 19, 28])  # CAN, USA, RUS, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [3, 4, 18, 27])  # CAN, USA, RUS, MEX
+
+    else:
+        assert fids.shape == (2,)
+        if naturalearth_lowres_all_ext.suffix == ".gpkg":
+            # fid in gpkg is 1-based
+            assert array_equal(fids, [5, 28])  # USA, MEX
+        else:
+            # fid in other formats is 0-based
+            assert array_equal(fids, [4, 27])  # USA, MEX
 
 
 def test_read_info(naturalearth_lowres):

@@ -87,8 +87,18 @@ pytest pyogrio/tests
 
 ### Windows
 
-Install GDAL from an appropriate provider of Windows binaries. We've heard that
-the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
+[vcpkg](https://vcpkg.io/en/index.html) is used to build pyogrio from source
+as part of creating the Pyogrio Python wheels for Windows. You can install
+GDAL and other dependencies using vcpkg, and then build Pyogrio from source.
+
+See `.github/workflows/release.yml` for details about how vcpkg is used as part
+of the wheel-building process.
+
+We do not yet have instructions on building Pyogrio from source using vcpkg for
+local development; please feel free to contribute additional documentation!
+
+Alternatively, you can install GDAL from an appropriate provider of Windows
+binaries. We've heard that the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
 
 To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
@@ -114,11 +124,6 @@ The location of the GDAL DLLs must be on your system `PATH`.
 
 `--no-use-pep517` is required in order to pass additional options to the build
 backend (see https://github.com/pypa/pip/issues/5771).
-
-Also see `.github/test-windows.yml` for additional ideas if you run into problems.
-
-Windows is minimally tested; we are currently unable to get automated tests
-working on our Windows CI.
 
 ## GDAL and PROJ data files
 

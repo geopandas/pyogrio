@@ -17,13 +17,8 @@ def naturalearth_modres():
 
 
 @pytest.fixture(scope="session")
-def naturalearth_modres():
-    return data_dir / "ne_10m_admin_0_countries/ne_10m_admin_0_countries.shp"
-
-
-@pytest.fixture(scope="session")
 def naturalearth_modres_vsi():
-    path = data_dir / "ne_10m_admin_0_countries.zip/ne_10m_admin_0_countries"
+    path = data_dir / "ne_10m_admin_0_countries.zip/ne_10m_admin_0_countries.shp"
     return f"/vsizip/{path}"
 
 

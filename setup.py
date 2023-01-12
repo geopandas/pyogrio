@@ -59,10 +59,18 @@ def get_gdal_config():
     gdal_version_str = os.environ.get("GDAL_VERSION")
 
     if include_dir and library_dir and gdal_version_str:
+        gdal_libs = ["gdal"]
+
+        if platform.system() == "Windows":
+            # NOTE: if libgdal is built for Windows using CMake, it is now "gdal",
+            # but older Windows builds still use "gdal_i"
+            if (Path(library_dir) / "gdal_i.lib").exists():
+                gdal_libs = ["gdal_i"]
+
         return {
             "include_dirs": [include_dir],
             "library_dirs": [library_dir],
-            "libraries": ["gdal_i" if platform.system() == "Windows" else "gdal"],
+            "libraries": gdal_libs,
         }, gdal_version_str
 
     if include_dir or library_dir or gdal_version_str:
@@ -101,14 +109,15 @@ def get_gdal_config():
     except Exception as e:
         if platform.system() == "Windows":
             # Get GDAL API version from the command line if specified there.
-            if '--gdalversion' in sys.argv:
-                index = sys.argv.index('--gdalversion')
+            if "--gdalversion" in sys.argv:
+                index = sys.argv.index("--gdalversion")
                 sys.argv.pop(index)
                 gdal_version_str = sys.argv.pop(index)
             else:
                 print(
                     "GDAL_VERSION must be provided as an environment variable "
-                    "or as --gdalversion command line argument")
+                    "or as --gdalversion command line argument"
+                )
                 sys.exit(1)
 
             log.info(
