@@ -9,7 +9,7 @@ on:
   pull_request: # also build on PRs touching files that affect building sdist / wheels
     paths:
       - ".github/workflows/release.yml"
-      - "ci/*"
+      - "ci/**"
       - "MANIFEST.in"
       - "pyproject.toml"
       - "setup.py"
