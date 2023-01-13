@@ -2,11 +2,18 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
-    from pyogrio._ogr import remove_virtual_file, _get_driver_metadata_item
+    from pyogrio._ogr import (
+        get_gdal_version,
+        get_gdal_version_string,
+        ogr_driver_supports_write,
+        remove_virtual_file,
+        _get_driver_metadata_item,
+    )
 
 
 DRIVERS = {
@@ -264,6 +271,7 @@ def write(
     encoding=None,
     promote_to_multi=None,
     nan_as_null=True,
+    append=False,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -273,6 +281,19 @@ def write(
 
     if driver is None:
         driver = detect_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
+
+    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
+    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
+        raise RuntimeError(
+            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
+        )
 
     if promote_to_multi is None:
         promote_to_multi = (
@@ -318,6 +339,7 @@ def write(
         encoding=encoding,
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
+        append=append,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
     )

@@ -6,7 +6,7 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers, read_info
+from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
 from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile
@@ -274,6 +274,24 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
     assert os.path.exists(filename)
 
 
+def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write(filename, geometry, field_data, driver="GPKG", layer="first", **meta)
+
+    assert os.path.exists(filename)
+
+    assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
+
+    write(filename, geometry, field_data, driver="GPKG", layer="second", **meta)
+
+    assert np.array_equal(
+        list_layers(filename), [["first", "MultiPolygon"], ["second", "MultiPolygon"]]
+    )
+
+
 def test_write_geojson(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
@@ -293,16 +311,82 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
+@pytest.mark.parametrize("ext", DRIVERS)
+def test_write_append(tmpdir, naturalearth_lowres, ext):
+    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
+        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
+
+    if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # coerce output layer to MultiPolygon to avoid mixed type errors
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    # write the same records again
+    write(filename, geometry, field_data, append=True, **meta)
+
+    assert read_info(filename)["features"] == 354
+
+
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+    if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # GML does not support append functionality
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    with pytest.raises(DataSourceError):
+        write(filename, geometry, field_data, driver=driver, append=True, **meta)
+
+
+@pytest.mark.skipif(
+    __gdal_version__ > (3, 5, 0),
+    reason="segfaults on FlatGeobuf limited to GDAL <= 3.5.0",
+)
+def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
+    """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
+    verifies that we catch that before segfault"""
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.fgb")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+
+    with pytest.raises(
+        RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
+    ):
+        write(filename, geometry, field_data, append=True, **meta)
+
+
 @pytest.mark.parametrize(
     "driver",
-    [
+    {
         driver
-        for driver in list_drivers(write=True)
+        for driver in DRIVERS.values()
         if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
-    ],
+    },
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
-    """Test drivers not specifically tested above"""
+    """Test drivers known to work that are not specifically tested above"""
     meta, _, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
 
     # note: naturalearth_lowres contains mixed polygons / multipolygons, which
@@ -322,6 +406,9 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     assert filename.exists()
 
 
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
+)
 def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 

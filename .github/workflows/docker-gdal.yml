@@ -17,6 +17,7 @@ jobs:
     name: GDAL ${{ matrix.container }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         container:
           - "osgeo/gdal:ubuntu-small-latest" # >= python 3.8.10

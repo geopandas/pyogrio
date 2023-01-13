@@ -9,6 +9,8 @@
     This can be enabled by passing `use_arrow=True` to `pyogrio.read_dataframe`
     (or by using `pyogrio.raw.read_arrow` directly), and provides a further
     speed-up (#155, #191).
+-   Support for appending to an existing data source when supported by GDAL by
+    passing `append=True` to `pyogrio.write_dataframe` (#197).
 
 ## O.4.2
 

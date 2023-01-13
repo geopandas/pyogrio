@@ -24,10 +24,15 @@ Not all geometry or field types may be supported for all drivers.
 {...'GeoJSON': 'rw', 'GeoJSONSeq': 'rw',...}
 ```
 
-Drivers that are not known to be supported are listed with `"?"` for capabilities.
-Drivers that are known to support write capability end in `"w"`.
+Drivers that support write capability in your version of GDAL end in `"w"`.
+Certain drivers that are known to be unsupported in Pyogrio are disabled for
+write capabilities.
 
-To find subsets of drivers that have known support:
+NOTE: not all drivers support writing the contents of a GeoDataFrame; you may
+encounter errors due to unsupported data types, unsupported geometry types,
+or other driver-related errors when writing to a data source.
+
+To find subsets of drivers that support read or write capabilities:
 
 ```python
 >>> list_drivers(read=True)
@@ -38,8 +43,13 @@ See the full list of [drivers](https://gdal.org/drivers/vector/index.html) for
 more information about specific drivers, including their write support and
 configuration options.
 
-You can certainly try to read or write using unsupported drivers that are
-available in your installation, but you may encounter errors.
+The following drivers are known to be well-supported and tested in Pyogrio:
+
+-   `ESRI Shapefile`
+-   `FlatGeobuf`
+-   `GeoJSON`
+-   `GeoJSONSeq`
+-   `GPKG`
 
 ## List available layers
 
@@ -327,6 +337,23 @@ By default, the appropriate driver is inferred from the extension of the filenam
 If you want to write another file format supported by GDAL or if you want to
 overrule the default driver for an extension, you can specify the driver with the
 `driver` keyword, e.g. `driver="GPKG"`.
+
+## Appending to an existing data source
+
+Certain drivers may support the ability to append records to an existing
+data layer in an existing data source. See the
+[GDAL driver listing](https://gdal.org/drivers/vector/index.html)
+for details about the capabilities of a driver for your version of GDAL.
+
+```
+>>> write_dataframe(df, "/tmp/existing_file.gpkg", append=True)
+```
+
+NOTE: the data structure of the data frame you are appending to the existing
+data source must exactly match the structure of the existing data source.
+
+NOTE: not all drivers that support write capabilities support append
+capabilities for a given GDAL version.
 
 ## Reading from compressed files / archives
 

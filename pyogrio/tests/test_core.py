@@ -18,7 +18,7 @@ from pyogrio._env import GDALEnv
 with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
-    from pyogrio._ogr import has_gdal_data, has_proj_data
+    from pyogrio._ogr import ogr_driver_supports_write, has_gdal_data, has_proj_data
 
 
 def test_gdal_data():
@@ -43,6 +43,25 @@ def test_gdal_geos_version():
     assert __gdal_geos_version__ is None or isinstance(__gdal_geos_version__, tuple)
 
 
+@pytest.mark.parametrize(
+    "driver,expected",
+    [
+        # drivers known to be well-supported by pyogrio
+        ("ESRI Shapefile", True),
+        ("GeoJSON", True),
+        ("GeoJSONSeq", True),
+        ("GPKG", True),
+        # drivers not supported for write by GDAL
+        ("HTTP", False),
+        ("OAPIF", False),
+        # drivers currently unsupported for write even though GDAL can write them
+        ("XLSX", False),
+    ],
+)
+def test_ogr_driver_supports_write(driver, expected):
+    assert ogr_driver_supports_write(driver) == expected
+
+
 def test_list_drivers():
     all_drivers = list_drivers()
 
@@ -50,8 +69,11 @@ def test_list_drivers():
     for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
         assert name in all_drivers
 
-    assert all_drivers["ESRI Shapefile"] == "rw"
-    assert all_drivers["OpenFileGDB"] == "r"
+        expected_capability = "rw"
+        if name == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
+            expected_capability = "r"
+
+        assert all_drivers[name] == expected_capability
 
     drivers = list_drivers(read=True)
     expected = {k: v for k, v in all_drivers.items() if v.startswith("r")}

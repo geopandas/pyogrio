@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pytest
 
-from pyogrio import list_layers, read_info, __gdal_geos_version__
+from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
@@ -469,6 +469,42 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         Exception, match=".* not recognized as a supported file format."
     ):
         _ = read_dataframe(filename)
+
+
+def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / "test.gpkg"
+
+    write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
+
+    assert os.path.exists(output_path)
+    assert np.array_equal(list_layers(output_path), [["first", "MultiPolygon"]])
+
+    write_dataframe(input_gdf, output_path, layer="second", promote_to_multi=True)
+    assert np.array_equal(
+        list_layers(output_path),
+        [["first", "MultiPolygon"], ["second", "MultiPolygon"]],
+    )
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
+    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
+        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
+
+    if ext in (".geojsonl", ".geojsons") and __gdal_version__ <= (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path)
+
+    assert os.path.exists(output_path)
+    assert len(read_dataframe(output_path)) == 177
+
+    write_dataframe(input_gdf, output_path, append=True)
+    assert len(read_dataframe(output_path)) == 354
 
 
 @pytest.mark.parametrize("spatial_index", [False, True])
