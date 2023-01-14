@@ -398,7 +398,7 @@ def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
     {
         driver
         for driver in DRIVERS.values()
-        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON", "OpenFileGDB")
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
     },
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
