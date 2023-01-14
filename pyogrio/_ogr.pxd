@@ -294,6 +294,7 @@ cdef extern from "ogr_api.h":
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
     const char*     OLCFastSpatialFilter
+    const char*     OLCTransactions
 
 
 IF CTE_GDAL_VERSION >= (3, 6, 0):
