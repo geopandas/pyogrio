@@ -26,7 +26,7 @@
 
 -   The GDAL library included in the wheels is updated from 3.4 to GDAL 3.6.2,
     and is now built with GEOS and sqlite with rtree support enabled
-    (e.g. allowing to write a spatial index for GeoPackage).
+    (which allows writing a spatial index for GeoPackage).
 -   Wheels are now available for Python 3.11.
 -   Wheels are now available for MacOS arm64.
 
