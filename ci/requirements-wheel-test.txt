@@ -4,3 +4,5 @@ pandas
 pyproj
 shapely
 packaging
+# optional test dependencies
+pyarrow
