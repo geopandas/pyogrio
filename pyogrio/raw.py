@@ -18,6 +18,7 @@ with GDALEnv():
 
 DRIVERS = {
     ".fgb": "FlatGeobuf",
+    ".gdb": "OpenFileGDB",
     ".geojson": "GeoJSON",
     ".geojsonl": "GeoJSONSeq",
     ".geojsons": "GeoJSONSeq",

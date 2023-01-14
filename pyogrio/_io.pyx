@@ -1353,6 +1353,7 @@ def ogr_write(
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
+    cdef int supports_transactions = 0
     cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
@@ -1536,7 +1537,10 @@ def ogr_write(
     ### Create the features
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
 
-    start_transaction(ogr_dataset, 0)
+    supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
+    if supports_transactions:
+        start_transaction(ogr_dataset, 0)
+
     for i in range(num_records):
         try:
             # create the feature
@@ -1668,7 +1672,8 @@ def ogr_write(
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
-    commit_transaction(ogr_dataset)
+    if supports_transactions:
+        commit_transaction(ogr_dataset)
 
     log.info(f"Created {num_records:,} records" )
 

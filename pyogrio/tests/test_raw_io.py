@@ -11,6 +11,9 @@ from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile
 
+# mapping of driver name to extension
+DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+
 
 def test_read(naturalearth_lowres):
     meta, _, geometry, fields = read(naturalearth_lowres)
@@ -311,6 +314,19 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 6, 0),
+    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
+)
+def test_write_openfilegdb(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gdb")
+    write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+    assert os.path.exists(filename)
+
+
 @pytest.mark.parametrize("ext", DRIVERS)
 def test_write_append(tmpdir, naturalearth_lowres, ext):
     if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
@@ -382,7 +398,7 @@ def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
     {
         driver
         for driver in DRIVERS.values()
-        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON", "OpenFileGDB")
     },
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
@@ -394,7 +410,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     # we take the first record only.
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = tmpdir / "test"
+    filename = tmpdir / f"test{DRIVER_EXT[driver]}"
     write(
         filename,
         geometry[:1],
@@ -412,7 +428,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
 def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.fgdb")
+    filename = os.path.join(str(tmpdir), "test.gdb")
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
