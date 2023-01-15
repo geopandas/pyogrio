@@ -12,15 +12,18 @@
 -   Support for appending to an existing data source when supported by GDAL by
     passing `append=True` to `pyogrio.write_dataframe` (#197).
 
+### Potentially breaking changes
+
+-   In floating point columns, NaN values are now by default written as "null"
+    instead of NaN, but with an option to control this (pass `nan_as_null=False`
+    to keep the previous behaviour) (#190).
+
 ### Improvements
 
 -   It is now possible to pass GDAL's dataset creation options in addition
     to layer creation options in `pyogrio.write_dataframe` (#189).
 -   When specifying a subset of `columns` to read, unnecessary IO or parsing
     is now avoided (#195).
--   In floating point columns, NaN values are now by default written as "null"
-    instead of NaN, but with an option to control this (pass `nan_as_null=False`
-    to keep the previous behaviour) (#190).
 
 ### Packaging
 
