@@ -1,3 +1,4 @@
+import contextlib
 import warnings
 import os
 
@@ -6,7 +7,7 @@ from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
+    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_read_arrow, ogr_write
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
@@ -198,6 +199,59 @@ def read_arrow(
             remove_virtual_file(path)
 
     return result
+
+
+@contextlib.contextmanager
+def open_arrow(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    force_2d=False,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
+    fids=None,
+    sql=None,
+    sql_dialect=None,
+    return_fids=False,
+):
+    """
+    Read OGR data source into a pyarrow Table.
+
+    See docstring of `read` for details.
+    """
+    try:
+        import pyarrow  # noqa
+    except ImportError:
+        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
+
+    path, buffer = get_vsi_path(path_or_buffer)
+
+    try:
+        with ogr_open_arrow(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
+            return_fids=return_fids,
+        ) as result:
+            yield result
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
 
 
 def detect_driver(path):
