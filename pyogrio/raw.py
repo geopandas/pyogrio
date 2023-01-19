@@ -194,21 +194,21 @@ def read_arrow(
 
     try:
         with ogr_open_arrow(
-                path,
-                layer=layer,
-                encoding=encoding,
-                columns=columns,
-                read_geometry=read_geometry,
-                force_2d=force_2d,
-                skip_features=skip_features,
-                max_features=max_features or 0,
-                where=where,
-                bbox=bbox,
-                fids=fids,
-                sql=sql,
-                sql_dialect=sql_dialect,
-                return_fids=return_fids,
-            ) as source:
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
+            return_fids=return_fids,
+        ) as source:
             meta, reader = source
             table = reader.read_all()
     finally:
