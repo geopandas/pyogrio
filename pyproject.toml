@@ -5,6 +5,9 @@ requires = [
     "wheel",
     "Cython>=0.29",
     "oldest-supported-numpy",
+    "versioneer[toml]==0.28",
+    # tomli is used by versioneer
+    "tomli; python_version < '3.11'",
 ]
 
 [tool.cibuildwheel]
@@ -25,7 +28,7 @@ PROJ_LIB = "$VCPKG_INSTALL/share/proj"
 [tool.cibuildwheel.macos]
 repair-wheel-command = [
     "DYLD_LIBRARY_PATH=$GDAL_LIBRARY_PATH delocate-listdeps {wheel}",
-    "DYLD_LIBRARY_PATH=$GDAL_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}"
+    "DYLD_LIBRARY_PATH=$GDAL_LIBRARY_PATH delocate-wheel --require-archs {delocate_archs} -w {dest_dir} {wheel}",
 ]
 
 [tool.cibuildwheel.macos.environment]
@@ -49,3 +52,11 @@ GDAL_VERSION = "3.6.2"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "pyogrio/_version.py"
+versionfile_build = "pyogrio/_version.py"
+parentdir_prefix = "pyogrio-"
+tag_prefix = "v"
