@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.5.1
+
+### Bug fixes
+
+-   Fix memory leak in reading files (#207)
+
 ## 0.5.0 (2023-01-16)
 
 ### Major enhancements
