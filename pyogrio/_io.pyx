@@ -1101,6 +1101,8 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
+        # Mark reader as closed to prevent reading batches
+        reader.close()
         CSLDestroy(options)
         if fields_c != NULL:
             CSLDestroy(fields_c)
