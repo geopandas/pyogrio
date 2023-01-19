@@ -168,7 +168,22 @@ def read_arrow(
     """
     Read OGR data source into a pyarrow Table.
 
-    See docstring of `read` for details.
+    See docstring of `read` for parameters.
+
+    Returns
+    -------
+    (dict, pyarrow.Table)
+
+        Returns a tuple of meta information about the data source in a dict,
+        and a pyarrow Table with data.
+
+        Meta is: {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry_type": "<geometry_type>",
+            "geometry_name": "<name of geometry column in arrow table>",
+        }
     """
     try:
         import pyarrow  # noqa
@@ -222,9 +237,40 @@ def open_arrow(
     return_fids=False,
 ):
     """
-    Read OGR data source into a pyarrow Table.
+    Open OGR data source as a stream of pyarrow record batches.
 
-    See docstring of `read` for details.
+    See docstring of `read` for parameters.
+
+    The RecordBatchStreamReader is reading from a stream provided by OGR and must not be
+    accessed after the OGR dataset has been closed, i.e. after the context manager has
+    been closed.
+
+    Examples
+    --------
+
+    >>> from pyogrio.raw import open_arrow
+    >>> import pyarrow as pa
+    >>> import shapely
+    >>>
+    >>> with open_arrow(path) as source:
+    >>>     meta, reader = source
+    >>>     for table in reader:
+    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
+
+    Returns
+    -------
+    (dict, pyarrow.RecordBatchStreamReader)
+
+        Returns a tuple of meta information about the data source in a dict,
+        and a pyarrow RecordBatchStreamReader with data.
+
+        Meta is: {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry_type": "<geometry_type>",
+            "geometry_name": "<name of geometry column in arrow table>",
+        }
     """
     try:
         import pyarrow  # noqa
