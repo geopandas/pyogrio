@@ -7,7 +7,7 @@ from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_read_arrow, ogr_write
+    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
@@ -178,27 +178,29 @@ def read_arrow(
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
-        result = ogr_read_arrow(
-            path,
-            layer=layer,
-            encoding=encoding,
-            columns=columns,
-            read_geometry=read_geometry,
-            force_2d=force_2d,
-            skip_features=skip_features,
-            max_features=max_features or 0,
-            where=where,
-            bbox=bbox,
-            fids=fids,
-            sql=sql,
-            sql_dialect=sql_dialect,
-            return_fids=return_fids,
-        )
+        with ogr_open_arrow(
+                path,
+                layer=layer,
+                encoding=encoding,
+                columns=columns,
+                read_geometry=read_geometry,
+                force_2d=force_2d,
+                skip_features=skip_features,
+                max_features=max_features or 0,
+                where=where,
+                bbox=bbox,
+                fids=fids,
+                sql=sql,
+                sql_dialect=sql_dialect,
+                return_fids=return_fids,
+            ) as source:
+            meta, reader = source
+            table = reader.read_all()
     finally:
         if buffer is not None:
             remove_virtual_file(path)
 
-    return result
+    return meta, table
 
 
 @contextlib.contextmanager
