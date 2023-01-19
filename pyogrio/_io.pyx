@@ -1088,7 +1088,8 @@ def ogr_open_arrow(
 
         # stream has to be consumed before the Dataset is closed
         import pyarrow as pa
-        reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        from pyogrio.arrow import OGRRecordBatchStreamReader
+        reader = OGRRecordBatchStreamReader._import_from_c(stream_ptr)
 
         meta = {
             'crs': crs,
@@ -1098,7 +1099,9 @@ def ogr_open_arrow(
             'geometry_name': geometry_name,
         }
 
-        yield meta, reader
+        reader.geo_metadata = meta
+
+        yield reader
 
     finally:
         # Mark reader as closed to prevent reading batches

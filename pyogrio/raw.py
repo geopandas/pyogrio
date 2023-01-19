@@ -1,4 +1,3 @@
-import contextlib
 import warnings
 import os
 
@@ -218,7 +217,6 @@ def read_arrow(
     return meta, table
 
 
-@contextlib.contextmanager
 def open_arrow(
     path_or_buffer,
     /,
@@ -280,7 +278,7 @@ def open_arrow(
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
-        with ogr_open_arrow(
+        return ogr_open_arrow(
             path,
             layer=layer,
             encoding=encoding,
@@ -295,8 +293,7 @@ def open_arrow(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
-        ) as result:
-            yield result
+        )
     finally:
         if buffer is not None:
             remove_virtual_file(path)
