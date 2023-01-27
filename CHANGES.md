@@ -1,10 +1,12 @@
 # CHANGELOG
 
-## 0.5.1
+## 0.5.1 (2023-01-26)
 
 ### Bug fixes
 
 -   Fix memory leak in reading files (#207)
+-   Fix to only use transactions for writing records when supported by the
+    driver (#203)
 
 ## 0.5.0 (2023-01-16)
 
