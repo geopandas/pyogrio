@@ -119,6 +119,7 @@ def read(
             "fields": <ndarray of field names>,
             "encoding": "<encoding>",
             "geometry": "<geometry type>"
+            "driver": "<driver>"
         }
     """
     path, buffer = get_vsi_path(path_or_buffer)

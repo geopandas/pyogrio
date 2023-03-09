@@ -264,6 +264,32 @@ cdef str get_crs(OGRLayerH ogr_layer):
         return wkt
 
 
+cdef get_driver(OGRDataSourceH ogr_dataset):
+    """Get the driver for a dataset.
+    
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+    
+    Returns
+    -------
+    str or None
+    """
+    cdef void *ogr_driver
+
+    try:
+        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
+
+    except NullPointerError:
+        raise DataLayerError(f"Could not detect driver of dataset") from None
+
+    except CPLE_BaseError as exc:
+        raise DataLayerError(str(exc))
+
+    driver = OGR_Dr_GetName(ogr_driver).decode("UTF-8")
+    return driver
+
+
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """Attempt to detect the encoding of the layer.
     If it supports UTF-8, use that.
@@ -278,21 +304,10 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     -------
     str or None
     """
-    cdef void *ogr_driver
-
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
-    try:
-        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
-
-    except NullPointerError:
-        raise DataLayerError(f"Could not detect encoding of layer") from None
-
-    except CPLE_BaseError as exc:
-        raise DataLayerError(str(exc))
-
-    driver = OGR_Dr_GetName(ogr_driver).decode("UTF-8")
+    driver = get_driver(ogr_dataset)
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
 
@@ -885,6 +900,7 @@ def ogr_read(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     try:
+        driver = get_driver(ogr_dataset)
         if sql is None:
             # layer defaults to index 0
             if layer is None:
@@ -973,7 +989,8 @@ def ogr_read(
             'crs': crs,
             'encoding': encoding,
             'fields': fields[:,2], # return only names
-            'geometry_type': geometry_type
+            'geometry_type': geometry_type,
+            'driver': driver
         }
 
     finally:
@@ -1039,6 +1056,8 @@ def ogr_read_arrow(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     try:
+        driver = get_driver(ogr_dataset)
+
         if sql is None:
             # layer defaults to index 0
             if layer is None:
@@ -1111,6 +1130,7 @@ def ogr_read_arrow(
             'fields': fields[:,2], # return only names
             'geometry_type': geometry_type,
             'geometry_name': geometry_name,
+            'driver': driver
         }
 
     finally:
