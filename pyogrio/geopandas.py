@@ -313,7 +313,8 @@ def write_dataframe(
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
-            has_z = geometry.has_z.any()
+            # Empty geometries sometimes report as Z incorrectly, so ignore them
+            has_z = geometry[~geometry.is_empty].has_z.any()
             geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
