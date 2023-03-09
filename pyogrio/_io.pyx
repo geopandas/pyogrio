@@ -1220,6 +1220,7 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
 
     meta = {
         'crs': get_crs(ogr_layer),
+        'driver': get_driver(ogr_dataset),
         'encoding': encoding,
         'fields': fields[:,2], # return only names
         'dtypes': fields[:,3],

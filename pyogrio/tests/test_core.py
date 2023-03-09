@@ -222,6 +222,7 @@ def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
+    assert meta["driver"] == "ESRI Shapefile"
     assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
