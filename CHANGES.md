@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.6.0 (???)
+
+### Improvements
+
+- Add automatic detection of 2.5D geometries in write_dataframe (#223)
+
 ## 0.5.1 (2023-01-26)
 
 ### Bug fixes
