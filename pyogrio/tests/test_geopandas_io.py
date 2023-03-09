@@ -867,8 +867,8 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         ),
         (
             [
-                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"
-            ],  # NOQA
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+            ],
             False,
             "2.5D MultiPolygon",
         ),
