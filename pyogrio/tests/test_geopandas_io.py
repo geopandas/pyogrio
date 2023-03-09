@@ -861,16 +861,14 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         ("Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))", "2.5D Polygon"),
         ("MultiPoint Z (0 0 0, 1 1 0)", "2.5D MultiPoint"),
         (
-            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))", "2.5D MultiLineString",
+            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))",
+            "2.5D MultiLineString",
         ),
         (
             "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
-            "2.5D MultiPolygon"
+            "2.5D MultiPolygon",
         ),
-        (
-            "GeometryCollection Z (Point Z (0 0 0))",
-            "2.5D GeometryCollection"
-        ),
+        ("GeometryCollection Z (Point Z (0 0 0))", "2.5D GeometryCollection"),
     ],
 )
 def test_write_geometry_z_types_auto(tmp_path, ext, wkt, exp_geometry_type):
