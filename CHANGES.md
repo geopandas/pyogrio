@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.6.0 (???)
+
+### Improvements
+
+- ENH: add "driver" property to read_info result (#224)
+
 ## 0.5.1 (2023-01-26)
 
 ### Bug fixes

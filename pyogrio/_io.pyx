@@ -900,7 +900,6 @@ def ogr_read(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     try:
-        driver = get_driver(ogr_dataset)
         if sql is None:
             # layer defaults to index 0
             if layer is None:
@@ -990,7 +989,6 @@ def ogr_read(
             'encoding': encoding,
             'fields': fields[:,2], # return only names
             'geometry_type': geometry_type,
-            'driver': driver
         }
 
     finally:
@@ -1056,8 +1054,6 @@ def ogr_read_arrow(
 
     ogr_dataset = ogr_open(path_c, 0, kwargs)
     try:
-        driver = get_driver(ogr_dataset)
-
         if sql is None:
             # layer defaults to index 0
             if layer is None:
@@ -1130,7 +1126,6 @@ def ogr_read_arrow(
             'fields': fields[:,2], # return only names
             'geometry_type': geometry_type,
             'geometry_name': geometry_name,
-            'driver': driver
         }
 
     finally:
@@ -1220,12 +1215,12 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
 
     meta = {
         'crs': get_crs(ogr_layer),
-        'driver': get_driver(ogr_dataset),
         'encoding': encoding,
         'fields': fields[:,2], # return only names
         'dtypes': fields[:,3],
         'geometry_type': get_geometry_type(ogr_layer),
         'features': OGR_L_GetFeatureCount(ogr_layer, 1),
+        'driver': get_driver(ogr_dataset),
         "capabilities": {
             "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
             "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
