@@ -15,6 +15,7 @@ try:
     from pandas.testing import assert_frame_equal, assert_index_equal
 
     import geopandas as gp
+    from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
@@ -843,15 +844,56 @@ def test_write_read_null(tmp_path):
     ],
 )
 def test_write_geometry_z_types(tmp_path, wkt, geom_types):
-    from geopandas.array import from_wkt
-
     filename = tmp_path / "test.fgb"
-
     gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.parametrize(
+    "wkt, exp_geometry_type",
+    [
+        ("Point Z (0 0 0)", "2.5D Point"),
+        ("LineString Z (0 0 0, 1 1 0)", "2.5D LineString"),
+        ("Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))", "2.5D Polygon"),
+        ("MultiPoint Z (0 0 0, 1 1 0)", "2.5D MultiPoint"),
+        (
+            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))", "2.5D MultiLineString",
+        ),
+        (
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
+            "2.5D MultiPolygon"
+        ),
+        (
+            "GeometryCollection Z (Point Z (0 0 0))",
+            "2.5D GeometryCollection"
+        ),
+    ],
+)
+def test_write_geometry_z_types_auto(tmp_path, ext, wkt, exp_geometry_type):
+    # Shapefile has some different behaviour that other file types
+    if ext == ".shp":
+        if exp_geometry_type == "2.5D GeometryCollection":
+            pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
+        elif exp_geometry_type == "2.5D MultiLineString":
+            exp_geometry_type = "2.5D LineString"
+        elif exp_geometry_type == "2.5D MultiPolygon":
+            exp_geometry_type = "2.5D Polygon"
+
+    filename = tmp_path / f"test{ext}"
+    gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
+    write_dataframe(gdf, filename)
+    info = read_info(filename)
+    assert info["geometry_type"] == exp_geometry_type
+    df = read_dataframe(filename)
+    if ext == ".shp":
+        df = df.drop(columns="FID")
+    elif ext == ".geojsonl":
+        df.crs = "EPSG:4326"
+    assert_geodataframe_equal(df, gdf)
 
 
 def test_read_multisurface(data_dir):

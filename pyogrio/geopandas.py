@@ -309,9 +309,11 @@ def write_dataframe(
     # Determine geometry_type and/or promote_to_multi
     if geometry_type is None or promote_to_multi is None:
         tmp_geometry_type = "Unknown"
+        has_z = False
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
+            has_z = geometry.has_z.any()
             geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
@@ -347,6 +349,8 @@ def write_dataframe(
 
         if geometry_type is None:
             geometry_type = tmp_geometry_type
+            if has_z:
+                geometry_type = f"2.5D {geometry_type}"
 
     crs = None
     if geometry.crs:
