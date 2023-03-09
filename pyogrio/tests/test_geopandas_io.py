@@ -854,24 +854,43 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.parametrize(
-    "wkt, exp_geometry_type",
+    "wkt, mixed, exp_geometry_type",
     [
-        ("Point Z (0 0 0)", "2.5D Point"),
-        ("LineString Z (0 0 0, 1 1 0)", "2.5D LineString"),
-        ("Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))", "2.5D Polygon"),
-        ("MultiPoint Z (0 0 0, 1 1 0)", "2.5D MultiPoint"),
+        (["Point Z (0 0 0)"], False, "2.5D Point"),
+        (["LineString Z (0 0 0, 1 1 0)"], False, "2.5D LineString"),
+        (["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"], False, "2.5D Polygon"),
+        (["MultiPoint Z (0 0 0, 1 1 0)"], False, "2.5D MultiPoint"),
         (
-            "MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))",
+            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
+            False,
             "2.5D MultiLineString",
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
+            [
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"
+            ],  # NOQA
+            False,
             "2.5D MultiPolygon",
         ),
-        ("GeometryCollection Z (Point Z (0 0 0))", "2.5D GeometryCollection"),
+        (["GeometryCollection Z (Point Z (0 0 0))"], False, "2.5D GeometryCollection"),
+        (["Point Z (0 0 0)", "Point (0 0)"], True, "2.5D Point"),
+        (
+            ["LineString Z (0 0 0, 1 1 0)", "LineString (0 0, 1 1)"],
+            True,
+            "2.5D LineString",
+        ),
+        (
+            [
+                "Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))",
+                "Polygon ((0 0, 0 1, 1 1, 0 0))",
+                None,
+            ],
+            True,
+            "2.5D Polygon",
+        ),
     ],
 )
-def test_write_geometry_z_types_auto(tmp_path, ext, wkt, exp_geometry_type):
+def test_write_geometry_z_types_auto(tmp_path, ext, wkt, mixed, exp_geometry_type):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
         if exp_geometry_type == "2.5D GeometryCollection":
@@ -882,8 +901,19 @@ def test_write_geometry_z_types_auto(tmp_path, ext, wkt, exp_geometry_type):
             exp_geometry_type = "2.5D Polygon"
 
     filename = tmp_path / f"test{ext}"
-    gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
-    write_dataframe(gdf, filename)
+    gdf = gp.GeoDataFrame(geometry=from_wkt(wkt), crs="EPSG:4326")
+    if mixed and ext == ".fgb":
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                "Could not add feature to layer at index 1: ICreateFeature: Mismatched "
+                "geometry type"
+            ),
+        ):
+            write_dataframe(gdf, filename)
+        return
+    else:
+        write_dataframe(gdf, filename)
     info = read_info(filename)
     assert info["geometry_type"] == exp_geometry_type
     df = read_dataframe(filename)
@@ -891,7 +921,7 @@ def test_write_geometry_z_types_auto(tmp_path, ext, wkt, exp_geometry_type):
         df = df.drop(columns="FID")
     elif ext == ".geojsonl":
         df.crs = "EPSG:4326"
-    assert_geodataframe_equal(df, gdf)
+    assert_geodataframe_equal(gdf, df)
 
 
 def test_read_multisurface(data_dir):
