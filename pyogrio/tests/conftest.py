@@ -33,9 +33,6 @@ def prepare_testfile(testfile_path, dst_dir, ext):
 
     meta, _, geometry, field_data = read(testfile_path)
 
-    if "driver" in meta:
-        del meta["driver"]
-
     if ext == ".fgb":
         # For .fgb, spatial_index=False to avoid the rows being reordered
         meta["spatial_index"] = False
