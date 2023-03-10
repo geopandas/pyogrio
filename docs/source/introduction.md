@@ -76,14 +76,16 @@ first layer.
 >>> from pyogrio import read_info
 >>> read_info('ne_10m_admin_0_countries.shp')
 
-# Outputs a dictionary with `crs`, `encoding`, `fields`, `geometry_type`, and `features`
+# Outputs a dictionary with `crs`, `driver`, `encoding`, `fields`, `geometry_type`, and
+# `features`
 {
   'crs': 'EPSG:4326',
   'encoding': 'UTF-8',
   'fields': array(['featurecla', 'scalerank', 'LABELRANK', ...], dtype=object),
   'dtypes': array(['int64', 'object', 'object', 'object', 'float64'], dtype=object),
   'geometry_type': 'Polygon',
-  'features': 255
+  'features': 255,
+  'driver': 'ESRI Shapefile',
 }
 ```
 
