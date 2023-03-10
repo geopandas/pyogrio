@@ -5,6 +5,7 @@
 ### Improvements
 
 - Add automatic detection of 2.5D geometries in write_dataframe (#223)
+- Add "driver" property to read_info result (#224)
 
 ## 0.5.1 (2023-01-26)
 

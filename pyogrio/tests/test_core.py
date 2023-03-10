@@ -227,6 +227,7 @@ def test_read_info(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
+    assert meta["driver"] == "ESRI Shapefile"
 
 
 @pytest.mark.parametrize(

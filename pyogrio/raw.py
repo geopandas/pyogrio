@@ -122,7 +122,7 @@ def read(
             "crs": "<crs>",
             "fields": <ndarray of field names>,
             "encoding": "<encoding>",
-            "geometry": "<geometry type>"
+            "geometry_type": "<geometry type>"
         }
     """
     path, buffer = get_vsi_path(path_or_buffer)
