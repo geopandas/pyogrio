@@ -10,7 +10,7 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS,
     DRIVERS_NO_MIXED_DIMENSIONS,
-    DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
 from pyogrio.tests.conftest import ALL_EXTS
 
