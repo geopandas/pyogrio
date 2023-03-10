@@ -270,7 +270,6 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     Parameters
     ----------
     ogr_dataset : pointer to open OGR dataset
-    
     Returns
     -------
     str or None
