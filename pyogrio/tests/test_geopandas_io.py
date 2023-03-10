@@ -910,6 +910,7 @@ def test_write_geometry_z_types_auto(
     column_data["idx"] = [str(idx) for idx in range(len(wkt))]
     gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
     filename = tmp_path / f"test{ext}"
+
     if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(
             DataSourceError,
@@ -919,15 +920,18 @@ def test_write_geometry_z_types_auto(
         return
     else:
         write_dataframe(gdf, filename)
+
     info = read_info(filename)
     assert info["geometry_type"] == exp_geometry_type
+
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl":
         result_gdf.crs = "EPSG:4326"
     if ext == ".fgb":
-        empty = gdf.geometry[(gdf.geometry == np.array(None)) | (gdf.geometry.is_empty)]
-        if len(empty) > 0:
-            pytest.skip(f"ext {ext} doesn't write rows with None or EMPTY geom")
+        # When the following gdal issue is released, this if needs to be removed:
+        # https://github.com/OSGeo/gdal/issues/7401
+        gdf = gdf.loc[~((gdf.geometry == None) | gdf.geometry.is_empty)]
+
     assert_geodataframe_equal(gdf, result_gdf)
 
 
