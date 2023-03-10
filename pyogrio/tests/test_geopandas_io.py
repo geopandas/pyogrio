@@ -930,7 +930,7 @@ def test_write_geometry_z_types_auto(
     if ext == ".fgb":
         # When the following gdal issue is released, this if needs to be removed:
         # https://github.com/OSGeo/gdal/issues/7401
-        gdf = gdf.loc[~((gdf.geometry == None) | gdf.geometry.is_empty)]
+        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
 
     assert_geodataframe_equal(gdf, result_gdf)
 
