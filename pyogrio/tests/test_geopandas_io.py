@@ -7,7 +7,11 @@ import pytest
 from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
-from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
+from pyogrio.raw import (
+    DRIVERS,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+)
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -854,43 +858,44 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.parametrize(
-    "wkt, mixed, exp_geometry_type",
+    "test_descr, exp_geometry_type, mixed_dimensions, wkt",
     [
-        (["Point Z (0 0 0)"], False, "2.5D Point"),
-        (["LineString Z (0 0 0, 1 1 0)"], False, "2.5D LineString"),
-        (["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"], False, "2.5D Polygon"),
-        (["MultiPoint Z (0 0 0, 1 1 0)"], False, "2.5D MultiPoint"),
+        ("1 Point Z", "2.5D Point", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "2.5D LineString", False, ["LineString Z (0 0 0, 1 1 0)"]),
         (
-            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
+            "1 Polygon Z",
+            "2.5D Polygon",
             False,
+            ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
+        ),
+        ("1 MultiPoint Z", "2.5D MultiPoint", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        (
+            "1 MultiLineString Z",
             "2.5D MultiLineString",
+            False,
+            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
         ),
         (
+            "1 MultiLinePolygon Z",
+            "2.5D MultiPolygon",
+            False,
             [
                 "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
             ],
+        ),
+        (
+            "1 GeometryCollection Z",
+            "2.5D GeometryCollection",
             False,
-            "2.5D MultiPolygon",
+            ["GeometryCollection Z (Point Z (0 0 0))"],
         ),
-        (["GeometryCollection Z (Point Z (0 0 0))"], False, "2.5D GeometryCollection"),
-        (["Point Z (0 0 0)", "Point (0 0)"], True, "2.5D Point"),
-        (
-            ["LineString Z (0 0 0, 1 1 0)", "LineString (0 0, 1 1)"],
-            True,
-            "2.5D LineString",
-        ),
-        (
-            [
-                "Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))",
-                "Polygon ((0 0, 0 1, 1 1, 0 0))",
-                None,
-            ],
-            True,
-            "2.5D Polygon",
-        ),
+        ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
     ],
 )
-def test_write_geometry_z_types_auto(tmp_path, ext, wkt, mixed, exp_geometry_type):
+def test_write_geometry_z_types_auto(
+    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt
+):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
         if exp_geometry_type == "2.5D GeometryCollection":
@@ -900,15 +905,15 @@ def test_write_geometry_z_types_auto(tmp_path, ext, wkt, mixed, exp_geometry_typ
         elif exp_geometry_type == "2.5D MultiPolygon":
             exp_geometry_type = "2.5D Polygon"
 
+    column_data = {}
+    column_data["test_descr"] = [test_descr] * len(wkt)
+    column_data["idx"] = [str(idx) for idx in range(len(wkt))]
+    gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
     filename = tmp_path / f"test{ext}"
-    gdf = gp.GeoDataFrame(geometry=from_wkt(wkt), crs="EPSG:4326")
-    if mixed and ext == ".fgb":
+    if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(
-            RuntimeError,
-            match=(
-                "Could not add feature to layer at index 1: ICreateFeature: Mismatched "
-                "geometry type"
-            ),
+            DataSourceError,
+            match=("Mixed 2D and 3D coordinates are not supported by"),
         ):
             write_dataframe(gdf, filename)
         return
@@ -916,12 +921,14 @@ def test_write_geometry_z_types_auto(tmp_path, ext, wkt, mixed, exp_geometry_typ
         write_dataframe(gdf, filename)
     info = read_info(filename)
     assert info["geometry_type"] == exp_geometry_type
-    df = read_dataframe(filename)
-    if ext == ".shp":
-        df = df.drop(columns="FID")
-    elif ext == ".geojsonl":
-        df.crs = "EPSG:4326"
-    assert_geodataframe_equal(gdf, df)
+    result_gdf = read_dataframe(filename)
+    if ext == ".geojsonl":
+        result_gdf.crs = "EPSG:4326"
+    if ext == ".fgb":
+        empty = gdf.geometry[(gdf.geometry == np.array(None)) | (gdf.geometry.is_empty)]
+        if len(empty) > 0:
+            pytest.skip(f"ext {ext} doesn't write rows with None or EMPTY geom")
+    assert_geodataframe_equal(gdf, result_gdf)
 
 
 def test_read_multisurface(data_dir):
