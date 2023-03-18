@@ -1,5 +1,7 @@
-from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI
+import numpy as np
+from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
 from pyogrio.raw import detect_driver, read, read_arrow, write
+from pyogrio.errors import DataSourceError
 
 
 def _stringify_path(path):
@@ -309,9 +311,22 @@ def write_dataframe(
     # Determine geometry_type and/or promote_to_multi
     if geometry_type is None or promote_to_multi is None:
         tmp_geometry_type = "Unknown"
+        has_z = False
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
+            # None/Empty geometries sometimes report as Z incorrectly, so ignore them
+            has_z_arr = geometry[
+                (geometry != np.array(None)) & (~geometry.is_empty)
+            ].has_z
+            has_z = has_z_arr.any()
+            all_z = has_z_arr.all()
+
+            if driver in DRIVERS_NO_MIXED_DIMENSIONS and has_z and not all_z:
+                raise DataSourceError(
+                    f"Mixed 2D and 3D coordinates are not supported by {driver}"
+                )
+
             geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
@@ -347,6 +362,8 @@ def write_dataframe(
 
         if geometry_type is None:
             geometry_type = tmp_geometry_type
+            if has_z:
+                geometry_type = f"2.5D {geometry_type}"
 
     crs = None
     if geometry.crs:

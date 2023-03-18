@@ -32,6 +32,10 @@ DRIVERS_NO_MIXED_SINGLE_MULTI = {
     "GPKG",
 }
 
+DRIVERS_NO_MIXED_DIMENSIONS = {
+    "FlatGeobuf",
+}
+
 
 def read(
     path_or_buffer,

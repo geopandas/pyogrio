@@ -7,7 +7,11 @@ import pytest
 from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
-from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
+from pyogrio.raw import (
+    DRIVERS,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+)
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -15,6 +19,7 @@ try:
     from pandas.testing import assert_frame_equal, assert_index_equal
 
     import geopandas as gp
+    from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
@@ -843,15 +848,91 @@ def test_write_read_null(tmp_path):
     ],
 )
 def test_write_geometry_z_types(tmp_path, wkt, geom_types):
-    from geopandas.array import from_wkt
-
     filename = tmp_path / "test.fgb"
-
     gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.parametrize(
+    "test_descr, exp_geometry_type, mixed_dimensions, wkt",
+    [
+        ("1 Point Z", "2.5D Point", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "2.5D LineString", False, ["LineString Z (0 0 0, 1 1 0)"]),
+        (
+            "1 Polygon Z",
+            "2.5D Polygon",
+            False,
+            ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
+        ),
+        ("1 MultiPoint Z", "2.5D MultiPoint", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        (
+            "1 MultiLineString Z",
+            "2.5D MultiLineString",
+            False,
+            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
+        ),
+        (
+            "1 MultiLinePolygon Z",
+            "2.5D MultiPolygon",
+            False,
+            [
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+            ],
+        ),
+        (
+            "1 GeometryCollection Z",
+            "2.5D GeometryCollection",
+            False,
+            ["GeometryCollection Z (Point Z (0 0 0))"],
+        ),
+        ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
+    ],
+)
+def test_write_geometry_z_types_auto(
+    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt
+):
+    # Shapefile has some different behaviour that other file types
+    if ext == ".shp":
+        if exp_geometry_type == "2.5D GeometryCollection":
+            pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
+        elif exp_geometry_type == "2.5D MultiLineString":
+            exp_geometry_type = "2.5D LineString"
+        elif exp_geometry_type == "2.5D MultiPolygon":
+            exp_geometry_type = "2.5D Polygon"
+
+    column_data = {}
+    column_data["test_descr"] = [test_descr] * len(wkt)
+    column_data["idx"] = [str(idx) for idx in range(len(wkt))]
+    gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
+    filename = tmp_path / f"test{ext}"
+
+    if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
+        with pytest.raises(
+            DataSourceError,
+            match=("Mixed 2D and 3D coordinates are not supported by"),
+        ):
+            write_dataframe(gdf, filename)
+        return
+    else:
+        write_dataframe(gdf, filename)
+
+    info = read_info(filename)
+    assert info["geometry_type"] == exp_geometry_type
+
+    result_gdf = read_dataframe(filename)
+    if ext == ".geojsonl":
+        result_gdf.crs = "EPSG:4326"
+    if ext == ".fgb":
+        # When the following gdal issue is released, this if needs to be removed:
+        # https://github.com/OSGeo/gdal/issues/7401
+        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
+
+    assert_geodataframe_equal(gdf, result_gdf)
 
 
 def test_read_multisurface(data_dir):
