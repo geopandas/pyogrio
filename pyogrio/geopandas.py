@@ -362,7 +362,7 @@ def write_dataframe(
 
         if geometry_type is None:
             geometry_type = tmp_geometry_type
-            if has_z:
+            if has_z and geometry_type != "Unknown":
                 geometry_type = f"2.5D {geometry_type}"
 
     crs = None
