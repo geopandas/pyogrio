@@ -11,7 +11,7 @@ import math
 import os
 import warnings
 
-from libc.stdint cimport uint8_t
+from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
@@ -125,7 +125,6 @@ cdef void* ogr_open(const char* path_c, int mode, options) except NULL:
     else:
         flags |= GDAL_OF_READONLY
 
-    # TODO: other open opts from fiona
     open_opts = CSLAddNameValue(open_opts, "VALIDATE_OPEN_OPTIONS", "NO")
 
     try:
@@ -265,6 +264,31 @@ cdef str get_crs(OGRLayerH ogr_layer):
         return wkt
 
 
+cdef get_driver(OGRDataSourceH ogr_dataset):
+    """Get the driver for a dataset.
+    
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+    Returns
+    -------
+    str or None
+    """
+    cdef void *ogr_driver
+
+    try:
+        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
+
+    except NullPointerError:
+        raise DataLayerError(f"Could not detect driver of dataset") from None
+
+    except CPLE_BaseError as exc:
+        raise DataLayerError(str(exc))
+
+    driver = OGR_Dr_GetName(ogr_driver).decode("UTF-8")
+    return driver
+
+
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """Attempt to detect the encoding of the layer.
     If it supports UTF-8, use that.
@@ -279,28 +303,17 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     -------
     str or None
     """
-    cdef void *ogr_driver
-
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
-    try:
-        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
-
-    except NullPointerError:
-        raise DataLayerError(f"Could not detect encoding of layer") from None
-
-    except CPLE_BaseError as exc:
-        raise DataLayerError(str(exc))
-
-    driver = OGR_Dr_GetName(ogr_driver).decode("UTF-8")
+    driver = get_driver(ogr_dataset)
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
 
     return None
 
 
-cdef get_fields(OGRLayerH ogr_layer, str encoding):
+cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     """Get field names and types for layer.
 
     Parameters
@@ -308,6 +321,9 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
     ogr_layer : pointer to open OGR layer
     encoding : str
         encoding to use when reading field name
+    use_arrow : bool, default False
+        If using arrow, all types are supported, and we don't have to
+        raise warnings
 
     Returns
     -------
@@ -351,7 +367,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding):
 
         field_type = OGR_Fld_GetType(ogr_fielddef)
         np_type = FIELD_TYPES[field_type]
-        if not np_type:
+        if not np_type and not use_arrow:
             skipped_fields = True
             log.warning(
                 f"Skipping field {field_name}: unsupported OGR type: {field_type}")
@@ -640,42 +656,47 @@ cdef get_features(
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
     i = 0
     while True:
-        if num_features > 0 and i == num_features:
-            break
-
         try:
-            ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+            if num_features > 0 and i == num_features:
+                break
 
-        except NullPointerError:
-            # No more rows available, so stop reading
-            break
+            try:
+                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
-        except CPLE_BaseError as exc:
-            if "failed to prepare SQL" in str(exc):
-                raise ValueError(f"Invalid SQL query") from exc
+            except NullPointerError:
+                # No more rows available, so stop reading
+                break
 
-            raise FeatureError(str(exc))
+            except CPLE_BaseError as exc:
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query") from exc
 
-        if i >= num_features:
-            raise FeatureError(
-                "GDAL returned more records than expected based on the count of "
-                "records that may meet your combination of filters against this "
-                "dataset.  Please open an issue on Github "
-                "(https://github.com/geopandas/pyogrio/issues) to report encountering "
-                "this error."
-            ) from None
+                raise FeatureError(str(exc))
 
-        if return_fids:
-            fid_view[i] = OGR_F_GetFID(ogr_feature)
+            if i >= num_features:
+                raise FeatureError(
+                    "GDAL returned more records than expected based on the count of "
+                    "records that may meet your combination of filters against this "
+                    "dataset.  Please open an issue on Github "
+                    "(https://github.com/geopandas/pyogrio/issues) to report encountering "
+                    "this error."
+                ) from None
 
-        if read_geometry:
-            process_geometry(ogr_feature, i, geom_view, force_2d)
+            if return_fids:
+                fid_view[i] = OGR_F_GetFID(ogr_feature)
 
-        process_fields(
-            ogr_feature, i, n_fields, field_data, field_data_view,
-            field_indexes, field_ogr_types, encoding
-        )
-        i += 1
+            if read_geometry:
+                process_geometry(ogr_feature, i, geom_view, force_2d)
+
+            process_fields(
+                ogr_feature, i, n_fields, field_data, field_data_view,
+                field_indexes, field_ogr_types, encoding
+            )
+            i += 1
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
 
     # There may be fewer rows available than expected from OGR_L_GetFeatureCount,
     # such as features with bounding boxes that intersect the bbox
@@ -731,24 +752,30 @@ cdef get_features_by_fid(
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
     for i in range(count):
-        fid = fids[i]
-
         try:
-            ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
+            fid = fids[i]
 
-        except NullPointerError:
-            raise FeatureError(f"Could not read feature with fid {fid}") from None
+            try:
+                ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
 
-        except CPLE_BaseError as exc:
-            raise FeatureError(str(exc))
+            except NullPointerError:
+                raise FeatureError(f"Could not read feature with fid {fid}") from None
 
-        if read_geometry:
-            process_geometry(ogr_feature, i, geom_view, force_2d)
+            except CPLE_BaseError as exc:
+                raise FeatureError(str(exc))
 
-        process_fields(
-            ogr_feature, i, n_fields, field_data, field_data_view,
-            field_indexes, field_ogr_types, encoding
-        )
+            if read_geometry:
+                process_geometry(ogr_feature, i, geom_view, force_2d)
+
+            process_fields(
+                ogr_feature, i, n_fields, field_data, field_data_view,
+                field_indexes, field_ogr_types, encoding
+            )
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
+
 
     return (geometries, field_data)
 
@@ -779,42 +806,47 @@ cdef get_bounds(
 
     i = 0
     while True:
-        if num_features > 0 and i == num_features:
-            break
-
         try:
-            ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+            if num_features > 0 and i == num_features:
+                break
 
-        except NullPointerError:
-            # No more rows available, so stop reading
-            break
+            try:
+                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
 
-        except CPLE_BaseError as exc:
-            if "failed to prepare SQL" in str(exc):
-                raise ValueError(f"Invalid SQL query") from exc
+            except NullPointerError:
+                # No more rows available, so stop reading
+                break
+
+            except CPLE_BaseError as exc:
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query") from exc
+                else:
+                    raise FeatureError(str(exc))
+
+            if i >= num_features:
+                raise FeatureError(
+                    "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
+                ) from None
+
+            fid_view[i] = OGR_F_GetFID(ogr_feature)
+
+            ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
+
+            if ogr_geometry == NULL:
+                bounds_view[:,i] = np.nan
+
             else:
-                raise FeatureError(str(exc))
+                OGR_G_GetEnvelope(ogr_geometry, &ogr_envelope)
+                bounds_view[0, i] = ogr_envelope.MinX
+                bounds_view[1, i] = ogr_envelope.MinY
+                bounds_view[2, i] = ogr_envelope.MaxX
+                bounds_view[3, i] = ogr_envelope.MaxY
 
-        if i >= num_features:
-            raise FeatureError(
-                "Reading more features than indicated by OGR_L_GetFeatureCount is not supported"
-            ) from None
-
-        fid_view[i] = OGR_F_GetFID(ogr_feature)
-
-        ogr_geometry = OGR_F_GetGeometryRef(ogr_feature)
-
-        if ogr_geometry == NULL:
-            bounds_view[:,i] = np.nan
-
-        else:
-            OGR_G_GetEnvelope(ogr_geometry, &ogr_envelope)
-            bounds_view[0, i] = ogr_envelope.MinX
-            bounds_view[1, i] = ogr_envelope.MinY
-            bounds_view[2, i] = ogr_envelope.MaxX
-            bounds_view[3, i] = ogr_envelope.MaxY
-
-        i += 1
+            i += 1
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
 
     # Less rows read than anticipated, so drop empty rows
     if i < num_features:
@@ -844,6 +876,8 @@ def ogr_read(
     cdef int err = 0
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
+    cdef const char *field_c = NULL
+    cdef char **fields_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
@@ -885,11 +919,27 @@ def ogr_read(
 
         fields = get_fields(ogr_layer, encoding)
 
+        ignored_fields = []
         if columns is not None:
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
+
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+
+        if not read_geometry:
+            ignored_fields.append("OGR_GEOMETRY")
+
+        # Instruct GDAL to ignore reading fields not
+        # included in output columns for faster I/O
+        if ignored_fields:
+            for field in ignored_fields:
+                field_b = field.encode("utf-8")
+                field_c = field_b
+                fields_c = CSLAddString(fields_c, field_c)
+
+            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -937,7 +987,7 @@ def ogr_read(
             'crs': crs,
             'encoding': encoding,
             'fields': fields[:,2], # return only names
-            'geometry_type': geometry_type
+            'geometry_type': geometry_type,
         }
 
     finally:
@@ -954,6 +1004,142 @@ def ogr_read(
         geometries,
         field_data
     )
+
+
+def ogr_read_arrow(
+    str path,
+    object layer=None,
+    object encoding=None,
+    int read_geometry=True,
+    int force_2d=False,
+    object columns=None,
+    int skip_features=0,
+    int max_features=0,
+    object where=None,
+    tuple bbox=None,
+    object fids=None,
+    str sql=None,
+    str sql_dialect=None,
+    int return_fids=False,
+    **kwargs):
+
+    cdef int err = 0
+    cdef const char *path_c = NULL
+    cdef const char *where_c = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef char **fields_c = NULL
+    cdef const char *field_c = NULL
+    cdef char **options = NULL
+    cdef ArrowArrayStream stream
+    cdef ArrowSchema schema
+
+    path_b = path.encode('utf-8')
+    path_c = path_b
+
+    if force_2d:
+        raise ValueError("forcing 2D is not supported for Arrow")
+
+    if fids is not None:
+        raise ValueError("reading by FID is not supported for Arrow")
+
+    if skip_features or max_features:
+        raise ValueError(
+            "specifying 'skip_features' or 'max_features' is not supported for Arrow"
+        )
+
+    if sql is not None and layer is not None:
+        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+
+    ogr_dataset = ogr_open(path_c, 0, kwargs)
+    try:
+        if sql is None:
+            # layer defaults to index 0
+            if layer is None:
+                layer = 0
+            ogr_layer = get_ogr_layer(ogr_dataset, layer)
+        else:
+            ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
+
+        crs = get_crs(ogr_layer)
+
+        # Encoding is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
+        encoding = (
+            encoding
+            or detect_encoding(ogr_dataset, ogr_layer)
+            or locale.getpreferredencoding()
+        )
+
+        fields = get_fields(ogr_layer, encoding, use_arrow=True)
+
+        ignored_fields = []
+        if columns is not None:
+            # Fields are matched exactly by name, duplicates are dropped.
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+        if not read_geometry:
+            ignored_fields.append("OGR_GEOMETRY")
+
+        geometry_type = get_geometry_type(ogr_layer)
+
+        geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
+
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
+
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_spatial_filter(ogr_layer, bbox)
+
+        # Limit to specified columns
+        if ignored_fields:
+            for field in ignored_fields:
+                field_b = field.encode("utf-8")
+                field_c = field_b
+                fields_c = CSLAddString(fields_c, field_c)
+
+            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
+
+        if not return_fids:
+            options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
+
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
+
+        IF CTE_GDAL_VERSION < (3, 6, 0):
+            raise RuntimeError("Need GDAL>=3.6 for Arrow support")
+
+        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+
+        stream_ptr = <uintptr_t> &stream
+
+        # stream has to be consumed before the Dataset is closed
+        import pyarrow as pa
+        table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
+
+        meta = {
+            'crs': crs,
+            'encoding': encoding,
+            'fields': fields[:,2], # return only names
+            'geometry_type': geometry_type,
+            'geometry_name': geometry_name,
+        }
+
+    finally:
+        CSLDestroy(options)
+        if fields_c != NULL:
+            CSLDestroy(fields_c)
+            fields_c = NULL
+        if ogr_dataset != NULL:
+            if sql is not None:
+                GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
+
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
+
+    return meta, table
 
 
 def ogr_read_bounds(
@@ -1033,6 +1219,7 @@ def ogr_read_info(str path, object layer=None, object encoding=None, **kwargs):
         'dtypes': fields[:,3],
         'geometry_type': get_geometry_type(ogr_layer),
         'features': OGR_L_GetFeatureCount(ogr_layer, 1),
+        'driver': get_driver(ogr_dataset),
         "capabilities": {
             "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
             "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
@@ -1077,7 +1264,7 @@ def ogr_list_layers(str path):
 
 # NOTE: all modes are write-only
 # some data sources have multiple layers
-cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
+cdef void * ogr_create(const char* path_c, const char* driver_c, char** options) except NULL:
     cdef void *ogr_driver = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
@@ -1093,7 +1280,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c) except NULL:
 
     # Create the dataset
     try:
-        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, NULL))
+        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
 
     except NullPointerError:
         raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}") from None
@@ -1172,17 +1359,20 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
-# TODO: handle updateable data sources, like GPKG
 # TODO: set geometry and field data as memory views?
-def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
-    str crs, str geometry_type, str encoding, bint promote_to_multi=False, **kwargs):
-
+def ogr_write(
+    str path, str layer, str driver, geometry, field_data, fields,
+    str crs, str geometry_type, str encoding, object dataset_kwargs,
+    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
+    bint append=False
+):
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
     cdef const char *crs_c = NULL
     cdef const char *encoding_c = NULL
-    cdef char **options = NULL
+    cdef char **dataset_options = NULL
+    cdef char **layer_options = NULL
     cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
@@ -1194,6 +1384,7 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
     cdef int layer_idx = -1
+    cdef int supports_transactions = 0
     cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
@@ -1217,21 +1408,19 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
 
-    layer_b = layer.encode('UTF-8')
-    layer_c = layer_b
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
     # GPKG might be the only multi-layer writeable type.  TODO: check this
     if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq', 'FlatGeobuf') and os.path.exists(path):
-        os.unlink(path)
+        if not append:
+            os.unlink(path)
 
-    # TODO: invert this: if exists then try to update it, if that doesn't work then always create
+    layer_exists = False
     if os.path.exists(path):
         try:
             ogr_dataset = ogr_open(path_c, 1, None)
 
-            # If layer exists, delete it.
             for i in range(GDALDatasetGetLayerCount(ogr_dataset)):
                 name = OGR_L_GetName(GDALDatasetGetLayer(ogr_dataset, i))
                 if layer == name.decode('UTF-8'):
@@ -1239,64 +1428,81 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     break
 
             if layer_idx >= 0:
-                GDALDatasetDeleteLayer(ogr_dataset, layer_idx)
+                layer_exists = True
 
-        except DataSourceError:
-            # open failed, so create from scratch
-            # force delete it first
+                if not append:
+                    GDALDatasetDeleteLayer(ogr_dataset, layer_idx)
+
+        except DataSourceError as exc:
+            # open failed
+            if append:
+                raise exc
+
+            # otherwise create from scratch
             os.unlink(path)
             ogr_dataset = NULL
 
     # either it didn't exist or could not open it in write mode
     if ogr_dataset == NULL:
-        ogr_dataset = ogr_create(path_c, driver_c)
+        for k, v in dataset_kwargs.items():
+            k = k.encode('UTF-8')
+            v = v.encode('UTF-8')
+            dataset_options = CSLAddNameValue(dataset_options, <const char *>k, <const char *>v)
 
-    ### Create the CRS
-    if crs is not None:
-        try:
-            ogr_crs = create_crs(crs)
+        ogr_dataset = ogr_create(path_c, driver_c, dataset_options)
 
-        except Exception as exc:
-            OGRReleaseDataSource(ogr_dataset)
-            raise exc
-
-
-    ### Create options
-    if not encoding:
-        encoding = locale.getpreferredencoding()
-
-    if driver == 'ESRI Shapefile':
-        # Fiona only sets encoding for shapefiles; other drivers do not support
-        # encoding as an option.
-        encoding_b = encoding.upper().encode('UTF-8')
-        encoding_c = encoding_b
-        options = CSLSetNameValue(options, "ENCODING", encoding_c)
-
-    # Setup other layer creation options
-    for k, v in kwargs.items():
-        if v is None:
-            continue
-
-        k = k.upper().encode('UTF-8')
-
-        if isinstance(v, bool):
-            v = ('ON' if v else 'OFF').encode('utf-8')
-        else:
-            v = str(v).encode('utf-8')
-
-        options = CSLAddNameValue(options, <const char *>k, <const char *>v)
-
-
-    ### Get geometry type
-    # TODO: this is brittle for 3D / ZM / M types
-    # TODO: fail on M / ZM types
-    geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+    # if we are not appending to an existing layer, we need to create
+    # the layer and all associated properties (CRS, field defs, etc)
+    create_layer = not (append and layer_exists)
 
     ### Create the layer
+    if create_layer:
+        # Create the CRS
+        if crs is not None:
+            try:
+                ogr_crs = create_crs(crs)
+
+            except Exception as exc:
+                OGRReleaseDataSource(ogr_dataset)
+                ogr_dataset = NULL
+                if dataset_options != NULL:
+                    CSLDestroy(<char**>dataset_options)
+                    dataset_options = NULL
+                raise exc
+
+        # Setup layer creation options
+        if not encoding:
+            encoding = locale.getpreferredencoding()
+
+        if driver == 'ESRI Shapefile':
+            # Fiona only sets encoding for shapefiles; other drivers do not support
+            # encoding as an option.
+            encoding_b = encoding.upper().encode('UTF-8')
+            encoding_c = encoding_b
+            layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
+
+        # Setup other layer creation options
+        for k, v in layer_kwargs.items():
+            k = k.encode('UTF-8')
+            v = v.encode('UTF-8')
+            layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
+
+        ### Get geometry type
+        # TODO: this is brittle for 3D / ZM / M types
+        # TODO: fail on M / ZM types
+        geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+
     try:
-        ogr_layer = exc_wrap_pointer(
-                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
-                        <OGRwkbGeometryType>geometry_code, options))
+        if create_layer:
+            layer_b = layer.encode('UTF-8')
+            layer_c = layer_b
+
+            ogr_layer = exc_wrap_pointer(
+                    GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                            geometry_code, layer_options))
+
+        else:
+            ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
 
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
@@ -1308,54 +1514,64 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
             OSRRelease(ogr_crs)
             ogr_crs = NULL
 
-        if options != NULL:
-            CSLDestroy(<char**>options)
-            options = NULL
+        if dataset_options != NULL:
+            CSLDestroy(dataset_options)
+            dataset_options = NULL
+
+        if layer_options != NULL:
+            CSLDestroy(layer_options)
+            layer_options = NULL
 
     ### Create the fields
     field_types = infer_field_types([field.dtype for field in field_data])
-    for i in range(num_fields):
-        field_type, field_subtype, width, precision = field_types[i]
 
-        name_b = fields[i].encode(encoding)
-        try:
-            ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
+    ### Create the fields
+    if create_layer:
+        for i in range(num_fields):
+            field_type, field_subtype, width, precision = field_types[i]
 
-            # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
-            if field_subtype != OFSTNone:
-                OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
+            name_b = fields[i].encode(encoding)
+            try:
+                ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
 
-            if width:
-                OGR_Fld_SetWidth(ogr_fielddef, width)
+                # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
+                if field_subtype != OFSTNone:
+                    OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
 
-            # TODO: set precision
+                if width:
+                    OGR_Fld_SetWidth(ogr_fielddef, width)
 
-        except:
-            if ogr_fielddef != NULL:
-                OGR_Fld_Destroy(ogr_fielddef)
-                ogr_fielddef = NULL
+                # TODO: set precision
 
-            OGRReleaseDataSource(ogr_dataset)
-            ogr_dataset = NULL
-            raise FieldError(f"Error creating field '{fields[i]}' from field_data") from None
+            except:
+                if ogr_fielddef != NULL:
+                    OGR_Fld_Destroy(ogr_fielddef)
+                    ogr_fielddef = NULL
 
-        try:
-            exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+                OGRReleaseDataSource(ogr_dataset)
+                ogr_dataset = NULL
+                raise FieldError(f"Error creating field '{fields[i]}' from field_data") from None
 
-        except:
-            OGRReleaseDataSource(ogr_dataset)
-            ogr_dataset = NULL
-            raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
+            try:
+                exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
-        finally:
-            if ogr_fielddef != NULL:
-                OGR_Fld_Destroy(ogr_fielddef)
+            except:
+                OGRReleaseDataSource(ogr_dataset)
+                ogr_dataset = NULL
+                raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
+
+            finally:
+                if ogr_fielddef != NULL:
+                    OGR_Fld_Destroy(ogr_fielddef)
 
 
     ### Create the features
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
 
-    start_transaction(ogr_dataset, 0)
+    supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
+    if supports_transactions:
+        start_transaction(ogr_dataset, 0)
+
     for i in range(num_records):
         try:
             # create the feature
@@ -1432,7 +1648,10 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                     OGR_F_SetFieldInteger64(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTReal:
-                    OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
+                    if nan_as_null and isnan(field_value):
+                        OGR_F_SetFieldNull(ogr_feature, field_idx)
+                    else:
+                        OGR_F_SetFieldDouble(ogr_feature, field_idx, field_value)
 
                 elif field_type == OFTDate:
                     if np.isnat(field_value):
@@ -1484,7 +1703,8 @@ def ogr_write(str path, str layer, str driver, geometry, field_data, fields,
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
-    commit_transaction(ogr_dataset)
+    if supports_transactions:
+        commit_transaction(ogr_dataset)
 
     log.info(f"Created {num_records:,} records" )
 

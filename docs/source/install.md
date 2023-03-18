@@ -2,9 +2,13 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.10 and GDAL 3.1.x - 3.5.x
+Supports Python 3.8 - 3.11 and GDAL 3.1.x - 3.6.x
 
-Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos` enabled.
+Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos`
+or `geopandas>=0.12` with `shapely>=2`.
+
+Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
+a further speed-up when specifying `use_arrow=True`.
 
 ## Installation
 
@@ -18,7 +22,7 @@ conda install -c conda-forge pyogrio
 ```
 
 This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
-raw I/O support and `geopandas`, `pygeos`, and their dependencies for GeoDataFrame
+raw I/O support and `geopandas` and their dependencies for GeoDataFrame
 I/O support.
 
 ### PyPI

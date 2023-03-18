@@ -1,5 +1,5 @@
 # Contains declarations against GDAL / OGR API
-from libc.stdint cimport int64_t
+from libc.stdint cimport int64_t, int8_t
 from libc.stdio cimport FILE
 
 
@@ -184,6 +184,14 @@ cdef extern from "ogr_srs_api.h":
     void                    OSRRelease(OGRSpatialReferenceH srs)
 
 
+cdef extern from "arrow_bridge.h":
+    struct ArrowSchema:
+        int64_t n_children
+
+    struct ArrowArrayStream:
+        int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out)
+
+
 cdef extern from "ogr_api.h":
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
@@ -264,6 +272,7 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
     OGRErr                  OGR_L_CreateField(OGRLayerH layer, OGRFieldDefnH fielddefn, int flexible)
     const char*             OGR_L_GetName(OGRLayerH layer)
+    const char*             OGR_L_GetGeometryColumn(OGRLayerH layer)
     OGRSpatialReferenceH    OGR_L_GetSpatialRef(OGRLayerH layer)
     int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
     OGRFeatureDefnH         OGR_L_GetLayerDefn(OGRLayerH layer)
@@ -274,6 +283,7 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
     int                     OGR_L_GetFeatureCount(OGRLayerH layer, int m)
     void                    OGR_L_SetSpatialFilterRect(OGRLayerH layer, double xmin, double ymin, double xmax, double ymax)
+    OGRErr                  OGR_L_SetIgnoredFields(OGRLayerH layer, const char** fields)
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
@@ -284,6 +294,13 @@ cdef extern from "ogr_api.h":
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
     const char*     OLCFastSpatialFilter
+    const char*     OLCTransactions
+
+
+IF CTE_GDAL_VERSION >= (3, 6, 0):
+
+    cdef extern from "ogr_api.h":
+        int8_t OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
 
 cdef extern from "gdal.h":
@@ -309,6 +326,7 @@ cdef extern from "gdal.h":
 
     ctypedef void* GDALDatasetH
     ctypedef void* GDALDriverH
+    ctypedef void * GDALMajorObjectH
 
     void GDALAllRegister()
 
@@ -349,6 +367,7 @@ cdef extern from "gdal.h":
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
+    const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
 
 

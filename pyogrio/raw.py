@@ -2,11 +2,18 @@ import warnings
 import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_write
-    from pyogrio._ogr import remove_virtual_file
+    from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
+    from pyogrio._ogr import (
+        get_gdal_version,
+        get_gdal_version_string,
+        ogr_driver_supports_write,
+        remove_virtual_file,
+        _get_driver_metadata_item,
+    )
 
 
 DRIVERS = {
@@ -23,6 +30,10 @@ DRIVERS = {
 DRIVERS_NO_MIXED_SINGLE_MULTI = {
     "FlatGeobuf",
     "GPKG",
+}
+
+DRIVERS_NO_MIXED_DIMENSIONS = {
+    "FlatGeobuf",
 }
 
 
@@ -43,7 +54,7 @@ def read(
     sql_dialect=None,
     return_fids=False,
 ):
-    """Read OGR data source.
+    """Read OGR data source into numpy arrays.
 
     IMPORTANT: non-linear geometry types (e.g., MultiSurface) are converted
     to their linear approximations.
@@ -111,13 +122,66 @@ def read(
             "crs": "<crs>",
             "fields": <ndarray of field names>,
             "encoding": "<encoding>",
-            "geometry": "<geometry type>"
+            "geometry_type": "<geometry type>"
         }
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
     try:
         result = ogr_read(
+            path,
+            layer=layer,
+            encoding=encoding,
+            columns=columns,
+            read_geometry=read_geometry,
+            force_2d=force_2d,
+            skip_features=skip_features,
+            max_features=max_features or 0,
+            where=where,
+            bbox=bbox,
+            fids=fids,
+            sql=sql,
+            sql_dialect=sql_dialect,
+            return_fids=return_fids,
+        )
+    finally:
+        if buffer is not None:
+            remove_virtual_file(path)
+
+    return result
+
+
+def read_arrow(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    force_2d=False,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
+    fids=None,
+    sql=None,
+    sql_dialect=None,
+    return_fids=False,
+):
+    """
+    Read OGR data source into a pyarrow Table.
+
+    See docstring of `read` for details.
+    """
+    try:
+        import pyarrow  # noqa
+    except ImportError:
+        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
+
+    path, buffer = get_vsi_path(path_or_buffer)
+
+    try:
+        result = ogr_read_arrow(
             path,
             layer=layer,
             encoding=encoding,
@@ -160,6 +224,44 @@ def detect_driver(path):
     return driver
 
 
+def _parse_options_names(xml):
+    """Convert metadata xml to list of names"""
+    # Based on Fiona's meta.py
+    # (https://github.com/Toblerity/Fiona/blob/91c13ad8424641557a4e5f038f255f9b657b1bc5/fiona/meta.py)
+    import xml.etree.ElementTree as ET
+
+    options = []
+    if xml:
+        root = ET.fromstring(xml)
+        for option in root.iter("Option"):
+            # some options explicitly have scope='raster'
+            if option.attrib.get("scope", "vector") != "raster":
+                options.append(option.attrib["name"])
+
+    return options
+
+
+def _preprocess_options_key_value(options):
+    """
+    Preprocess options, eg `spatial_index=True` gets converted
+    to `SPATIAL_INDEX="YES"`.
+    """
+    if not isinstance(options, dict):
+        raise TypeError(f"Expected options to be a dict, got {type(options)}")
+
+    result = {}
+    for k, v in options.items():
+        if v is None:
+            continue
+        k = k.upper()
+        if isinstance(v, bool):
+            v = "ON" if v else "OFF"
+        else:
+            v = str(v)
+        result[k] = v
+    return result
+
+
 def write(
     path,
     geometry,
@@ -172,6 +274,10 @@ def write(
     crs=None,
     encoding=None,
     promote_to_multi=None,
+    nan_as_null=True,
+    append=False,
+    dataset_options=None,
+    layer_options=None,
     **kwargs,
 ):
     if geometry_type is None:
@@ -179,6 +285,19 @@ def write(
 
     if driver is None:
         driver = detect_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
+
+    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
+    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
+        raise RuntimeError(
+            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
+        )
 
     if promote_to_multi is None:
         promote_to_multi = (
@@ -193,6 +312,25 @@ def write(
             "systems."
         )
 
+    # preprocess kwargs and split in dataset and layer creation options
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
+    if kwargs:
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
+        for k, v in kwargs.items():
+            if k in dataset_option_names:
+                dataset_kwargs[k] = v
+            elif k in layer_option_names:
+                layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+
     ogr_write(
         str(path),
         layer=layer,
@@ -204,5 +342,8 @@ def write(
         crs=crs,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
-        **kwargs,
+        nan_as_null=nan_as_null,
+        append=append,
+        dataset_kwargs=dataset_kwargs,
+        layer_kwargs=layer_kwargs,
     )

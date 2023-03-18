@@ -1,5 +1,5 @@
-include versioneer.py
 include pyogrio/_version.py
 include pyogrio/*.pyx pyogrio/*.pxd
+include pyogrio/arrow_bridge.h
 exclude pyogrio/*.c
 recursive-include pyogrio/tests/fixtures *

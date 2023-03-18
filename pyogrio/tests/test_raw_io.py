@@ -6,10 +6,13 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers, read_info
+from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
 from pyogrio.raw import DRIVERS, read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile
+
+# mapping of driver name to extension
+DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
 
 
 def test_read(naturalearth_lowres):
@@ -274,6 +277,24 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
     assert os.path.exists(filename)
 
 
+def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write(filename, geometry, field_data, driver="GPKG", layer="first", **meta)
+
+    assert os.path.exists(filename)
+
+    assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
+
+    write(filename, geometry, field_data, driver="GPKG", layer="second", **meta)
+
+    assert np.array_equal(
+        list_layers(filename), [["first", "MultiPolygon"], ["second", "MultiPolygon"]]
+    )
+
+
 def test_write_geojson(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
@@ -293,16 +314,95 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 6, 0),
+    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
+)
+def test_write_openfilegdb(tmpdir, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gdb")
+    write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+    assert os.path.exists(filename)
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+def test_write_append(tmpdir, naturalearth_lowres, ext):
+    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
+        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
+
+    if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # coerce output layer to MultiPolygon to avoid mixed type errors
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    # write the same records again
+    write(filename, geometry, field_data, append=True, **meta)
+
+    assert read_info(filename)["features"] == 354
+
+
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+    if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # GML does not support append functionality
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+    write(filename, geometry, field_data, driver=driver, **meta)
+
+    assert os.path.exists(filename)
+
+    assert read_info(filename)["features"] == 177
+
+    with pytest.raises(DataSourceError):
+        write(filename, geometry, field_data, driver=driver, append=True, **meta)
+
+
+@pytest.mark.skipif(
+    __gdal_version__ > (3, 5, 0),
+    reason="segfaults on FlatGeobuf limited to GDAL <= 3.5.0",
+)
+def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
+    """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
+    verifies that we catch that before segfault"""
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.fgb")
+    write(filename, geometry, field_data, **meta)
+
+    assert os.path.exists(filename)
+
+    with pytest.raises(
+        RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
+    ):
+        write(filename, geometry, field_data, append=True, **meta)
+
+
 @pytest.mark.parametrize(
     "driver",
-    [
+    {
         driver
-        for driver in list_drivers(write=True)
+        for driver in DRIVERS.values()
         if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
-    ],
+    },
 )
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
-    """Test drivers not specifically tested above"""
+    """Test drivers known to work that are not specifically tested above"""
     meta, _, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
 
     # note: naturalearth_lowres contains mixed polygons / multipolygons, which
@@ -310,7 +410,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     # we take the first record only.
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = tmpdir / "test"
+    filename = tmpdir / f"test{DRIVER_EXT[driver]}"
     write(
         filename,
         geometry[:1],
@@ -322,10 +422,13 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     assert filename.exists()
 
 
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
+)
 def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.fgdb")
+    filename = os.path.join(str(tmpdir), "test.gdb")
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
@@ -340,9 +443,15 @@ def assert_equal_result(result1, result2):
     # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
     # the WKB values are not exactly equal, therefore parsing with pygeos to compare
     # with tolerance
-    pygeos = pytest.importorskip("pygeos")
-    assert pygeos.equals_exact(
-        pygeos.from_wkb(geometry1), pygeos.from_wkb(geometry2), tolerance=0.00001
+    try:
+        from shapely import from_wkb, equals_exact
+    except ImportError:
+        try:
+            from pygeos import from_wkb, equals_exact
+        except ImportError:
+            pytest.skip("Test requires pygeos or shapely>=2")
+    assert equals_exact(
+        from_wkb(geometry1), from_wkb(geometry2), tolerance=0.00001
     ).all()
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
@@ -507,13 +616,85 @@ def test_read_write_null_geometry(tmp_path, ext):
     )
     field_data = [np.array([1, 2], dtype="int32")]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    if ext == "gpkg":
+        meta["spatial_index"] = False
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
     result_geometry, result_fields = read(filename)[2:]
     assert np.array_equal(result_geometry, geometry)
     assert np.array_equal(result_fields[0], field_data[0])
+
+
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_write_float_nan_null(tmp_path, dtype):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    field_data = [np.array([1.5, np.nan], dtype=dtype)]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    fname = tmp_path / "test.geojson"
+
+    # default nan_as_null=True
+    write(fname, geometry, field_data, fields, **meta)
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '{ "col": null }' in content
+
+    # set to False
+    # by default, GDAL will skip the property for GeoJSON if the value is NaN
+    write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '"properties": { }' in content
+
+    # but can instruct GDAL to write NaN to json
+    write(
+        fname,
+        geometry,
+        field_data,
+        fields,
+        **meta,
+        nan_as_null=False,
+        WRITE_NON_FINITE_VALUES="YES",
+    )
+    with open(str(fname), "r") as f:
+        content = f.read()
+    assert '{ "col": NaN }' in content
+
+
+@pytest.mark.skipif("Arrow" not in list_drivers(), reason="GDAL not built with Arrow")
+def test_write_float_nan_null_arrow(tmp_path):
+    pyarrow = pytest.importorskip("pyarrow")
+    import pyarrow.feather
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    field_data = [np.array([1.5, np.nan], dtype="float64")]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    fname = tmp_path / "test.arrow"
+
+    # default nan_as_null=True
+    write(fname, geometry, field_data, fields, driver="Arrow", **meta)
+    table = pyarrow.feather.read_table(fname)
+    assert table["col"].is_null().to_pylist() == [False, True]
+
+    # set to False
+    write(
+        fname, geometry, field_data, fields, driver="Arrow", nan_as_null=False, **meta
+    )
+    table = pyarrow.feather.read_table(fname)
+    assert table["col"].is_null().to_pylist() == [False, False]
+    pc = pytest.importorskip("pyarrow.compute")
+    assert pc.is_nan(table["col"]).to_pylist() == [False, True]
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])

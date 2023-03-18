@@ -9,7 +9,7 @@ on:
   pull_request: # also build on PRs touching files that affect building sdist / wheels
     paths:
       - ".github/workflows/release.yml"
-      - "ci/*"
+      - "ci/**"
       - "MANIFEST.in"
       - "pyproject.toml"
       - "setup.py"
@@ -97,7 +97,7 @@ jobs:
 
       - name: Build Docker image with vcpkg and gdal
         # using build-push-action (without push) to make use of cache arguments
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
@@ -110,7 +110,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
+        uses: pypa/cibuildwheel@v2.12.1
 
       - uses: actions/upload-artifact@v3
         with:
@@ -136,7 +136,7 @@ jobs:
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2019"
-            triplet: "x64-windows"
+            triplet: "x64-windows-dynamic-release"
             arch: AMD64
             # windows requires windows-specific paths
             vcpkg_cache: "c:\\vcpkg\\installed"
@@ -155,7 +155,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.5.2-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.2-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -164,6 +164,16 @@ jobs:
         run: |
           brew reinstall automake
           echo $(which aclocal)
+
+      - name: Checkout specific version of vcpkg
+        shell: bash
+        run: |
+          cd $VCPKG_INSTALLATION_ROOT
+          # on mac the clone is not clean, otherwise git pull fails
+          git reset --hard
+          # pull latest version to ensure the required commit with GDAL 3.6 is available
+          git pull
+          git checkout 94e85d15fb857f8d4150006fe3b61aca839ac299
 
       - name: Install GDAL
         env:
@@ -180,7 +190,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
+        uses: pypa/cibuildwheel@v2.12.1
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -198,7 +208,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-10.15", "macos-latest"]
-        python-version: ["3.8", "3.9", "3.10", "3.11-dev"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
       - name: Checkout

@@ -4,10 +4,14 @@ import os
 import numpy as np
 import pytest
 
-from pyogrio import list_layers, read_info, __gdal_geos_version__
+from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
-from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
+from pyogrio.raw import (
+    DRIVERS,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+)
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -15,6 +19,7 @@ try:
     from pandas.testing import assert_frame_equal, assert_index_equal
 
     import geopandas as gp
+    from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
@@ -471,20 +476,97 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         _ = read_dataframe(filename)
 
 
-def test_write_dataframe_gdalparams(tmp_path, naturalearth_lowres):
-    original_df = read_dataframe(naturalearth_lowres)
+def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / "test.gpkg"
 
-    test_noindex_filename = tmp_path / "test_gdalparams_noindex.shp"
-    write_dataframe(original_df, test_noindex_filename, SPATIAL_INDEX="NO")
-    assert test_noindex_filename.exists() is True
-    test_noindex_index_filename = tmp_path / "test_gdalparams_noindex.qix"
-    assert test_noindex_index_filename.exists() is False
+    write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
 
-    test_withindex_filename = tmp_path / "test_gdalparams_withindex.shp"
-    write_dataframe(original_df, test_withindex_filename, SPATIAL_INDEX="YES")
-    assert test_withindex_filename.exists() is True
-    test_withindex_index_filename = tmp_path / "test_gdalparams_withindex.qix"
-    assert test_withindex_index_filename.exists() is True
+    assert os.path.exists(output_path)
+    assert np.array_equal(list_layers(output_path), [["first", "MultiPolygon"]])
+
+    write_dataframe(input_gdf, output_path, layer="second", promote_to_multi=True)
+    assert np.array_equal(
+        list_layers(output_path),
+        [["first", "MultiPolygon"], ["second", "MultiPolygon"]],
+    )
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
+    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
+        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
+
+    if ext in (".geojsonl", ".geojsons") and __gdal_version__ <= (3, 6, 0):
+        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path)
+
+    assert os.path.exists(output_path)
+    assert len(read_dataframe(output_path)) == 177
+
+    write_dataframe(input_gdf, output_path, append=True)
+    assert len(read_dataframe(output_path)) == 354
+
+
+@pytest.mark.parametrize("spatial_index", [False, True])
+def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres, spatial_index):
+    df = read_dataframe(naturalearth_lowres)
+
+    outfilename1 = tmp_path / "test1.shp"
+    write_dataframe(df, outfilename1, SPATIAL_INDEX="YES" if spatial_index else "NO")
+    assert outfilename1.exists() is True
+    index_filename1 = tmp_path / "test1.qix"
+    assert index_filename1.exists() is spatial_index
+
+    # using explicit layer_options instead
+    outfilename2 = tmp_path / "test2.shp"
+    write_dataframe(df, outfilename2, layer_options=dict(spatial_index=spatial_index))
+    assert outfilename2.exists() is True
+    index_filename2 = tmp_path / "test2.qix"
+    assert index_filename2.exists() is spatial_index
+
+
+def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    # geojson has no spatial index, so passing keyword should raise
+    outfilename = tmp_path / "test.geojson"
+    with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
+        write_dataframe(df, outfilename, spatial_index=True)
+
+
+def _get_gpkg_table_names(path):
+    import sqlite3
+
+    con = sqlite3.connect(path)
+    cursor = con.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+    result = cursor.fetchall()
+    return [res[0] for res in result]
+
+
+def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    test_default_filename = tmp_path / "test_default.gpkg"
+    write_dataframe(df, test_default_filename)
+    assert "gpkg_ogr_contents" in _get_gpkg_table_names(test_default_filename)
+
+    test_no_contents_filename = tmp_path / "test_no_contents.gpkg"
+    write_dataframe(df, test_default_filename, ADD_GPKG_OGR_CONTENTS="NO")
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename)
+
+    test_no_contents_filename2 = tmp_path / "test_no_contents2.gpkg"
+    write_dataframe(
+        df,
+        test_no_contents_filename2,
+        dataset_options=dict(add_gpkg_ogr_contents=False),
+    )
+    assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename2)
 
 
 @pytest.mark.parametrize(
@@ -766,14 +848,91 @@ def test_write_read_null(tmp_path):
     ],
 )
 def test_write_geometry_z_types(tmp_path, wkt, geom_types):
-    pygeos = pytest.importorskip("pygeos")
     filename = tmp_path / "test.fgb"
-
-    gdf = gp.GeoDataFrame(geometry=[pygeos.from_wkt(wkt)], crs="EPSG:4326")
+    gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
+
+
+@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.parametrize(
+    "test_descr, exp_geometry_type, mixed_dimensions, wkt",
+    [
+        ("1 Point Z", "2.5D Point", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "2.5D LineString", False, ["LineString Z (0 0 0, 1 1 0)"]),
+        (
+            "1 Polygon Z",
+            "2.5D Polygon",
+            False,
+            ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
+        ),
+        ("1 MultiPoint Z", "2.5D MultiPoint", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        (
+            "1 MultiLineString Z",
+            "2.5D MultiLineString",
+            False,
+            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
+        ),
+        (
+            "1 MultiLinePolygon Z",
+            "2.5D MultiPolygon",
+            False,
+            [
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+            ],
+        ),
+        (
+            "1 GeometryCollection Z",
+            "2.5D GeometryCollection",
+            False,
+            ["GeometryCollection Z (Point Z (0 0 0))"],
+        ),
+        ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
+    ],
+)
+def test_write_geometry_z_types_auto(
+    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt
+):
+    # Shapefile has some different behaviour that other file types
+    if ext == ".shp":
+        if exp_geometry_type == "2.5D GeometryCollection":
+            pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
+        elif exp_geometry_type == "2.5D MultiLineString":
+            exp_geometry_type = "2.5D LineString"
+        elif exp_geometry_type == "2.5D MultiPolygon":
+            exp_geometry_type = "2.5D Polygon"
+
+    column_data = {}
+    column_data["test_descr"] = [test_descr] * len(wkt)
+    column_data["idx"] = [str(idx) for idx in range(len(wkt))]
+    gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
+    filename = tmp_path / f"test{ext}"
+
+    if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
+        with pytest.raises(
+            DataSourceError,
+            match=("Mixed 2D and 3D coordinates are not supported by"),
+        ):
+            write_dataframe(gdf, filename)
+        return
+    else:
+        write_dataframe(gdf, filename)
+
+    info = read_info(filename)
+    assert info["geometry_type"] == exp_geometry_type
+
+    result_gdf = read_dataframe(filename)
+    if ext == ".geojsonl":
+        result_gdf.crs = "EPSG:4326"
+    if ext == ".fgb":
+        # When the following gdal issue is released, this if needs to be removed:
+        # https://github.com/OSGeo/gdal/issues/7401
+        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
+
+    assert_geodataframe_equal(gdf, result_gdf)
 
 
 def test_read_multisurface(data_dir):

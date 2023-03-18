@@ -1,6 +1,54 @@
 # CHANGELOG
 
-## O.4.2
+## 0.6.0 (???)
+
+### Improvements
+
+- Add automatic detection of 2.5D geometries in write_dataframe (#223)
+- Add "driver" property to read_info result (#224)
+
+## 0.5.1 (2023-01-26)
+
+### Bug fixes
+
+-   Fix memory leak in reading files (#207)
+-   Fix to only use transactions for writing records when supported by the
+    driver (#203)
+
+## 0.5.0 (2023-01-16)
+
+### Major enhancements
+
+-   Support for reading based on Arrow as the transfer mechanism of the data
+    from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be installed).
+    This can be enabled by passing `use_arrow=True` to `pyogrio.read_dataframe`
+    (or by using `pyogrio.raw.read_arrow` directly), and provides a further
+    speed-up (#155, #191).
+-   Support for appending to an existing data source when supported by GDAL by
+    passing `append=True` to `pyogrio.write_dataframe` (#197).
+
+### Potentially breaking changes
+
+-   In floating point columns, NaN values are now by default written as "null"
+    instead of NaN, but with an option to control this (pass `nan_as_null=False`
+    to keep the previous behaviour) (#190).
+
+### Improvements
+
+-   It is now possible to pass GDAL's dataset creation options in addition
+    to layer creation options in `pyogrio.write_dataframe` (#189).
+-   When specifying a subset of `columns` to read, unnecessary IO or parsing
+    is now avoided (#195).
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.4 to GDAL 3.6.2,
+    and is now built with GEOS and sqlite with rtree support enabled
+    (which allows writing a spatial index for GeoPackage).
+-   Wheels are now available for Python 3.11.
+-   Wheels are now available for MacOS arm64.
+
+## 0.4.2 (2022-10-06)
 
 ### Improvements
 
@@ -15,7 +63,7 @@
 -   properly raises error when invalid where clause is used on a GPKG (#150)
 -   avoid duplicate count of available features (#151)
 
-## 0.4.1
+## 0.4.1 (2022-07-25)
 
 ### Bug fixes
 
@@ -24,7 +72,7 @@
 -   always convert curve or surface geometry types to linear geometry types,
     such as lines or polygons (#140)
 
-## 0.4.0
+## 0.4.0 (2022-06-20)
 
 ### Major enhancements
 
@@ -90,7 +138,7 @@ People with a “+” by their names contributed a patch for the first time.
 -   Pieter Roggemans +
 -   Wei Ji Leong +
 
-## 0.3.0
+## 0.3.0 (2021-12-22)
 
 ### Major enhancements
 
@@ -100,7 +148,7 @@ People with a “+” by their names contributed a patch for the first time.
 -   Addition of a `fids` keyword to `read` and `read_dataframe` to selectively
     read features based on a list of the FIDs.
 
-## 0.2.0
+## 0.2.0 (2021-04-02)
 
 ### Major enhancements
 
@@ -120,7 +168,7 @@ People with a “+” by their names contributed a patch for the first time.
 -   Addition of `list_drivers` function to list all available GDAL drivers.
 -   Addition of read and write support for `FlatGeobuf` driver when available in GDAL.
 
-## 0.1.0
+## 0.1.0 (2020-08-28)
 
 ### Major enhancements
 

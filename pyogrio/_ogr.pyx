@@ -3,8 +3,9 @@ import sys
 from uuid import uuid4
 import warnings
 
-from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr
-from pyogrio._err import CPLE_BaseError
+from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer
+from pyogrio._err import CPLE_BaseError, NullPointerError
+from pyogrio.errors import DataSourceError
 
 
 cdef get_string(const char *c_str, str encoding="UTF-8"):
@@ -99,24 +100,18 @@ def get_gdal_config_option(str name):
     return str_value
 
 
-### Drivers
-# mapping of driver:mode
-# see full list at https://gdal.org/drivers/vector/index.html
-# only for drivers specifically known to operate correctly with pyogrio
-DRIVERS = {
-    # "CSV": "rw",  # TODO: needs geometry conversion method
-    "ESRI Shapefile": "rw",
-    "FlatGeobuf": "rw",
-    "GeoJSON": "rw",
-    "GeoJSONSeq": "rw",
-    "GML": "rw",
-    # "GPX": "rw", # TODO: supports limited geometry types
-    "GPKG": "rw",
-    "OAPIF": "r",
-    "OpenFileGDB": "r",
-    "TopoJSON": "r",
-    # "XLSX": "rw",  # TODO: needs geometry conversion method
-}
+def ogr_driver_supports_write(driver):
+    # exclude drivers known to be unsupported by pyogrio even though they are
+    # supported for write by GDAL
+    if driver in {"XLSX"}:
+        return False
+
+
+    # check metadata for driver to see if it supports write
+    if _get_driver_metadata_item(driver, "DCAP_CREATE") == 'YES':
+        return True
+
+    return False
 
 
 def ogr_list_drivers():
@@ -130,9 +125,12 @@ def ogr_list_drivers():
         name_c = <char *>OGR_Dr_GetName(driver)
 
         name = get_string(name_c)
-        # drivers that are not specifically listed have unknown support
-        # this omits any drivers from supported list that are not installed
-        drivers[name] = DRIVERS.get(name, '?')
+
+        if ogr_driver_supports_write(name):
+            drivers[name] = "rw"
+
+        else:
+            drivers[name] = "r"
 
     return drivers
 
@@ -185,7 +183,7 @@ def has_gdal_data():
 
 def get_gdal_data_path():
     """
-    Get the path to the directory GDAL uses to read data files. 
+    Get the path to the directory GDAL uses to read data files.
     """
     cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
     if path_c != NULL:
@@ -284,3 +282,44 @@ def init_proj_data():
 def _register_drivers():
     # Register all drivers
     GDALAllRegister()
+
+
+def _get_driver_metadata_item(driver, metadata_item):
+    """
+    Query driver metadata items.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to query
+    metadata_item : str
+        Metadata item to query
+
+    Returns
+    -------
+    str or None
+        Metadata item
+    """
+    cdef const char* metadata_c = NULL
+    cdef void *cogr_driver = NULL
+
+    try:
+        cogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver.encode('UTF-8')))
+    except NullPointerError:
+        raise DataSourceError(
+            f"Could not obtain driver: {driver} (check that it was installed "
+            "correctly into GDAL)"
+        )
+    except CPLE_BaseError as exc:
+        raise DataSourceError(str(exc))
+
+    metadata_c = GDALGetMetadataItem(cogr_driver, metadata_item.encode('UTF-8'), NULL)
+
+    metadata = None
+    if metadata_c != NULL:
+        metadata = metadata_c
+        metadata = metadata.decode('UTF-8')
+        if len(metadata) == 0:
+            metadata = None
+
+    return metadata

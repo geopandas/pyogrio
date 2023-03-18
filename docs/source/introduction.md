@@ -24,10 +24,15 @@ Not all geometry or field types may be supported for all drivers.
 {...'GeoJSON': 'rw', 'GeoJSONSeq': 'rw',...}
 ```
 
-Drivers that are not known to be supported are listed with `"?"` for capabilities.
-Drivers that are known to support write capability end in `"w"`.
+Drivers that support write capability in your version of GDAL end in `"w"`.
+Certain drivers that are known to be unsupported in Pyogrio are disabled for
+write capabilities.
 
-To find subsets of drivers that have known support:
+NOTE: not all drivers support writing the contents of a GeoDataFrame; you may
+encounter errors due to unsupported data types, unsupported geometry types,
+or other driver-related errors when writing to a data source.
+
+To find subsets of drivers that support read or write capabilities:
 
 ```python
 >>> list_drivers(read=True)
@@ -38,8 +43,13 @@ See the full list of [drivers](https://gdal.org/drivers/vector/index.html) for
 more information about specific drivers, including their write support and
 configuration options.
 
-You can certainly try to read or write using unsupported drivers that are
-available in your installation, but you may encounter errors.
+The following drivers are known to be well-supported and tested in Pyogrio:
+
+-   `ESRI Shapefile`
+-   `FlatGeobuf`
+-   `GeoJSON`
+-   `GeoJSONSeq`
+-   `GPKG`
 
 ## List available layers
 
@@ -66,14 +76,16 @@ first layer.
 >>> from pyogrio import read_info
 >>> read_info('ne_10m_admin_0_countries.shp')
 
-# Outputs a dictionary with `crs`, `encoding`, `fields`, `geometry_type`, and `features`
+# Outputs a dictionary with `crs`, `driver`, `encoding`, `fields`, `geometry_type`, and
+# `features`
 {
   'crs': 'EPSG:4326',
   'encoding': 'UTF-8',
   'fields': array(['featurecla', 'scalerank', 'LABELRANK', ...], dtype=object),
   'dtypes': array(['int64', 'object', 'object', 'object', 'float64'], dtype=object),
   'geometry_type': 'Polygon',
-  'features': 255
+  'features': 255,
+  'driver': 'ESRI Shapefile',
 }
 ```
 
@@ -328,6 +340,23 @@ If you want to write another file format supported by GDAL or if you want to
 overrule the default driver for an extension, you can specify the driver with the
 `driver` keyword, e.g. `driver="GPKG"`.
 
+## Appending to an existing data source
+
+Certain drivers may support the ability to append records to an existing
+data layer in an existing data source. See the
+[GDAL driver listing](https://gdal.org/drivers/vector/index.html)
+for details about the capabilities of a driver for your version of GDAL.
+
+```
+>>> write_dataframe(df, "/tmp/existing_file.gpkg", append=True)
+```
+
+NOTE: the data structure of the data frame you are appending to the existing
+data source must exactly match the structure of the existing data source.
+
+NOTE: not all drivers that support write capabilities support append
+capabilities for a given GDAL version.
+
 ## Reading from compressed files / archives
 
 GDAL supports reading directly from an archive, such as a zipped folder, without
@@ -390,6 +419,48 @@ You can also read from a URL with this syntax:
 ```python
 >>> read_dataframe("https://s3.amazonaws.com/bucket/data.geojson")
 >>> read_dataframe("zip+https://s3.amazonaws.com/bucket/shapefile.zip")
+```
+
+## Dataset and layer creation options
+
+It is possible to use dataset and layer creation options available for a given
+driver in GDAL (see the relevant
+[GDAL driver page](https://gdal.org/drivers/vector/index.html)). These
+can be passed in as additional `kwargs` to `write_dataframe` or using
+dictionaries for dataset or layer-level options.
+
+Where possible, Pyogrio uses the metadata of the driver to determine if a
+given option is for the dataset or layer level. For drivers where the same
+option is available for both levels, you will need to use `dataset_options`
+or `layer_options` to specify the correct level.
+
+Option names are automatically converted to uppercase.
+
+`True` / `False` values are automatically converted to `'ON'` / `'OFF'`.
+
+For instance, you can use creation options to create a spatial index for a
+[shapefile](https://gdal.org/drivers/vector/shapefile.html#layer-creation-options).
+
+```python
+>>> write_dataframe(df, "/tmp/test.shp", spatial_index=True)
+```
+
+You can use upper case option names and values to match the GDAL options exactly
+(creation options are converted to uppercase by default):
+
+```python
+>>> write_dataframe(df, '/tmp/test.shp', SPATIAL_INDEX="YES")
+```
+
+You can also use a dictionary to specify either `dataset_options` or
+`layer_options` as appropriate for the driver:
+
+```python
+>>> write_dataframe(df, '/tmp/test.shp', layer_options={"spatial_index": True})
+```
+
+```python
+>>> write_dataframe(df, '/tmp/test.gpkg', dataset_options={"version": "1.0"}, layer_options={"geometry_name": "the_geom"})
 ```
 
 ## Configuration options

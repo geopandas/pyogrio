@@ -172,7 +172,8 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
-                "features": <feature count>
+                "features": <feature count>,
+                "driver": "<driver>",
             }
     """
     path, buffer = get_vsi_path(path_or_buffer)
