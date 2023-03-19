@@ -891,6 +891,18 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         ),
         ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
         ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
+        (
+            "Point Z + LineString Z",
+            "Unknown",
+            False,
+            ["LineString Z (0 0 0, 1 1 0)", "Point Z (0 0 0)"],
+        ),
+        (
+            "Point Z + LineString",
+            "Unknown",
+            True,
+            ["LineString (0 0, 1 1)", "Point Z (0 0 0)"],
+        ),
     ],
 )
 def test_write_geometry_z_types_auto(
@@ -898,7 +910,7 @@ def test_write_geometry_z_types_auto(
 ):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
-        if exp_geometry_type == "2.5D GeometryCollection":
+        if exp_geometry_type in ("2.5D GeometryCollection", "Unknown"):
             pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
         elif exp_geometry_type == "2.5D MultiLineString":
             exp_geometry_type = "2.5D LineString"
