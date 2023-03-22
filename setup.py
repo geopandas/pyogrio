@@ -219,7 +219,7 @@ setup(
     name="pyogrio",
     version=version,
     packages=find_packages(),
-    url="https://github.com/pyogrio/pyogrio",
+    url="https://github.com/geopandas/pyogrio",
     license="MIT",
     author="Brendan C. Ward",
     author_email="bcward@astutespruce.com",
