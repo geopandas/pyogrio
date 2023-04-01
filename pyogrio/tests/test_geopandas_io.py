@@ -952,3 +952,21 @@ def test_read_multisurface(data_dir):
 
     # MultiSurface should be converted to MultiPolygon
     assert df.geometry.type.tolist() == ["MultiPolygon"]
+
+
+def test_write_nullable_dtypes(tmp_path):
+    path = tmp_path / "test_nullable_dtypes.gpkg"
+    test_data = {
+        "col1": pd.Series([1, 2, 3], dtype="int64"),
+        "col2": pd.Series([1, 2, None], dtype="Int64"),
+        "col3": pd.Series([0.1, None, 0.3], dtype="Float32"),
+        "col4": pd.Series([True, False, None], dtype="boolean"),
+    }
+    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    write_dataframe(input_gdf, path)
+    output_gdf = read_dataframe(path)
+    expected = input_gdf.copy()
+    expected["col2"] = expected["col2"].astype("float64")
+    expected["col3"] = expected["col3"].astype("float32")
+    expected["col4"] = expected["col4"].astype("float64")
+    assert_geodataframe_equal(output_gdf, expected)

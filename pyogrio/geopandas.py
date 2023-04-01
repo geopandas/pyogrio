@@ -306,7 +306,19 @@ def write_dataframe(
     fields = [c for c in df.columns if not c == geometry_column]
 
     # TODO: may need to fill in pd.NA, etc
-    field_data = [df[f].values for f in fields]
+    field_data = []
+    field_mask = []
+    for name in fields:
+        col = df[name].values
+        if isinstance(
+            col,
+            (pd.arrays.BooleanArray, pd.arrays.IntegerArray, pd.arrays.FloatingArray),
+        ):
+            field_data.append(col._data)
+            field_mask.append(col._mask)
+        else:
+            field_data.append(col)
+            field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_type is None or promote_to_multi is None:
@@ -381,6 +393,7 @@ def write_dataframe(
         driver=driver,
         geometry=to_wkb(geometry.values),
         field_data=field_data,
+        field_mask=field_mask,
         fields=fields,
         crs=crs,
         geometry_type=geometry_type,

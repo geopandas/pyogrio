@@ -1361,7 +1361,7 @@ cdef infer_field_types(list dtypes):
 
 # TODO: set geometry and field data as memory views?
 def ogr_write(
-    str path, str layer, str driver, geometry, field_data, fields,
+    str path, str layer, str driver, geometry, fields, field_data, field_mask,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
     object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
     bint append=False
@@ -1398,6 +1398,15 @@ def ogr_write(
         for i in range(1, len(field_data)):
             if len(field_data[i]) != num_records:
                 raise ValueError("field_data arrays must be same length as geometry array")
+
+    if field_mask is not None:
+        if len(field_data) != len(field_mask):
+            raise ValueError("field_data and field_mask must be same length")
+        for i in range(0, len(field_mask)):
+            if field_data[i] is not None and len(field_data[i]) != num_records:
+                    raise ValueError("field_data arrays must be same length as geometry array")
+    else:
+        field_mask = [None] * len(field_data)
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -1619,7 +1628,11 @@ def ogr_write(
                 field_value = field_data[field_idx][i]
                 field_type = field_types[field_idx][0]
 
-                if field_type == OFTString:
+                mask = field_mask[field_idx]
+                if mask is not None and mask[i]:
+                    OGR_F_SetFieldNull(ogr_feature, field_idx)
+
+                elif field_type == OFTString:
                     # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
                     if (
                         field_value is None

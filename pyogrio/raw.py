@@ -267,6 +267,7 @@ def write(
     geometry,
     field_data,
     fields,
+    field_mask=None,
     layer=None,
     driver=None,
     # derived from meta if roundtrip
@@ -338,6 +339,7 @@ def write(
         geometry=geometry,
         geometry_type=geometry_type,
         field_data=field_data,
+        field_mask=field_mask,
         fields=fields,
         crs=crs,
         encoding=encoding,
