@@ -961,6 +961,7 @@ def test_write_nullable_dtypes(tmp_path):
         "col2": pd.Series([1, 2, None], dtype="Int64"),
         "col3": pd.Series([0.1, None, 0.3], dtype="Float32"),
         "col4": pd.Series([True, False, None], dtype="boolean"),
+        "col5": pd.Series(["a", None, "b"], dtype="string"),
     }
     input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
     write_dataframe(input_gdf, path)
@@ -969,4 +970,5 @@ def test_write_nullable_dtypes(tmp_path):
     expected["col2"] = expected["col2"].astype("float64")
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
+    expected["col5"] = expected["col5"].astype(object)
     assert_geodataframe_equal(output_gdf, expected)

@@ -310,12 +310,15 @@ def write_dataframe(
     field_mask = []
     for name in fields:
         col = df[name].values
-        if isinstance(
-            col,
-            (pd.arrays.BooleanArray, pd.arrays.IntegerArray, pd.arrays.FloatingArray),
-        ):
-            field_data.append(col._data)
-            field_mask.append(col._mask)
+        if isinstance(col, pd.api.extensions.ExtensionArray):
+            from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
+
+            if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(col._data)
+                field_mask.append(col._mask)
+            else:
+                field_data.append(np.asarray(col))
+                field_mask.append(np.asarray(col.isna()))
         else:
             field_data.append(col)
             field_mask.append(None)
