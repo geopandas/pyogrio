@@ -4,8 +4,10 @@
 
 ### Improvements
 
--   Add automatic detection of 3D geometries in write_dataframe (#223, #229)
--   Add "driver" property to read_info result (#224)
+-   Add automatic detection of 2.5D geometries in `write_dataframe` (#223, #229)
+-   Add "driver" property to `read_info` result (#224)
+-   Add support for dataset open options to `read`, `read_dataframe`, and
+    `read_info` (#233)
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
 
