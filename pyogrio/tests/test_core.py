@@ -231,6 +231,43 @@ def test_read_info(naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
+    "dataset_kwargs,fields",
+    [
+        ({}, ["top_level", "intermediate_level"]),
+        (
+            {"FLATTEN_NESTED_ATTRIBUTES": "YES"},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+        (
+            {"flatten_nested_attributes": "yes"},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+        (
+            {"flatten_nested_attributes": True},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+    ],
+)
+def test_read_info_dataset_kwargs(data_dir, dataset_kwargs, fields):
+    meta = read_info(data_dir / "test_nested.geojson", **dataset_kwargs)
+    assert meta["fields"].tolist() == fields
+
+
+def test_read_info_invalid_dataset_kwargs(capfd, naturalearth_lowres):
+    read_info(naturalearth_lowres, INVALID="YES")
+    assert "does not support open option INVALID" in capfd.readouterr().err
+
+
+@pytest.mark.parametrize(
     "name,value,expected",
     [
         ("CPL_DEBUG", "ON", True),
