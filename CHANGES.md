@@ -12,7 +12,7 @@
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
 -   Add support for writing dataset metadata (where supported by driver) to
     `write` and `write_dataframe`, and add support for reading dataset metadata
-    in `read_info`.
+    in `read_info` (#237).
 
 ## 0.5.1 (2023-01-26)
 
