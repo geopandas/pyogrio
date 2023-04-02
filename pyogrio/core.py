@@ -1,4 +1,5 @@
 from pyogrio._env import GDALEnv
+from pyogrio.raw import _preprocess_options_key_value
 from pyogrio.util import get_vsi_path
 
 
@@ -145,7 +146,7 @@ def read_bounds(
     return result
 
 
-def read_info(path_or_buffer, /, layer=None, encoding=None):
+def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
     """Read information about an OGR data source.
 
     ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
@@ -160,6 +161,9 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -178,8 +182,12 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
+
     try:
-        result = ogr_read_info(path, layer=layer, encoding=encoding)
+        result = ogr_read_info(
+            path, layer=layer, encoding=encoding, dataset_kwargs=dataset_kwargs
+        )
     finally:
         if buffer is not None:
             remove_virtual_file(path)

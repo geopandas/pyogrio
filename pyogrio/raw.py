@@ -53,6 +53,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    **kwargs,
 ):
     """Read OGR data source into numpy arrays.
 
@@ -107,6 +108,9 @@ def read(
         number of features usings FIDs is also driver specific.
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -127,6 +131,8 @@ def read(
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
+
     try:
         result = ogr_read(
             path,
@@ -143,6 +149,7 @@ def read(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:
@@ -167,6 +174,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    **kwargs,
 ):
     """
     Read OGR data source into a pyarrow Table.
@@ -179,6 +187,8 @@ def read_arrow(
         raise RuntimeError("the 'pyarrow' package is required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
+
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
         result = ogr_read_arrow(
@@ -196,6 +206,7 @@ def read_arrow(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:

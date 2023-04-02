@@ -26,6 +26,14 @@ try:
 except ImportError:
     pass
 
+has_pyarrow = False
+try:
+    import pyarrow  # noqa
+
+    has_pyarrow = True
+except ImportError:
+    pass
+
 
 pytest.importorskip("geopandas")
 
@@ -952,6 +960,68 @@ def test_read_multisurface(data_dir):
 
     # MultiSurface should be converted to MultiPolygon
     assert df.geometry.type.tolist() == ["MultiPolygon"]
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_dataset_kwargs(data_dir, use_arrow):
+    filename = data_dir / "test_nested.geojson"
+
+    # by default, nested data are not flattened
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level": ['{ "bottom_level": "B" }'],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+    df = read_dataframe(filename, use_arrow=use_arrow, FLATTEN_NESTED_ATTRIBUTES="YES")
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level_bottom_level": ["B"],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
+    read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
+    assert "does not support open option INVALID" in capfd.readouterr().err
 
 
 def test_write_nullable_dtypes(tmp_path):
