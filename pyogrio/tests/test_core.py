@@ -99,7 +99,7 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
     )
 
-    # Measured 3D is downgraded to 2.5D during read
+    # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
@@ -111,9 +111,9 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         # Make sure that nonspatial layer has None for geometry
         assert array_equal(fgdb_layers[0], ["basetable_2", None])
 
-        # Confirm that measured 3D is downgraded to 2.5D during read
-        assert array_equal(fgdb_layers[3], ["test_lines", "2.5D MultiLineString"])
-        assert array_equal(fgdb_layers[6], ["test_areas", "2.5D MultiPolygon"])
+        # Confirm that measured 3D is downgraded to plain 3D during read
+        assert array_equal(fgdb_layers[3], ["test_lines", "MultiLineString Z"])
+        assert array_equal(fgdb_layers[6], ["test_areas", "MultiPolygon Z"])
 
 
 def test_read_bounds(naturalearth_lowres):
