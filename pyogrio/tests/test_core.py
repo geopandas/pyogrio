@@ -12,6 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
+from pyogrio.errors import DataSourceError
 
 from pyogrio._env import GDALEnv
 
@@ -288,3 +289,14 @@ def test_reset_config_options():
 
     set_gdal_config_options({"foo": None})
     assert get_gdal_config_option("foo") is None
+
+
+def test_error_handling(capfd):
+    # an operation that triggers a GDAL Failure
+    # -> error translated into Python exception + not printed to stderr
+    with pytest.raises(DataSourceError, match="No such file or directory"):
+        read_info("non-existent.shp")
+
+    assert (
+        "ERROR 4: non-existent.shp: No such file or directory" in capfd.readouterr().err
+    )
