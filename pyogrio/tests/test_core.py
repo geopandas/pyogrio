@@ -297,6 +297,4 @@ def test_error_handling(capfd):
     with pytest.raises(DataSourceError, match="No such file or directory"):
         read_info("non-existent.shp")
 
-    assert (
-        "ERROR 4: non-existent.shp: No such file or directory" in capfd.readouterr().err
-    )
+    assert capfd.readouterr().err == ""
