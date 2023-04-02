@@ -34,37 +34,37 @@ GEOMETRY_TYPES = {
     wkbMultiLineStringZM: 'Measured 3D MultiLineString',
     wkbMultiPolygonZM: 'Measured 3D MultiPolygon',
     wkbGeometryCollectionZM: 'Measured 3D GeometryCollection',
-    wkbPoint25D: '2.5D Point',
-    wkbLineString25D: '2.5D LineString',
-    wkbPolygon25D: '2.5D Polygon',
-    wkbMultiPoint25D: '2.5D MultiPoint',
-    wkbMultiLineString25D: '2.5D MultiLineString',
-    wkbMultiPolygon25D: '2.5D MultiPolygon',
-    wkbGeometryCollection25D: '2.5D GeometryCollection',
+    wkbPoint25D: 'Point Z',
+    wkbLineString25D: 'LineString Z',
+    wkbPolygon25D: 'Polygon Z',
+    wkbMultiPoint25D: 'MultiPoint Z',
+    wkbMultiLineString25D: 'MultiLineString Z',
+    wkbMultiPolygon25D: 'MultiPolygon Z',
+    wkbGeometryCollection25D: 'GeometryCollection Z',
 }
 
 GEOMETRY_TYPE_CODES = {v:k for k, v in GEOMETRY_TYPES.items()}
 
-# add additional aliases from Simple Features WKT types with Z
+# add additional aliases from 2.5D format
 GEOMETRY_TYPE_CODES.update({
-    'Point Z': wkbPoint25D,
-    'LineString Z': wkbLineString25D,
-    'Polygon Z': wkbPolygon25D,
-    'MultiPoint Z': wkbMultiPoint25D,
-    'MultiLineString Z': wkbMultiLineString25D,
-    'MultiPolygon Z': wkbMultiPolygon25D,
-    'GeometryCollection Z': wkbGeometryCollection25D
+    '2.5D Point': wkbPoint25D,
+    '2.5D LineString': wkbLineString25D,
+    '2.5D Polygon': wkbPolygon25D,
+    '2.5D MultiPoint': wkbMultiPoint25D,
+    '2.5D MultiLineString': wkbMultiLineString25D,
+    '2.5D MultiPolygon': wkbMultiPolygon25D,
+    '2.5D GeometryCollection': wkbGeometryCollection25D
 })
 
 # 2.5D also represented using negative numbers not enumerated above
 GEOMETRY_TYPES.update({
-    -2147483647: '2.5D Point',
-    -2147483646: '2.5D LineString',
-    -2147483645: '2.5D Polygon',
-    -2147483644: '2.5D MultiPoint',
-    -2147483643: '2.5D MultiLineString',
-    -2147483642: '2.5D MultiPolygon',
-    -2147483641: '2.5D GeometryCollection',
+    -2147483647: 'Point Z',
+    -2147483646: 'LineString Z',
+    -2147483645: 'Polygon Z',
+    -2147483644: 'MultiPoint Z',
+    -2147483643: 'MultiLineString Z',
+    -2147483642: 'MultiPolygon Z',
+    -2147483641: 'GeometryCollection Z',
 })
 
 
