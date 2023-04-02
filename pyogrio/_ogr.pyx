@@ -284,6 +284,33 @@ def _register_drivers():
     GDALAllRegister()
 
 
+cdef void error_handler(CPLErr err_class, int err_no, const char* msg) with gil:
+    """Send CPL debug messages and warnings to Python's logger."""
+
+    # Generally we want to suppress error printing to stderr (behaviour of the
+    # default GDAL error handler) because we already raise a Python exception
+    # that includes the error message
+
+
+    # If the error class is CE_Fatal, we want to have a message issued
+    # because the CPL support code does an abort() before any exception
+    # can be generated
+    if err_class == CPLErr.CE_Fatal:
+        CPLDefaultErrorHandler(err_class, err_no, msg)
+
+    # We do not want to interfere with non-failure messages since
+    # they won't be translated into exceptions.
+    elif err_class != CPLErr.CE_Failure:
+        CPLDefaultErrorHandler(err_class, err_no, msg)
+
+    else:
+        pass
+
+
+def _register_error_handler():
+    CPLPushErrorHandler(<CPLErrorHandler>error_handler)
+
+
 def _get_driver_metadata_item(driver, metadata_item):
     """
     Query driver metadata items.

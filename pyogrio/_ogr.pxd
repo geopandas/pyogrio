@@ -27,6 +27,11 @@ cdef extern from "cpl_error.h":
     const char*    CPLGetLastErrorMsg()
     int             CPLGetLastErrorType()
 
+    ctypedef void (*CPLErrorHandler)(CPLErr, int, const char*)
+    void CPLDefaultErrorHandler(CPLErr, int, const char *)
+    void CPLPushErrorHandler(CPLErrorHandler handler)
+    void CPLPopErrorHandler()
+
 
 cdef extern from "cpl_string.h":
     char**      CSLAddNameValue(char **list, const char *name, const char *value)
