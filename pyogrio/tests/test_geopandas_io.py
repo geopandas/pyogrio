@@ -1022,3 +1022,42 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
 def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
     read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
     assert "does not support open option INVALID" in capfd.readouterr().err
+
+
+def test_dataset_metadata(tmpdir, naturalearth_lowres):
+    expected_metadata = {"key": "value", "another_key": "another_value"}
+
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_dataframe(df, filename, metadata=expected_metadata)
+
+    metadata = read_info(filename)["metadata"]
+    assert metadata == expected_metadata
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {1: 2},
+        {"key": None},
+        {"key": 1},
+    ],
+)
+def test_dataset_metadata_invalid_metadata(tmpdir, naturalearth_lowres, metadata):
+    with pytest.raises(ValueError, match="must be a string"):
+        filename = os.path.join(str(tmpdir), "test.gpkg")
+        write_dataframe(
+            read_dataframe(naturalearth_lowres), filename, metadata=metadata
+        )
+
+
+def test_dataset_metadata_unsupported(tmpdir, naturalearth_lowres):
+    """metadata is silently ignored"""
+
+    filename = os.path.join(str(tmpdir), "test.geojson")
+    write_dataframe(
+        read_dataframe(naturalearth_lowres), filename, metadata={"key": "value"}
+    )
+
+    assert read_info(filename)["metadata"] is None
