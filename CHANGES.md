@@ -8,6 +8,8 @@
 -   Add "driver" property to `read_info` result (#224)
 -   Add support for dataset open options to `read`, `read_dataframe`, and
     `read_info` (#233)
+-   Add support for pandas' nullable data types in `write_dataframe`, or
+    specifying a mask manually for missing values in `write` (#219)
 
 ## 0.5.1 (2023-01-26)
 
