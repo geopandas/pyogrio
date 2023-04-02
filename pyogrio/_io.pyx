@@ -1404,7 +1404,7 @@ def ogr_write(
             raise ValueError("field_data and field_mask must be same length")
         for i in range(0, len(field_mask)):
             if field_data[i] is not None and len(field_data[i]) != num_records:
-                    raise ValueError("field_data arrays must be same length as geometry array")
+                raise ValueError("field_mask arrays must be same length as geometry array")
     else:
         field_mask = [None] * len(field_data)
 
