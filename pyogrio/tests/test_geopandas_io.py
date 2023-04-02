@@ -1036,6 +1036,8 @@ def test_write_nullable_dtypes(tmp_path):
     input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
     write_dataframe(input_gdf, path)
     output_gdf = read_dataframe(path)
+    # We read it back as default (non-nullable) numpy dtypes, so we cast
+    # to those for the expected result
     expected = input_gdf.copy()
     expected["col2"] = expected["col2"].astype("float64")
     expected["col3"] = expected["col3"].astype("float32")
