@@ -7,7 +7,7 @@
 -   Add automatic detection of 3D geometries in write_dataframe (#223, #229)
 -   Add "driver" property to read_info result (#224)
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
-    "<type> Z" for consistency with well-known text (WKT) formats
+    "<type> Z" for consistency with well-known text (WKT) formats (#234)
 
 ## 0.5.1 (2023-01-26)
 
