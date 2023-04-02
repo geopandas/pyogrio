@@ -36,6 +36,7 @@ def read_dataframe(
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=False,
+    **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -121,6 +122,9 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -157,6 +161,7 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        **kwargs,
     )
 
     if use_arrow:
