@@ -1622,7 +1622,7 @@ def ogr_write(
             # TODO: geometry must not be null or errors
             wkb = geometry[i]
             if wkb is not None:
-                wkbtype = bytearray(wkb)[1]
+                wkbtype = <int>bytearray(wkb)[1]
                 # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
                 # use "little" if the first byte == 1
                 ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
