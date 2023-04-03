@@ -1024,9 +1024,9 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
         ),
     ],
 )
-def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
-    read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
-    assert "does not support open option INVALID" in capfd.readouterr().err
+def test_read_invalid_dataset_kwargs(naturalearth_lowres, use_arrow):
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
 
 
 def test_write_nullable_dtypes(tmp_path):
