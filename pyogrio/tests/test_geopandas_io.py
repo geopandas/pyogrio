@@ -868,24 +868,24 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 @pytest.mark.parametrize(
     "test_descr, exp_geometry_type, mixed_dimensions, wkt",
     [
-        ("1 Point Z", "2.5D Point", False, ["Point Z (0 0 0)"]),
-        ("1 LineString Z", "2.5D LineString", False, ["LineString Z (0 0 0, 1 1 0)"]),
+        ("1 Point Z", "Point Z", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "LineString Z", False, ["LineString Z (0 0 0, 1 1 0)"]),
         (
             "1 Polygon Z",
-            "2.5D Polygon",
+            "Polygon Z",
             False,
             ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
         ),
-        ("1 MultiPoint Z", "2.5D MultiPoint", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        ("1 MultiPoint Z", "MultiPoint Z", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
         (
             "1 MultiLineString Z",
-            "2.5D MultiLineString",
+            "MultiLineString Z",
             False,
             ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
         ),
         (
             "1 MultiLinePolygon Z",
-            "2.5D MultiPolygon",
+            "MultiPolygon Z",
             False,
             [
                 "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
@@ -893,12 +893,12 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         ),
         (
             "1 GeometryCollection Z",
-            "2.5D GeometryCollection",
+            "GeometryCollection Z",
             False,
             ["GeometryCollection Z (Point Z (0 0 0))"],
         ),
-        ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
-        ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
+        ("Point Z + Point", "Point Z", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "Point Z", False, ["Point Z (0 0 0)", None]),
         (
             "Point Z + LineString Z",
             "Unknown",
@@ -918,12 +918,12 @@ def test_write_geometry_z_types_auto(
 ):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
-        if exp_geometry_type in ("2.5D GeometryCollection", "Unknown"):
+        if exp_geometry_type in ("GeometryCollection Z", "Unknown"):
             pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
-        elif exp_geometry_type == "2.5D MultiLineString":
-            exp_geometry_type = "2.5D LineString"
-        elif exp_geometry_type == "2.5D MultiPolygon":
-            exp_geometry_type = "2.5D Polygon"
+        elif exp_geometry_type == "MultiLineString Z":
+            exp_geometry_type = "LineString Z"
+        elif exp_geometry_type == "MultiPolygon Z":
+            exp_geometry_type = "Polygon Z"
 
     column_data = {}
     column_data["test_descr"] = [test_descr] * len(wkt)
@@ -1022,3 +1022,25 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
 def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
     read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
     assert "does not support open option INVALID" in capfd.readouterr().err
+
+
+def test_write_nullable_dtypes(tmp_path):
+    path = tmp_path / "test_nullable_dtypes.gpkg"
+    test_data = {
+        "col1": pd.Series([1, 2, 3], dtype="int64"),
+        "col2": pd.Series([1, 2, None], dtype="Int64"),
+        "col3": pd.Series([0.1, None, 0.3], dtype="Float32"),
+        "col4": pd.Series([True, False, None], dtype="boolean"),
+        "col5": pd.Series(["a", None, "b"], dtype="string"),
+    }
+    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    write_dataframe(input_gdf, path)
+    output_gdf = read_dataframe(path)
+    # We read it back as default (non-nullable) numpy dtypes, so we cast
+    # to those for the expected result
+    expected = input_gdf.copy()
+    expected["col2"] = expected["col2"].astype("float64")
+    expected["col3"] = expected["col3"].astype("float32")
+    expected["col4"] = expected["col4"].astype("float64")
+    expected["col5"] = expected["col5"].astype(object)
+    assert_geodataframe_equal(output_gdf, expected)

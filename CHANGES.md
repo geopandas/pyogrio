@@ -8,6 +8,10 @@
 -   Add "driver" property to `read_info` result (#224)
 -   Add support for dataset open options to `read`, `read_dataframe`, and
     `read_info` (#233)
+-   Add support for pandas' nullable data types in `write_dataframe`, or
+    specifying a mask manually for missing values in `write` (#219)
+-   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
+    "<type> Z" for consistency with well-known text (WKT) formats (#234)
 
 ## 0.5.1 (2023-01-26)
 
