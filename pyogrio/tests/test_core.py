@@ -298,3 +298,8 @@ def test_error_handling(capfd):
         read_info("non-existent.shp")
 
     assert capfd.readouterr().err == ""
+
+
+def test_error_handling_warning(capfd, naturalearth_lowres):
+    read_info(naturalearth_lowres, INVALID="YES")
+    assert "does not support open option INVALID" in capfd.readouterr().err
