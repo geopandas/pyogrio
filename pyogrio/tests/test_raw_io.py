@@ -806,3 +806,31 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         assert np.array_equal(
             fields, read_info(filename, encoding=read_encoding)["fields"]
         )
+
+
+def test_write_with_mask(tmp_path):
+    # Point(0, 0), null
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+        dtype=object,
+    )
+    field_data = [np.array([1, 2, 3], dtype="int32")]
+    field_mask = [np.array([False, True, False])]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, fields, field_mask, **meta)
+    result_geometry, result_fields = read(filename)[2:]
+    assert np.array_equal(result_geometry, geometry)
+    np.testing.assert_allclose(result_fields[0], np.array([1, np.nan, 3]))
+
+    # wrong length for mask
+    field_mask = [np.array([False, True])]
+    with pytest.raises(ValueError):
+        write(filename, geometry, field_data, fields, field_mask, **meta)
+
+    # wrong number of mask arrays
+    field_mask = [np.array([False, True, False])] * 2
+    with pytest.raises(ValueError):
+        write(filename, geometry, field_data, fields, field_mask, **meta)
