@@ -1024,18 +1024,19 @@ def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
     assert "does not support open option INVALID" in capfd.readouterr().err
 
 
-def test_dataset_metadata(tmpdir, naturalearth_lowres):
-    expected_metadata = {"key": "value", "another_key": "another_value"}
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
+    metadata = {"level": metadata_type}
 
     df = read_dataframe(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
-    write_dataframe(df, filename, metadata=expected_metadata)
+    write_dataframe(df, filename, **{metadata_type: metadata})
 
-    metadata = read_info(filename)["metadata"]
-    assert metadata == expected_metadata
+    assert read_info(filename)[metadata_type] == metadata
 
 
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
 @pytest.mark.parametrize(
     "metadata",
     [
@@ -1044,20 +1045,23 @@ def test_dataset_metadata(tmpdir, naturalearth_lowres):
         {"key": 1},
     ],
 )
-def test_dataset_metadata_invalid_metadata(tmpdir, naturalearth_lowres, metadata):
+def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
     with pytest.raises(ValueError, match="must be a string"):
         filename = os.path.join(str(tmpdir), "test.gpkg")
         write_dataframe(
-            read_dataframe(naturalearth_lowres), filename, metadata=metadata
+            read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
         )
 
 
-def test_dataset_metadata_unsupported(tmpdir, naturalearth_lowres):
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
     """metadata is silently ignored"""
 
     filename = os.path.join(str(tmpdir), "test.geojson")
     write_dataframe(
-        read_dataframe(naturalearth_lowres), filename, metadata={"key": "value"}
+        read_dataframe(naturalearth_lowres),
+        filename,
+        **{metadata_type: {"key": "value"}},
     )
 
-    assert read_info(filename)["metadata"] is None
+    assert read_info(filename)[metadata_type] is None

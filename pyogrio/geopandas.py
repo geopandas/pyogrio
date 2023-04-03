@@ -204,7 +204,8 @@ def write_dataframe(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
-    metadata=None,
+    dataset_metadata=None,
+    layer_metadata=None,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -262,10 +263,14 @@ def write_dataframe(
         driver supports appending to an existing data source, will cause the
         data to be appended to the existing records in the data source.
         NOTE: append support is limited to specific drivers and GDAL versions.
-    metadata : dict, optional (defaul: None)
-        Metadata to be stored in the output file; limited to drivers that
-        support writing metadata (GPKG) and silently ignored otherwise.  Keys
-        and values must be strings.
+    dataset_metadata : dict, optional (default: None)
+        Metadata to be stored at the dataset level in the output file; limited
+        to drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    layer_metadata : dict, optional (default: None)
+        Metadata to be stored at the layer level in the output file; limited to
+        drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
     dataset_options : dict, optional
         Dataset creation option (format specific) passed to OGR. Specify as
         a key-value dictionary.
@@ -398,7 +403,8 @@ def write_dataframe(
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
         append=append,
-        metadata=metadata,
+        dataset_metadata=dataset_metadata,
+        layer_metadata=layer_metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
         **kwargs,

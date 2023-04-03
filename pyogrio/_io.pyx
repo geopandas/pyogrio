@@ -1315,7 +1315,8 @@ def ogr_read_info(
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
                 "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
             },
-            'metadata': get_metadata(ogr_layer)
+            'layer_metadata': get_metadata(ogr_layer),
+            'dataset_metadata': get_metadata(ogr_dataset),
         }
 
     finally:
@@ -1460,7 +1461,7 @@ def ogr_write(
     str path, str layer, str driver, geometry, field_data, fields,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
     object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
-    bint append=False, metadata=None
+    bint append=False, dataset_metadata=None, layer_metadata=None
 ):
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1596,8 +1597,9 @@ def ogr_write(
         else:
             ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
 
-        # Set layer metadata
-        set_metadata(ogr_layer, metadata)
+        # Set dataset and layer metadata
+        set_metadata(ogr_dataset, dataset_metadata)
+        set_metadata(ogr_layer, layer_metadata)
 
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)

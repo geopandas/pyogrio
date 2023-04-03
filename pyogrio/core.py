@@ -178,7 +178,8 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
                 "geometry": "<geometry type>",
                 "features": <feature count>,
                 "driver": "<driver>",
-                "metadata" "<dict of layer metadata or None>"
+                "dataset_metadata" "<dict of dataset metadata or None>"
+                "layer_metadata" "<dict of layer metadata or None>"
             }
     """
     path, buffer = get_vsi_path(path_or_buffer)
