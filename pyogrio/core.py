@@ -16,8 +16,8 @@ with GDALEnv():
         init_proj_data as _init_proj_data,
         remove_virtual_file,
         _register_drivers,
-        _register_error_handler,
     )
+    from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
     _init_gdal_data()
