@@ -14,7 +14,7 @@ cdef extern from "cpl_conv.h":
     void        CPLSetConfigOption(const char* key, const char* value)
 
 
-cdef extern from "cpl_error.h":
+cdef extern from "cpl_error.h" nogil:
     ctypedef enum CPLErr:
         CE_None
         CE_Debug

@@ -210,7 +210,7 @@ cdef int exc_wrap_ogrerr(int err) except -1:
     return err
 
 
-cdef void error_handler(CPLErr err_class, int err_no, const char* msg):
+cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil:
     """Custom CPL error handler to match the Python behaviour.
 
     Generally we want to suppress error printing to stderr (behaviour of the
@@ -221,7 +221,7 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* msg):
         # If the error class is CE_Fatal, we want to have a message issued
         # because the CPL support code does an abort() before any exception
         # can be generated
-        CPLDefaultErrorHandler(err_class, err_no, msg)
+        CPLDefaultErrorHandler(err_class, err_no, err_msg)
         return
 
     elif err_class == CE_Failure:
@@ -231,7 +231,7 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* msg):
 
     # Fall back to the default handler for non-failure messages since
     # they won't be translated into exceptions.
-    CPLDefaultErrorHandler(err_class, err_no, msg)
+    CPLDefaultErrorHandler(err_class, err_no, err_msg)
 
 
 def _register_error_handler():
