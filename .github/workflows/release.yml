@@ -155,7 +155,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.2-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.3-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -173,7 +173,7 @@ jobs:
           git reset --hard
           # pull latest version to ensure the required commit with GDAL 3.6 is available
           git pull
-          git checkout 94e85d15fb857f8d4150006fe3b61aca839ac299
+          git checkout fe2d921cd5e1c8721e8e2385c35fb3a4ea65e559
 
       - name: Install GDAL
         env:
