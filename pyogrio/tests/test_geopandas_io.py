@@ -1,3 +1,4 @@
+import contextlib
 from datetime import datetime
 import os
 from packaging.version import Version
@@ -649,12 +650,21 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
-    write_dataframe(
-        input_gdf,
-        output_path,
-        promote_to_multi=promote_to_multi,
-        geometry_type=geometry_type,
-    )
+
+    if ext == ".gpkg" and geometry_type in ("Polygon", "Point"):
+        ctx = pytest.warns(
+            RuntimeWarning, match="A geometry of type MULTIPOLYGON is inserted"
+        )
+    else:
+        ctx = contextlib.nullcontext()
+
+    with ctx:
+        write_dataframe(
+            input_gdf,
+            output_path,
+            promote_to_multi=promote_to_multi,
+            geometry_type=geometry_type,
+        )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
