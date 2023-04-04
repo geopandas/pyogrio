@@ -225,7 +225,7 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil
         return
 
     elif err_class == CE_Failure:
-        # For Failures, do nothing as those are explicitly catched
+        # For Failures, do nothing as those are explicitly caught
         # with error return codes and translated into Python exceptions
         return
 
