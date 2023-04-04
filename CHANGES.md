@@ -15,6 +15,10 @@
 -   Failure error messages from GDAL are no longer printed to stderr (they were
     already translated into Python exceptions as well) (#236).
 
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.3.
+
 ## 0.5.1 (2023-01-26)
 
 ### Bug fixes
