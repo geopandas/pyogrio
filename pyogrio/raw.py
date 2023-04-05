@@ -221,6 +221,7 @@ def read_arrow(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
+            dataset_kwargs=dataset_kwargs,
         ) as source:
             meta, reader = source
             table = reader.read_all()
@@ -247,6 +248,7 @@ def open_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    **kwargs,
 ):
     """
     Open OGR data source as a stream of pyarrow record batches.
@@ -290,6 +292,8 @@ def open_arrow(
         raise RuntimeError("the 'pyarrow' package is required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
+
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
         return ogr_open_arrow(
