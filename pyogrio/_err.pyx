@@ -3,7 +3,8 @@ from enum import IntEnum
 
 from pyogrio._ogr cimport (
     CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
-    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr)
+    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr,
+    CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPushErrorHandler)
 
 
 # CPL Error types as an enum.
@@ -207,3 +208,31 @@ cdef int exc_wrap_ogrerr(int err) except -1:
         raise CPLE_BaseError(3, err, f"OGR Error code {err}")
 
     return err
+
+
+cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil:
+    """Custom CPL error handler to match the Python behaviour.
+
+    Generally we want to suppress error printing to stderr (behaviour of the
+    default GDAL error handler) because we already raise a Python exception
+    that includes the error message.
+    """
+    if err_class == CE_Fatal:
+        # If the error class is CE_Fatal, we want to have a message issued
+        # because the CPL support code does an abort() before any exception
+        # can be generated
+        CPLDefaultErrorHandler(err_class, err_no, err_msg)
+        return
+
+    elif err_class == CE_Failure:
+        # For Failures, do nothing as those are explicitly caught
+        # with error return codes and translated into Python exceptions
+        return
+
+    # Fall back to the default handler for non-failure messages since
+    # they won't be translated into exceptions.
+    CPLDefaultErrorHandler(err_class, err_no, err_msg)
+
+
+def _register_error_handler():
+    CPLPushErrorHandler(<CPLErrorHandler>error_handler)

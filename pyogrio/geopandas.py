@@ -1,5 +1,7 @@
-from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI
+import numpy as np
+from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
 from pyogrio.raw import detect_driver, read, read_arrow, write
+from pyogrio.errors import DataSourceError
 
 
 def _stringify_path(path):
@@ -34,6 +36,7 @@ def read_dataframe(
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=False,
+    **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -119,6 +122,9 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -155,6 +161,7 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        **kwargs,
     )
 
     if use_arrow:
@@ -304,14 +311,42 @@ def write_dataframe(
     fields = [c for c in df.columns if not c == geometry_column]
 
     # TODO: may need to fill in pd.NA, etc
-    field_data = [df[f].values for f in fields]
+    field_data = []
+    field_mask = []
+    for name in fields:
+        col = df[name].values
+        if isinstance(col, pd.api.extensions.ExtensionArray):
+            from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
+
+            if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(col._data)
+                field_mask.append(col._mask)
+            else:
+                field_data.append(np.asarray(col))
+                field_mask.append(np.asarray(col.isna()))
+        else:
+            field_data.append(col)
+            field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_type is None or promote_to_multi is None:
         tmp_geometry_type = "Unknown"
+        has_z = False
 
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
+            # None/Empty geometries sometimes report as Z incorrectly, so ignore them
+            has_z_arr = geometry[
+                (geometry != np.array(None)) & (~geometry.is_empty)
+            ].has_z
+            has_z = has_z_arr.any()
+            all_z = has_z_arr.all()
+
+            if driver in DRIVERS_NO_MIXED_DIMENSIONS and has_z and not all_z:
+                raise DataSourceError(
+                    f"Mixed 2D and 3D coordinates are not supported by {driver}"
+                )
+
             geometry_types = pd.Series(geometry.type.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
@@ -347,6 +382,8 @@ def write_dataframe(
 
         if geometry_type is None:
             geometry_type = tmp_geometry_type
+            if has_z and geometry_type != "Unknown":
+                geometry_type = f"{geometry_type} Z"
 
     crs = None
     if geometry.crs:
@@ -364,6 +401,7 @@ def write_dataframe(
         driver=driver,
         geometry=to_wkb(geometry.values),
         field_data=field_data,
+        field_mask=field_mask,
         fields=fields,
         crs=crs,
         geometry_type=geometry_type,

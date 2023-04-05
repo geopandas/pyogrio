@@ -32,6 +32,10 @@ DRIVERS_NO_MIXED_SINGLE_MULTI = {
     "GPKG",
 }
 
+DRIVERS_NO_MIXED_DIMENSIONS = {
+    "FlatGeobuf",
+}
+
 
 def read(
     path_or_buffer,
@@ -49,6 +53,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    **kwargs,
 ):
     """Read OGR data source into numpy arrays.
 
@@ -103,6 +108,9 @@ def read(
         number of features usings FIDs is also driver specific.
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -118,10 +126,12 @@ def read(
             "crs": "<crs>",
             "fields": <ndarray of field names>,
             "encoding": "<encoding>",
-            "geometry": "<geometry type>"
+            "geometry_type": "<geometry type>"
         }
     """
     path, buffer = get_vsi_path(path_or_buffer)
+
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
         result = ogr_read(
@@ -139,6 +149,7 @@ def read(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:
@@ -163,6 +174,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    **kwargs,
 ):
     """
     Read OGR data source into a pyarrow Table.
@@ -190,6 +202,8 @@ def read_arrow(
         raise RuntimeError("the 'pyarrow' package is required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
+
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
         with ogr_open_arrow(
@@ -293,6 +307,7 @@ def open_arrow(
             sql=sql,
             sql_dialect=sql_dialect,
             return_fids=return_fids,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:
@@ -362,6 +377,7 @@ def write(
     geometry,
     field_data,
     fields,
+    field_mask=None,
     layer=None,
     driver=None,
     # derived from meta if roundtrip
@@ -433,6 +449,7 @@ def write(
         geometry=geometry,
         geometry_type=geometry_type,
         field_data=field_data,
+        field_mask=field_mask,
         fields=fields,
         crs=crs,
         encoding=encoding,

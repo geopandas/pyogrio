@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+from packaging.version import Version
 
 import numpy as np
 import pytest
@@ -7,7 +8,11 @@ import pytest
 from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
-from pyogrio.raw import DRIVERS, DRIVERS_NO_MIXED_SINGLE_MULTI
+from pyogrio.raw import (
+    DRIVERS,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+)
 from pyogrio.tests.conftest import ALL_EXTS
 
 try:
@@ -15,9 +20,18 @@ try:
     from pandas.testing import assert_frame_equal, assert_index_equal
 
     import geopandas as gp
+    from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
+except ImportError:
+    pass
+
+has_pyarrow = False
+try:
+    import pyarrow  # noqa
+
+    has_pyarrow = True
 except ImportError:
     pass
 
@@ -117,7 +131,11 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext):
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
-    assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
+    if Version(pd.__version__) >= Version("2.0.0"):
+        # starting with pandas 2.0, it preserves the passed datetime resolution
+        assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
+    else:
+        assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
 def test_read_null_values(test_fgdb_vsi):
@@ -843,10 +861,7 @@ def test_write_read_null(tmp_path):
     ],
 )
 def test_write_geometry_z_types(tmp_path, wkt, geom_types):
-    from geopandas.array import from_wkt
-
     filename = tmp_path / "test.fgb"
-
     gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
         write_dataframe(gdf, filename, geometry_type=geom_type)
@@ -854,8 +869,183 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         assert_geodataframe_equal(df, gdf)
 
 
+@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.parametrize(
+    "test_descr, exp_geometry_type, mixed_dimensions, wkt",
+    [
+        ("1 Point Z", "Point Z", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "LineString Z", False, ["LineString Z (0 0 0, 1 1 0)"]),
+        (
+            "1 Polygon Z",
+            "Polygon Z",
+            False,
+            ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
+        ),
+        ("1 MultiPoint Z", "MultiPoint Z", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        (
+            "1 MultiLineString Z",
+            "MultiLineString Z",
+            False,
+            ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
+        ),
+        (
+            "1 MultiLinePolygon Z",
+            "MultiPolygon Z",
+            False,
+            [
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+            ],
+        ),
+        (
+            "1 GeometryCollection Z",
+            "GeometryCollection Z",
+            False,
+            ["GeometryCollection Z (Point Z (0 0 0))"],
+        ),
+        ("Point Z + Point", "Point Z", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "Point Z", False, ["Point Z (0 0 0)", None]),
+        (
+            "Point Z + LineString Z",
+            "Unknown",
+            False,
+            ["LineString Z (0 0 0, 1 1 0)", "Point Z (0 0 0)"],
+        ),
+        (
+            "Point Z + LineString",
+            "Unknown",
+            True,
+            ["LineString (0 0, 1 1)", "Point Z (0 0 0)"],
+        ),
+    ],
+)
+def test_write_geometry_z_types_auto(
+    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt
+):
+    # Shapefile has some different behaviour that other file types
+    if ext == ".shp":
+        if exp_geometry_type in ("GeometryCollection Z", "Unknown"):
+            pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
+        elif exp_geometry_type == "MultiLineString Z":
+            exp_geometry_type = "LineString Z"
+        elif exp_geometry_type == "MultiPolygon Z":
+            exp_geometry_type = "Polygon Z"
+
+    column_data = {}
+    column_data["test_descr"] = [test_descr] * len(wkt)
+    column_data["idx"] = [str(idx) for idx in range(len(wkt))]
+    gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
+    filename = tmp_path / f"test{ext}"
+
+    if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
+        with pytest.raises(
+            DataSourceError,
+            match=("Mixed 2D and 3D coordinates are not supported by"),
+        ):
+            write_dataframe(gdf, filename)
+        return
+    else:
+        write_dataframe(gdf, filename)
+
+    info = read_info(filename)
+    assert info["geometry_type"] == exp_geometry_type
+
+    result_gdf = read_dataframe(filename)
+    if ext == ".geojsonl":
+        result_gdf.crs = "EPSG:4326"
+    if ext == ".fgb":
+        # When the following gdal issue is released, this if needs to be removed:
+        # https://github.com/OSGeo/gdal/issues/7401
+        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
+
+    assert_geodataframe_equal(gdf, result_gdf)
+
+
 def test_read_multisurface(data_dir):
     df = read_dataframe(data_dir / "test_multisurface.gpkg")
 
     # MultiSurface should be converted to MultiPolygon
     assert df.geometry.type.tolist() == ["MultiPolygon"]
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_dataset_kwargs(data_dir, use_arrow):
+    filename = data_dir / "test_nested.geojson"
+
+    # by default, nested data are not flattened
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level": ['{ "bottom_level": "B" }'],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+    df = read_dataframe(filename, use_arrow=use_arrow, FLATTEN_NESTED_ATTRIBUTES="YES")
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level_bottom_level": ["B"],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_invalid_dataset_kwargs(capfd, naturalearth_lowres, use_arrow):
+    read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
+    assert "does not support open option INVALID" in capfd.readouterr().err
+
+
+def test_write_nullable_dtypes(tmp_path):
+    path = tmp_path / "test_nullable_dtypes.gpkg"
+    test_data = {
+        "col1": pd.Series([1, 2, 3], dtype="int64"),
+        "col2": pd.Series([1, 2, None], dtype="Int64"),
+        "col3": pd.Series([0.1, None, 0.3], dtype="Float32"),
+        "col4": pd.Series([True, False, None], dtype="boolean"),
+        "col5": pd.Series(["a", None, "b"], dtype="string"),
+    }
+    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    write_dataframe(input_gdf, path)
+    output_gdf = read_dataframe(path)
+    # We read it back as default (non-nullable) numpy dtypes, so we cast
+    # to those for the expected result
+    expected = input_gdf.copy()
+    expected["col2"] = expected["col2"].astype("float64")
+    expected["col3"] = expected["col3"].astype("float32")
+    expected["col4"] = expected["col4"].astype("float64")
+    expected["col5"] = expected["col5"].astype(object)
+    assert_geodataframe_equal(output_gdf, expected)

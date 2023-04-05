@@ -1,4 +1,5 @@
 from pyogrio._env import GDALEnv
+from pyogrio.raw import _preprocess_options_key_value
 from pyogrio.util import get_vsi_path
 
 
@@ -16,11 +17,13 @@ with GDALEnv():
         remove_virtual_file,
         _register_drivers,
     )
+    from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
 
     _init_gdal_data()
     _init_proj_data()
     _register_drivers()
+    _register_error_handler()
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()
@@ -145,7 +148,7 @@ def read_bounds(
     return result
 
 
-def read_info(path_or_buffer, /, layer=None, encoding=None):
+def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
     """Read information about an OGR data source.
 
     ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
@@ -160,6 +163,9 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options are logged by OGR to stderr and are not captured.
 
     Returns
     -------
@@ -172,13 +178,18 @@ def read_info(path_or_buffer, /, layer=None, encoding=None):
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
-                "features": <feature count>
+                "features": <feature count>,
+                "driver": "<driver>",
             }
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
+
     try:
-        result = ogr_read_info(path, layer=layer, encoding=encoding)
+        result = ogr_read_info(
+            path, layer=layer, encoding=encoding, dataset_kwargs=dataset_kwargs
+        )
     finally:
         if buffer is not None:
             remove_virtual_file(path)
