@@ -201,33 +201,25 @@ def read_arrow(
     except ImportError:
         raise RuntimeError("the 'pyarrow' package is required to read using arrow")
 
-    path, buffer = get_vsi_path(path_or_buffer)
-
-    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
-
-    try:
-        with ogr_open_arrow(
-            path,
-            layer=layer,
-            encoding=encoding,
-            columns=columns,
-            read_geometry=read_geometry,
-            force_2d=force_2d,
-            skip_features=skip_features,
-            max_features=max_features or 0,
-            where=where,
-            bbox=bbox,
-            fids=fids,
-            sql=sql,
-            sql_dialect=sql_dialect,
-            return_fids=return_fids,
-            dataset_kwargs=dataset_kwargs,
-        ) as source:
-            meta, reader = source
-            table = reader.read_all()
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
+    with open_arrow(
+        path_or_buffer,
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
+        force_2d=force_2d,
+        skip_features=skip_features,
+        max_features=max_features,
+        where=where,
+        bbox=bbox,
+        fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
+        return_fids=return_fids,
+        **kwargs,
+    ) as source:
+        meta, reader = source
+        table = pyarrow.concat_tables(list(reader))
 
     return meta, table
 
