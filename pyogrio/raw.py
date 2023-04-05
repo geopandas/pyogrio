@@ -196,11 +196,6 @@ def read_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
-    try:
-        import pyarrow  # noqa
-    except ImportError:
-        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
-
     with open_arrow(
         path_or_buffer,
         layer=layer,
@@ -219,7 +214,7 @@ def read_arrow(
         **kwargs,
     ) as source:
         meta, reader = source
-        table = pyarrow.concat_tables(list(reader))
+        table = reader.read_all()
 
     return meta, table
 
