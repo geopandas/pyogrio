@@ -1156,8 +1156,10 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
-        # Mark reader as closed to prevent reading batches
-        reader.close()
+        # We need to use this compile-time clause again to close the reader
+        IF CTE_GDAL_VERSION >= (3, 6, 0):
+            # Mark reader as closed to prevent reading batches
+            reader.close()
 
         CSLDestroy(options)
         if fields_c != NULL:
