@@ -28,7 +28,9 @@ jobs:
         include:
           # environment with lower versions of optional dependencies
           - python: "3.10"
-            extra: "pandas=1.5"
+            extra: |
+              pandas=1.5
+              geopandas=0.11
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.9"
