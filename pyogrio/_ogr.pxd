@@ -14,7 +14,7 @@ cdef extern from "cpl_conv.h":
     void        CPLSetConfigOption(const char* key, const char* value)
 
 
-cdef extern from "cpl_error.h":
+cdef extern from "cpl_error.h" nogil:
     ctypedef enum CPLErr:
         CE_None
         CE_Debug
@@ -26,6 +26,11 @@ cdef extern from "cpl_error.h":
     int             CPLGetLastErrorNo()
     const char*    CPLGetLastErrorMsg()
     int             CPLGetLastErrorType()
+
+    ctypedef void (*CPLErrorHandler)(CPLErr, int, const char*)
+    void CPLDefaultErrorHandler(CPLErr, int, const char *)
+    void CPLPushErrorHandler(CPLErrorHandler handler)
+    void CPLPopErrorHandler()
 
 
 cdef extern from "cpl_string.h":

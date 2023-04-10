@@ -12,9 +12,15 @@
     specifying a mask manually for missing values in `write` (#219)
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
+-   Failure error messages from GDAL are no longer printed to stderr (they were
+    already translated into Python exceptions as well) (#236).
 -   Add support for writing dataset and layer metadata (where supported by
     driver) to `write` and `write_dataframe`, and add support for reading
     dataset and layer metadata in `read_info` (#237).
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.3.
 
 ## 0.5.1 (2023-01-26)
 
