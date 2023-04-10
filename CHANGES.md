@@ -12,6 +12,12 @@
     specifying a mask manually for missing values in `write` (#219)
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
+-   Failure error messages from GDAL are no longer printed to stderr (they were
+    already translated into Python exceptions as well) (#236).
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.3.
 
 ## 0.5.1 (2023-01-26)
 
