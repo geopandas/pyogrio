@@ -14,6 +14,9 @@
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
 -   Failure error messages from GDAL are no longer printed to stderr (they were
     already translated into Python exceptions as well) (#236).
+-   Add access to low-level pyarrow `RecordBatchReader` via
+    `pyogrio.raw.open_arrow`, which allows iterating over batches of Arrow
+    tables (#205).
 
 ### Packaging
 
