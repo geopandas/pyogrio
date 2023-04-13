@@ -235,7 +235,7 @@ def open_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
-    batch_size=0,
+    batch_size=65_536,
     **kwargs,
 ):
     """
