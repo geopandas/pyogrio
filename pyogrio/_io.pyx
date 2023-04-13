@@ -1075,6 +1075,7 @@ def ogr_open_arrow(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
+    reader = None
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1158,8 +1159,9 @@ def ogr_open_arrow(
     finally:
         # We need to use this compile-time clause again to close the reader
         IF CTE_GDAL_VERSION >= (3, 6, 0):
-            # Mark reader as closed to prevent reading batches
-            reader.close()
+            if reader is not None:
+                # Mark reader as closed to prevent reading batches
+                reader.close()
 
         CSLDestroy(options)
         if fields_c != NULL:
