@@ -235,6 +235,7 @@ def open_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    batch_size=0,
     **kwargs,
 ):
     """
@@ -299,6 +300,7 @@ def open_arrow(
             sql_dialect=sql_dialect,
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
+            batch_size=batch_size,
         )
     finally:
         if buffer is not None:

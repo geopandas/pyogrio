@@ -1044,7 +1044,8 @@ def ogr_open_arrow(
     object fids=None,
     str sql=None,
     str sql_dialect=None,
-    int return_fids=False):
+    int return_fids=False,
+    int batch_size=0):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1130,6 +1131,13 @@ def ogr_open_arrow(
 
         if not return_fids:
             options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
+
+        if batch_size > 0:
+            options = CSLSetNameValue(
+                options,
+                "MAX_FEATURES_IN_BATCH",
+                str(batch_size).encode('UTF-8')
+            )
 
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
