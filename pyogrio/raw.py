@@ -110,7 +110,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
-        options are logged by OGR to stderr and are not captured.
+        options will trigger a warning.
 
     Returns
     -------

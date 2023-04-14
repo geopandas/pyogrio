@@ -1,5 +1,6 @@
 # ported from fiona::_err.pyx
 from enum import IntEnum
+import warnings
 
 from pyogrio._ogr cimport (
     CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
@@ -227,6 +228,13 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil
     elif err_class == CE_Failure:
         # For Failures, do nothing as those are explicitly caught
         # with error return codes and translated into Python exceptions
+        return
+
+    elif err_class == CE_Warning:
+        with gil:
+            msg_b = err_msg
+            msg = msg_b.decode('utf-8')
+            warnings.warn(msg, RuntimeWarning)
         return
 
     # Fall back to the default handler for non-failure messages since

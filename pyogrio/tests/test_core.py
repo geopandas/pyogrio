@@ -263,9 +263,9 @@ def test_read_info_dataset_kwargs(data_dir, dataset_kwargs, fields):
     assert meta["fields"].tolist() == fields
 
 
-def test_read_info_invalid_dataset_kwargs(capfd, naturalearth_lowres):
-    read_info(naturalearth_lowres, INVALID="YES")
-    assert "does not support open option INVALID" in capfd.readouterr().err
+def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_info(naturalearth_lowres, INVALID="YES")
 
 
 @pytest.mark.parametrize(
@@ -296,5 +296,14 @@ def test_error_handling(capfd):
     # -> error translated into Python exception + not printed to stderr
     with pytest.raises(DataSourceError, match="No such file or directory"):
         read_info("non-existent.shp")
+
+    assert capfd.readouterr().err == ""
+
+
+def test_error_handling_warning(capfd, naturalearth_lowres):
+    # an operation that triggers a GDAL Warning
+    # -> translated into a Python warning + not printed to stderr
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_info(naturalearth_lowres, INVALID="YES")
 
     assert capfd.readouterr().err == ""
