@@ -12,3 +12,9 @@ GeoPandas integration
 
 .. autofunction:: pyogrio.read_dataframe
 .. autofunction:: pyogrio.write_dataframe
+
+Reading as Arrow data
+---------------------
+
+.. autofunction:: pyogrio.raw.read_arrow
+.. autofunction:: pyogrio.raw.open_arrow
