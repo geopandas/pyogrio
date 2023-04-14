@@ -72,7 +72,7 @@ def test_read_arrow_nested_types(test_ogr_types_list):
     assert result["list_int64"][0].tolist() == [0, 1]
 
 
-def test_read_arrow(naturalearth_lowres):
+def test_read_arrow_raw(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     assert isinstance(meta, dict)
     assert isinstance(table, pyarrow.Table)
