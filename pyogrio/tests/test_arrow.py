@@ -72,20 +72,20 @@ def test_read_arrow_nested_types(test_ogr_types_list):
     assert result["list_int64"][0].tolist() == [0, 1]
 
 
-def test_read_arrow_raw(naturalearth_lowres):
+def test_read_arrow(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     assert isinstance(meta, dict)
     assert isinstance(table, pyarrow.Table)
 
 
-def test_open_arrow_raw(naturalearth_lowres):
+def test_open_arrow(naturalearth_lowres):
     with open_arrow(naturalearth_lowres) as (meta, reader):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyarrow.RecordBatchReader)
         assert isinstance(reader.read_all(), pyarrow.Table)
 
 
-def test_open_arrow_raw_batch_size(naturalearth_lowres):
+def test_open_arrow_batch_size(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     batch_size = math.ceil(len(table) / 2)
 
@@ -93,7 +93,10 @@ def test_open_arrow_raw_batch_size(naturalearth_lowres):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyarrow.RecordBatchReader)
         count = 0
+        tables = []
         for table in reader:
+            tables.append(table)
             count += 1
 
         assert count == 2, "Should be two batches given the batch_size parameter"
+        assert len(tables[0]) == batch_size, "First table should match the batch size"
