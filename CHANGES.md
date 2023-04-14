@@ -12,9 +12,14 @@
     specifying a mask manually for missing values in `write` (#219)
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
+-   Failure error messages from GDAL are no longer printed to stderr (they were
+    already translated into Python exceptions as well) (#236).
 -   Failure and warning error messages from GDAL are no longer printed to
     stderr: failures were already translated into Python exceptions
     and warning messages are now translated into Python warnings (#236, #242).
+-   Add access to low-level pyarrow `RecordBatchReader` via
+    `pyogrio.raw.open_arrow`, which allows iterating over batches of Arrow
+    tables (#205).
 
 ### Packaging
 
