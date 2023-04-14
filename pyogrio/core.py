@@ -165,7 +165,7 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
         source.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
-        options are logged by OGR to stderr and are not captured.
+        options will trigger a warning.
 
     Returns
     -------
