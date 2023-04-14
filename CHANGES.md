@@ -13,7 +13,7 @@
 -   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
 -   Failure and warning error messages from GDAL are no longer printed to
-    stderr: failures were already translated into Python exceptions as well,
+    stderr: failures were already translated into Python exceptions
     and warning messages are now translated into Python warnings (#236, #242).
 
 ## 0.5.1 (2023-01-26)
