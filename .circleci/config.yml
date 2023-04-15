@@ -1,0 +1,43 @@
+version: 2.1
+
+jobs:
+  linux-aarch64-wheels:
+    working_directory: ~/linux-aarch64-wheels
+    machine:
+      image: ubuntu-2004:2022.04.1
+      docker_layer_caching: true
+    # resource_class is what tells CircleCI to use an ARM worker for native arm builds
+    # https://circleci.com/product/features/resource-classes/
+    resource_class: arm.medium
+    environment:
+      CIBUILDWHEEL: 1
+      CIBW_BUILD: "cp*-manylinux_aarch64"
+      CIBW_ENVIRONMENT_PASS_LINUX: "GEOS_VERSION GEOS_INSTALL GEOS_CONFIG LD_LIBRARY_PATH"
+      VCPKG_INSTALL: "$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-dynamic-release"
+    steps:
+      - checkout
+      - run:
+          name: Build docker image with GDAL install
+          command: docker build -t manylinux-aarch64-vcpkg-gdal:latest ci/manylinux2014_aarch64-vcpkg-gdal.Dockerfile
+      - run:
+          name: Build the Linux aarch64 wheels.
+          command: |
+            python3 -m pip install --user cibuildwheel==2.12.1
+            # echo 'export GEOS_INSTALL=~/linux-aarch64-wheels/geosinstall/geos-"$GEOS_VERSION"' >> "$BASH_ENV"
+            # echo 'export GEOS_CONFIG="$GEOS_INSTALL"/bin/geos-config' >> "$BASH_ENV"
+            # echo 'export LD_LIBRARY_PATH="$GEOS_INSTALL"/lib' >> "$BASH_ENV"
+            # source "$BASH_ENV"
+            python3 -m cibuildwheel --output-dir wheelhouse
+      - store_artifacts:
+          path: wheelhouse/
+
+workflows:
+  wheel-build:
+    jobs:
+      - linux-aarch64-wheels:
+          filters:
+            branches:
+              only:
+                - main
+            tags:
+              only: /.*/
