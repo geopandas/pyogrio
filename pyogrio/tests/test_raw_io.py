@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import sys
@@ -270,6 +271,7 @@ def test_write(tmpdir, naturalearth_lowres):
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
     write(filename, geometry, field_data, driver="GPKG", **meta)
@@ -456,9 +458,11 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
 
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "Unknown"})
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -480,9 +484,11 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "Unknown"})
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -647,7 +653,12 @@ def test_write_float_nan_null(tmp_path, dtype):
 
     # set to False
     # by default, GDAL will skip the property for GeoJSON if the value is NaN
-    write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
+    if dtype == "float32":
+        ctx = pytest.warns(RuntimeWarning, match="NaN of Infinity value found. Skipped")
+    else:
+        ctx = contextlib.nullcontext()
+    with ctx:
+        write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
     with open(str(fname), "r") as f:
         content = f.read()
     assert '"properties": { }' in content

@@ -6,7 +6,7 @@ from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
 
 with GDALEnv():
-    from pyogrio._io import ogr_read, ogr_read_arrow, ogr_write
+    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
@@ -110,7 +110,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
-        options are logged by OGR to stderr and are not captured.
+        options will trigger a warning.
 
     Returns
     -------
@@ -179,7 +179,100 @@ def read_arrow(
     """
     Read OGR data source into a pyarrow Table.
 
-    See docstring of `read` for details.
+    See docstring of `read` for parameters.
+
+    Returns
+    -------
+    (dict, pyarrow.Table)
+
+        Returns a tuple of meta information about the data source in a dict,
+        and a pyarrow Table with data.
+
+        Meta is: {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry_type": "<geometry_type>",
+            "geometry_name": "<name of geometry column in arrow table>",
+        }
+    """
+    with open_arrow(
+        path_or_buffer,
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
+        force_2d=force_2d,
+        skip_features=skip_features,
+        max_features=max_features,
+        where=where,
+        bbox=bbox,
+        fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
+        return_fids=return_fids,
+        **kwargs,
+    ) as source:
+        meta, reader = source
+        table = reader.read_all()
+
+    return meta, table
+
+
+def open_arrow(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    columns=None,
+    read_geometry=True,
+    force_2d=False,
+    skip_features=0,
+    max_features=None,
+    where=None,
+    bbox=None,
+    fids=None,
+    sql=None,
+    sql_dialect=None,
+    return_fids=False,
+    batch_size=65_536,
+    **kwargs,
+):
+    """
+    Open OGR data source as a stream of pyarrow record batches.
+
+    See docstring of `read` for parameters.
+
+    The RecordBatchStreamReader is reading from a stream provided by OGR and must not be
+    accessed after the OGR dataset has been closed, i.e. after the context manager has
+    been closed.
+
+    Examples
+    --------
+
+    >>> from pyogrio.raw import open_arrow
+    >>> import pyarrow as pa
+    >>> import shapely
+    >>>
+    >>> with open_arrow(path) as source:
+    >>>     meta, reader = source
+    >>>     for table in reader:
+    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
+
+    Returns
+    -------
+    (dict, pyarrow.RecordBatchStreamReader)
+
+        Returns a tuple of meta information about the data source in a dict,
+        and a pyarrow RecordBatchStreamReader with data.
+
+        Meta is: {
+            "crs": "<crs>",
+            "fields": <ndarray of field names>,
+            "encoding": "<encoding>",
+            "geometry_type": "<geometry_type>",
+            "geometry_name": "<name of geometry column in arrow table>",
+        }
     """
     try:
         import pyarrow  # noqa
@@ -191,7 +284,7 @@ def read_arrow(
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
-        result = ogr_read_arrow(
+        return ogr_open_arrow(
             path,
             layer=layer,
             encoding=encoding,
@@ -207,12 +300,11 @@ def read_arrow(
             sql_dialect=sql_dialect,
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
+            batch_size=batch_size,
         )
     finally:
         if buffer is not None:
             remove_virtual_file(path)
-
-    return result
 
 
 def detect_driver(path):

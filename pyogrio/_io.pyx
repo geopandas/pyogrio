@@ -4,6 +4,7 @@
 """
 
 
+import contextlib
 import datetime
 import locale
 import logging
@@ -1079,8 +1080,8 @@ def ogr_read(
         field_data
     )
 
-
-def ogr_read_arrow(
+@contextlib.contextmanager
+def ogr_open_arrow(
     str path,
     dataset_kwargs,
     object layer=None,
@@ -1095,7 +1096,8 @@ def ogr_read_arrow(
     object fids=None,
     str sql=None,
     str sql_dialect=None,
-    int return_fids=False):
+    int return_fids=False,
+    int batch_size=0):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1126,6 +1128,7 @@ def ogr_read_arrow(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
+    reader = None
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1181,6 +1184,13 @@ def ogr_read_arrow(
         if not return_fids:
             options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
 
+        if batch_size > 0:
+            options = CSLSetNameValue(
+                options,
+                "MAX_FEATURES_IN_BATCH",
+                str(batch_size).encode('UTF-8')
+            )
+
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
@@ -1194,7 +1204,7 @@ def ogr_read_arrow(
 
         # stream has to be consumed before the Dataset is closed
         import pyarrow as pa
-        table = pa.RecordBatchStreamReader._import_from_c(stream_ptr).read_all()
+        reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
 
         meta = {
             'crs': crs,
@@ -1204,7 +1214,12 @@ def ogr_read_arrow(
             'geometry_name': geometry_name,
         }
 
+        yield meta, reader
+
     finally:
+        if reader is not None:
+            # Mark reader as closed to prevent reading batches
+            reader.close()
 
         CSLDestroy(options)
         if fields_c != NULL:
@@ -1221,9 +1236,6 @@ def ogr_read_arrow(
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
-
-    return meta, table
-
 
 def ogr_read_bounds(
     str path,

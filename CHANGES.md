@@ -14,6 +14,12 @@
     "<type> Z" for consistency with well-known text (WKT) formats (#234)
 -   Failure error messages from GDAL are no longer printed to stderr (they were
     already translated into Python exceptions as well) (#236).
+-   Failure and warning error messages from GDAL are no longer printed to
+    stderr: failures were already translated into Python exceptions
+    and warning messages are now translated into Python warnings (#236, #242).
+-   Add access to low-level pyarrow `RecordBatchReader` via
+    `pyogrio.raw.open_arrow`, which allows iterating over batches of Arrow
+    tables (#205).
 -   Add support for writing dataset and layer metadata (where supported by
     driver) to `write` and `write_dataframe`, and add support for reading
     dataset and layer metadata in `read_info` (#237).

@@ -1,7 +1,9 @@
+import math
+
 import pytest
 
 from pyogrio import __gdal_version__, read_dataframe
-from pyogrio.raw import read_arrow
+from pyogrio.raw import open_arrow, read_arrow
 
 try:
     import pandas as pd
@@ -74,3 +76,27 @@ def test_read_arrow_raw(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     assert isinstance(meta, dict)
     assert isinstance(table, pyarrow.Table)
+
+
+def test_open_arrow(naturalearth_lowres):
+    with open_arrow(naturalearth_lowres) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyarrow.RecordBatchReader)
+        assert isinstance(reader.read_all(), pyarrow.Table)
+
+
+def test_open_arrow_batch_size(naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+    batch_size = math.ceil(len(table) / 2)
+
+    with open_arrow(naturalearth_lowres, batch_size=batch_size) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyarrow.RecordBatchReader)
+        count = 0
+        tables = []
+        for table in reader:
+            tables.append(table)
+            count += 1
+
+        assert count == 2, "Should be two batches given the batch_size parameter"
+        assert len(tables[0]) == batch_size, "First table should match the batch size"
