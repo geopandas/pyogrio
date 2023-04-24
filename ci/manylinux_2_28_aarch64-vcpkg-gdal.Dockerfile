@@ -12,9 +12,10 @@ RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
 
+ENV VCPKG_FORCE_SYSTEM_BINARIES=1
+
 # mkdir & touch -> workaround for https://github.com/microsoft/vcpkg/issues/27786
-RUN export VCPKG_FORCE_SYSTEM_BINARIES=1 && \
-    bootstrap-vcpkg.sh && \
+RUN bootstrap-vcpkg.sh && \
     mkdir -p /root/.vcpkg/ $HOME/.vcpkg && \
     touch /root/.vcpkg/vcpkg.path.txt $HOME/.vcpkg/vcpkg.path.txt && \
     vcpkg integrate install && \
