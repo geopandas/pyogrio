@@ -18,7 +18,7 @@ jobs:
       - checkout
       - run:
           name: Build docker image with GDAL install
-          command: docker build -f ci/manylinux2014_aarch64-vcpkg-gdal.Dockerfile -t manylinux-aarch64-vcpkg-gdal:latest .
+          command: docker build -f ci/manylinux_2_28_aarch64-vcpkg-gdal.Dockerfile -t manylinux-aarch64-vcpkg-gdal:latest .
       - run:
           name: Build the Linux aarch64 wheels.
           command: |

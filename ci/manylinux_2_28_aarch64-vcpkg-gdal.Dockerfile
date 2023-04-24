@@ -1,10 +1,10 @@
-FROM quay.io/pypa/manylinux2014_aarch64:2023-04-09-db9a92f
+FROM quay.io/pypa/manylinux_2_28_aarch64:latest
 
-# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
-RUN yum install -y curl unzip zip tar perl-IPC-Cmd
+# # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
+# RUN yum install -y curl unzip zip tar perl-IPC-Cmd
 
-# require python >= 3.7 (python 3.6 is default on base image) for meson 
-RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
+# # require python >= 3.7 (python 3.6 is default on base image) for meson 
+# RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 
