@@ -380,6 +380,9 @@ def write(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+    metadata=None,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -402,6 +405,21 @@ def write(
         raise RuntimeError(
             "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
         )
+
+    if metadata is not None:
+        if layer_metadata is not None:
+            raise ValueError("Cannot pass both metadata and layer_metadata")
+        layer_metadata = metadata
+
+    # validate metadata types
+    for metadata in [dataset_metadata, layer_metadata]:
+        if metadata is not None:
+            for k, v in metadata.items():
+                if not isinstance(k, str):
+                    raise ValueError(f"metadata key {k} must be a string")
+
+                if not isinstance(v, str):
+                    raise ValueError(f"metadata value {v} must be a string")
 
     if promote_to_multi is None:
         promote_to_multi = (
@@ -449,6 +467,8 @@ def write(
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
         append=append,
+        dataset_metadata=dataset_metadata,
+        layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
     )

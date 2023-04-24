@@ -38,6 +38,7 @@ cdef extern from "cpl_string.h":
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
     void        CSLDestroy(char **list)
     char**      CSLAddString(char **list, const char *string)
+    int         CSLCount(char **list)
 
 
 cdef extern from "cpl_vsi.h" nogil:
@@ -372,7 +373,9 @@ cdef extern from "gdal.h":
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
+    char**          GDALGetMetadata(GDALMajorObjectH obj, const char *pszDomain)
     const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
+    OGRErr          GDALSetMetadata(GDALMajorObjectH obj, char **metadata, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
 
 

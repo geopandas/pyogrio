@@ -20,6 +20,9 @@
 -   Add access to low-level pyarrow `RecordBatchReader` via
     `pyogrio.raw.open_arrow`, which allows iterating over batches of Arrow
     tables (#205).
+-   Add support for writing dataset and layer metadata (where supported by
+    driver) to `write` and `write_dataframe`, and add support for reading
+    dataset and layer metadata in `read_info` (#237).
 
 ### Packaging
 

@@ -1059,3 +1059,52 @@ def test_write_nullable_dtypes(tmp_path):
     expected["col4"] = expected["col4"].astype("float64")
     expected["col5"] = expected["col5"].astype(object)
     assert_geodataframe_equal(output_gdf, expected)
+
+
+@pytest.mark.parametrize(
+    "metadata_type", ["dataset_metadata", "layer_metadata", "metadata"]
+)
+def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
+    metadata = {"level": metadata_type}
+
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_dataframe(df, filename, **{metadata_type: metadata})
+
+    metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
+
+    assert read_info(filename)[metadata_key] == metadata
+
+
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {1: 2},
+        {"key": None},
+        {"key": 1},
+    ],
+)
+def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
+    with pytest.raises(ValueError, match="must be a string"):
+        filename = os.path.join(str(tmpdir), "test.gpkg")
+        write_dataframe(
+            read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
+        )
+
+
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
+    """metadata is silently ignored"""
+
+    filename = os.path.join(str(tmpdir), "test.geojson")
+    write_dataframe(
+        read_dataframe(naturalearth_lowres),
+        filename,
+        **{metadata_type: {"key": "value"}},
+    )
+
+    metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
+
+    assert read_info(filename)[metadata_key] is None
