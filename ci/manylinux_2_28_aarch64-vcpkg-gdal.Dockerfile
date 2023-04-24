@@ -2,6 +2,7 @@ FROM quay.io/pypa/manylinux_2_28_aarch64:latest
 
 # # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 # RUN yum install -y curl unzip zip tar perl-IPC-Cmd
+RUN dnf install curl zip unzip tar
 
 # # require python >= 3.7 (python 3.6 is default on base image) for meson 
 # RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
@@ -12,7 +13,7 @@ ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
 
 # mkdir & touch -> workaround for https://github.com/microsoft/vcpkg/issues/27786
-RUN VCPKG_USE_SYSTEM_BINARIES=1 bootstrap-vcpkg.sh
+RUN bootstrap-vcpkg.sh
 RUN mkdir -p /root/.vcpkg/ $HOME/.vcpkg && \
     touch /root/.vcpkg/vcpkg.path.txt $HOME/.vcpkg/vcpkg.path.txt && \
     vcpkg integrate install && \
