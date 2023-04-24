@@ -28,6 +28,11 @@ jobs:
             # echo 'export LD_LIBRARY_PATH="$GEOS_INSTALL"/lib' >> "$BASH_ENV"
             # source "$BASH_ENV"
             python3 -m cibuildwheel --output-dir wheelhouse
+      - run:
+          when: on_fail
+          command: find /opt/vcpkg/buildtrees/ -type f -name "*.log" -exec cp {} /tmp/build-logs \;
+      - store_artifacts:
+          path: /tmp/build-logs
       - store_artifacts:
           path: wheelhouse/
 
