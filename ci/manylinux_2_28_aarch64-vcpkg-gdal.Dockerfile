@@ -2,7 +2,7 @@ FROM quay.io/pypa/manylinux_2_28_aarch64:latest
 
 # # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 # RUN yum install -y curl unzip zip tar perl-IPC-Cmd
-RUN dnf -y install curl zip unzip tar
+RUN dnf -y install curl zip unzip tar ninja-build
 
 # # require python >= 3.7 (python 3.6 is default on base image) for meson 
 # RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
