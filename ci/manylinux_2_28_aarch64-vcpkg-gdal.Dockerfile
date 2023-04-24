@@ -13,8 +13,9 @@ ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
 
 # mkdir & touch -> workaround for https://github.com/microsoft/vcpkg/issues/27786
-RUN bootstrap-vcpkg.sh
-RUN mkdir -p /root/.vcpkg/ $HOME/.vcpkg && \
+RUN export VCPKG_FORCE_SYSTEM_BINARIES=1 && \
+    bootstrap-vcpkg.sh && \
+    mkdir -p /root/.vcpkg/ $HOME/.vcpkg && \
     touch /root/.vcpkg/vcpkg.path.txt $HOME/.vcpkg/vcpkg.path.txt && \
     vcpkg integrate install && \
     vcpkg integrate bash
