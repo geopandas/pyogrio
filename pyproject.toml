@@ -18,7 +18,7 @@ manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
 build-verbosity = 3
 
 [tool.cibuildwheel.linux.environment]
-VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-linux-dynamic"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-dynamic-release"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 GDAL_VERSION = "3.6.3"
