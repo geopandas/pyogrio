@@ -12,8 +12,8 @@ jobs:
     environment:
       CIBUILDWHEEL: 1
       CIBW_BUILD: "cp*-manylinux_aarch64"
-      CIBW_ENVIRONMENT_PASS_LINUX: "GEOS_VERSION GEOS_INSTALL GEOS_CONFIG LD_LIBRARY_PATH"
-      VCPKG_INSTALL: "$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-dynamic-release"
+      CIBW_ENVIRONMENT_PASS_LINUX: "LD_LIBRARY_PATH"
+      # VCPKG_INSTALL: "$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-dynamic-release"
     steps:
       - checkout
       - run:
@@ -23,10 +23,6 @@ jobs:
           name: Build the Linux aarch64 wheels.
           command: |
             python3 -m pip install --user cibuildwheel==2.12.1
-            # echo 'export GEOS_INSTALL=~/linux-aarch64-wheels/geosinstall/geos-"$GEOS_VERSION"' >> "$BASH_ENV"
-            # echo 'export GEOS_CONFIG="$GEOS_INSTALL"/bin/geos-config' >> "$BASH_ENV"
-            # echo 'export LD_LIBRARY_PATH="$GEOS_INSTALL"/lib' >> "$BASH_ENV"
-            # source "$BASH_ENV"
             python3 -m cibuildwheel --output-dir wheelhouse
       - store_artifacts:
           path: wheelhouse/

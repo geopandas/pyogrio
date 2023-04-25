@@ -9,6 +9,7 @@ RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
+ENV VCPKG_DEFAULT_TRIPLET="x64-linux-dynamic"
 ENV PATH="${PATH}:/opt/vcpkg"
 
 # mkdir & touch -> workaround for https://github.com/microsoft/vcpkg/issues/27786
