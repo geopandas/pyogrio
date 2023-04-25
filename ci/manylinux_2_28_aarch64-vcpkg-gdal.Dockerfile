@@ -22,6 +22,7 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate bash
 
 COPY ci/custom-triplets/arm64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/arm64-linux-dynamic-release.cmake
+COPY ci/custom-triplets/arm64-linux.cmake opt/vcpkg/custom-triplets/arm64-linux.cmake
 COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
 

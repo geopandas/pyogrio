@@ -2,7 +2,6 @@
     "name": "pyogrio",
     "version": "0.4.0",
     "dependencies": [
-        "pkgconf",
         {
             "name": "gdal",
             "default-features": false,
