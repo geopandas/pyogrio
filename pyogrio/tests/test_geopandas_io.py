@@ -946,6 +946,11 @@ def test_write_geometry_z_types_auto(
     gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
     filename = tmp_path / f"test{ext}"
 
+    if ext == ".fgb":
+        # writing empty / null geometries not allowed by FlatGeobuf for
+        # GDAL >= 3.6.4 and were simply not written previously
+        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
+
     if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(
             DataSourceError,
@@ -962,10 +967,6 @@ def test_write_geometry_z_types_auto(
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl":
         result_gdf.crs = "EPSG:4326"
-    if ext == ".fgb":
-        # When the following gdal issue is released, this if needs to be removed:
-        # https://github.com/OSGeo/gdal/issues/7401
-        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
 
     assert_geodataframe_equal(gdf, result_gdf)
 
