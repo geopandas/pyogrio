@@ -949,7 +949,7 @@ def test_write_geometry_z_types_auto(
     if ext == ".fgb":
         # writing empty / null geometries not allowed by FlatGeobuf for
         # GDAL >= 3.6.4 and were simply not written previously
-        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
+        gdf = gdf.loc[~(gdf.geometry.isna() | gdf.geometry.is_empty)]
 
     if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(
