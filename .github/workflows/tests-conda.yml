@@ -26,6 +26,11 @@ jobs:
         python: ["3.10", "3.11"]
         env: ["environment.yml"]
         include:
+          # environment with lower versions of optional dependencies
+          - python: "3.10"
+            extra: |
+              pandas=1.5
+              geopandas=0.12
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.9"
@@ -44,7 +49,9 @@ jobs:
         uses: mamba-org/provision-with-micromamba@main
         with:
           environment-file: ci/${{ matrix.env }}
-          extra-specs: python=${{ matrix.python }}
+          extra-specs: |
+            python=${{ matrix.python }}
+            ${{ matrix.extra }}
           cache-env: true
 
       - name: Set environment variables (Windows)

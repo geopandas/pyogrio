@@ -116,12 +116,16 @@ cdef char** dict_to_options(object values):
     Parameters
     ----------
     values: dict
+        all keys and values must be strings
 
     Returns
     -------
     char**
     """
     cdef char **options = NULL
+
+    if values is None:
+        return NULL
 
     for k, v in values.items():
         k = k.encode('UTF-8')
@@ -303,6 +307,54 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
 
     driver = OGR_Dr_GetName(ogr_driver).decode("UTF-8")
     return driver
+
+
+cdef set_metadata(GDALMajorObjectH obj, object metadata):
+    """Set metadata on a dataset or layer
+
+    Parameters
+    ----------
+    obj : pointer to dataset or layer
+    metadata : dict, optional (default None)
+        keys and values must be strings
+    """
+
+    cdef char **metadata_items = NULL
+    cdef int err = 0
+
+    metadata_items = dict_to_options(metadata)
+    if metadata_items != NULL:
+        # only default namepace is currently supported
+        err = GDALSetMetadata(obj, metadata_items, NULL)
+
+        CSLDestroy(metadata_items)
+        metadata_items = NULL
+
+    if err:
+        raise RuntimeError("Could not set metadata") from None
+
+cdef get_metadata(GDALMajorObjectH obj):
+    """Get metadata for a dataset or layer
+
+    Parameters
+    ----------
+    obj : pointer to dataset or layer
+
+    Returns
+    -------
+    dict or None
+        metadata as key, value pairs
+    """
+    # only default namespace is currently supported
+    cdef char **metadata = GDALGetMetadata(obj, NULL)
+
+    if metadata != NULL:
+        return dict(
+            metadata[i].decode('UTF-8').split('=', 1)
+            for i in range(CSLCount(metadata))
+        )
+
+    return None
 
 
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
@@ -1274,7 +1326,9 @@ def ogr_read_info(
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
                 "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
-            }
+            },
+            'layer_metadata': get_metadata(ogr_layer),
+            'dataset_metadata': get_metadata(ogr_dataset),
         }
 
     finally:
@@ -1419,7 +1473,7 @@ def ogr_write(
     str path, str layer, str driver, geometry, fields, field_data, field_mask,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
     object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
-    bint append=False
+    bint append=False, dataset_metadata=None, layer_metadata=None
 ):
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1563,6 +1617,10 @@ def ogr_write(
 
         else:
             ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
+
+        # Set dataset and layer metadata
+        set_metadata(ogr_dataset, dataset_metadata)
+        set_metadata(ogr_layer, layer_metadata)
 
     except Exception as exc:
         OGRReleaseDataSource(ogr_dataset)
