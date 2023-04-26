@@ -9,8 +9,11 @@ RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
-ENV VCPKG_DEFAULT_TRIPLET="arm64-linux-dynamic-release"
 ENV PATH="${PATH}:/opt/vcpkg"
+
+ENV VCPKG_DEFAULT_TRIPLET="arm64-linux-dynamic-release"
+# pkgconf fails to build with default debug mode of arm64-linux host
+ENV VCPKG_DEFAULT_HOST_TRIPLET="arm64-linux-release"
 
 # Must be set when building on arm
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
@@ -23,13 +26,11 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate bash
 
 COPY ci/custom-triplets/arm64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/arm64-linux-dynamic-release.cmake
-COPY ci/custom-triplets/arm64-linux.cmake opt/vcpkg/custom-triplets/arm64-linux.cmake
 COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/arm64-linux-dynamic-release/lib"
 RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
-    --triplet=arm64-linux-dynamic-release \
     --overlay-ports=opt/vcpkg/custom-ports \
     --feature-flags="versions,manifests" \
     --x-manifest-root=opt/vcpkg \
