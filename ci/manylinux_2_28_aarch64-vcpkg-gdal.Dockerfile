@@ -6,7 +6,8 @@ RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
 # require python >= 3.7 (python 3.6 is default on base image) for meson 
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
-RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
+RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
+    git -C /opt/vcpkg checkout 580f143d123ce6abb5c135b11d6402c9a54bc9b9
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
