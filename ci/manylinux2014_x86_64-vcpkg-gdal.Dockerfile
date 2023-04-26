@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2014_x86_64:2023-04-02-7bc2fc8
+FROM quay.io/pypa/manylinux2014_x86_64:2023-04-24-82a68e6
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN yum install -y curl unzip zip tar perl-IPC-Cmd
@@ -11,6 +11,8 @@ RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV VCPKG_DEFAULT_TRIPLET="x64-linux-dynamic"
 ENV PATH="${PATH}:/opt/vcpkg"
+
+ENV VCPKG_DEFAULT_TRIPLET="x64-linux-dynamic"
 
 # mkdir & touch -> workaround for https://github.com/microsoft/vcpkg/issues/27786
 RUN bootstrap-vcpkg.sh && \
@@ -25,7 +27,6 @@ COPY ci/vcpkg.json opt/vcpkg/
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic/lib"
 RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
-    --triplet=x64-linux-dynamic \
     --overlay-ports=opt/vcpkg/custom-ports \
     --feature-flags="versions,manifests" \
     --x-manifest-root=opt/vcpkg \

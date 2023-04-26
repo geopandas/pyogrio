@@ -26,7 +26,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.3.
+-   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.4.
 -   Wheels are now available for Linux aarch64 / arm64.
 
 ## 0.5.1 (2023-01-26)
