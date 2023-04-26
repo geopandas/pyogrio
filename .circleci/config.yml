@@ -24,6 +24,16 @@ jobs:
           command: |
             python3 -m pip install --user cibuildwheel==2.12.1
             python3 -m cibuildwheel --output-dir wheelhouse
+      - run:
+          name: Test the wheels
+          command: |
+            python3 -m pip install -r ci/requirements-wheel-test.txt
+            python3 -m pip install --no-deps geopandas
+            python3 -m pip install --pre --find-links wheelhouse pyogrio
+            python3 -m pip list
+            cd ..
+            python3 -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+            python3 -m pytest --pyargs pyogrio.tests -v
       - store_artifacts:
           path: wheelhouse/
 
