@@ -12,8 +12,6 @@ jobs:
     environment:
       CIBUILDWHEEL: 1
       CIBW_BUILD: "cp*-manylinux_aarch64"
-      CIBW_ENVIRONMENT_PASS_LINUX: "LD_LIBRARY_PATH"
-      # VCPKG_INSTALL: "$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-dynamic-release"
     steps:
       - checkout
       - run:
@@ -41,3 +39,10 @@ workflows:
   wheel-build:
     jobs:
       - linux-aarch64-wheels
+          filters:
+            branches:
+              only:
+                - main
+                - wheels-linux-aarch64
+            tags:
+              only: /.*/
