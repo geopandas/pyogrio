@@ -8,5 +8,5 @@
             "features": ["recommended-features", "curl", "geos"]
         }
     ],
-    "builtin-baseline": "fe2d921cd5e1c8721e8e2385c35fb3a4ea65e559"
+    "builtin-baseline": "580f143d123ce6abb5c135b11d6402c9a54bc9b9"
 }
