@@ -1,10 +1,10 @@
 # CHANGELOG
 
-## 0.6.0 (???)
+## 0.6.0 (2023-04-27)
 
 ### Improvements
 
--   Add automatic detection of 2.5D geometries in `write_dataframe` (#223, #229)
+-   Add automatic detection of 3D geometries in `write_dataframe` (#223, #229)
 -   Add "driver" property to `read_info` result (#224)
 -   Add support for dataset open options to `read`, `read_dataframe`, and
     `read_info` (#233)
