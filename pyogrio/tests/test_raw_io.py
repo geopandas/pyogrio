@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import sys
@@ -270,6 +271,7 @@ def test_write(tmpdir, naturalearth_lowres):
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
     write(filename, geometry, field_data, driver="GPKG", **meta)
@@ -456,9 +458,11 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
 
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "Unknown"})
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -480,9 +484,11 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "Unknown"})
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -647,7 +653,12 @@ def test_write_float_nan_null(tmp_path, dtype):
 
     # set to False
     # by default, GDAL will skip the property for GeoJSON if the value is NaN
-    write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
+    if dtype == "float32":
+        ctx = pytest.warns(RuntimeWarning, match="NaN of Infinity value found. Skipped")
+    else:
+        ctx = contextlib.nullcontext()
+    with ctx:
+        write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
     with open(str(fname), "r") as f:
         content = f.read()
     assert '"properties": { }' in content
@@ -806,3 +817,31 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         assert np.array_equal(
             fields, read_info(filename, encoding=read_encoding)["fields"]
         )
+
+
+def test_write_with_mask(tmp_path):
+    # Point(0, 0), null
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+        dtype=object,
+    )
+    field_data = [np.array([1, 2, 3], dtype="int32")]
+    field_mask = [np.array([False, True, False])]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, fields, field_mask, **meta)
+    result_geometry, result_fields = read(filename)[2:]
+    assert np.array_equal(result_geometry, geometry)
+    np.testing.assert_allclose(result_fields[0], np.array([1, np.nan, 3]))
+
+    # wrong length for mask
+    field_mask = [np.array([False, True])]
+    with pytest.raises(ValueError):
+        write(filename, geometry, field_data, fields, field_mask, **meta)
+
+    # wrong number of mask arrays
+    field_mask = [np.array([False, True, False])] * 2
+    with pytest.raises(ValueError):
+        write(filename, geometry, field_data, fields, field_mask, **meta)

@@ -1,5 +1,7 @@
+import contextlib
 from datetime import datetime
 import os
+from packaging.version import Version
 
 import numpy as np
 import pytest
@@ -23,6 +25,14 @@ try:
     from geopandas.testing import assert_geodataframe_equal
 
     from shapely.geometry import Point
+except ImportError:
+    pass
+
+has_pyarrow = False
+try:
+    import pyarrow  # noqa
+
+    has_pyarrow = True
 except ImportError:
     pass
 
@@ -122,7 +132,11 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext):
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
-    assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
+    if Version(pd.__version__) >= Version("2.0.0"):
+        # starting with pandas 2.0, it preserves the passed datetime resolution
+        assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
+    else:
+        assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
 def test_read_null_values(test_fgdb_vsi):
@@ -636,12 +650,21 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
-    write_dataframe(
-        input_gdf,
-        output_path,
-        promote_to_multi=promote_to_multi,
-        geometry_type=geometry_type,
-    )
+
+    if ext == ".gpkg" and geometry_type in ("Polygon", "Point"):
+        ctx = pytest.warns(
+            RuntimeWarning, match="A geometry of type MULTIPOLYGON is inserted"
+        )
+    else:
+        ctx = contextlib.nullcontext()
+
+    with ctx:
+        write_dataframe(
+            input_gdf,
+            output_path,
+            promote_to_multi=promote_to_multi,
+            geometry_type=geometry_type,
+        )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
@@ -860,24 +883,24 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
 @pytest.mark.parametrize(
     "test_descr, exp_geometry_type, mixed_dimensions, wkt",
     [
-        ("1 Point Z", "2.5D Point", False, ["Point Z (0 0 0)"]),
-        ("1 LineString Z", "2.5D LineString", False, ["LineString Z (0 0 0, 1 1 0)"]),
+        ("1 Point Z", "Point Z", False, ["Point Z (0 0 0)"]),
+        ("1 LineString Z", "LineString Z", False, ["LineString Z (0 0 0, 1 1 0)"]),
         (
             "1 Polygon Z",
-            "2.5D Polygon",
+            "Polygon Z",
             False,
             ["Polygon Z ((0 0 0, 0 1 0, 1 1 0, 0 0 0))"],
         ),
-        ("1 MultiPoint Z", "2.5D MultiPoint", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
+        ("1 MultiPoint Z", "MultiPoint Z", False, ["MultiPoint Z (0 0 0, 1 1 0)"]),
         (
             "1 MultiLineString Z",
-            "2.5D MultiLineString",
+            "MultiLineString Z",
             False,
             ["MultiLineString Z ((0 0 0, 1 1 0), (2 2 2, 3 3 2))"],
         ),
         (
             "1 MultiLinePolygon Z",
-            "2.5D MultiPolygon",
+            "MultiPolygon Z",
             False,
             [
                 "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
@@ -885,12 +908,12 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
         ),
         (
             "1 GeometryCollection Z",
-            "2.5D GeometryCollection",
+            "GeometryCollection Z",
             False,
             ["GeometryCollection Z (Point Z (0 0 0))"],
         ),
-        ("Point Z + Point", "2.5D Point", True, ["Point Z (0 0 0)", "Point (0 0)"]),
-        ("Point Z + None", "2.5D Point", False, ["Point Z (0 0 0)", None]),
+        ("Point Z + Point", "Point Z", True, ["Point Z (0 0 0)", "Point (0 0)"]),
+        ("Point Z + None", "Point Z", False, ["Point Z (0 0 0)", None]),
         (
             "Point Z + LineString Z",
             "Unknown",
@@ -910,18 +933,23 @@ def test_write_geometry_z_types_auto(
 ):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
-        if exp_geometry_type in ("2.5D GeometryCollection", "Unknown"):
+        if exp_geometry_type in ("GeometryCollection Z", "Unknown"):
             pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
-        elif exp_geometry_type == "2.5D MultiLineString":
-            exp_geometry_type = "2.5D LineString"
-        elif exp_geometry_type == "2.5D MultiPolygon":
-            exp_geometry_type = "2.5D Polygon"
+        elif exp_geometry_type == "MultiLineString Z":
+            exp_geometry_type = "LineString Z"
+        elif exp_geometry_type == "MultiPolygon Z":
+            exp_geometry_type = "Polygon Z"
 
     column_data = {}
     column_data["test_descr"] = [test_descr] * len(wkt)
     column_data["idx"] = [str(idx) for idx in range(len(wkt))]
     gdf = gp.GeoDataFrame(column_data, geometry=from_wkt(wkt), crs="EPSG:4326")
     filename = tmp_path / f"test{ext}"
+
+    if ext == ".fgb":
+        # writing empty / null geometries not allowed by FlatGeobuf for
+        # GDAL >= 3.6.4 and were simply not written previously
+        gdf = gdf.loc[~(gdf.geometry.isna() | gdf.geometry.is_empty)]
 
     if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(
@@ -939,10 +967,6 @@ def test_write_geometry_z_types_auto(
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl":
         result_gdf.crs = "EPSG:4326"
-    if ext == ".fgb":
-        # When the following gdal issue is released, this if needs to be removed:
-        # https://github.com/OSGeo/gdal/issues/7401
-        gdf = gdf.loc[~((gdf.geometry == np.array(None)) | gdf.geometry.is_empty)]
 
     assert_geodataframe_equal(gdf, result_gdf)
 
@@ -952,3 +976,136 @@ def test_read_multisurface(data_dir):
 
     # MultiSurface should be converted to MultiPolygon
     assert df.geometry.type.tolist() == ["MultiPolygon"]
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_dataset_kwargs(data_dir, use_arrow):
+    filename = data_dir / "test_nested.geojson"
+
+    # by default, nested data are not flattened
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level": ['{ "bottom_level": "B" }'],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+    df = read_dataframe(filename, use_arrow=use_arrow, FLATTEN_NESTED_ATTRIBUTES="YES")
+
+    expected = gp.GeoDataFrame(
+        {
+            "top_level": ["A"],
+            "intermediate_level_bottom_level": ["B"],
+        },
+        geometry=[Point(0, 0)],
+        crs="EPSG:4326",
+    )
+
+    assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
+def test_read_invalid_dataset_kwargs(naturalearth_lowres, use_arrow):
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
+
+
+def test_write_nullable_dtypes(tmp_path):
+    path = tmp_path / "test_nullable_dtypes.gpkg"
+    test_data = {
+        "col1": pd.Series([1, 2, 3], dtype="int64"),
+        "col2": pd.Series([1, 2, None], dtype="Int64"),
+        "col3": pd.Series([0.1, None, 0.3], dtype="Float32"),
+        "col4": pd.Series([True, False, None], dtype="boolean"),
+        "col5": pd.Series(["a", None, "b"], dtype="string"),
+    }
+    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    write_dataframe(input_gdf, path)
+    output_gdf = read_dataframe(path)
+    # We read it back as default (non-nullable) numpy dtypes, so we cast
+    # to those for the expected result
+    expected = input_gdf.copy()
+    expected["col2"] = expected["col2"].astype("float64")
+    expected["col3"] = expected["col3"].astype("float32")
+    expected["col4"] = expected["col4"].astype("float64")
+    expected["col5"] = expected["col5"].astype(object)
+    assert_geodataframe_equal(output_gdf, expected)
+
+
+@pytest.mark.parametrize(
+    "metadata_type", ["dataset_metadata", "layer_metadata", "metadata"]
+)
+def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
+    metadata = {"level": metadata_type}
+
+    df = read_dataframe(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_dataframe(df, filename, **{metadata_type: metadata})
+
+    metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
+
+    assert read_info(filename)[metadata_key] == metadata
+
+
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        {1: 2},
+        {"key": None},
+        {"key": 1},
+    ],
+)
+def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
+    with pytest.raises(ValueError, match="must be a string"):
+        filename = os.path.join(str(tmpdir), "test.gpkg")
+        write_dataframe(
+            read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
+        )
+
+
+@pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
+def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
+    """metadata is silently ignored"""
+
+    filename = os.path.join(str(tmpdir), "test.geojson")
+    write_dataframe(
+        read_dataframe(naturalearth_lowres),
+        filename,
+        **{metadata_type: {"key": "value"}},
+    )
+
+    metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
+
+    assert read_info(filename)[metadata_key] is None

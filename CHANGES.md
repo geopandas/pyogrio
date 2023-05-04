@@ -1,11 +1,33 @@
 # CHANGELOG
 
-## 0.6.0 (???)
+## 0.6.0 (2023-04-27)
 
 ### Improvements
 
-- Add automatic detection of 2.5D geometries in write_dataframe (#223, #229)
-- Add "driver" property to read_info result (#224)
+-   Add automatic detection of 3D geometries in `write_dataframe` (#223, #229)
+-   Add "driver" property to `read_info` result (#224)
+-   Add support for dataset open options to `read`, `read_dataframe`, and
+    `read_info` (#233)
+-   Add support for pandas' nullable data types in `write_dataframe`, or
+    specifying a mask manually for missing values in `write` (#219)
+-   Standardized 3-dimensional geometry type labels from "2.5D <type>" to
+    "<type> Z" for consistency with well-known text (WKT) formats (#234)
+-   Failure error messages from GDAL are no longer printed to stderr (they were
+    already translated into Python exceptions as well) (#236).
+-   Failure and warning error messages from GDAL are no longer printed to
+    stderr: failures were already translated into Python exceptions
+    and warning messages are now translated into Python warnings (#236, #242).
+-   Add access to low-level pyarrow `RecordBatchReader` via
+    `pyogrio.raw.open_arrow`, which allows iterating over batches of Arrow
+    tables (#205).
+-   Add support for writing dataset and layer metadata (where supported by
+    driver) to `write` and `write_dataframe`, and add support for reading
+    dataset and layer metadata in `read_info` (#237).
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.6.2 to GDAL 3.6.4.
+-   Wheels are now available for Linux aarch64 / arm64.
 
 ## 0.5.1 (2023-01-26)
 

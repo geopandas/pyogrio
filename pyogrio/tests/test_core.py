@@ -12,6 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
+from pyogrio.errors import DataSourceError
 
 from pyogrio._env import GDALEnv
 
@@ -99,7 +100,7 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
     )
 
-    # Measured 3D is downgraded to 2.5D during read
+    # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
@@ -111,9 +112,9 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         # Make sure that nonspatial layer has None for geometry
         assert array_equal(fgdb_layers[0], ["basetable_2", None])
 
-        # Confirm that measured 3D is downgraded to 2.5D during read
-        assert array_equal(fgdb_layers[3], ["test_lines", "2.5D MultiLineString"])
-        assert array_equal(fgdb_layers[6], ["test_areas", "2.5D MultiPolygon"])
+        # Confirm that measured 3D is downgraded to plain 3D during read
+        assert array_equal(fgdb_layers[3], ["test_lines", "MultiLineString Z"])
+        assert array_equal(fgdb_layers[6], ["test_areas", "MultiPolygon Z"])
 
 
 def test_read_bounds(naturalearth_lowres):
@@ -231,6 +232,43 @@ def test_read_info(naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
+    "dataset_kwargs,fields",
+    [
+        ({}, ["top_level", "intermediate_level"]),
+        (
+            {"FLATTEN_NESTED_ATTRIBUTES": "YES"},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+        (
+            {"flatten_nested_attributes": "yes"},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+        (
+            {"flatten_nested_attributes": True},
+            [
+                "top_level",
+                "intermediate_level_bottom_level",
+            ],
+        ),
+    ],
+)
+def test_read_info_dataset_kwargs(data_dir, dataset_kwargs, fields):
+    meta = read_info(data_dir / "test_nested.geojson", **dataset_kwargs)
+    assert meta["fields"].tolist() == fields
+
+
+def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_info(naturalearth_lowres, INVALID="YES")
+
+
+@pytest.mark.parametrize(
     "name,value,expected",
     [
         ("CPL_DEBUG", "ON", True),
@@ -251,3 +289,21 @@ def test_reset_config_options():
 
     set_gdal_config_options({"foo": None})
     assert get_gdal_config_option("foo") is None
+
+
+def test_error_handling(capfd):
+    # an operation that triggers a GDAL Failure
+    # -> error translated into Python exception + not printed to stderr
+    with pytest.raises(DataSourceError, match="No such file or directory"):
+        read_info("non-existent.shp")
+
+    assert capfd.readouterr().err == ""
+
+
+def test_error_handling_warning(capfd, naturalearth_lowres):
+    # an operation that triggers a GDAL Warning
+    # -> translated into a Python warning + not printed to stderr
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        read_info(naturalearth_lowres, INVALID="YES")
+
+    assert capfd.readouterr().err == ""

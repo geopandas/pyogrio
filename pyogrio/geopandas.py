@@ -36,6 +36,7 @@ def read_dataframe(
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=False,
+    **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
     If the data source does not have a geometry column or ``read_geometry`` is False,
@@ -121,6 +122,9 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR.  Invalid
+        options will trigger a warning.
 
     Returns
     -------
@@ -157,6 +161,7 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        **kwargs,
     )
 
     if use_arrow:
@@ -199,6 +204,9 @@ def write_dataframe(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+    metadata=None,
     dataset_options=None,
     layer_options=None,
     **kwargs,
@@ -256,6 +264,16 @@ def write_dataframe(
         driver supports appending to an existing data source, will cause the
         data to be appended to the existing records in the data source.
         NOTE: append support is limited to specific drivers and GDAL versions.
+    dataset_metadata : dict, optional (default: None)
+        Metadata to be stored at the dataset level in the output file; limited
+        to drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    layer_metadata : dict, optional (default: None)
+        Metadata to be stored at the layer level in the output file; limited to
+        drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    metadata : dict, optional (default: None)
+        alias of layer_metadata
     dataset_options : dict, optional
         Dataset creation option (format specific) passed to OGR. Specify as
         a key-value dictionary.
@@ -306,7 +324,22 @@ def write_dataframe(
     fields = [c for c in df.columns if not c == geometry_column]
 
     # TODO: may need to fill in pd.NA, etc
-    field_data = [df[f].values for f in fields]
+    field_data = []
+    field_mask = []
+    for name in fields:
+        col = df[name].values
+        if isinstance(col, pd.api.extensions.ExtensionArray):
+            from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
+
+            if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(col._data)
+                field_mask.append(col._mask)
+            else:
+                field_data.append(np.asarray(col))
+                field_mask.append(np.asarray(col.isna()))
+        else:
+            field_data.append(col)
+            field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_type is None or promote_to_multi is None:
@@ -363,7 +396,7 @@ def write_dataframe(
         if geometry_type is None:
             geometry_type = tmp_geometry_type
             if has_z and geometry_type != "Unknown":
-                geometry_type = f"2.5D {geometry_type}"
+                geometry_type = f"{geometry_type} Z"
 
     crs = None
     if geometry.crs:
@@ -381,6 +414,7 @@ def write_dataframe(
         driver=driver,
         geometry=to_wkb(geometry.values),
         field_data=field_data,
+        field_mask=field_mask,
         fields=fields,
         crs=crs,
         geometry_type=geometry_type,
@@ -388,6 +422,9 @@ def write_dataframe(
         promote_to_multi=promote_to_multi,
         nan_as_null=nan_as_null,
         append=append,
+        dataset_metadata=dataset_metadata,
+        layer_metadata=layer_metadata,
+        metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
         **kwargs,

@@ -1,0 +1,48 @@
+version: 2.1
+
+jobs:
+  linux-aarch64-wheels:
+    working_directory: ~/linux-aarch64-wheels
+    machine:
+      image: ubuntu-2004:2022.04.1
+      docker_layer_caching: true
+    # resource_class is what tells CircleCI to use an ARM worker for native arm builds
+    # https://circleci.com/product/features/resource-classes/
+    resource_class: arm.medium
+    environment:
+      CIBUILDWHEEL: 1
+      CIBW_BUILD: "cp*-manylinux_aarch64"
+    steps:
+      - checkout
+      - run:
+          name: Build docker image with GDAL install
+          command: docker build -f ci/manylinux_2_28_aarch64-vcpkg-gdal.Dockerfile -t manylinux-aarch64-vcpkg-gdal:latest .
+      - run:
+          name: Build the Linux aarch64 wheels.
+          command: |
+            python3 -m pip install --user cibuildwheel==2.12.1
+            python3 -m cibuildwheel --output-dir wheelhouse
+      - run:
+          name: Test the wheels
+          command: |
+            python3 -m pip install -r ci/requirements-wheel-test.txt
+            python3 -m pip install --no-deps geopandas
+            python3 -m pip install --pre --find-links wheelhouse pyogrio
+            python3 -m pip list
+            cd ..
+            python3 -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+            python3 -m pytest --pyargs pyogrio.tests -v
+      - store_artifacts:
+          path: wheelhouse/
+
+workflows:
+  wheel-build:
+    jobs:
+      - linux-aarch64-wheels:
+          filters:
+            branches:
+              only:
+                - main
+                - wheels-linux-aarch64
+            tags:
+              only: /.*/

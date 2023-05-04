@@ -110,7 +110,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.12.1
+        uses: pypa/cibuildwheel@v2.12.3
 
       - uses: actions/upload-artifact@v3
         with:
@@ -155,7 +155,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.2-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.4-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -173,7 +173,7 @@ jobs:
           git reset --hard
           # pull latest version to ensure the required commit with GDAL 3.6 is available
           git pull
-          git checkout 94e85d15fb857f8d4150006fe3b61aca839ac299
+          git checkout 580f143d123ce6abb5c135b11d6402c9a54bc9b9
 
       - name: Install GDAL
         env:
@@ -190,7 +190,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.12.1
+        uses: pypa/cibuildwheel@v2.12.3
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}

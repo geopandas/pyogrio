@@ -14,7 +14,7 @@ cdef extern from "cpl_conv.h":
     void        CPLSetConfigOption(const char* key, const char* value)
 
 
-cdef extern from "cpl_error.h":
+cdef extern from "cpl_error.h" nogil:
     ctypedef enum CPLErr:
         CE_None
         CE_Debug
@@ -27,12 +27,18 @@ cdef extern from "cpl_error.h":
     const char*    CPLGetLastErrorMsg()
     int             CPLGetLastErrorType()
 
+    ctypedef void (*CPLErrorHandler)(CPLErr, int, const char*)
+    void CPLDefaultErrorHandler(CPLErr, int, const char *)
+    void CPLPushErrorHandler(CPLErrorHandler handler)
+    void CPLPopErrorHandler()
+
 
 cdef extern from "cpl_string.h":
     char**      CSLAddNameValue(char **list, const char *name, const char *value)
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
     void        CSLDestroy(char **list)
     char**      CSLAddString(char **list, const char *string)
+    int         CSLCount(char **list)
 
 
 cdef extern from "cpl_vsi.h" nogil:
@@ -367,7 +373,9 @@ cdef extern from "gdal.h":
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
+    char**          GDALGetMetadata(GDALMajorObjectH obj, const char *pszDomain)
     const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
+    OGRErr          GDALSetMetadata(GDALMajorObjectH obj, char **metadata, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
 
 

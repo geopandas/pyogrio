@@ -23,7 +23,7 @@ Measured geometry types are not supported for reading or writing. These are not
 supported by the GEOS library and cannot be converted to geometry objects in
 GeoDataFrames.
 
-These are automatically downgraded to their 2.5D (x,y, single z) equivalent and
+These are automatically downgraded to their 3D (x,y,z) equivalent and
 a warning is raised.
 
 To ignore this warning:
@@ -59,7 +59,7 @@ give at most millisecond resolution (`datetime64[ms]` data type), even though
 the data is cast `datetime64[ns]` data type when reading into a data frame
 using `pyogrio.read_dataframe()`. When writing, only precision up to ms is retained.
 
-Not all file formats have dedicated support to store datetime data, like ESRI 
+Not all file formats have dedicated support to store datetime data, like ESRI
 Shapefile. For such formats, or if you require precision > ms, a workaround is to
 convert the datetimes to string.
 
