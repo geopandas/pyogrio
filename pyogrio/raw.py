@@ -53,6 +53,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Read OGR data source into numpy arrays.
@@ -108,6 +109,10 @@ def read(
         number of features usings FIDs is also driver specific.
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as a string
+        array, instead of a datetime64 array.
+
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -150,6 +155,7 @@ def read(
             sql_dialect=sql_dialect,
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
+            datetime_as_string=datetime_as_string,
         )
     finally:
         if buffer is not None:

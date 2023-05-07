@@ -146,6 +146,10 @@ def read_dataframe(
     path_or_buffer = _stringify_path(path_or_buffer)
 
     read_func = read_arrow if use_arrow else read
+    if not read_arrow and "datetime_as_string" not in kwargs:
+        kwargs["datetime_as_string"] = True
+        # TODO work out what to do with the arrow api
+
     result = read_func(
         path_or_buffer,
         layer=layer,

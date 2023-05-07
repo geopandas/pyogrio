@@ -599,7 +599,8 @@ cdef process_fields(
     object field_data_view,
     object field_indexes,
     object field_ogr_types,
-    encoding
+    encoding,
+    bint datetime_as_string
 ):
     cdef int j
     cdef int success
@@ -657,26 +658,27 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            # defer datetime parsing to pandas layer (TODO this would be a regression in the numpy, implement datetime_as_string toggle as suggested)
-            value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
-            data[i] = value
+            # defer datetime parsing to pandas layer 
+            if datetime_as_string:
+                value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
+                data[i] = value
+            else:
+                success = OGR_F_GetFieldAsDateTimeEx(
+                    ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
 
-            # success = OGR_F_GetFieldAsDateTimeEx(
-            #     ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
+                ms, ss = math.modf(fsecond)
+                second = int(ss)
+                # fsecond has millisecond accuracy
+                microsecond = round(ms * 1000) * 1000
 
-            # ms, ss = math.modf(fsecond)
-            # second = int(ss)
-            # # fsecond has millisecond accuracy
-            # microsecond = round(ms * 1000) * 1000
+                if not success:
+                    data[i] = np.datetime64('NaT')
 
-            # if not success:
-            #     data[i] = np.datetime64('NaT')
+                elif field_type == OFTDate:
+                    data[i] = datetime.date(year, month, day).isoformat()
 
-            # elif field_type == OFTDate:
-            #     data[i] = datetime.date(year, month, day).isoformat()
-
-            # elif field_type == OFTDateTime:
-            #     data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
+                elif field_type == OFTDateTime:
+                    data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -689,7 +691,8 @@ cdef get_features(
     uint8_t force_2d,
     int skip_features,
     int num_features,
-    uint8_t return_fids
+    uint8_t return_fids,
+    bint datetime_as_string
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -723,7 +726,7 @@ cdef get_features(
     field_data = [
         np.empty(shape=(num_features, ),
         # TODO cython has walrus?
-        dtype=(fields[field_index,3] if not fields[field_index,3].startswith("datetime") else "object")) for field_index in range(n_fields)
+        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") else fields[field_index,3])) for field_index in range(n_fields)
     ]
     types = [(fields[field_index,2],fields[field_index,3]) for field_index in range(n_fields)]
     print("types are", types)
@@ -765,7 +768,7 @@ cdef get_features(
 
             process_fields(
                 ogr_feature, i, n_fields, field_data, field_data_view,
-                field_indexes, field_ogr_types, encoding
+                field_indexes, field_ogr_types, encoding, datetime_as_string
             )
             i += 1
         finally:
@@ -795,7 +798,8 @@ cdef get_features_by_fid(
     object[:,:] fields,
     encoding,
     uint8_t read_geometry,
-    uint8_t force_2d
+    uint8_t force_2d,
+    bint datetime_as_string
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -818,7 +822,7 @@ cdef get_features_by_fid(
     n_fields = fields.shape[0]
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
-
+    # TODO missing datetime dtype hack on this path?
     field_data = [
         np.empty(shape=(count, ),
         dtype=fields[field_index,3]) for field_index in range(n_fields)
@@ -844,7 +848,7 @@ cdef get_features_by_fid(
 
             process_fields(
                 ogr_feature, i, n_fields, field_data, field_data_view,
-                field_indexes, field_ogr_types, encoding
+                field_indexes, field_ogr_types, encoding, datetime_as_string
             )
         finally:
             if ogr_feature != NULL:
@@ -946,7 +950,9 @@ def ogr_read(
     object fids=None,
     str sql=None,
     str sql_dialect=None,
-    int return_fids=False):
+    int return_fids=False,
+    bint datetime_as_string=False
+    ):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1029,6 +1035,7 @@ def ogr_read(
                 encoding,
                 read_geometry=read_geometry and geometry_type is not None,
                 force_2d=force_2d,
+                datetime_as_string=datetime_as_string
             )
 
             # bypass reading fids since these should match fids used for read
@@ -1058,7 +1065,8 @@ def ogr_read(
                 force_2d=force_2d,
                 skip_features=skip_features,
                 num_features=num_features,
-                return_fids=return_fids
+                return_fids=return_fids,
+                datetime_as_string=datetime_as_string
             )
 
         meta = {
