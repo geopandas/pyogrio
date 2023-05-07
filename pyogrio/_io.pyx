@@ -657,22 +657,26 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            success = OGR_F_GetFieldAsDateTimeEx(
-                ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
+            # defer datetime parsing to pandas layer (TODO this would be a regression in the numpy, implement datetime_as_string toggle as suggested)
+            value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
+            data[i] = value
 
-            ms, ss = math.modf(fsecond)
-            second = int(ss)
-            # fsecond has millisecond accuracy
-            microsecond = round(ms * 1000) * 1000
+            # success = OGR_F_GetFieldAsDateTimeEx(
+            #     ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
 
-            if not success:
-                data[i] = np.datetime64('NaT')
+            # ms, ss = math.modf(fsecond)
+            # second = int(ss)
+            # # fsecond has millisecond accuracy
+            # microsecond = round(ms * 1000) * 1000
 
-            elif field_type == OFTDate:
-                data[i] = datetime.date(year, month, day).isoformat()
+            # if not success:
+            #     data[i] = np.datetime64('NaT')
 
-            elif field_type == OFTDateTime:
-                data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
+            # elif field_type == OFTDate:
+            #     data[i] = datetime.date(year, month, day).isoformat()
+
+            # elif field_type == OFTDateTime:
+            #     data[i] = datetime.datetime(year, month, day, hour, minute, second, microsecond).isoformat()
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -718,8 +722,11 @@ cdef get_features(
 
     field_data = [
         np.empty(shape=(num_features, ),
-        dtype=fields[field_index,3]) for field_index in range(n_fields)
+        # TODO cython has walrus?
+        dtype=(fields[field_index,3] if not fields[field_index,3].startswith("datetime") else "object")) for field_index in range(n_fields)
     ]
+    types = [(fields[field_index,2],fields[field_index,3]) for field_index in range(n_fields)]
+    print("types are", types)
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
     i = 0
@@ -1058,6 +1065,7 @@ def ogr_read(
             'crs': crs,
             'encoding': encoding,
             'fields': fields[:,2], # return only names
+            'dtypes':fields[:,3],
             'geometry_type': geometry_type,
         }
 

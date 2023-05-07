@@ -165,6 +165,7 @@ def read_dataframe(
     )
 
     if use_arrow:
+        # TODO what happens to datetimes with arrow?
         meta, table = result
         df = table.to_pandas()
         geometry_name = meta["geometry_name"] or "wkb_geometry"
@@ -175,6 +176,8 @@ def read_dataframe(
             return df
 
     meta, index, geometry, field_data = result
+    print("meta is")
+    print(meta)
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
@@ -184,6 +187,9 @@ def read_dataframe(
         index = None
 
     df = pd.DataFrame(data, columns=columns, index=index)
+    for dtype, c in zip(meta["dtypes"], df.columns):
+        if dtype.startswith("datetime"):
+            df[c] = pd.to_datetime(df[c], format="%Y/%m/%d %H:%M:%S%z")
 
     if geometry is None or not read_geometry:
         return df
