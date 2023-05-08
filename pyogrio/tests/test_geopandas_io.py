@@ -139,6 +139,20 @@ def test_read_datetime(test_fgdb_vsi):
         assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
+def test_read_datetime_tz(test_datetime_tz):
+    df = read_dataframe(test_datetime_tz)
+    if Version(pd.__version__) >= Version("2.0.0"):
+        # starting with pandas 2.0, it preserves the passed datetime resolution
+        assert df.col.dtype.name == "datetime64[ms]"
+    else:
+        assert df.col.dtype.name == "datetime64[ns]"
+
+    df.col = df.col.astype("datetime64[ms]")
+    print(df.col)
+    print(df.col.dtype)
+    # TODO assertion
+
+
 def test_read_null_values(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, read_geometry=False)
 
