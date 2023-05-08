@@ -43,6 +43,7 @@ def prepare_testfile(testfile_path, dst_dir, ext):
         # For .gpkg, spatial_index=False to avoid the rows being reordered
         meta["spatial_index"] = False
         meta["geometry_type"] = "MultiPolygon"
+    meta.pop("dtypes")
 
     write(dst_path, geometry, field_data, **meta)
     return dst_path
