@@ -146,10 +146,9 @@ def read_dataframe(
     path_or_buffer = _stringify_path(path_or_buffer)
 
     read_func = read_arrow if use_arrow else read
-    if not read_arrow and "datetime_as_string" not in kwargs:
+    if not use_arrow and "datetime_as_string" not in kwargs:
         kwargs["datetime_as_string"] = True
         # TODO work out what to do with the arrow api
-
     result = read_func(
         path_or_buffer,
         layer=layer,
@@ -189,8 +188,9 @@ def read_dataframe(
         index = pd.Index(index, name="fid")
     else:
         index = None
-
+    print(data)
     df = pd.DataFrame(data, columns=columns, index=index)
+    print(df)
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
             df[c] = pd.to_datetime(df[c], format="%Y/%m/%d %H:%M:%S%z")

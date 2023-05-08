@@ -18,7 +18,11 @@ from pyogrio.tests.conftest import ALL_EXTS
 
 try:
     import pandas as pd
-    from pandas.testing import assert_frame_equal, assert_index_equal
+    from pandas.testing import (
+        assert_frame_equal,
+        assert_index_equal,
+        assert_series_equal,
+    )
 
     import geopandas as gp
     from geopandas.array import from_wkt
@@ -143,14 +147,36 @@ def test_read_datetime_tz(test_datetime_tz):
     df = read_dataframe(test_datetime_tz)
     if Version(pd.__version__) >= Version("2.0.0"):
         # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.col.dtype.name == "datetime64[ms]"
+        assert df.col.dtype.name == "datetime64[ms, pytz.FixedOffset(-300)]"
     else:
-        assert df.col.dtype.name == "datetime64[ns]"
+        assert df.col.dtype.name == "datetime64[ns, pytz.FixedOffset(-300)]"
 
-    df.col = df.col.astype("datetime64[ms]")
-    print(df.col)
-    print(df.col.dtype)
-    # TODO assertion
+    assert_series_equal(
+        df.col,
+        pd.Series(
+            pd.to_datetime(
+                ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
+            ),
+            name="col",
+        ),
+    )
+
+    df = read_dataframe(test_datetime_tz, use_arrow=True)
+    if Version(pd.__version__) >= Version("2.0.0"):
+        # starting with pandas 2.0, it preserves the passed datetime resolution
+        assert df.col.dtype.name == "datetime64[ms, pytz.FixedOffset(-300)]"
+    else:
+        assert df.col.dtype.name == "datetime64[ns, pytz.FixedOffset(-300)]"
+
+    assert_series_equal(
+        df.col,
+        pd.Series(
+            pd.to_datetime(
+                ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
+            ),
+            name="col",
+        ),
+    )
 
 
 def test_read_null_values(test_fgdb_vsi):
