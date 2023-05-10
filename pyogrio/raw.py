@@ -393,6 +393,7 @@ def write(
     layer_options=None,
     **kwargs,
 ):
+    kwargs.pop("dtypes", None)
     if geometry_type is None:
         raise ValueError("geometry_type must be provided")
 

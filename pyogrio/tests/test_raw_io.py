@@ -260,6 +260,7 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
 def test_write(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.pop("dtypes")
 
     filename = os.path.join(str(tmpdir), "test.shp")
     write(filename, geometry, field_data, **meta)
@@ -463,6 +464,7 @@ def assert_equal_result(result1, result2):
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
+    meta.pop("dtypes")
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -489,6 +491,7 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
+    meta.pop("dtypes")
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
