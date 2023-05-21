@@ -1,3 +1,4 @@
+import datetime
 import numpy as np
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
 from pyogrio.raw import detect_driver, read, read_arrow, write
@@ -193,7 +194,7 @@ def read_dataframe(
     print(df)
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
-            df[c] = pd.to_datetime(df[c], format="%Y/%m/%d %H:%M:%S%z")
+            df[c] = pd.to_datetime(df[c], format="ISO8601")
 
     if geometry is None or not read_geometry:
         return df
@@ -336,8 +337,19 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    tz_offsets = {} # gdal format timezone offsets by column
     for name in fields:
-        col = df[name].values
+        ser = df[name]
+        col = ser.values
+        if isinstance(ser.dtype, pd.DatetimeTZDtype):
+            if len(ser)>0:
+                # Assume series has same offset for all rows (enforced by definition in pandas)
+                tz_offsets[name] = int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15)) +100
+                # Convert to naive datetime, add offset back per above
+                col = ser.dt.tz_localize(None).values
+                
+            # edge case of length zero ignored, don't have a reference date
+
         if isinstance(col, pd.api.extensions.ExtensionArray):
             from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
 
@@ -437,5 +449,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
+        tz_offsets=tz_offsets,
         **kwargs,
     )

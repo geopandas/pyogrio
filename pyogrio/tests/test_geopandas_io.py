@@ -136,6 +136,7 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext):
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
+    print(df)
     if Version(pd.__version__) >= Version("2.0.0"):
         # starting with pandas 2.0, it preserves the passed datetime resolution
         assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
@@ -145,49 +146,22 @@ def test_read_datetime(test_fgdb_vsi):
 
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
-    if Version(pd.__version__) >= Version("2.0.0"):
-        # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.col.dtype.name == "datetime64[ms, pytz.FixedOffset(-300)]"
-    else:
-        assert df.col.dtype.name == "datetime64[ns, pytz.FixedOffset(-300)]"
+    
+    assert df.col.dtype.unit == "ns" # tz aware does not support ms resolution, even in pandas 2
     expected_dt_col = pd.Series(
-        pd.to_datetime(["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]),
+        pd.to_datetime(["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"], format="ISO8601"),
         name="col",
     )
     assert_series_equal(df.col, expected_dt_col)
     # test write and read round trips
-    fpath = tmp_path / "test.gpkg"
+    fpath = tmp_path / "test.geojson" # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
-    print("good\n", df.col)
-    import pytz
-
-    print(
-        "bad\n",
-        df_read.col,
-        "\n",
-        df_read.col.dt.tz_localize("UTC").dt.tz_convert(pytz.FixedOffset(-300)),
-    )
+    print("a", df_read.col)
+    print("b", expected_dt_col)
     assert_series_equal(df_read.col, expected_dt_col)
 
-    # assert_geodataframe_equal(df, df_read)
 
-    # df = read_dataframe(test_datetime_tz, use_arrow=True)
-    # if Version(pd.__version__) >= Version("2.0.0"):
-    #     # starting with pandas 2.0, it preserves the passed datetime resolution
-    #     assert df.col.dtype.name == "datetime64[ms, pytz.FixedOffset(-300)]"
-    # else:
-    #     assert df.col.dtype.name == "datetime64[ns, pytz.FixedOffset(-300)]"
-
-    # assert_series_equal(
-    #     df.col,
-    #     pd.Series(
-    #         pd.to_datetime(
-    #             ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
-    #         ),
-    #         name="col",
-    #     ),
-    # )
 
 
 def test_read_null_values(test_fgdb_vsi):

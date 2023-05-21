@@ -1488,7 +1488,7 @@ cdef infer_field_types(list dtypes):
 def ogr_write(
     str path, str layer, str driver, geometry, fields, field_data, field_mask,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
-    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
+    object layer_kwargs, tz_offsets, bint promote_to_multi=False, bint nan_as_null=True,
     bint append=False, dataset_metadata=None, layer_metadata=None
 ):
     cdef const char *path_c = NULL
@@ -1795,6 +1795,9 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
+                        # TODO check if 0=unknown or 1=localtime is most appropriate
+                        tz = tz_offsets.get(fields[field_idx], 1)
+                        print(tz)
                         datetime = field_value.item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
@@ -1805,14 +1808,16 @@ def ogr_write(
                             0,
                             0,
                             0.0,
-                            0
+                            tz
                         )
 
                 elif field_type == OFTDateTime:
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
-                        # TODO: add support for timezones
+                        # TODO check if 0=unknown or 1=localtime is most appropriate
+                        tz = tz_offsets.get(fields[field_idx], 1)
+                        print(tz, type(tz))
                         datetime = field_value.astype("datetime64[ms]").item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
@@ -1823,7 +1828,7 @@ def ogr_write(
                             datetime.hour,
                             datetime.minute,
                             datetime.second + datetime.microsecond / 10**6,
-                            0
+                            tz
                         )
 
                 else:
