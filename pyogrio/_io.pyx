@@ -725,7 +725,7 @@ cdef get_features(
 
     field_data = [
         np.empty(shape=(num_features, ),
-        # TODO cython has walrus?
+
         dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") else fields[field_index,3])) for field_index in range(n_fields)
     ]
     types = [(fields[field_index,2],fields[field_index,3]) for field_index in range(n_fields)]
@@ -822,10 +822,10 @@ cdef get_features_by_fid(
     n_fields = fields.shape[0]
     field_indexes = fields[:,0]
     field_ogr_types = fields[:,1]
-    # TODO missing datetime dtype hack on this path?
     field_data = [
         np.empty(shape=(count, ),
-        dtype=fields[field_index,3]) for field_index in range(n_fields)
+
+        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") else fields[field_index,3])) for field_index in range(n_fields)
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]

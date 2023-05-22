@@ -1,7 +1,6 @@
 import datetime
 import warnings
 import numpy as np
-import pandas as pd
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
 from pyogrio.raw import detect_driver, read, read_arrow, write
 from pyogrio.errors import DataSourceError
@@ -22,6 +21,7 @@ def _stringify_path(path):
     return path
 
 def _try_parse_datetime(ser):
+    import pandas as pd
     # TODO surely a better way of doing this
     for format in ["ISO8601", "%y/%m/%d %H:%M:%S", "%y/%m/%d %H:%M:%S.%f", "%y/%m/%d %H:%M:%S.%f%z"]:
         try: 
