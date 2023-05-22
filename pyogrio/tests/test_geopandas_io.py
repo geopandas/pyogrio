@@ -1,7 +1,6 @@
 import contextlib
 from datetime import datetime
 import os
-from packaging.version import Version
 
 import numpy as np
 import pytest
@@ -147,22 +146,27 @@ def test_read_datetime(test_fgdb_vsi):
 
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
-    
-    assert df.col.dtype.unit == "ns" # tz aware does not support ms resolution, even in pandas 2
+
+    assert (
+        df.col.dtype.unit == "ns"
+    )  # tz aware does not support ms resolution, even in pandas 2
     expected_dt_col = pd.Series(
-        pd.to_datetime(["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"], format="ISO8601"),
+        pd.to_datetime(
+            ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"],
+            format="ISO8601",
+        ),
         name="col",
     )
     assert_series_equal(df.col, expected_dt_col)
     # test write and read round trips
-    fpath = tmp_path / "test.geojson" # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
+    fpath = (
+        tmp_path / "test.geojson"
+    )  # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     print("a", df_read.col)
     print("b", expected_dt_col)
     assert_series_equal(df_read.col, expected_dt_col)
-
-
 
 
 def test_read_null_values(test_fgdb_vsi):

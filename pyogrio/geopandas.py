@@ -20,17 +20,23 @@ def _stringify_path(path):
     # pass-though other objects
     return path
 
+
 def _try_parse_datetime(ser):
     import pandas as pd
+
     # TODO surely a better way of doing this
-    for format in ["ISO8601", "%y/%m/%d %H:%M:%S", "%y/%m/%d %H:%M:%S.%f", "%y/%m/%d %H:%M:%S.%f%z"]:
-        try: 
+    for format in [
+        "ISO8601",
+        "%y/%m/%d %H:%M:%S",
+        "%y/%m/%d %H:%M:%S.%f",
+        "%y/%m/%d %H:%M:%S.%f%z",
+    ]:
+        try:
             return pd.to_datetime(ser, format=format)
         except ValueError:
             pass
     warnings.warn(f"Datetime parsing failed for column {ser.name!r}")
     return ser
-                
 
 
 def read_dataframe(
@@ -350,17 +356,19 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
-    tz_offsets = {} # gdal format timezone offsets by column
+    tz_offsets = {}  # gdal format timezone offsets by column
     for name in fields:
         ser = df[name]
         col = ser.values
         if isinstance(ser.dtype, pd.DatetimeTZDtype):
-            if len(ser)>0:
-                # Assume series has same offset for all rows (enforced by definition in pandas)
-                tz_offsets[name] = int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15)) +100
+            if len(ser) > 0:
+                # Assume series has same offset for all rows (enforced by pandas)
+                tz_offsets[name] = (
+                    int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15)) + 100
+                )
                 # Convert to naive datetime, add offset back per above
                 col = ser.dt.tz_localize(None).values
-                
+
             # edge case of length zero ignored, don't have a reference date
 
         if isinstance(col, pd.api.extensions.ExtensionArray):
