@@ -22,14 +22,24 @@ def _stringify_path(path):
 
 
 def _try_parse_datetime(ser):
-    import pandas as pd
+    import pandas as pd # only called in a block where pandas is known to be installed
+    try:
+        return pd.to_datetime(ser, format="ISO8601")
+    except ValueError:
+        pass
+    try:
+        return pd.to_datetime(ser, yearfirst=True)
+    except ValueError:
+        pass
 
     # TODO surely a better way of doing this
     for format in [
-        "ISO8601",
         "%y/%m/%d %H:%M:%S",
         "%y/%m/%d %H:%M:%S.%f",
         "%y/%m/%d %H:%M:%S.%f%z",
+        "%y/%m/%dT%H:%M:%S",
+        "%y/%m/%dT%H:%M:%S.%f",
+        "%y/%m/%dT%H:%M:%S.%f%z",
     ]:
         try:
             return pd.to_datetime(ser, format=format)
