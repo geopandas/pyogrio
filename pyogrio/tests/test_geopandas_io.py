@@ -153,9 +153,9 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     expected_dt_col = pd.Series(
         pd.to_datetime(
             ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"],
-            format='mixed',
+            format="mixed",
             yearfirst=True,
-            dayfirst=True
+            dayfirst=True,
         ),
         name="col",
     )

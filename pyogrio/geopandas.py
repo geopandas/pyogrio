@@ -22,7 +22,8 @@ def _stringify_path(path):
 
 
 def _try_parse_datetime(ser):
-    import pandas as pd # only called in a block where pandas is known to be installed
+    import pandas as pd  # only called in a block where pandas is known to be installed
+
     try:
         return pd.to_datetime(ser, format="ISO8601")
     except ValueError:
