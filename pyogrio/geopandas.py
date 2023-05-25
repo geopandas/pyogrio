@@ -210,8 +210,6 @@ def read_dataframe(
             return df
 
     meta, index, geometry, field_data = result
-    print("meta is")
-    print(meta)
 
     columns = meta["fields"].tolist()
     data = {columns[i]: field_data[i] for i in range(len(columns))}
@@ -219,9 +217,7 @@ def read_dataframe(
         index = pd.Index(index, name="fid")
     else:
         index = None
-    print(data)
     df = pd.DataFrame(data, columns=columns, index=index)
-    print(df)
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
             df[c] = _try_parse_datetime(df[c])
@@ -375,7 +371,9 @@ def write_dataframe(
             if len(ser) > 0:
                 # Assume series has same offset for all rows (enforced by pandas)
                 tz_offsets[name] = (
-                    int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15)) + 100
+                    # gdal stores timezones in 15 minute increments offset from 100=GMT
+                    int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15))
+                    + 100
                 )
                 # Convert to naive datetime, add offset back per above
                 col = ser.dt.tz_localize(None).values

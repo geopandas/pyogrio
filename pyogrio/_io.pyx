@@ -725,11 +725,10 @@ cdef get_features(
 
     field_data = [
         np.empty(shape=(num_features, ),
-
-        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") else fields[field_index,3])) for field_index in range(n_fields)
+        dtype = ("object" if datetime_as_string and 
+                    fields[field_index,3].startswith("datetime") else fields[field_index,3])
+        ) for field_index in range(n_fields)
     ]
-    types = [(fields[field_index,2],fields[field_index,3]) for field_index in range(n_fields)]
-    print("types are", types)
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
     i = 0
@@ -1797,7 +1796,6 @@ def ogr_write(
                     else:
                         # TODO check if 0=unknown or 1=localtime is most appropriate
                         tz = tz_offsets.get(fields[field_idx], 1)
-                        print(tz)
                         datetime = field_value.item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
@@ -1817,7 +1815,6 @@ def ogr_write(
                     else:
                         # TODO check if 0=unknown or 1=localtime is most appropriate
                         tz = tz_offsets.get(fields[field_idx], 1)
-                        print(tz, type(tz))
                         datetime = field_value.astype("datetime64[ms]").item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,

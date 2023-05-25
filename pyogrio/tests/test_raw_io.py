@@ -260,7 +260,6 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
 def test_write(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    meta.pop("dtypes")
 
     filename = os.path.join(str(tmpdir), "test.shp")
     write(filename, geometry, field_data, **meta)
@@ -464,7 +463,6 @@ def assert_equal_result(result1, result2):
 def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
-    meta.pop("dtypes")
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -491,7 +489,6 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
 def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
-    meta.pop("dtypes")
     filename = os.path.join(str(tmpdir), f"test.{ext}")
     write(filename, geometry, field_data, driver=driver, **meta)
 
@@ -619,9 +616,8 @@ def test_read_datetime_millisecond(test_datetime):
 def test_read_datetime_tz(test_datetime_tz):
     field = read(test_datetime_tz)[3][0]
     assert field.dtype == "datetime64[ms]"
-    assert field[0] == np.datetime64(
-        "2020-01-01 09:00:00.123"
-    )  # timezone is ignored TODO should this be fixed as well?
+    # timezone is ignored in numpy layer
+    assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
     field = read(test_datetime_tz, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
