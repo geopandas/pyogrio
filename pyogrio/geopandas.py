@@ -1,4 +1,3 @@
-import datetime
 import warnings
 import numpy as np
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
@@ -24,6 +23,8 @@ def _stringify_path(path):
 def _try_parse_datetime(ser):
     import pandas as pd  # only called in a block where pandas is known to be installed
 
+    print("got series", ser, ser.to_dict())
+
     try:
         return pd.to_datetime(ser, format="ISO8601")
     except ValueError:
@@ -34,7 +35,7 @@ def _try_parse_datetime(ser):
         pass
 
     # TODO surely a better way of doing this
-    for format in [
+    for fmt in [
         "%y/%m/%d %H:%M:%S",
         "%y/%m/%d %H:%M:%S.%f",
         "%y/%m/%d %H:%M:%S.%f%z",
@@ -43,10 +44,11 @@ def _try_parse_datetime(ser):
         "%y/%m/%dT%H:%M:%S.%f%z",
     ]:
         try:
-            return pd.to_datetime(ser, format=format)
+            return pd.to_datetime(ser, format=fmt)
         except ValueError:
             pass
     warnings.warn(f"Datetime parsing failed for column {ser.name!r}")
+    print("---------------failed parsing")
     return ser
 
 
@@ -363,21 +365,22 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
-    tz_offsets = {}  # gdal format timezone offsets by column
+    # dtypes = df[fields].dtypes().to_dict()
+    # tz_offsets = {}  # gdal format timezone offsets by column
     for name in fields:
         ser = df[name]
         col = ser.values
         if isinstance(ser.dtype, pd.DatetimeTZDtype):
             if len(ser) > 0:
                 # Assume series has same offset for all rows (enforced by pandas)
-                tz_offsets[name] = (
-                    # gdal stores timezones in 15 minute increments offset from 100=GMT
-                    int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15))
-                    + 100
-                )
-                # Convert to naive datetime, add offset back per above
-                col = ser.dt.tz_localize(None).values
-
+                # tz_offsets[name] = (
+                #     # gdal stores tz in 15 minute increments offset from 100=GMT
+                #     int(ser.iloc[0].utcoffset() / datetime.timedelta(minutes=15))
+                #     + 100
+                # )
+                # Convert to naive datetime, offset passed through via dtypes
+                # col = ser.dt.tz_localize(None).values
+                col = ser.astype(str)
             # edge case of length zero ignored, don't have a reference date
 
         if isinstance(col, pd.api.extensions.ExtensionArray):
@@ -479,6 +482,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
-        tz_offsets=tz_offsets,
+        # tz_offsets=tz_offsets,
         **kwargs,
     )

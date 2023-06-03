@@ -22,6 +22,7 @@ try:
         assert_index_equal,
         assert_series_equal,
     )
+    import pytz
 
     import geopandas as gp
     from geopandas.array import from_wkt
@@ -163,14 +164,34 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     )
     assert_series_equal(df.col, expected_dt_col)
     # test write and read round trips
-    fpath = (
-        tmp_path / "test.geojson"
-    )  # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
+    # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
+    fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
-    print("a", df_read.col)
-    print("b", expected_dt_col)
     assert_series_equal(df_read.col, expected_dt_col)
+
+
+def test_write_datetime_mixed_offset(tmp_path):
+    # Summer Time (GMT+11), standard time (GMT+10)
+    dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
+    tz = pytz.timezone("Australia/Sydney")
+    ser_naive = pd.Series(pd.to_datetime(dates), name="dates")
+    ser_localised = ser_naive.dt.tz_localize(tz)
+    df = gp.GeoDataFrame(
+        {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
+    )
+    write_dataframe(df, "foo.geojson")
+    df_no_tz = read_dataframe(
+        "foo.geojson", datetime_as_string=False
+    )  # TODO this shouldn't be called datetime as string in the pandas layer,
+    #     should it even be accessible?
+    # datetime_as_string=False ignores tz info, returns datetime objects
+    expected = ser_naive.astype("datetime64[ms]")
+    assert_series_equal(expected, df_no_tz["dates"])
+    # datetime_as_string=True keeps tz info, but pandas can't handle multiple offsets
+    # unless given a timezone to identify them with -> returned as strings
+    df_local = read_dataframe("foo.geojson", datetime_as_string=True)
+    assert_series_equal(ser_localised.astype("object"), df_local["dates"])
 
 
 def test_read_null_values(test_fgdb_vsi):

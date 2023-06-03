@@ -391,7 +391,7 @@ def write(
     metadata=None,
     dataset_options=None,
     layer_options=None,
-    tz_offsets=None,
+    # tz_offsets=None,
     **kwargs,
 ):
     kwargs.pop("dtypes", None)
@@ -441,8 +441,8 @@ def write(
             "projection information defined and may not be usable in other "
             "systems."
         )
-    if tz_offsets is None:
-        tz_offsets = {}
+    # if tz_offsets is None:
+    #     tz_offsets = {}
 
     # preprocess kwargs and split in dataset and layer creation options
     dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
@@ -481,5 +481,5 @@ def write(
         layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
-        tz_offsets=tz_offsets,
+        # tz_offsets=tz_offsets,
     )
