@@ -24,7 +24,10 @@ def _try_parse_datetime(ser):
     import pandas as pd  # only called in a block where pandas is known to be installed
 
     if Version(pd.__version__) >= Version("2.0.0"):
-        return pd.to_datetime(ser, format="ISO8601")
+        res = pd.to_datetime(ser, format="ISO8601")
+        if res.dtype != "object":
+            res = res.dt.as_unit("ms")
+        return res
     else:
         return pd.to_datetime(ser, yearfirst=True)
 

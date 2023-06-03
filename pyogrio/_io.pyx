@@ -658,10 +658,10 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            # defer datetime parsing to pandas layer 
+            
             if datetime_as_string:
-                value = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
-                data[i] = value
+                # defer datetime parsing to user/ pandas layer 
+                data[i] = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
             else:
                 success = OGR_F_GetFieldAsDateTimeEx(
                     ogr_feature, field_index, &year, &month, &day, &hour, &minute, &fsecond, &timezone)
