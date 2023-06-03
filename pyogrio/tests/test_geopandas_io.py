@@ -180,9 +180,10 @@ def test_write_datetime_mixed_offset(tmp_path):
     df = gp.GeoDataFrame(
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
     )
-    write_dataframe(df, "foo.geojson")
+    fpath = tmp_path / "test.geojson"
+    write_dataframe(df, fpath)
     df_no_tz = read_dataframe(
-        "foo.geojson", datetime_as_string=False
+        fpath, datetime_as_string=False
     )  # TODO this shouldn't be called datetime as string in the pandas layer,
     #     should it even be accessible?
     # datetime_as_string=False ignores tz info, returns datetime objects
@@ -190,7 +191,7 @@ def test_write_datetime_mixed_offset(tmp_path):
     assert_series_equal(expected, df_no_tz["dates"])
     # datetime_as_string=True keeps tz info, but pandas can't handle multiple offsets
     # unless given a timezone to identify them with -> returned as strings
-    df_local = read_dataframe("foo.geojson", datetime_as_string=True)
+    df_local = read_dataframe(fpath, datetime_as_string=True)
     assert_series_equal(ser_localised.astype("object"), df_local["dates"])
 
 
