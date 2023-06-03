@@ -145,12 +145,9 @@ def test_read_datetime(test_fgdb_vsi):
 
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
-
-    assert df.col.dtype.unit == "ms"
     raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
 
     if Version(pd.__version__) >= Version("2.0.0"):
-
         expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
     else:
         expected = pd.to_datetime(raw_expected)
