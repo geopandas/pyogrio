@@ -823,8 +823,9 @@ cdef get_features_by_fid(
     field_ogr_types = fields[:,1]
     field_data = [
         np.empty(shape=(count, ),
-
-        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") else fields[field_index,3])) for field_index in range(n_fields)
+        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") 
+            else fields[field_index,3])) 
+        for field_index in range(n_fields)
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
@@ -1487,8 +1488,7 @@ cdef infer_field_types(list dtypes):
 def ogr_write(
     str path, str layer, str driver, geometry, fields, field_data, field_mask,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
-    object layer_kwargs, #tz_offsets, 
-    bint promote_to_multi=False, bint nan_as_null=True,
+    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
     bint append=False, dataset_metadata=None, layer_metadata=None
 ):
     cdef const char *path_c = NULL
@@ -1795,10 +1795,7 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
-                        # TODO check if 0=unknown or 1=localtime is most appropriate
-                        # tz = tz_offsets.get(fields[field_idx], 1)
                         datetime = field_value.item()
-                        # print("writing date", tz, datetime)
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_idx,
@@ -1815,11 +1812,7 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
-                        # TODO check if 0=unknown or 1=localtime is most appropriate
-                        # tz = tz_offsets.get(fields[field_idx], 1)
                         datetime = field_value.astype("datetime64[ms]").item()
-                        # print(f"writing date=({tz}), dt=({datetime})")
-
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_idx,

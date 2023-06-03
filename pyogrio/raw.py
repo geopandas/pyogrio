@@ -111,7 +111,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as a string
-        array, instead of a datetime64 array.
+        array, instead of a datetime64 array (used to extract timezone info).
 
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
@@ -391,7 +391,6 @@ def write(
     metadata=None,
     dataset_options=None,
     layer_options=None,
-    # tz_offsets=None,
     **kwargs,
 ):
     kwargs.pop("dtypes", None)
@@ -441,8 +440,6 @@ def write(
             "projection information defined and may not be usable in other "
             "systems."
         )
-    # if tz_offsets is None:
-    #     tz_offsets = {}
 
     # preprocess kwargs and split in dataset and layer creation options
     dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
@@ -481,5 +478,4 @@ def write(
         layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
-        # tz_offsets=tz_offsets,
     )
