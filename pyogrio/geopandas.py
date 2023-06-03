@@ -1,8 +1,8 @@
-import warnings
 import numpy as np
 from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
 from pyogrio.raw import detect_driver, read, read_arrow, write
 from pyogrio.errors import DataSourceError
+from packaging.version import Version
 
 
 def _stringify_path(path):
@@ -23,30 +23,10 @@ def _stringify_path(path):
 def _try_parse_datetime(ser):
     import pandas as pd  # only called in a block where pandas is known to be installed
 
-    try:
+    if Version(pd.__version__) >= Version("2.0.0"):
         return pd.to_datetime(ser, format="ISO8601")
-    except ValueError:
-        pass
-    try:
+    else:
         return pd.to_datetime(ser, yearfirst=True)
-    except ValueError:
-        pass
-
-    # TODO surely a better way of doing this
-    for fmt in [
-        "%y/%m/%d %H:%M:%S",
-        "%y/%m/%d %H:%M:%S.%f",
-        "%y/%m/%d %H:%M:%S.%f%z",
-        "%y/%m/%dT%H:%M:%S",
-        "%y/%m/%dT%H:%M:%S.%f",
-        "%y/%m/%dT%H:%M:%S.%f%z",
-    ]:
-        try:
-            return pd.to_datetime(ser, format=fmt)
-        except ValueError:
-            pass
-    warnings.warn(f"Datetime parsing failed for column {ser.name!r}")
-    return ser
 
 
 def read_dataframe(
