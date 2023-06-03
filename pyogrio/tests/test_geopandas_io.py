@@ -147,24 +147,22 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
 
     assert df.col.dtype.unit == "ms"
+    raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
+
     if Version(pd.__version__) >= Version("2.0.0"):
-        format_ = "ISO8601"
+
+        expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
     else:
-        format_ = None
-    expected_dt_col = pd.Series(
-        pd.to_datetime(
-            ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"],
-            format=format_,
-        ),
-        name="col",
-    ).dt.as_unit("ms")
-    assert_series_equal(df.col, expected_dt_col)
+        expected = pd.to_datetime(raw_expected)
+    expected = pd.Series(expected, name="col")
+
+    assert_series_equal(df.col, expected)
     # test write and read round trips
     # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
     fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
-    assert_series_equal(df_read.col, expected_dt_col)
+    assert_series_equal(df_read.col, expected)
 
 
 def test_write_datetime_mixed_offset(tmp_path):
