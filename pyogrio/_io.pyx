@@ -80,6 +80,8 @@ DTYPE_OGR_FIELD_TYPES = {
     'float': (OFTReal, OFSTNone),
     'float64': (OFTReal, OFSTNone),
 
+    'string': (OFTString, OFSTNone),
+
     'datetime64[D]': (OFTDate, OFSTNone),
     'datetime64': (OFTDateTime, OFSTNone),
 }
@@ -1470,7 +1472,7 @@ cdef infer_field_types(list dtypes):
 
 # TODO: set geometry and field data as memory views?
 def ogr_write(
-    str path, str layer, str driver, geometry, fields, field_data, field_mask,
+    str path, str layer, str driver, geometry, fields, field_dtype, field_data, field_mask,
     str crs, str geometry_type, str encoding, object dataset_kwargs,
     object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
     bint append=False, dataset_metadata=None, layer_metadata=None
@@ -1516,6 +1518,12 @@ def ogr_write(
                 raise ValueError("field_mask arrays must be same length as geometry array")
     else:
         field_mask = [None] * len(field_data)
+
+    if field_dtype is not None:
+        if len(field_dtype) != len(field_data):
+            raise ValueError("field_dtype and field_data must be same length")
+    else:
+        field_dtype = [field.dtype for field in field_data]
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -1641,7 +1649,7 @@ def ogr_write(
             layer_options = NULL
 
     ### Create the fields
-    field_types = infer_field_types([field.dtype for field in field_data])
+    field_types = infer_field_types(field_dtype)
 
     ### Create the fields
     if create_layer:

@@ -845,3 +845,27 @@ def test_write_with_mask(tmp_path):
     field_mask = [np.array([False, True, False])] * 2
     with pytest.raises(ValueError):
         write(filename, geometry, field_data, fields, field_mask, **meta)
+
+
+def test_write_with_explicit_dtype(tmp_path):
+    # Point(0, 0), null
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+        dtype=object,
+    )
+    field_data = [np.array([1, 2, 3], dtype="int32")]
+    field_dtype = [np.dtype("float64")]
+    fields = ["col"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326")
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, fields, field_dtype=field_dtype, **meta)
+    result_geometry, result_fields = read(filename)[2:]
+    assert np.array_equal(result_geometry, geometry)
+    np.testing.assert_allclose(result_fields[0], np.array([1, 2, 3]))
+    assert result_fields[0].dtype.name == "float64"
+
+    # wrong number of dtypes
+    field_dtype = [np.dtype("int32")] * 2
+    with pytest.raises(ValueError):
+        write(filename, geometry, field_data, fields, field_dtype=field_dtype, **meta)
