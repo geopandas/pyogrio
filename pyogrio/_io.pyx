@@ -632,7 +632,7 @@ cdef process_fields(
                 else:
                     data[i] = np.nan
 
-            elif field_type in ( OFTDate, OFTDateTime):
+            elif field_type in ( OFTDate, OFTDateTime) and not datetime_as_string:
                 data[i] = np.datetime64('NaT')
 
             else:
