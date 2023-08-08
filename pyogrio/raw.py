@@ -391,6 +391,7 @@ def write(
     metadata=None,
     dataset_options=None,
     layer_options=None,
+    timezone_cols_metadata=None,
     **kwargs,
 ):
     kwargs.pop("dtypes", None)
@@ -478,4 +479,5 @@ def write(
         layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
+        timezone_cols_metadata=timezone_cols_metadata,
     )

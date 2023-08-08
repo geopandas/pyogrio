@@ -155,8 +155,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
 
     assert_series_equal(df.col, expected)
     # test write and read round trips
-    # TODO gpkg doesn't work here, at least for my local gdal, writes NaT
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     assert_series_equal(df_read.col, expected)
@@ -171,18 +170,11 @@ def test_write_datetime_mixed_offset(tmp_path):
     df = gp.GeoDataFrame(
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
     )
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
-    df_no_tz = read_dataframe(
-        fpath, datetime_as_string=False
-    )  # TODO this shouldn't be called datetime as string in the pandas layer,
-    #     should it even be accessible?
-    # datetime_as_string=False ignores tz info, returns datetime objects
-    expected = ser_naive.astype("datetime64[ms]")
-    assert_series_equal(expected, df_no_tz["dates"])
-    # datetime_as_string=True keeps tz info, but pandas can't handle multiple offsets
-    # unless given a timezone to identify them with -> returned as strings
     df_local = read_dataframe(fpath, datetime_as_string=True)
+    # GDAL tz only encodes offsets, not timezones so expect object dtype
+    # as pandas only supports datetimes for fixed offset / identified timezones
     assert_series_equal(ser_localised.astype("object"), df_local["dates"])
 
 

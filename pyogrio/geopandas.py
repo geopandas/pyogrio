@@ -343,13 +343,24 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    timezone_cols_metadata = (
+        {}
+    )  # dict[str,np.array(datetime.datetime)] special case for dt-tz fields
     for name in fields:
         ser = df[name]
         col = ser.values
         if isinstance(ser.dtype, pd.DatetimeTZDtype):
-            # Deal with datetimes with timezones as strings
-            col = ser.astype(str)
-
+            # Deal with datetimes with timezones by passing down timezone separately
+            # pass down naive datetime
+            col = ser.dt.tz_localize(None).values
+            # pandas only supports a single offset per column
+            # access via array since we want a numpy array not a series
+            # (only care about the utc offset, not actually the date)
+            # but ser.array.timetz won't have valid utc offset for pytz time zones
+            # (per https://docs.python.org/3/library/datetime.html#datetime.time.utcoffset) # noqa
+            timezone_cols_metadata[name] = ser.array.to_pydatetime()
+        else:
+            col = ser.values
         if isinstance(col, pd.api.extensions.ExtensionArray):
             from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
 
