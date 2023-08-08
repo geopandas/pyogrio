@@ -343,9 +343,8 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
-    timezone_cols_metadata = (
-        {}
-    )  # dict[str,np.array(datetime.datetime)] special case for dt-tz fields
+    # dict[str, np.array(datetime.datetime)] special case for dt-tz fields
+    timezone_cols_metadata = {}
     for name in fields:
         ser = df[name]
         col = ser.values
@@ -460,5 +459,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
+        timezone_cols_metadata=timezone_cols_metadata,
         **kwargs,
     )
