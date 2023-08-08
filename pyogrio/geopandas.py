@@ -169,7 +169,7 @@ def read_dataframe(
     path_or_buffer = _stringify_path(path_or_buffer)
 
     read_func = read_arrow if use_arrow else read
-    if not use_arrow and "datetime_as_string" not in kwargs:
+    if not use_arrow:
         kwargs["datetime_as_string"] = True
     result = read_func(
         path_or_buffer,
