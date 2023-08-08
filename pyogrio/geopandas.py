@@ -23,13 +23,23 @@ def _stringify_path(path):
 def _try_parse_datetime(ser):
     import pandas as pd  # only called in a block where pandas is known to be installed
 
-    if Version(pd.__version__) >= Version("2.0.0"):
-        res = pd.to_datetime(ser, format="ISO8601")
-        if res.dtype != "object":
-            res = res.dt.as_unit("ms")
-        return res
+    pandas_ge_20 = Version(pd.__version__) >= Version("2.0.0")
+
+    if pandas_ge_20:
+        datetime_kwargs = dict(format="ISO8601", errors="ignore")
     else:
-        return pd.to_datetime(ser, yearfirst=True)
+        datetime_kwargs = dict(yearfirst=True)
+    res = pd.to_datetime(ser, **datetime_kwargs)
+    # if object dtype, try parse as utc instead
+    if res.dtype == "object":
+        res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
+
+    if res.dtype != "object":
+        if pandas_ge_20:
+            res = res.dt.as_unit("ms")
+        else:
+            res = ser.dt.round(freq="ms")
+    return res
 
 
 def read_dataframe(

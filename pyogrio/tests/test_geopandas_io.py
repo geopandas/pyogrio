@@ -167,15 +167,19 @@ def test_write_datetime_mixed_offset(tmp_path):
     tz = pytz.timezone("Australia/Sydney")
     ser_naive = pd.Series(pd.to_datetime(dates), name="dates")
     ser_localised = ser_naive.dt.tz_localize(tz)
+    ser_utc = ser_localised.dt.tz_convert(pytz.UTC)
+    if Version(pd.__version__) >= Version("2.0.0"):
+        ser_utc = ser_utc.dt.as_unit("ms")
+
     df = gp.GeoDataFrame(
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
     )
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     df_local = read_dataframe(fpath, datetime_as_string=True)
-    # GDAL tz only encodes offsets, not timezones so expect object dtype
-    # as pandas only supports datetimes for fixed offset / identified timezones
-    assert_series_equal(ser_localised.astype("object"), df_local["dates"])
+    # GDAL tz only encodes offsets, not timezones, for multiple offsets
+    # read as utc datetime as otherwise would be read as string
+    assert_series_equal(ser_utc, df_local["dates"])
 
 
 def test_read_null_values(test_fgdb_vsi):
