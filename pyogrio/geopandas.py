@@ -38,7 +38,7 @@ def _try_parse_datetime(ser):
         if pandas_ge_20:
             res = res.dt.as_unit("ms")
         else:
-            res = ser.dt.round(freq="ms")
+            res = res.dt.round(freq="ms")
     return res
 
 
