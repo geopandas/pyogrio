@@ -1,13 +1,12 @@
 import contextlib
 from datetime import datetime
 import os
-from packaging.version import Version
 import numpy as np
 import pytest
 
 from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
-from pyogrio.geopandas import read_dataframe, write_dataframe
+from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
 from pyogrio.raw import (
     DRIVERS,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -136,7 +135,7 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext):
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(test_fgdb_vsi):
     df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
-    if Version(pd.__version__) >= Version("2.0.0"):
+    if PANDAS_GE_20:
         # starting with pandas 2.0, it preserves the passed datetime resolution
         assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
     else:
@@ -147,7 +146,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
     raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
 
-    if Version(pd.__version__) >= Version("2.0.0"):
+    if PANDAS_GE_20:
         expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
     else:
         expected = pd.to_datetime(raw_expected)
@@ -168,7 +167,7 @@ def test_write_datetime_mixed_offset(tmp_path):
     ser_naive = pd.Series(pd.to_datetime(dates), name="dates")
     ser_localised = ser_naive.dt.tz_localize(tz)
     ser_utc = ser_localised.dt.tz_convert(pytz.UTC)
-    if Version(pd.__version__) >= Version("2.0.0"):
+    if PANDAS_GE_20:
         ser_utc = ser_utc.dt.as_unit("ms")
 
     df = gp.GeoDataFrame(

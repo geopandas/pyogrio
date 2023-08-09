@@ -5,6 +5,15 @@ from pyogrio.errors import DataSourceError
 from packaging.version import Version
 
 
+try:
+    import pandas
+
+    PANDAS_GE_20 = Version(pandas.__version__) >= Version("2.0.0")
+
+except ImportError:
+    PANDAS_GE_20 = None
+
+
 def _stringify_path(path):
     """
     Convert path-like to a string if possible, pass-through other objects
@@ -21,11 +30,9 @@ def _stringify_path(path):
 
 
 def _try_parse_datetime(ser):
-    import pandas as pd  # only called in a block where pandas is known to be installed
+    import pandas as pd  # only called when pandas is known to be installed
 
-    pandas_ge_20 = Version(pd.__version__) >= Version("2.0.0")
-
-    if pandas_ge_20:
+    if PANDAS_GE_20:
         datetime_kwargs = dict(format="ISO8601", errors="ignore")
     else:
         datetime_kwargs = dict(yearfirst=True)
@@ -35,7 +42,7 @@ def _try_parse_datetime(ser):
         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
 
     if res.dtype != "object":
-        if pandas_ge_20:
+        if PANDAS_GE_20:
             res = res.dt.as_unit("ms")
         else:
             res = res.dt.round(freq="ms")
