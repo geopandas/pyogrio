@@ -583,6 +583,23 @@ def test_read_write_datetime(tmp_path):
             assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_int64_large(tmp_path, ext):
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    field_data = [np.array([1, 2192502720, -5], dtype="int64")]
+    fields = ["overflow_int64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
+    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+
+
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 
