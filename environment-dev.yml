@@ -1,0 +1,13 @@
+name: pyogrio-dev
+channels:
+  - conda-forge
+dependencies:
+  - cython
+  - numpy
+  - gdal ==3.7.0
+  - geopandas-base
+  - libgdal
+  - pyarrow
+  - pytest
+  - shapely >=2
+  - versioneer

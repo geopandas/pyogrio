@@ -91,6 +91,11 @@ pytest pyogrio/tests
 
 ### Windows
 
+There are different ways to install the necessary dependencies and setup your local
+development environment on windows.
+
+#### vcpkg
+
 [vcpkg](https://vcpkg.io/en/index.html) is used to build pyogrio from source
 as part of creating the Pyogrio Python wheels for Windows. You can install
 GDAL and other dependencies using vcpkg, and then build Pyogrio from source.
@@ -101,8 +106,10 @@ of the wheel-building process.
 We do not yet have instructions on building Pyogrio from source using vcpkg for
 local development; please feel free to contribute additional documentation!
 
-Alternatively, you can install GDAL from an appropriate provider of Windows
-binaries. We've heard that the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
+#### OSGeo4W
+
+You can also install GDAL from an appropriate provider of Windows binaries. We've heard
+that the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
 
 To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
@@ -128,6 +135,32 @@ The location of the GDAL DLLs must be on your system `PATH`.
 
 `--no-use-pep517` is required in order to pass additional options to the build
 backend (see https://github.com/pypa/pip/issues/5771).
+
+#### Conda
+
+It is also possible to install the necessary dependencies using conda.
+
+After cloning the environment, you can create a conda environment with the necessary
+dependencies like this:
+```
+conda env create -f environment-dev.yml
+```
+
+Before being able to build on Windows, you need to set some additional environment
+variables or because the location of the GDAL binaries and headers cannot be
+automatically determined.
+
+After activating the pyogrio-dev environment the CONDA_PREFIX environment variable will
+be set and you will be alble to set the necessary environment variables as follows:
+
+```bash
+set GDAL_INCLUDE_PATH=%CONDA_PREFIX%\Library\include
+set GDAL_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib
+set GDAL_VERSION=3.7.0
+```
+
+Now you should be able to run `python setup.py develop` to build the extensions in
+Cython.
 
 ## GDAL and PROJ data files
 
