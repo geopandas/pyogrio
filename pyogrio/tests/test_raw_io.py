@@ -585,6 +585,8 @@ def test_read_write_datetime(tmp_path):
 
 @pytest.mark.parametrize("ext", ["gpkg", "fgb"])
 def test_read_write_int64_large(tmp_path, ext):
+    # Test if value > max int32 is correctly written and read.
+    # Test introduced to validate https://github.com/geopandas/pyogrio/issues/259
     # Point(0, 0)
     geometry = np.array(
         [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
