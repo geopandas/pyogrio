@@ -150,7 +150,7 @@ Before being able to build on Windows, you need to set some additional environme
 variables because the location of the GDAL binaries and headers cannot be
 automatically determined.
 
-After activating the pyogrio-dev environment the CONDA_PREFIX environment variable will
+After activating the `pyogrio-dev` environment the `CONDA_PREFIX` environment variable will
 be set and you will be alble to set the necessary environment variables as follows:
 
 ```bash
