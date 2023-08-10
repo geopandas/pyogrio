@@ -147,7 +147,7 @@ conda env create -f environment-dev.yml
 ```
 
 Before being able to build on Windows, you need to set some additional environment
-variables or because the location of the GDAL binaries and headers cannot be
+variables because the location of the GDAL binaries and headers cannot be
 automatically determined.
 
 After activating the pyogrio-dev environment the CONDA_PREFIX environment variable will
