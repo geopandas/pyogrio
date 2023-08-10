@@ -151,7 +151,7 @@ variables because the location of the GDAL binaries and headers cannot be
 automatically determined.
 
 After activating the `pyogrio-dev` environment the `CONDA_PREFIX` environment variable will
-be set and you will be alble to set the necessary environment variables as follows:
+be set and you will be able to set the necessary environment variables as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=%CONDA_PREFIX%\Library\include
