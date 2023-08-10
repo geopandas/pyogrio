@@ -70,16 +70,23 @@ exactly the same GDAL library.
 
 Clone this repository to a local folder.
 
-Install an appropriate distribution of GDAL for your system. Either
-`gdal-config` must be on your system path (to automatically determine the
-GDAL paths), or either the `GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and
-`GDAL_VERSION` environment variables need to be set.
+Install an appropriate distribution of GDAL for your system. Either `gdal-config` must
+be on your system path (to automatically determine the GDAL paths), or either the
+`GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and `GDAL_VERSION` environment variables need
+to be set. Specific instructions on how to install these dependencies on Windows can be
+found below.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
-Pyogrio follows the
-[GeoPandas Style Guide](https://geopandas.org/en/stable/community/contributing.html#style-guide-linting) and uses `Black` and `Flake8` to ensure consistent
-formatting.
+Pyogrio follows the [GeoPandas Style Guide]
+(https://geopandas.org/en/stable/community/contributing.html#style-guide-linting)
+and uses `Black` and `Flake8` to ensure consistent formatting.
+
+It is recommended to install `pre-commit` and register its hooks so the formatting is
+automatically verified when you commit code.
+```
+pre-commit install
+```
 
 Run `python setup.py develop` to build the extensions in Cython.
 
