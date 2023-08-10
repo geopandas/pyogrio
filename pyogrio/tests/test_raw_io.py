@@ -583,6 +583,25 @@ def test_read_write_datetime(tmp_path):
             assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_int64_large(tmp_path, ext):
+    # Test if value > max int32 is correctly written and read.
+    # Test introduced to validate https://github.com/geopandas/pyogrio/issues/259
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    field_data = [np.array([1, 2192502720, -5], dtype="int64")]
+    fields = ["overflow_int64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert np.array_equal(result, field_data)
+    assert result[0].dtype == field_data[0].dtype
+
+
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 
