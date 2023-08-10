@@ -598,8 +598,8 @@ def test_read_write_int64_large(tmp_path, ext):
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
     result = read(filename)[3]
-    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
-    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+    assert np.array_equal(result, field_data)
+    assert result[0].dtype == field_data[0].dtype
 
 
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
