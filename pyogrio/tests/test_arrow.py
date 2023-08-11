@@ -7,7 +7,7 @@ from pyogrio.raw import open_arrow, read_arrow
 
 try:
     import pandas as pd
-    from pandas.testing import assert_frame_equal
+    from pandas.testing import assert_frame_equal, assert_index_equal
     from geopandas.testing import assert_geodataframe_equal
 except ImportError:
     pass
@@ -33,16 +33,17 @@ def test_read_arrow(naturalearth_lowres_all_ext):
 
 
 def test_read_arrow_fid(naturalearth_lowres_all_ext):
-    result = read_dataframe(
-        naturalearth_lowres_all_ext, use_arrow=True, fid_as_index=True
-    )
+    kwargs = {"use_arrow": True, "where": "fid >= 2 AND fid <= 3"}
 
-    if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        fid_col = "fid"
-    else:
-        fid_col = "OGC_FID"
+    # default is to not set FIDs as index
+    df = read_dataframe(naturalearth_lowres_all_ext, **kwargs)
+    assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    assert fid_col in result.columns
+    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
+    assert_index_equal(df.index, pd.RangeIndex(0, 2))
+
+    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
+    assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
 def test_read_arrow_columns(naturalearth_lowres):

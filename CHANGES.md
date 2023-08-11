@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)
+-   Fix fid_as_index=True is ignored when using use_arrow=True in read_dataframe (#)
 
 ## 0.6.0 (2023-04-27)
 
