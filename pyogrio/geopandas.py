@@ -323,22 +323,26 @@ def write_dataframe(
     geometry = df[geometry_column]
     fields = [c for c in df.columns if not c == geometry_column]
 
-    # TODO: may need to fill in pd.NA, etc
-    field_data = []
+    field_data = [df[f].values for f in fields]
+    field_dtype = []
     field_mask = []
-    for name in fields:
+    for i, name in enumerate(fields):
         col = df[name].values
         if isinstance(col, pd.api.extensions.ExtensionArray):
             from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
 
             if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
-                field_data.append(col._data)
+                field_data[i] = col._data  # Direct access optimization
+                field_dtype.append(col.dtype.numpy_dtype)
                 field_mask.append(col._mask)
             else:
-                field_data.append(np.asarray(col))
+                if hasattr(col.dtype, "numpy_dtype"):
+                    field_dtype.append(col.dtype.numpy_dtype)
+                else:
+                    field_dtype.append(col.dtype)
                 field_mask.append(np.asarray(col.isna()))
         else:
-            field_data.append(col)
+            field_dtype.append(col.dtype)
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
@@ -414,6 +418,7 @@ def write_dataframe(
         driver=driver,
         geometry=to_wkb(geometry.values),
         field_data=field_data,
+        field_dtype=field_dtype,
         field_mask=field_mask,
         fields=fields,
         crs=crs,

@@ -1062,6 +1062,32 @@ def test_write_nullable_dtypes(tmp_path):
     assert_geodataframe_equal(output_gdf, expected)
 
 
+@pytest.mark.skipif(
+    not has_pyarrow, reason="PyArrow dtype support in Pandas requires PyArrow"
+)
+def test_write_pyarrow_dtypes(tmp_path):
+    path = tmp_path / "test_pyarrow_dtypes.gpkg"
+    test_data = {
+        "col1": pd.Series([1, 2, 3], dtype="int64[pyarrow]"),
+        "col2": pd.Series([1, 2, None], dtype="int64[pyarrow]"),
+        "col3": pd.Series([0.1, None, 0.3], dtype="float32[pyarrow]"),
+        "col4": pd.Series([True, False, None], dtype="boolean[pyarrow]"),
+        "col5": pd.Series(["a", None, "b"], dtype="string[pyarrow]"),
+    }
+    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    write_dataframe(input_gdf, path)
+    output_gdf = read_dataframe(path)
+    # We read it back as default (non-nullable) numpy dtypes, so we cast
+    # to those for the expected result, explicitly filling the NA values in
+    expected = input_gdf.copy()
+    expected["col1"] = expected["col1"].astype("int64")
+    expected["col2"] = expected["col2"].astype(object).fillna(np.nan).astype("float64")
+    expected["col3"] = expected["col3"].astype(object).fillna(np.nan).astype("float32")
+    expected["col4"] = expected["col4"].astype(object).fillna(np.nan).astype("float64")
+    expected["col5"] = expected["col5"].astype(object)
+    assert_geodataframe_equal(output_gdf, expected)
+
+
 @pytest.mark.parametrize(
     "metadata_type", ["dataset_metadata", "layer_metadata", "metadata"]
 )
