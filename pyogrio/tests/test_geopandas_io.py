@@ -485,15 +485,12 @@ def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
 
     # some dtypes do not round-trip precisely through these file types
     check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
-    
+
     if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
         assert not isinstance(result_df, gp.GeoDataFrame)
         pd.testing.assert_frame_equal(
-            result_df,
-            input_df,
-            check_index_type=False,
-            check_dtype=check_dtype
+            result_df, input_df, check_index_type=False, check_dtype=check_dtype
         )
     else:
         # These file types return a GeoDataFrame with None Geometries when read.
