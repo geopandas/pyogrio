@@ -1611,7 +1611,7 @@ def ogr_write(
         ### Get geometry type
         # TODO: this is brittle for 3D / ZM / M types
         # TODO: fail on M / ZM types
-        geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+        geometry_code = get_geometry_type_code(geometry_type)
 
     try:
         if create_layer:

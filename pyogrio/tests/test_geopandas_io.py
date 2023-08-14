@@ -460,6 +460,54 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     )
 
 
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
+def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
+    """Test writing a dataframe, so without a geometry column.
+
+    FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
+    """
+    # Prepare test data
+    input_gdf = read_dataframe(naturalearth_lowres)
+    input_df = input_gdf.drop(columns=["geometry"])
+    assert isinstance(input_df, pd.DataFrame)
+    assert not isinstance(input_df, gp.GeoDataFrame)
+
+    output_path = tmp_path / f"test{ext}"
+    write_dataframe(input_df, output_path)
+
+    if ext == ".shp":
+        # A shapefile without geometry column results in only a .dbf file.
+        output_path = output_path.with_suffix(".dbf")
+    assert output_path.exists()
+    result_df = read_dataframe(output_path)
+
+    assert isinstance(result_df, pd.DataFrame)
+
+    # some dtypes do not round-trip precisely through these file types
+    check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
+    
+    if ext in [".gpkg", ".shp", ".xlsx"]:
+        # These file types return a DataFrame when read.
+        assert not isinstance(result_df, gp.GeoDataFrame)
+        pd.testing.assert_frame_equal(
+            result_df,
+            input_df,
+            check_index_type=False,
+            check_dtype=check_dtype
+        )
+    else:
+        # These file types return a GeoDataFrame with None Geometries when read.
+        input_none_geom_gdf = gp.GeoDataFrame(
+            input_df, geometry=np.repeat(None, len(input_df)), crs="epsg:4326"
+        )
+        assert_geodataframe_equal(
+            result_df,
+            input_none_geom_gdf,
+            check_index_type=False,
+            check_dtype=check_dtype,
+        )
+
+
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 def test_write_empty_dataframe(tmp_path, ext):
