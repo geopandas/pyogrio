@@ -1164,6 +1164,12 @@ def ogr_open_arrow(
 
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
+        fid_column = get_string(OGR_L_GetFIDColumn(ogr_layer))
+        # OGR_L_GetFIDColumn returns the column name if it is a custom column,
+        # or "" if not. For arrow, the default column name is "OGC_FID".
+        if fid_column == "":
+            fid_column = "OGC_FID"
+
         # Apply the attribute filter
         if where is not None and where != "":
             apply_where_filter(ogr_layer, where)
@@ -1212,6 +1218,7 @@ def ogr_open_arrow(
             'fields': fields[:,2], # return only names
             'geometry_type': geometry_type,
             'geometry_name': geometry_name,
+            'fid_column': fid_column,
         }
 
         yield meta, reader

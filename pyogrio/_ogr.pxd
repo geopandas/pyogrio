@@ -278,6 +278,7 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
     OGRErr                  OGR_L_CreateField(OGRLayerH layer, OGRFieldDefnH fielddefn, int flexible)
     const char*             OGR_L_GetName(OGRLayerH layer)
+    const char*             OGR_L_GetFIDColumn(OGRLayerH layer)
     const char*             OGR_L_GetGeometryColumn(OGRLayerH layer)
     OGRSpatialReferenceH    OGR_L_GetSpatialRef(OGRLayerH layer)
     int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
