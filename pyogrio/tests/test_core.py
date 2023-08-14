@@ -55,8 +55,6 @@ def test_gdal_geos_version():
         # drivers not supported for write by GDAL
         ("HTTP", False),
         ("OAPIF", False),
-        # drivers currently unsupported for write even though GDAL can write them
-        ("XLSX", False),
     ],
 )
 def test_ogr_driver_supports_write(driver, expected):

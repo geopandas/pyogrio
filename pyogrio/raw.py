@@ -24,7 +24,6 @@ DRIVERS = {
     ".gpkg": "GPKG",
     ".json": "GeoJSON",
     ".shp": "ESRI Shapefile",
-    ".xlsx": "XLSX",
 }
 
 

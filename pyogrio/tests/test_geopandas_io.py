@@ -460,7 +460,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     )
 
 
-@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".fgb"])
 def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     """Test writing a dataframe, so without a geometry column.
 
