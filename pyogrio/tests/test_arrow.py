@@ -39,9 +39,6 @@ def test_read_arrow_fid(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
-    assert_index_equal(df.index, pd.RangeIndex(0, 2))
-
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
     assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
