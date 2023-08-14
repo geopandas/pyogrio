@@ -2,6 +2,10 @@
 
 ## 0.6.1 (???)
 
+### Improvements
+
+-   Support writing dataframes without geometry (#)
+
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)
