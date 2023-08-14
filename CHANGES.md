@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Support writing dataframes without geometry (#)
+-   Support writing dataframes without geometry (#267)
 
 ### Bug fixes
 
