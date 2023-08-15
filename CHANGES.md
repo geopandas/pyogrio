@@ -7,7 +7,7 @@
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
-    unknown count (count is used in `read_info`, `read`, `read_dataframe`).
+    unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 
 ### Bug fixes
 
