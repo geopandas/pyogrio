@@ -460,6 +460,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
     )
 
 
+@pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".fgb"])
 def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     """Test writing a dataframe, so without a geometry column.
@@ -484,9 +485,9 @@ def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     assert isinstance(result_df, pd.DataFrame)
 
     # some dtypes do not round-trip precisely through these file types
-    check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
+    check_dtype = ext not in [".json", ".geojson", ".geojsonl"]
 
-    if ext in [".gpkg", ".shp", ".xlsx"]:
+    if ext in [".gpkg", ".shp"]:
         # These file types return a DataFrame when read.
         assert not isinstance(result_df, gp.GeoDataFrame)
         pd.testing.assert_frame_equal(
@@ -495,7 +496,7 @@ def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     else:
         # These file types return a GeoDataFrame with None Geometries when read.
         input_none_geom_gdf = gp.GeoDataFrame(
-            input_df, geometry=np.repeat(None, len(input_df)), crs="epsg:4326"
+            input_df, geometry=np.repeat(None, len(input_df)), crs=4326
         )
         assert_geodataframe_equal(
             result_df,
