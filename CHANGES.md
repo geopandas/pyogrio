@@ -5,7 +5,7 @@
 ### Improvements
 
 -   Automatically detect supported driver by extension for all available
-    write drivers
+    write drivers (#270)
 
 ### Bug fixes
 
