@@ -461,7 +461,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
 
 @pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")
-@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".fgb"])
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
 def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     """Test writing a dataframe, so without a geometry column.
 
@@ -472,22 +472,26 @@ def test_write_dataframe_nogeom(tmp_path, naturalearth_lowres, ext):
     input_df = input_gdf.drop(columns=["geometry"])
     assert isinstance(input_df, pd.DataFrame)
     assert not isinstance(input_df, gp.GeoDataFrame)
-
     output_path = tmp_path / f"test{ext}"
-    write_dataframe(input_df, output_path)
 
+    # A shapefile without geometry column results in only a .dbf file.
     if ext == ".shp":
-        # A shapefile without geometry column results in only a .dbf file.
         output_path = output_path.with_suffix(".dbf")
+
+    # Determine driver
+    driver = DRIVERS[ext] if ext != ".xlsx" else "XLSX"
+
+    write_dataframe(input_df, output_path, driver=driver)
+
     assert output_path.exists()
     result_df = read_dataframe(output_path)
 
     assert isinstance(result_df, pd.DataFrame)
 
     # some dtypes do not round-trip precisely through these file types
-    check_dtype = ext not in [".json", ".geojson", ".geojsonl"]
+    check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
 
-    if ext in [".gpkg", ".shp"]:
+    if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
         assert not isinstance(result_df, gp.GeoDataFrame)
         pd.testing.assert_frame_equal(
