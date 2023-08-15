@@ -1,6 +1,8 @@
 import warnings
 import os
 
+from osgeo_utils.auxiliary.util import GetOutputDriversFor
+
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path
@@ -308,23 +310,20 @@ def open_arrow(
 
 
 def detect_driver(path):
-    # try to infer driver from path
+    # Default gdal detection doesn't handle .geojson as we want, so special treatment
     parts = os.path.splitext(path)
-    if len(parts) != 2:
+    if len(parts) == 2 and parts[1] in [".geojson", ".json"]:
+        return "GeoJSON"
+
+    # Infer driver using default gdal implementation
+    drivers = GetOutputDriversFor(path, is_raster=False)
+    if len(drivers) == 1:
+        return drivers[0]
+    else:
         raise ValueError(
             f"Could not infer driver from path: {path}; please specify driver "
             "explicitly"
         )
-
-    ext = parts[1].lower()
-    driver = DRIVERS.get(ext, None)
-    if driver is None:
-        raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly"
-        )
-
-    return driver
 
 
 def _parse_options_names(xml):
