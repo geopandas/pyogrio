@@ -1504,16 +1504,26 @@ def ogr_write(
     cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
-    cdef int num_records = len(geometry)
+    cdef int num_records = -1
     cdef int num_fields = len(field_data) if field_data else 0
 
     if len(field_data) != len(fields):
         raise ValueError("field_data and fields must be same length")
 
-    if num_fields:
-        for i in range(1, len(field_data)):
-            if len(field_data[i]) != num_records:
-                raise ValueError("field_data arrays must be same length as geometry array")
+    if geometry is not None:
+        num_records = len(geometry)
+        if num_fields:
+            for i in range(1, len(field_data)):
+                if len(field_data[i]) != num_records:
+                    raise ValueError(
+                        "field_data arrays must be same length as geometry array"
+                    )
+    elif num_fields == 0:
+        raise ValueError(
+            "geometry is None without any fields is not supported."
+        )
+    else:
+        num_records = len(field_data[0])
 
     if field_mask is not None:
         if len(field_data) != len(field_mask):
@@ -1706,7 +1716,9 @@ def ogr_write(
 
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
-            wkb = geometry[i]
+            wkb = None
+            if geometry is not None:
+                wkb = geometry[i]
             if wkb is not None:
                 wkbtype = <int>bytearray(wkb)[1]
                 # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")

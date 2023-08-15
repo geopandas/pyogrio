@@ -414,11 +414,9 @@ def write_dataframe(
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 
-    # Prepare geometry array to write
+    # If there is geometry data, prepare it to be written
     if geometry_column is not None:
         geometry = to_wkb(geometry.values)
-    else:
-        geometry = np.repeat(None, len(df))
 
     write(
         path,
