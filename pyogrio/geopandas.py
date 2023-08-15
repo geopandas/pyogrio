@@ -294,7 +294,6 @@ def write_dataframe(
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
-        import geopandas as gp
         from geopandas.array import to_wkb
         import pandas as pd
 
@@ -306,7 +305,7 @@ def write_dataframe(
 
     path = str(path)
 
-    if not isinstance(df, (gp.GeoDataFrame, pd.DataFrame)):
+    if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if driver is None:
