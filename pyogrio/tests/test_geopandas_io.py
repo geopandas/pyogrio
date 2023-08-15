@@ -10,11 +10,10 @@ from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_versio
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
-    DRIVERS,
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
-from pyogrio.tests.conftest import ALL_EXTS
+from pyogrio.tests.conftest import ALL_EXTS, DRIVERS
 
 try:
     import pandas as pd

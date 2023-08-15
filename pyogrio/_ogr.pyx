@@ -323,3 +323,34 @@ def _get_driver_metadata_item(driver, metadata_item):
             metadata = None
 
     return metadata
+
+
+def _get_drivers_for_path(path):
+    cdef OGRSFDriverH driver = NULL
+    cdef int i
+    cdef char *name_c
+
+    parts = os.path.splitext(path)
+    if len(parts) == 2 and len(parts[1]) > 1:
+        ext = parts[1].lower()[1:]
+    else:
+        ext = None
+
+    drivers = []
+    for i in range(OGRGetDriverCount()):
+        driver = OGRGetDriver(i)
+        name_c = <char *>OGR_Dr_GetName(driver)
+        name = get_string(name_c)
+
+        if ogr_driver_supports_write(name):
+            # extensions is a space-delimited list of supported extensions
+            # for driver
+            extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+            if ext is not None and extensions is not None and ext in extensions.split(' '):
+                drivers.append(name)
+            else:
+                prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
+                if prefix is not None and str(path).lower().startswith(prefix.lower()):
+                    drivers.append(name)
+
+    return drivers

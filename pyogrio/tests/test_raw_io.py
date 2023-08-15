@@ -8,12 +8,9 @@ from numpy import array_equal
 import pytest
 
 from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
-from pyogrio.raw import DRIVERS, read, write
+from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
-from pyogrio.tests.conftest import prepare_testfile
-
-# mapping of driver name to extension
-DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
 
 
 def test_read(naturalearth_lowres):

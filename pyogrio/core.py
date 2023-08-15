@@ -1,6 +1,5 @@
 from pyogrio._env import GDALEnv
-from pyogrio.raw import _preprocess_options_key_value
-from pyogrio.util import get_vsi_path
+from pyogrio.util import get_vsi_path, _preprocess_options_key_value
 
 
 with GDALEnv():
@@ -16,6 +15,7 @@ with GDALEnv():
         init_proj_data as _init_proj_data,
         remove_virtual_file,
         _register_drivers,
+        _get_drivers_for_path,
     )
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
@@ -56,6 +56,42 @@ def list_drivers(read=False, write=False):
         drivers = {k: v for k, v in drivers.items() if v.endswith("w")}
 
     return drivers
+
+
+def detect_driver(path):
+    """Attempt to infer the driver for a path by extension or prefix.  Only
+    drivers that support write capabilities will be detected.
+
+    If the path cannot be resolved to a single driver, a ValueError will be
+    raised.
+
+    Parameters
+    ----------
+    path : str
+
+    Returns
+    -------
+    str
+        name of the driver, if detected
+    """
+    # try to infer driver from path
+    drivers = _get_drivers_for_path(path)
+
+    if len(drivers) == 0:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; please specify driver "
+            "explicitly"
+        )
+
+    # if there are multiple drivers detected, user needs to specify the correct
+    # one manually
+    elif len(drivers) > 1:
+        raise ValueError(
+            f"Could not infer driver from path: {path}; multiple drivers are "
+            "available for that extension.  Please specify driver explicitly"
+        )
+
+    return drivers[0]
 
 
 def list_layers(path_or_buffer, /):

@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## 0.6.1 (???)
+## 0.7.0 (???)
+
+### Improvements
+
+-   Automatically detect supported driver by extension for all available
+    write drivers
 
 ### Bug fixes
 
