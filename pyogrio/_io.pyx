@@ -309,6 +309,42 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
+cdef get_feature_count(OGRLayerH ogr_layer):
+    """Get the feature count of a layer.
+
+    If GDAL returns an unknown count (-1), this iterates over every feature
+    to calculate the count.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+
+    Returns
+    -------
+    int
+        count of features
+    """
+
+    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+
+    # if GDAL refuses to give us the feature count, we have to loop over all
+    # features ourselves and get the count.  This can happen for some drivers
+    # (e.g., OSM) or if a where clause is invalid but not rejected as error
+    if feature_count == -1:
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
+
+        feature_count = 0
+        while True:
+            # No more rows available, so stop reading
+            if OGR_L_GetNextFeature(ogr_layer) == NULL:
+                break
+
+            feature_count +=1
+
+    return feature_count
+
+
 cdef set_metadata(GDALMajorObjectH obj, object metadata):
     """Set metadata on a dataset or layer
 
@@ -526,11 +562,10 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     skip_features : number of features to skip from beginning of available range
     max_features : maximum number of features to read from available range
     """
-    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    feature_count = get_feature_count(ogr_layer)
     num_features = max_features
 
-    if feature_count <= 0:
-        # the count comes back as -1 if the where clause above is invalid but not rejected as error
+    if feature_count == 0:
         name = OGR_L_GetName(ogr_layer)
         warnings.warn(f"Layer '{name}' does not have any features to read")
         return 0, 0
@@ -1327,7 +1362,7 @@ def ogr_read_info(
             'fields': fields[:,2], # return only names
             'dtypes': fields[:,3],
             'geometry_type': get_geometry_type(ogr_layer),
-            'features': OGR_L_GetFeatureCount(ogr_layer, 1),
+            'features': get_feature_count(ogr_layer),
             'driver': get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
