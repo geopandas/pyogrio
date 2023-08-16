@@ -336,11 +336,19 @@ cdef get_feature_count(OGRLayerH ogr_layer):
 
         feature_count = 0
         while True:
-            # No more rows available, so stop reading
-            if OGR_L_GetNextFeature(ogr_layer) == NULL:
+            try:
+                exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                feature_count +=1
+
+            except NullPointerError:
+                # No more rows available, so stop reading
                 break
 
-            feature_count +=1
+            # driver may raise other errors, e.g., for OSM if node ids are not
+            # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
+            # causes errors iterating over features
+            except CPLE_BaseError as exc:
+                raise DataLayerError(f"Could not iterate over features: {str(exc)}")
 
     return feature_count
 
@@ -522,11 +530,28 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     if err != OGRERR_NONE:
         try:
             exc_check()
-            name = OGR_L_GetName(ogr_layer)
         except CPLE_BaseError as exc:
             raise ValueError(str(exc))
 
-        raise ValueError(f"Invalid SQL query for layer '{name}': '{where}'")
+        raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'")
+
+    # attempt to detect invalid SQL query for GPKG by checking count and first
+    # feature; a count of -1 may signal invalid SQL or be because layer does
+    # not directly support getting feature count (e.g., OSM)
+    if OGR_L_GetFeatureCount(ogr_layer, 1) == -1:
+        OGR_L_ResetReading(ogr_layer)
+        try:
+            exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+
+        except NullPointerError:
+            pass
+
+        except CPLE_BaseError as exc:
+            if 'failed to prepare SQL' in str(exc):
+                raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'") from None
+
+            else:
+                raise DataLayerError(f"Could not iterate over features: {str(exc)}") from None
 
 
 cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):

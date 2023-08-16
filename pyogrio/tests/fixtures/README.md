@@ -83,3 +83,7 @@ This was extracted from https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrogra
 ```bash
 ogr2ogr test_mixed_surface.gpkg NHDPLUS_H_0308_HU4_GDB.gdb NHDWaterbody -where '"NHDPlusID" = 15000300070477' -select "NHDPlusID"
 ```
+
+### OSM PBF test
+
+This was downloaded from https://github.com/openstreetmap/OSM-binary/blob/master/resources/sample.pbf
