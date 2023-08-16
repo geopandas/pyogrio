@@ -796,9 +796,6 @@ cdef get_features(
                 break
 
             except CPLE_BaseError as exc:
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query") from exc
-
                 raise FeatureError(str(exc))
 
             if i >= num_features:
@@ -946,10 +943,7 @@ cdef get_bounds(
                 break
 
             except CPLE_BaseError as exc:
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query") from exc
-                else:
-                    raise FeatureError(str(exc))
+                raise FeatureError(str(exc))
 
             if i >= num_features:
                 raise FeatureError(
