@@ -348,6 +348,12 @@ cdef get_feature_count(OGRLayerH ogr_layer):
             # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
             # causes errors iterating over features
             except CPLE_BaseError as exc:
+                # if an invalid where clause is used for a GPKG file, it is not
+                # caught as an error until attempting to iterate over features;
+                # catch it here
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query") from exc
+
                 raise DataLayerError(f"Could not iterate over features: {str(exc)}")
 
     return feature_count
@@ -534,24 +540,6 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
             raise ValueError(str(exc))
 
         raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'")
-
-    # attempt to detect invalid SQL query for GPKG by checking count and first
-    # feature; a count of -1 may signal invalid SQL or be because layer does
-    # not directly support getting feature count (e.g., OSM)
-    if OGR_L_GetFeatureCount(ogr_layer, 1) == -1:
-        OGR_L_ResetReading(ogr_layer)
-        try:
-            exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
-
-        except NullPointerError:
-            pass
-
-        except CPLE_BaseError as exc:
-            if 'failed to prepare SQL' in str(exc):
-                raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'") from None
-
-            else:
-                raise DataLayerError(f"Could not iterate over features: {str(exc)}") from None
 
 
 cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
