@@ -1505,9 +1505,10 @@ def ogr_write(
     cdef int err = 0
     cdef int i = 0
     cdef int num_records = -1
-    cdef int num_fields = len(field_data) if field_data else 0
+    cdef int num_field_data = len(field_data) if field_data is not None else 0
+    cdef int num_fields = len(fields) if fields is not None else 0
 
-    if len(field_data) != len(fields):
+    if num_fields != num_field_data:
         raise ValueError("field_data and fields must be same length")
 
     if geometry is not None:
@@ -1520,7 +1521,7 @@ def ogr_write(
                     )
     elif num_fields == 0:
         raise ValueError(
-            "geometry is None without any fields is not supported."
+            "having no geometry column as well as no fields is not supported"
         )
     else:
         num_records = len(field_data[0])
@@ -1532,7 +1533,7 @@ def ogr_write(
             if field_mask[i] is not None and len(field_mask[i]) != num_records:
                 raise ValueError("field_mask arrays must be same length as geometry array")
     else:
-        field_mask = [None] * len(field_data)
+        field_mask = [None] * num_fields
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -1658,7 +1659,9 @@ def ogr_write(
             layer_options = NULL
 
     ### Create the fields
-    field_types = infer_field_types([field.dtype for field in field_data])
+    field_types = None
+    if num_fields > 0:
+        field_types = infer_field_types([field.dtype for field in field_data])
 
     ### Create the fields
     if create_layer:

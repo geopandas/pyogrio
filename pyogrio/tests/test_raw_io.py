@@ -316,6 +316,79 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
+def test_write_nofields(tmp_path, naturalearth_lowres):
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    field_data = None
+    meta["fields"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry_type"] == "Polygon"
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (0,)
+    assert len(fields) == 0
+    assert len(geometry) == 177
+
+    # quick test that WKB is a Polygon type
+    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+def test_write_nogeom(tmp_path, naturalearth_lowres):
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    geometry = None
+    meta["geometry_type"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] is None
+    assert meta["geometry_type"] is None
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (5,)
+
+    assert meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(fields) == 5
+    assert len(fields[0]) == 177
+
+
+def test_write_nogeom_nofields(tmp_path, naturalearth_lowres):
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    geometry = None
+    meta["geometry_type"] = None
+    field_data = None
+    meta["fields"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    with pytest.raises(
+        ValueError,
+        match="having no geometry column as well as no fields is not supported",
+    ):
+        write(filename, geometry, field_data, driver="GPKG", **meta)
+
+
 @pytest.mark.skipif(
     __gdal_version__ < (3, 6, 0),
     reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
