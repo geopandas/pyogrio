@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 0.6.1 (???)
+## 0.7.0 (???)
+
+### Improvements
+
+-   Decrease memory usage in `read_dataframe` with `use_arrow=True` (#)
 
 ### Bug fixes
 
