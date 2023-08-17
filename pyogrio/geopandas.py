@@ -36,6 +36,7 @@ def read_dataframe(
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=False,
+    arrow_to_pandas_kwargs=None,
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -118,10 +119,12 @@ def read_dataframe(
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
-    use_arrow : bool, default False
+    use_arrow : bool, optional (default: False)
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+    arrow_to_pandas_kwargs: dict, optional (default: None)
+        When use_arrow is True, these kwargs will be passed to the _TO_PANDAS call.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -133,8 +136,9 @@ def read_dataframe(
     .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
     .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
     .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+    .. _TO_PANDAS: https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
 
-    """
+    """  # noqa: E501
     try:
         import pandas as pd
         import geopandas as gp
@@ -169,7 +173,10 @@ def read_dataframe(
 
         # split_blocks and self_destruct decrease memory usage, but have as side effect
         # that accessing table afterwards causes crash, so del table to avoid.
-        df = table.to_pandas(split_blocks=True, self_destruct=True)
+        kwargs = {"split_blocks": True, "self_destruct": True}
+        if arrow_to_pandas_kwargs is not None:
+            kwargs.update(arrow_to_pandas_kwargs)
+        df = table.to_pandas(**kwargs)
         del table
 
         if fid_as_index:
