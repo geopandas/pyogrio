@@ -270,18 +270,19 @@ def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
 
 def test_read_info_force_feature_count_exception(data_dir):
     with pytest.raises(DataLayerError, match="Could not iterate over features"):
-        read_info(data_dir / "sample.osm.pbf")
+        read_info(data_dir / "sample.osm.pbf", layer="lines")
 
 
 def test_read_info_force_feature_count(data_dir):
     # the sample OSM file has non-increasing node IDs which causes the default
     # custom indexing to raise an exception iterating over features
-    set_gdal_config_options({"OSM_USE_CUSTOM_INDEXING": False})
-    meta = read_info(data_dir / "sample.osm.pbf")
+    meta = read_info(data_dir / "sample.osm.pbf", USE_CUSTOM_INDEXING=False)
     assert meta["features"] == 8
 
-    # reset the config option
-    set_gdal_config_options({"OSM_USE_CUSTOM_INDEXING": None})
+    meta = read_info(
+        data_dir / "sample.osm.pbf", layer="lines", USE_CUSTOM_INDEXING=False
+    )
+    assert meta["features"] == 36
 
 
 @pytest.mark.parametrize(

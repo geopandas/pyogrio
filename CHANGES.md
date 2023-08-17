@@ -14,6 +14,8 @@
 -   Fix int32 overflow when reading int64 columns (#260)
 -   Fix `fid_as_index=True` doesn't set fid as index using `read_dataframe` with
     `use_arrow=True` (#265)
+-   Fix errors reading OSM data due to invalid feature count and incorrect
+    reading of OSM layers beyond the first layer (#271)
 
 ## 0.6.0 (2023-04-27)
 

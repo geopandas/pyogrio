@@ -320,7 +320,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
-cdef int get_feature_count(OGRLayerH ogr_layer):
+cdef get_feature_count(OGRLayerH ogr_layer):
     """Get the feature count of a layer.
 
     If GDAL returns an unknown count (-1), this iterates over every feature
@@ -364,9 +364,9 @@ cdef int get_feature_count(OGRLayerH ogr_layer):
                 # caught as an error until attempting to iterate over features;
                 # catch it here
                 if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query") from exc
+                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
 
-                raise DataLayerError(f"Could not iterate over features: {str(exc)}")
+                raise DataLayerError(f"Could not iterate over features: {str(exc)}") from None
 
             finally:
                 if ogr_feature != NULL:
