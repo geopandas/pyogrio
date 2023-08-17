@@ -166,10 +166,16 @@ def read_dataframe(
 
     if use_arrow:
         meta, table = result
-        df = table.to_pandas()
+
+        # split_blocks and self_destruct decrease memory usage, but have as side effect
+        # that accessing table afterwards causes crash, so del table to avoid.
+        df = table.to_pandas(split_blocks=True, self_destruct=True)
+        del table
+
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
             df.index.names = ["fid"]
+
         geometry_name = meta["geometry_name"] or "wkb_geometry"
         if geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
