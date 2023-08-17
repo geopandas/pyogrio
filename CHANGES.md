@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Decrease memory usage in `read_dataframe` with `use_arrow=True` (#)
+-   Decrease memory usage in `read_dataframe` with `use_arrow=True` (#273)
 
 ### Bug fixes
 
