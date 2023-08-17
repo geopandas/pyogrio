@@ -195,6 +195,17 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
 
+    # if the driver is OSM, we need to execute SQL to set the layer to read in
+    # order to read it properly
+    if get_driver(ogr_dataset) == "OSM":
+        # Note: this returns NULL and does not need to be freed via
+        # GDALDatasetReleaseResultSet()
+        layer_name = get_string(OGR_L_GetName(ogr_layer))
+        sql_b = f"SET interest_layers = {layer_name}".encode('utf-8')
+        sql_c = sql_b
+
+        GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
+
     return ogr_layer
 
 
@@ -309,7 +320,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
-cdef get_feature_count(OGRLayerH ogr_layer):
+cdef int get_feature_count(OGRLayerH ogr_layer):
     """Get the feature count of a layer.
 
     If GDAL returns an unknown count (-1), this iterates over every feature
@@ -325,6 +336,7 @@ cdef get_feature_count(OGRLayerH ogr_layer):
         count of features
     """
 
+    cdef OGRFeatureH ogr_feature = NULL
     cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
 
     # if GDAL refuses to give us the feature count, we have to loop over all
@@ -337,7 +349,7 @@ cdef get_feature_count(OGRLayerH ogr_layer):
         feature_count = 0
         while True:
             try:
-                exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
                 feature_count +=1
 
             except NullPointerError:
@@ -355,6 +367,11 @@ cdef get_feature_count(OGRLayerH ogr_layer):
                     raise ValueError(f"Invalid SQL query") from exc
 
                 raise DataLayerError(f"Could not iterate over features: {str(exc)}")
+
+            finally:
+                if ogr_feature != NULL:
+                    OGR_F_Destroy(ogr_feature)
+                    ogr_feature = NULL
 
     return feature_count
 
