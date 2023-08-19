@@ -1509,22 +1509,25 @@ def ogr_write(
     cdef int num_fields = len(fields) if fields is not None else 0
 
     if num_fields != num_field_data:
-        raise ValueError("field_data and fields must be same length")
+        raise ValueError("field_data array needs to be same length as fields array")
+
+    if num_fields == 0 and geometry is None:
+        raise ValueError("You must provide at least a geometry column or a field")
+    
+    if num_fields > 0:
+        num_records = len(field_data[0])
+        for i in range(1, len(field_data)):
+            if len(field_data[i]) != num_records:
+                raise ValueError("field_data arrays must be same length")
 
     if geometry is not None:
-        num_records = len(geometry)
-        if num_fields:
-            for i in range(1, len(field_data)):
-                if len(field_data[i]) != num_records:
-                    raise ValueError(
-                        "field_data arrays must be same length as geometry array"
-                    )
-    elif num_fields == 0:
-        raise ValueError(
-            "having no geometry column as well as no fields is not supported"
-        )
-    else:
-        num_records = len(field_data[0])
+        if num_fields > 0:
+            if len(geometry) != num_records:
+                raise ValueError(
+                    "field_data arrays must be same length as geometry array"
+                )
+        else:
+            num_records = len(geometry)
 
     if field_mask is not None:
         if len(field_data) != len(field_mask):
@@ -1719,9 +1722,7 @@ def ogr_write(
 
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
-            wkb = None
-            if geometry is not None:
-                wkb = geometry[i]
+            wkb = None if geometry is None else geometry[i]
             if wkb is not None:
                 wkbtype = <int>bytearray(wkb)[1]
                 # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")

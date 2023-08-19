@@ -418,7 +418,7 @@ def write(
                 if not isinstance(v, str):
                     raise ValueError(f"metadata value {v} must be a string")
 
-    if geometry_type is not None and promote_to_multi is None:
+    if geometry is not None and promote_to_multi is None:
         promote_to_multi = (
             geometry_type.startswith("Multi")
             and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
