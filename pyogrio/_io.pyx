@@ -438,12 +438,18 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     -------
     str or None
     """
+
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
+
+    if driver == "OSM":
+        # always set OSM data to UTF-8
+        # per https://help.openstreetmap.org/questions/2172/what-encoding-does-openstreetmap-use
+        return "UTF-8"
 
     return None
 

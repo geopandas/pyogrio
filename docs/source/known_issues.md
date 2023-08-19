@@ -102,7 +102,8 @@ df = read_dataframe(path, INTERLEAVED_READING=True)
 
 We recommend the following to sidestep performance issues:
 
--   always download remote OSM data sources to local files before attempting
+-   download remote OSM data sources to local files before attempting
     to read
+-   the `use_arrow=True` option may speed up reading from OSM files
 -   if possible, use a different tool such as `ogr2ogr` to translate the OSM
     data source into a more performant format for reading by layer, such as GPKG
