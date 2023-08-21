@@ -374,11 +374,15 @@ def test_write_no_geom(tmp_path, naturalearth_lowres):
 
 
 def test_write_no_geom_data(tmp_path, naturalearth_lowres):
-    """Test writing file with a geometry column with None geometries."""
+    """Test writing file with no geometry data passed but a geometry_type specified.
+
+    In this case the geometry_type is ignored, so a file without geometry column is
+    written.
+    """
     # Prepare test data
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    # Only set the geometry data to None, but keep meta["geometry_type"] as it is so the
-    # geometry column is still created, but with None values.
+    # If geometry data is set to None, meta["geometry_type"] is ignored and so no
+    # geometry column will be created.
     geometry = None
 
     # Test
@@ -389,8 +393,8 @@ def test_write_no_geom_data(tmp_path, naturalearth_lowres):
     assert os.path.exists(filename)
     result_meta, _, result_geometry, result_field_data = read(filename)
 
-    assert result_meta["crs"] == "EPSG:4326"
-    assert result_meta["geometry_type"] == "Polygon"
+    assert result_meta["crs"] is None
+    assert result_meta["geometry_type"] is None
     assert result_meta["encoding"] == "UTF-8"
     assert result_meta["fields"].shape == (5,)
 
@@ -404,8 +408,7 @@ def test_write_no_geom_data(tmp_path, naturalearth_lowres):
 
     assert len(result_field_data) == 5
     assert len(result_field_data[0]) == 177
-    assert len(result_geometry) == 177
-    assert result_geometry.tolist() == np.repeat(None, 177).tolist()
+    assert result_geometry is None
 
 
 def test_write_no_geom_no_fields():

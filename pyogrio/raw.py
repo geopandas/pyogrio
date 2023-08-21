@@ -424,7 +424,7 @@ def write(
             and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
         )
 
-    if geometry_type is not None and crs is None:
+    if geometry is not None and crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
             "projection information defined and may not be usable in other "

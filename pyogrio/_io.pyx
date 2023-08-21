@@ -1520,7 +1520,11 @@ def ogr_write(
             if len(field_data[i]) != num_records:
                 raise ValueError("field_data arrays must be same length")
 
-    if geometry is not None:
+    if geometry is None:
+        # If no geometry data, we ignore the geometry_type and don't create a geometry
+        # column
+        geometry_type = None
+    else:
         if num_fields > 0:
             if len(geometry) != num_records:
                 raise ValueError(
