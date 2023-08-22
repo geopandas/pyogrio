@@ -195,6 +195,17 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
 
+    # if the driver is OSM, we need to execute SQL to set the layer to read in
+    # order to read it properly
+    if get_driver(ogr_dataset) == "OSM":
+        # Note: this returns NULL and does not need to be freed via
+        # GDALDatasetReleaseResultSet()
+        layer_name = get_string(OGR_L_GetName(ogr_layer))
+        sql_b = f"SET interest_layers = {layer_name}".encode('utf-8')
+        sql_c = sql_b
+
+        GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
+
     return ogr_layer
 
 
@@ -309,6 +320,62 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
+cdef get_feature_count(OGRLayerH ogr_layer):
+    """Get the feature count of a layer.
+
+    If GDAL returns an unknown count (-1), this iterates over every feature
+    to calculate the count.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+
+    Returns
+    -------
+    int
+        count of features
+    """
+
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+
+    # if GDAL refuses to give us the feature count, we have to loop over all
+    # features ourselves and get the count.  This can happen for some drivers
+    # (e.g., OSM) or if a where clause is invalid but not rejected as error
+    if feature_count == -1:
+        # make sure layer is read from beginning
+        OGR_L_ResetReading(ogr_layer)
+
+        feature_count = 0
+        while True:
+            try:
+                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                feature_count +=1
+
+            except NullPointerError:
+                # No more rows available, so stop reading
+                break
+
+            # driver may raise other errors, e.g., for OSM if node ids are not
+            # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
+            # causes errors iterating over features
+            except CPLE_BaseError as exc:
+                # if an invalid where clause is used for a GPKG file, it is not
+                # caught as an error until attempting to iterate over features;
+                # catch it here
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
+
+                raise DataLayerError(f"Could not iterate over features: {str(exc)}") from None
+
+            finally:
+                if ogr_feature != NULL:
+                    OGR_F_Destroy(ogr_feature)
+                    ogr_feature = NULL
+
+    return feature_count
+
+
 cdef set_metadata(GDALMajorObjectH obj, object metadata):
     """Set metadata on a dataset or layer
 
@@ -371,12 +438,18 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     -------
     str or None
     """
+
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
+
+    if driver == "OSM":
+        # always set OSM data to UTF-8
+        # per https://help.openstreetmap.org/questions/2172/what-encoding-does-openstreetmap-use
+        return "UTF-8"
 
     return None
 
@@ -486,11 +559,10 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     if err != OGRERR_NONE:
         try:
             exc_check()
-            name = OGR_L_GetName(ogr_layer)
         except CPLE_BaseError as exc:
             raise ValueError(str(exc))
 
-        raise ValueError(f"Invalid SQL query for layer '{name}': '{where}'")
+        raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'")
 
 
 cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
@@ -526,11 +598,10 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     skip_features : number of features to skip from beginning of available range
     max_features : maximum number of features to read from available range
     """
-    feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    feature_count = get_feature_count(ogr_layer)
     num_features = max_features
 
-    if feature_count <= 0:
-        # the count comes back as -1 if the where clause above is invalid but not rejected as error
+    if feature_count == 0:
         name = OGR_L_GetName(ogr_layer)
         warnings.warn(f"Layer '{name}' does not have any features to read")
         return 0, 0
@@ -736,9 +807,6 @@ cdef get_features(
                 break
 
             except CPLE_BaseError as exc:
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query") from exc
-
                 raise FeatureError(str(exc))
 
             if i >= num_features:
@@ -886,10 +954,7 @@ cdef get_bounds(
                 break
 
             except CPLE_BaseError as exc:
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query") from exc
-                else:
-                    raise FeatureError(str(exc))
+                raise FeatureError(str(exc))
 
             if i >= num_features:
                 raise FeatureError(
@@ -1327,7 +1392,7 @@ def ogr_read_info(
             'fields': fields[:,2], # return only names
             'dtypes': fields[:,3],
             'geometry_type': get_geometry_type(ogr_layer),
-            'features': OGR_L_GetFeatureCount(ogr_layer, 1),
+            'features': get_feature_count(ogr_layer),
             'driver': get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
