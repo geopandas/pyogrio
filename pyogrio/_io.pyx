@@ -1569,16 +1569,34 @@ def ogr_write(
     cdef OGRwkbGeometryType geometry_code
     cdef int err = 0
     cdef int i = 0
-    cdef int num_records = len(geometry)
-    cdef int num_fields = len(field_data) if field_data else 0
+    cdef int num_records = -1
+    cdef int num_field_data = len(field_data) if field_data is not None else 0
+    cdef int num_fields = len(fields) if fields is not None else 0
 
-    if len(field_data) != len(fields):
-        raise ValueError("field_data and fields must be same length")
+    if num_fields != num_field_data:
+        raise ValueError("field_data array needs to be same length as fields array")
 
-    if num_fields:
+    if num_fields == 0 and geometry is None:
+        raise ValueError("You must provide at least a geometry column or a field")
+    
+    if num_fields > 0:
+        num_records = len(field_data[0])
         for i in range(1, len(field_data)):
             if len(field_data[i]) != num_records:
-                raise ValueError("field_data arrays must be same length as geometry array")
+                raise ValueError("field_data arrays must be same length")
+
+    if geometry is None:
+        # If no geometry data, we ignore the geometry_type and don't create a geometry
+        # column
+        geometry_type = None
+    else:
+        if num_fields > 0:
+            if len(geometry) != num_records:
+                raise ValueError(
+                    "field_data arrays must be same length as geometry array"
+                )
+        else:
+            num_records = len(geometry)
 
     if field_mask is not None:
         if len(field_data) != len(field_mask):
@@ -1587,7 +1605,7 @@ def ogr_write(
             if field_mask[i] is not None and len(field_mask[i]) != num_records:
                 raise ValueError("field_mask arrays must be same length as geometry array")
     else:
-        field_mask = [None] * len(field_data)
+        field_mask = [None] * num_fields
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -1676,7 +1694,7 @@ def ogr_write(
         ### Get geometry type
         # TODO: this is brittle for 3D / ZM / M types
         # TODO: fail on M / ZM types
-        geometry_code = get_geometry_type_code(geometry_type or "Unknown")
+        geometry_code = get_geometry_type_code(geometry_type)
 
     try:
         if create_layer:
@@ -1713,7 +1731,9 @@ def ogr_write(
             layer_options = NULL
 
     ### Create the fields
-    field_types = infer_field_types([field.dtype for field in field_data])
+    field_types = None
+    if num_fields > 0:
+        field_types = infer_field_types([field.dtype for field in field_data])
 
     ### Create the fields
     if create_layer:
@@ -1771,7 +1791,7 @@ def ogr_write(
 
             # create the geometry based on specific WKB type (there might be mixed types in geometries)
             # TODO: geometry must not be null or errors
-            wkb = geometry[i]
+            wkb = None if geometry is None else geometry[i]
             if wkb is not None:
                 wkbtype = <int>bytearray(wkb)[1]
                 # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
