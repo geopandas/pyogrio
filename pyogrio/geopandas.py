@@ -219,7 +219,7 @@ def write_dataframe(
 
     Parameters
     ----------
-    df : GeoDataFrame
+    df : GeoDataFrame or DataFrame
         The data to write. For attribute columns of the "object" dtype,
         all values will be converted to strings to be written to the
         output file, except None and np.nan, which will be set to NULL
@@ -294,7 +294,6 @@ def write_dataframe(
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
     try:
-        import geopandas as gp
         from geopandas.array import to_wkb
         import pandas as pd
 
@@ -306,25 +305,27 @@ def write_dataframe(
 
     path = str(path)
 
-    if not isinstance(df, gp.GeoDataFrame):
-        raise ValueError("'df' must be a GeoDataFrame")
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if driver is None:
         driver = detect_driver(path)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
-    if len(geometry_columns) == 0:
-        raise ValueError("'df' does not have a geometry column")
-
     if len(geometry_columns) > 1:
         raise ValueError(
             "'df' must have only one geometry column. "
             "Multiple geometry columns are not supported for output using OGR."
         )
 
-    geometry_column = geometry_columns[0]
-    geometry = df[geometry_column]
-    fields = [c for c in df.columns if not c == geometry_column]
+    if len(geometry_columns) > 0:
+        geometry_column = geometry_columns[0]
+        geometry = df[geometry_column]
+        fields = [c for c in df.columns if not c == geometry_column]
+    else:
+        geometry_column = None
+        geometry = None
+        fields = list(df.columns)
 
     # TODO: may need to fill in pd.NA, etc
     field_data = []
@@ -345,7 +346,9 @@ def write_dataframe(
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
-    if geometry_type is None or promote_to_multi is None:
+    if geometry_column is not None and (
+        geometry_type is None or promote_to_multi is None
+    ):
         tmp_geometry_type = "Unknown"
         has_z = False
 
@@ -402,7 +405,7 @@ def write_dataframe(
                 geometry_type = f"{geometry_type} Z"
 
     crs = None
-    if geometry.crs:
+    if geometry_column is not None and geometry.crs:
         # TODO: this may need to be WKT1, due to issues
         # if possible use EPSG codes instead
         epsg = geometry.crs.to_epsg()
@@ -411,11 +414,15 @@ def write_dataframe(
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 
+    # If there is geometry data, prepare it to be written
+    if geometry_column is not None:
+        geometry = to_wkb(geometry.values)
+
     write(
         path,
         layer=layer,
         driver=driver,
-        geometry=to_wkb(geometry.values),
+        geometry=geometry,
         field_data=field_data,
         field_mask=field_mask,
         fields=fields,

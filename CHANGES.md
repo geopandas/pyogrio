@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 0.6.1 (???)
+## 0.7.0 (???)
+
+### Improvements
+
+-   Support writing dataframes without geometry column (#267)
 
 ### Bug fixes
 
