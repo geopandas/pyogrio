@@ -12,7 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
-from pyogrio.errors import DataSourceError
+from pyogrio.errors import DataSourceError, DataLayerError
 
 from pyogrio._env import GDALEnv
 
@@ -55,8 +55,6 @@ def test_gdal_geos_version():
         # drivers not supported for write by GDAL
         ("HTTP", False),
         ("OAPIF", False),
-        # drivers currently unsupported for write even though GDAL can write them
-        ("XLSX", False),
     ],
 )
 def test_ogr_driver_supports_write(driver, expected):
@@ -266,6 +264,23 @@ def test_read_info_dataset_kwargs(data_dir, dataset_kwargs, fields):
 def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
     with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
         read_info(naturalearth_lowres, INVALID="YES")
+
+
+def test_read_info_force_feature_count_exception(data_dir):
+    with pytest.raises(DataLayerError, match="Could not iterate over features"):
+        read_info(data_dir / "sample.osm.pbf", layer="lines")
+
+
+def test_read_info_force_feature_count(data_dir):
+    # the sample OSM file has non-increasing node IDs which causes the default
+    # custom indexing to raise an exception iterating over features
+    meta = read_info(data_dir / "sample.osm.pbf", USE_CUSTOM_INDEXING=False)
+    assert meta["features"] == 8
+
+    meta = read_info(
+        data_dir / "sample.osm.pbf", layer="lines", USE_CUSTOM_INDEXING=False
+    )
+    assert meta["features"] == 36
 
 
 @pytest.mark.parametrize(

@@ -4,13 +4,21 @@
 
 ### Improvements
 
--   Decrease memory usage in `read_dataframe` with `use_arrow=True` (#273)
+-   Support writing dataframes without geometry column (#267)
+-   Calculate feature count by iterating over features if GDAL returns an
+    unknown count for a data layer (e.g., OSM driver); this may have signficant
+    performance impacts for some data sources that would otherwise return an
+    unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
+-   Add `arrow_to_pandas_kwargs` parameter to `read_dataframe` + reduce memory usage
+    with `use_arrow=True` (#273)
 
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)
 -   Fix `fid_as_index=True` doesn't set fid as index using `read_dataframe` with
     `use_arrow=True` (#265)
+-   Fix errors reading OSM data due to invalid feature count and incorrect
+    reading of OSM layers beyond the first layer (#271)
 
 ## 0.6.0 (2023-04-27)
 
