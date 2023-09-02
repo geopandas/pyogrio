@@ -89,10 +89,12 @@ def read(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values.  Uses a
-        restricted form of SQL WHERE clause, defined here:
-        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
-        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+        Where clause to filter features in layer by attribute values. Typically, the
+        'OGRSQL WHERE_' syntax can be used. In some cases (RDBMS backed drivers,
+        SQLite, GeoPackage) the native capabilities of the database may be used to to
+        interpret the WHERE clause, in which case the capabilities will be broader than
+        those of OGR SQL.
+        Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.  If GEOS is present
