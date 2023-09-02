@@ -74,9 +74,11 @@ def read_dataframe(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values.  Uses a
-        restricted form of SQL WHERE clause, defined here:
-        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        Where clause to filter features in layer by attribute values. Typically, the
+        'OGRSQL WHERE_' syntax can be used. In some cases (RDBMS backed drivers,
+        SQLite, GeoPackage) the native capabilities of the database may be used to to
+        interpret the WHERE clause, in which case the capabilities will be broader than
+        those of OGR SQL.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -131,6 +133,7 @@ def read_dataframe(
     GeoDataFrame or DataFrame (if no geometry is present)
 
     .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+    .. _OGRSQL WHERE: https://gdal.org/user/ogr_sql_dialect.html#where
     .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
     .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
