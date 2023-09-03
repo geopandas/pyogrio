@@ -93,6 +93,20 @@ def test_read_no_geometry(naturalearth_lowres_all_ext):
     assert not isinstance(df, gp.GeoDataFrame)
 
 
+@pytest.mark.parametrize("use_arrow", [True, False])
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
+    with pytest.raises(
+        ValueError, match="reading no columns, no geometry and no fids is not supported"
+    ):
+        _ = read_dataframe(
+            naturalearth_lowres,
+            columns=[],
+            read_geometry=False,
+            fid_as_index=False,
+            use_arrow=use_arrow,
+        )
+
+
 def test_read_force_2d(test_fgdb_vsi):
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
@@ -157,13 +171,31 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        fid_as_index=True,
+        **kwargs,
+    )
     if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
         # File format where fid starts at 1
         assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
     else:
         # File format where fid starts at 0
         assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+
+
+@pytest.mark.parametrize("use_arrow", [True, False])
+def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres,
+        columns=[],
+        read_geometry=False,
+        fid_as_index=True,
+        use_arrow=use_arrow,
+    )
+    assert df is not None
+    assert len(df) == 177
+    assert len(df.columns) == 0
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")

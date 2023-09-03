@@ -1,5 +1,4 @@
 import math
-import re
 
 import pytest
 
@@ -53,7 +52,7 @@ def test_read_arrow_layer_without_geometry(test_fgdb_vsi):
     assert type(result) is pd.DataFrame
 
 
-def test_read_arrow_ignore_geometry(naturalearth_lowres):
+def test_read_arrow_no_geometry(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, read_geometry=False)
     assert type(result) is pd.DataFrame
 
@@ -63,21 +62,24 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
     assert_frame_equal(result, expected)
 
 
-def test_read_arrow_ignore_geometry_no_columns(naturalearth_lowres):
-    with pytest.raises(
-        ValueError,
-        match=re.escape("'read_geometry' False cannot be combined with 'columns'=[]"),
-    ):
-        _ = read_dataframe(
-            naturalearth_lowres, use_arrow=True, read_geometry=False, columns=[]
-        )
-
-
 def test_read_arrow_nested_types(test_ogr_types_list):
     # with arrow, list types are supported
     result = read_dataframe(test_ogr_types_list, use_arrow=True)
     assert "list_int64" in result.columns
     assert result["list_int64"][0].tolist() == [0, 1]
+
+
+def test_read_arrow_only_fids(naturalearth_lowres):
+    df = read_dataframe(
+        naturalearth_lowres,
+        columns=[],
+        read_geometry=False,
+        fid_as_index=True,
+        use_arrow=True,
+    )
+    assert df is not None
+    assert len(df.columns) == 0
+    assert len(df) == 177
 
 
 def test_read_arrow_raw(naturalearth_lowres):

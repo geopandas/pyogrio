@@ -1031,8 +1031,10 @@ def ogr_read(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
-    if not read_geometry and columns is not None and len(columns) == 0:
-        raise ValueError("'read_geometry' False cannot be combined with 'columns'=[]")
+    if not read_geometry and not return_fids and columns is not None and len(columns) == 0:
+        raise ValueError(
+            "reading no columns, no geometry and no fids is not supported"
+        )
 
     try:
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1196,8 +1198,10 @@ def ogr_open_arrow(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
-    if not read_geometry and columns is not None and len(columns) == 0:
-        raise ValueError("'read_geometry' False cannot be combined with 'columns'=[]")
+    if not read_geometry and not return_fids and columns is not None and len(columns) == 0:
+        raise ValueError(
+            "reading no columns, no geometry and no fids is not supported"
+        )
 
     reader = None
     try:

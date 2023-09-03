@@ -1,7 +1,6 @@
 import contextlib
 import json
 import os
-import re
 import sys
 
 import numpy as np
@@ -87,18 +86,19 @@ def test_vsi_read_layers(naturalearth_lowres_vsi):
     assert geometry.shape == (177,)
 
 
-def test_read_ignore_geometry(naturalearth_lowres):
+def test_read_no_geometry(naturalearth_lowres):
     geometry = read(naturalearth_lowres, read_geometry=False)[2]
 
     assert geometry is None
 
 
-def test_read_ignore_geometry_no_columns(naturalearth_lowres):
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
     with pytest.raises(
-        ValueError,
-        match=re.escape("'read_geometry' False cannot be combined with 'columns'=[]"),
+        ValueError, match="reading no columns, no geometry and no fids is not supported"
     ):
-        _ = read(naturalearth_lowres, read_geometry=False, columns=[])
+        _ = read(
+            naturalearth_lowres, columns=[], read_geometry=False, return_fids=False
+        )
 
 
 def test_read_columns(naturalearth_lowres):
@@ -213,23 +213,6 @@ def test_read_fids(naturalearth_lowres):
         assert np.array_equal(fields[-1], expected_fields[-1][subset])
 
 
-def test_return_fids(naturalearth_lowres):
-    # default is to not return fids
-    fids = read(naturalearth_lowres)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=False)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
-        1
-    ]
-    assert fids is not None
-    assert fids.dtype == np.int64
-    # Note: shapefile FIDS start at 0
-    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
-
-
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
@@ -256,6 +239,33 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], max_features=5)
+
+
+def test_read_return_fids(naturalearth_lowres):
+    # default is to not return fids
+    fids = read(naturalearth_lowres)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=False)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
+        1
+    ]
+    assert fids is not None
+    assert fids.dtype == np.int64
+    # Note: shapefile FIDS start at 0
+    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
+
+
+def test_read_return_only_fids(naturalearth_lowres):
+    _, fids, geometry, field_data = read(
+        naturalearth_lowres, columns=[], read_geometry=False, return_fids=True
+    )
+    assert fids is not None
+    assert len(fids) == 177
+    assert geometry is None
+    assert len(field_data) == 0
 
 
 def test_write(tmpdir, naturalearth_lowres):
