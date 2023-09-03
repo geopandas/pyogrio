@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+import re
 import sys
 
 import numpy as np
@@ -86,21 +87,21 @@ def test_vsi_read_layers(naturalearth_lowres_vsi):
     assert geometry.shape == (177,)
 
 
-def test_read_no_geometry(naturalearth_lowres):
+def test_read_ignore_geometry(naturalearth_lowres):
     geometry = read(naturalearth_lowres, read_geometry=False)[2]
 
     assert geometry is None
 
 
-def test_read_columns(naturalearth_lowres):
-    # read no columns or geometry
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=[], read_geometry=False
-    )
-    assert geometry is None
-    assert len(fields) == 0
-    array_equal(meta["fields"], np.empty(shape=(0, 4), dtype="object"))
+def test_read_ignore_geometry_no_columns(naturalearth_lowres):
+    with pytest.raises(
+        ValueError,
+        match=re.escape("'read_geometry' False cannot be combined with 'columns'=[]"),
+    ):
+        _ = read(naturalearth_lowres, read_geometry=False, columns=[])
 
+
+def test_read_columns(naturalearth_lowres):
     columns = ["NAME", "NAME_LONG"]
     meta, _, geometry, fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False

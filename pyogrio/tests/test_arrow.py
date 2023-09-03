@@ -1,4 +1,5 @@
 import math
+import re
 
 import pytest
 
@@ -60,6 +61,16 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
         columns=["geometry"]
     )
     assert_frame_equal(result, expected)
+
+
+def test_read_arrow_ignore_geometry_no_columns(naturalearth_lowres):
+    with pytest.raises(
+        ValueError,
+        match=re.escape("'read_geometry' False cannot be combined with 'columns'=[]"),
+    ):
+        _ = read_dataframe(
+            naturalearth_lowres, use_arrow=True, read_geometry=False, columns=[]
+        )
 
 
 def test_read_arrow_nested_types(test_ogr_types_list):
