@@ -91,7 +91,7 @@ def read(
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the datasource
         natively supports sql, its specific sql dialect should be used (eg. SQLite and
-        GeoPackage: SQLITE_, PostgreSQL). If it doesn't, the OGRSQL-WHERE_ syntax
+        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL-WHERE`_ syntax
         should be used. Note that it is not possible to overrule the sql dialect, this
         is only possible when you use the sql parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
@@ -121,12 +121,12 @@ def read(
         The sql dialect the sql statement is written in. Possible values:
 
           - **None**: if the datasource natively supports sql, its specific sql dialect
-            should be used (eg. SQLite and Geopackage: SQLITE_, PostgreSQL). If the
-            datasource doesn't natively support sql, the OGRSQL_ dialect is the
+            should be used (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
+            datasource doesn't natively support sql, the `OGRSQL`_ dialect is the
             default.
-          - 'OGRSQL_': can be used on any datasource. Performance can suffer
+          - '`OGRSQL`_': can be used on any datasource. Performance can suffer
             when used on datasources with native support for sql.
-          - 'SQLITE_': can be used on any datasource. All spatialite_
+          - '`SQLITE`_': can be used on any datasource. All spatialite_
             functions can be used. Performance can suffer on datasources with
             native support for sql, except for Geopackage and SQLite as this is
             their native sql dialect.
