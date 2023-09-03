@@ -155,8 +155,11 @@ def read(
         }
 
     .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+
     .. _OGRSQL-WHERE: https://gdal.org/user/ogr_sql_dialect.html#where
+
     .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+
     .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
     """
