@@ -75,6 +75,27 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
     assert len(df) == 177
 
 
+@pytest.mark.parametrize("use_arrow", [True, False])
+@pytest.mark.parametrize(
+    "columns, fid_as_index, exp_len", [(None, False, 2), ([], True, 2), ([], False, 0)]
+)
+def test_read_layer_without_geometry(
+    test_fgdb_vsi, columns, fid_as_index, use_arrow, exp_len
+):
+    if use_arrow and (not has_pyarrow or __gdal_version__ < (3, 6, 0)):
+        pytest.skip("Arrow tests require pyarrow and GDAL>=3.6")
+
+    result = read_dataframe(
+        test_fgdb_vsi,
+        layer="basetable",
+        columns=columns,
+        fid_as_index=fid_as_index,
+        use_arrow=use_arrow,
+    )
+    assert type(result) is pd.DataFrame
+    assert len(result) == exp_len
+
+
 @pytest.mark.parametrize(
     "naturalearth_lowres, expected_ext",
     [(".gpkg", ".gpkg"), (".shp", ".shp")],
