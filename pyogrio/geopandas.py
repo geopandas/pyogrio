@@ -76,7 +76,7 @@ def read_dataframe(
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the datasource
         natively supports sql, its specific sql dialect should be used (eg. SQLite and
-        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL-WHERE`_ syntax
+        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
         should be used. Note that it is not possible to overrule the sql dialect, this
         is only possible when you use the sql parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
@@ -131,13 +131,21 @@ def read_dataframe(
     -------
     GeoDataFrame or DataFrame (if no geometry is present)
 
-    .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+    .. _OGRSQL:
 
-    .. _OGRSQL-WHERE: https://gdal.org/user/ogr_sql_dialect.html#where
+        https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
 
-    .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+    .. _OGRSQL WHERE:
 
-    .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+        https://gdal.org/user/ogr_sql_dialect.html#where
+
+    .. _SQLITE:
+
+        https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+
+    .. _spatialite:
+
+        https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
     """
     try:
