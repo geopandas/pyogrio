@@ -74,11 +74,11 @@ def read_dataframe(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values. Typically, the
-        'OGRSQL WHERE_' syntax can be used. In some cases (RDBMS backed drivers,
-        SQLite, GeoPackage) the native capabilities of the database may be used to to
-        interpret the WHERE clause, in which case the capabilities will be broader than
-        those of OGR SQL.
+        Where clause to filter features in layer by attribute values. If the datasource
+        natively supports sql, its specific sql dialect should be used (eg. SQLite and
+        GeoPackage: SQLITE_, PostgreSQL). If it doesn't, the 'OGRSQL WHERE_' syntax
+        should be used. Note that it is not possible to overrule the sql dialect, this
+        is only possible when you use the sql parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -105,16 +105,15 @@ def read_dataframe(
     sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in. Possible values:
 
-          - **None**: if the datasource natively supports sql, the specific
-            sql syntax for this datasource should be used (eg. SQLite,
-            PostgreSQL, Oracle,...). If the datasource doesn't natively
-            support sql, the 'OGRSQL_' dialect is the
+          - **None**: if the datasource natively supports sql, its specific sql dialect
+            should be used (eg. SQLite and Geopackage: 'SQLITE_', PostgreSQL). If the
+            datasource doesn't natively support sql, the 'OGRSQL_' dialect is the
             default.
           - 'OGRSQL_': can be used on any datasource. Performance can suffer
             when used on datasources with native support for sql.
           - 'SQLITE_': can be used on any datasource. All spatialite_
             functions can be used. Performance can suffer on datasources with
-            native support for sql, except for GPKG and SQLite as this is
+            native support for sql, except for Geopackage and SQLite as this is
             their native sql dialect.
 
     fid_as_index : bool, optional (default: False)

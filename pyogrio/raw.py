@@ -89,11 +89,11 @@ def read(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values. Typically, the
-        'OGRSQL WHERE_' syntax can be used. In some cases (RDBMS backed drivers,
-        SQLite, GeoPackage) the native capabilities of the database may be used to to
-        interpret the WHERE clause, in which case the capabilities will be broader than
-        those of OGR SQL.
+        Where clause to filter features in layer by attribute values. If the datasource
+        natively supports sql, its specific sql dialect should be used (eg. SQLite and
+        GeoPackage: SQLITE_, PostgreSQL). If it doesn't, the 'OGRSQL WHERE_' syntax
+        should be used. Note that it is not possible to overrule the sql dialect, this
+        is only possible when you use the sql parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -108,6 +108,29 @@ def read(
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
+    sql : str, optional (default: None)
+        The sql statement to execute. Look at the sql_dialect parameter for
+        more information on the syntax to use for the query. When combined
+        with other keywords like ``columns``, ``skip_features``,
+        ``max_features``, ``where`` or ``bbox``, those are applied after the
+        sql query. Be aware that this can have an impact on performance,
+        (e.g. filtering with the ``bbox`` keyword may not use
+        spatial indexes).
+        Cannot be combined with the ``layer`` or ``fids`` keywords.
+    sql_dialect : str, optional (default: None)
+        The sql dialect the sql statement is written in. Possible values:
+
+          - **None**: if the datasource natively supports sql, its specific sql dialect
+            should be used (eg. SQLite and Geopackage: 'SQLITE_', PostgreSQL). If the
+            datasource doesn't natively support sql, the 'OGRSQL_' dialect is the
+            default.
+          - 'OGRSQL_': can be used on any datasource. Performance can suffer
+            when used on datasources with native support for sql.
+          - 'SQLITE_': can be used on any datasource. All spatialite_
+            functions can be used. Performance can suffer on datasources with
+            native support for sql, except for Geopackage and SQLite as this is
+            their native sql dialect.
+
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
     **kwargs
@@ -130,6 +153,12 @@ def read(
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>"
         }
+
+    .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+    .. _OGRSQL WHERE: https://gdal.org/user/ogr_sql_dialect.html#where
+    .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+    .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
