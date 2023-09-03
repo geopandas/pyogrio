@@ -95,6 +95,9 @@ def test_read_no_geometry(naturalearth_lowres_all_ext):
 
 @pytest.mark.parametrize("use_arrow", [True, False])
 def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
+    if use_arrow and (not has_pyarrow or __gdal_version__ < (3, 6, 0)):
+        pytest.skip("Arrow tests require pyarrow and GDAL>=3.6")
+
     with pytest.raises(
         ValueError, match="reading no columns, no geometry and no fids is not supported"
     ):
@@ -186,6 +189,9 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
 
 @pytest.mark.parametrize("use_arrow", [True, False])
 def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
+    if use_arrow and (not has_pyarrow or __gdal_version__ < (3, 6, 0)):
+        pytest.skip("Arrow tests require pyarrow and GDAL>=3.6")
+
     df = read_dataframe(
         naturalearth_lowres,
         columns=[],
