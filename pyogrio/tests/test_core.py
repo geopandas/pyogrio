@@ -12,6 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
+from pyogrio.tests.conftest import prepare_testfile
 from pyogrio.errors import DataSourceError, DataLayerError
 
 from pyogrio._env import GDALEnv
@@ -295,6 +296,21 @@ def test_read_info_force_feature_count(
         USE_CUSTOM_INDEXING=False,
     )
     assert meta["features"] == exp_featurecount_lines
+
+
+@pytest.mark.parametrize(
+    "force_total_bounds, expected_total_bounds",
+    [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
+)
+def test_read_info_force_total_bounds(
+    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
+):
+    # Geojson files don't hava a fast way to determine total_bounds
+    geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
+    assert (
+        read_info(geojson_path, force_total_bounds=force_total_bounds)["total_bounds"]
+        == expected_total_bounds
+    )
 
 
 @pytest.mark.parametrize(
