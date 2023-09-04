@@ -191,7 +191,7 @@ def read_info(
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
                 "features": <feature count>,
-                "total_bounds": <tuple with total bounds>
+                "total_bounds": <tuple with total bounds>,
                 "driver": "<driver>",
                 "dataset_metadata" "<dict of dataset metadata or None>"
                 "layer_metadata" "<dict of layer metadata or None>"

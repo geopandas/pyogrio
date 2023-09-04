@@ -472,7 +472,7 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
 
     assert os.path.exists(filename)
 
-    assert read_info(filename)["features"] == 177
+    assert read_info(filename, force_featurecount=True)["features"] == 177
 
     with pytest.raises(DataSourceError):
         write(filename, geometry, field_data, driver=driver, append=True, **meta)
