@@ -335,9 +335,6 @@ def write(
     layer_options=None,
     **kwargs,
 ):
-    if geometry_type is None:
-        raise ValueError("geometry_type must be provided")
-
     if driver is None:
         driver = detect_write_driver(path)
 
@@ -369,13 +366,13 @@ def write(
                 if not isinstance(v, str):
                     raise ValueError(f"metadata value {v} must be a string")
 
-    if promote_to_multi is None:
+    if geometry is not None and promote_to_multi is None:
         promote_to_multi = (
             geometry_type.startswith("Multi")
             and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
         )
 
-    if crs is None:
+    if geometry is not None and crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
             "projection information defined and may not be usable in other "

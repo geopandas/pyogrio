@@ -210,7 +210,6 @@ def test_read_fids(naturalearth_lowres):
 
 
 def test_return_fids(naturalearth_lowres):
-
     # default is to not return fids
     fids = read(naturalearth_lowres)[1]
     assert fids is None
@@ -311,6 +310,111 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     assert not len(
         set(meta["fields"]).difference(data["features"][0]["properties"].keys())
     )
+
+
+def test_write_no_fields(tmp_path, naturalearth_lowres):
+    """Test writing file with no fields/attribute columns."""
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    field_data = None
+    meta["fields"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry_type"] == "Polygon"
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (0,)
+    assert len(fields) == 0
+    assert len(geometry) == 177
+
+    # quick test that WKB is a Polygon type
+    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+def test_write_no_geom(tmp_path, naturalearth_lowres):
+    """Test writing file with no geometry column."""
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    geometry = None
+    meta["geometry_type"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] is None
+    assert meta["geometry_type"] is None
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (5,)
+
+    assert meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(fields) == 5
+    assert len(fields[0]) == 177
+
+
+def test_write_no_geom_data(tmp_path, naturalearth_lowres):
+    """Test writing file with no geometry data passed but a geometry_type specified.
+
+    In this case the geometry_type is ignored, so a file without geometry column is
+    written.
+    """
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    # If geometry data is set to None, meta["geometry_type"] is ignored and so no
+    # geometry column will be created.
+    geometry = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    result_meta, _, result_geometry, result_field_data = read(filename)
+
+    assert result_meta["crs"] is None
+    assert result_meta["geometry_type"] is None
+    assert result_meta["encoding"] == "UTF-8"
+    assert result_meta["fields"].shape == (5,)
+
+    assert result_meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(result_field_data) == 5
+    assert len(result_field_data[0]) == 177
+    assert result_geometry is None
+
+
+def test_write_no_geom_no_fields():
+    """Test writing file with no geometry column nor fields -> error."""
+    with pytest.raises(
+        ValueError,
+        match="You must provide at least a geometry column or a field",
+    ):
+        write("test.gpkg", geometry=None, field_data=None, fields=None)
 
 
 @pytest.mark.skipif(
