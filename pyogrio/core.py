@@ -159,8 +159,14 @@ def read_info(
 ):
     """Read information about an OGR data source.
 
-    ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
-    nonspatial layer.
+    ``crs``, ``geometry`` and ``total_bounds`` will be ``None`` and ``features`` will be
+    0 for a nonspatial layer.
+
+    ``features`` will be -1 if determining this is expensive. You can force to calculate
+    it anyway using the ``force_featurecount`` parameter.
+
+    ``total_bounds`` will be None if determining this is expensive. You can force to
+    calculate it anyway using the ``force_total_bounds`` parameter.
 
     Parameters
     ----------
@@ -190,8 +196,8 @@ def read_info(
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
-                "features": <feature count>,
-                "total_bounds": <tuple with total bounds>,
+                "features": <feature count or -1>,
+                "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
                 "dataset_metadata" "<dict of dataset metadata or None>"
                 "layer_metadata" "<dict of layer metadata or None>"
