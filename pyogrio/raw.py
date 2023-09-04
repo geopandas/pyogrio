@@ -1,7 +1,7 @@
 import warnings
 
 from pyogrio._env import GDALEnv
-from pyogrio.core import detect_driver
+from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import get_vsi_path, _preprocess_options_key_value
 
@@ -339,7 +339,7 @@ def write(
         raise ValueError("geometry_type must be provided")
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     # verify that driver supports writing
     if not ogr_driver_supports_write(driver):

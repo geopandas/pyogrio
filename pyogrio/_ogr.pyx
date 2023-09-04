@@ -330,11 +330,21 @@ def _get_drivers_for_path(path):
     cdef int i
     cdef char *name_c
 
+    path = str(path).lower()
+
     parts = os.path.splitext(path)
     if len(parts) == 2 and len(parts[1]) > 1:
-        ext = parts[1].lower()[1:]
+        ext = parts[1][1:]
     else:
         ext = None
+
+
+    # allow specific drivers to have a .zip extension to match GDAL behavior
+    if ext == 'zip':
+        if path.endswith('.shp.zip'):
+            ext = 'shp.zip'
+        elif path.endswith('.gpkg.zip'):
+            ext = 'gpkg.zip'
 
     drivers = []
     for i in range(OGRGetDriverCount()):
@@ -342,15 +352,17 @@ def _get_drivers_for_path(path):
         name_c = <char *>OGR_Dr_GetName(driver)
         name = get_string(name_c)
 
-        if ogr_driver_supports_write(name):
-            # extensions is a space-delimited list of supported extensions
-            # for driver
-            extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
-            if ext is not None and extensions is not None and ext in extensions.split(' '):
+        if not ogr_driver_supports_write(name):
+            continue
+
+        # extensions is a space-delimited list of supported extensions
+        # for driver
+        extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+        if ext is not None and extensions is not None and ext in extensions.lower().split(' '):
+            drivers.append(name)
+        else:
+            prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
+            if prefix is not None and str(path).lower().startswith(prefix.lower()):
                 drivers.append(name)
-            else:
-                prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
-                if prefix is not None and str(path).lower().startswith(prefix.lower()):
-                    drivers.append(name)
 
     return drivers

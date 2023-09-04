@@ -58,7 +58,7 @@ def list_drivers(read=False, write=False):
     return drivers
 
 
-def detect_driver(path):
+def detect_write_driver(path):
     """Attempt to infer the driver for a path by extension or prefix.  Only
     drivers that support write capabilities will be detected.
 

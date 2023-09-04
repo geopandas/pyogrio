@@ -12,7 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
-from pyogrio.core import detect_driver
+from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 
 from pyogrio._env import GDALEnv
@@ -49,9 +49,18 @@ def test_gdal_geos_version():
     "path,expected",
     [
         ("test.shp", "ESRI Shapefile"),
+        ("test.shp.zip", "ESRI Shapefile"),
         ("test.geojson", "GeoJSON"),
         ("test.geojsonl", "GeoJSONSeq"),
         ("test.gpkg", "GPKG"),
+        pytest.param(
+            "test.gpkg.zip",
+            "GPKG",
+            marks=pytest.mark.skipif(
+                __gdal_version__ < (3, 7, 0),
+                reason="writing *.gpkg.zip requires GDAL >= 3.7.0",
+            ),
+        ),
         # postgres can be detected by prefix instead of extension
         pytest.param(
             "PG:dbname=test",
@@ -63,8 +72,8 @@ def test_gdal_geos_version():
         ),
     ],
 )
-def test_detect_driver(path, expected):
-    assert detect_driver(path) == expected
+def test_detect_write_driver(path, expected):
+    assert detect_write_driver(path) == expected
 
 
 @pytest.mark.parametrize(
@@ -77,15 +86,15 @@ def test_detect_driver(path, expected):
         "FOO:test",  # not a valid prefix
     ],
 )
-def test_detect_driver_unsupported(path):
+def test_detect_write_driver_unsupported(path):
     with pytest.raises(ValueError, match="Could not infer driver from path"):
-        detect_driver(path)
+        detect_write_driver(path)
 
 
 @pytest.mark.parametrize("path", ["test.xml", "test.txt"])
-def test_detect_driver_multiple_unsupported(path):
+def test_detect_write_driver_multiple_unsupported(path):
     with pytest.raises(ValueError, match="multiple drivers are available"):
-        detect_driver(path)
+        detect_write_driver(path)
 
 
 @pytest.mark.parametrize(

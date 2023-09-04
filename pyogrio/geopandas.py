@@ -2,7 +2,7 @@ import numpy as np
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
-    detect_driver,
+    detect_write_driver,
     read,
     read_arrow,
     write,
@@ -316,7 +316,7 @@ def write_dataframe(
         raise ValueError("'df' must be a GeoDataFrame")
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) == 0:
