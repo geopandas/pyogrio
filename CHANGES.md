@@ -12,7 +12,7 @@
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 
 -   Automatically detect supported driver by extension for all available
-    write drivers (#270)
+    write drivers and addition of `detect_write_driver` (#270)
 
 ### Bug fixes
 
