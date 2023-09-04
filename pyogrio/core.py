@@ -148,7 +148,15 @@ def read_bounds(
     return result
 
 
-def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
+def read_info(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    force_featurecount=False,
+    force_total_bounds=False,
+    **kwargs,
+):
     """Read information about an OGR data source.
 
     ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
@@ -163,6 +171,10 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
+    force_featurecount : bool, optional (default: False)
+        True if the feature count should be computed even if it is expensive.
+    force_total_bounds : bool, optional (default: False)
+        True if the total bounds should be computed even if it is expensive.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -179,6 +191,7 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
                 "features": <feature count>,
+                "total_bounds": <tuple with total bounds>
                 "driver": "<driver>",
                 "dataset_metadata" "<dict of dataset metadata or None>"
                 "layer_metadata" "<dict of layer metadata or None>"
@@ -190,7 +203,12 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
 
     try:
         result = ogr_read_info(
-            path, layer=layer, encoding=encoding, dataset_kwargs=dataset_kwargs
+            path,
+            layer=layer,
+            encoding=encoding,
+            force_featurecount=force_featurecount,
+            force_total_bounds=force_total_bounds,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:

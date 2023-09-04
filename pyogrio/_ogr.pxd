@@ -280,6 +280,7 @@ cdef extern from "ogr_api.h":
     const char*             OGR_L_GetName(OGRLayerH layer)
     const char*             OGR_L_GetFIDColumn(OGRLayerH layer)
     const char*             OGR_L_GetGeometryColumn(OGRLayerH layer)
+    OGRErr                  OGR_L_GetExtent(OGRLayerH layer, OGREnvelope *psExtent, int bForce)
     OGRSpatialReferenceH    OGR_L_GetSpatialRef(OGRLayerH layer)
     int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
     OGRFeatureDefnH         OGR_L_GetLayerDefn(OGRLayerH layer)

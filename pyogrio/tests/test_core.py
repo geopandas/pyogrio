@@ -226,6 +226,7 @@ def test_read_info(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
+    assert meta["total_bounds"] == (-180, -90, 180.00000000000006, 83.64513000000001)
     assert meta["driver"] == "ESRI Shapefile"
 
 
@@ -268,19 +269,32 @@ def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
 
 def test_read_info_force_feature_count_exception(data_dir):
     with pytest.raises(DataLayerError, match="Could not iterate over features"):
-        read_info(data_dir / "sample.osm.pbf", layer="lines")
+        read_info(data_dir / "sample.osm.pbf", layer="lines", force_featurecount=True)
 
 
-def test_read_info_force_feature_count(data_dir):
+@pytest.mark.parametrize(
+    "force_featurecount, exp_featurecount, exp_featurecount_lines",
+    [(True, 8, 36), (False, -1, -1)],
+)
+def test_read_info_force_feature_count(
+    data_dir, force_featurecount, exp_featurecount, exp_featurecount_lines
+):
     # the sample OSM file has non-increasing node IDs which causes the default
     # custom indexing to raise an exception iterating over features
-    meta = read_info(data_dir / "sample.osm.pbf", USE_CUSTOM_INDEXING=False)
-    assert meta["features"] == 8
+    meta = read_info(
+        data_dir / "sample.osm.pbf",
+        force_featurecount=force_featurecount,
+        USE_CUSTOM_INDEXING=False,
+    )
+    assert meta["features"] == exp_featurecount
 
     meta = read_info(
-        data_dir / "sample.osm.pbf", layer="lines", USE_CUSTOM_INDEXING=False
+        data_dir / "sample.osm.pbf",
+        layer="lines",
+        force_featurecount=force_featurecount,
+        USE_CUSTOM_INDEXING=False,
     )
-    assert meta["features"] == 36
+    assert meta["features"] == exp_featurecount_lines
 
 
 @pytest.mark.parametrize(
