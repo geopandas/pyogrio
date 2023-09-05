@@ -75,10 +75,10 @@ def read_dataframe(
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the datasource
-        natively supports SQL, its specific SQL dialect will be used by default (eg. SQLite and
-        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
-        should be used. Note that it is not possible to overrule the SQL dialect, this
-        is only possible when you use the ``sql`` parameter.
+        natively supports SQL, its specific SQL dialect will be used by default
+        (eg. SQLite and GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the
+        `OGRSQL WHERE`_ syntax should be used. Note that it is not possible to overrule
+        the SQL dialect, this is only possible when you use the ``sql`` parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -106,8 +106,8 @@ def read_dataframe(
         The sql dialect the sql statement is written in. Possible values:
 
           - **None**: if the datasource natively supports SQL, its specific SQL dialect
-            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
-            datasource doesn't natively support SQL, the `OGRSQL`_ dialect is the
+            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
+            If the datasource doesn't natively support SQL, the `OGRSQL`_ dialect is the
             default.
           - '`OGRSQL`_': can be used on any datasource. Performance can suffer
             when used on datasources with native support for sql.
