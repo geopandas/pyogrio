@@ -166,7 +166,7 @@ def read_info(
     force it to be calculated using the ``force_feature_count`` parameter.
 
     ``total_bounds`` is the 2-dimensional extent of all features within the dataset:
-    (xmin, ymin, xmax, ymax). It will be None if this operation is expensive for this
+    (xmin, ymin, xmax, ymax). It will be None if this is an expensive operation for this
     driver or if the data source is nonspatial. You can force it to be calculated using
     the ``force_total_bounds`` parameter.
 
