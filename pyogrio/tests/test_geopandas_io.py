@@ -120,7 +120,11 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
         pytest.skip("Arrow tests require pyarrow and GDAL>=3.6")
 
     with pytest.raises(
-        ValueError, match="reading no columns, no geometry and no fids is not supported"
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
     ):
         _ = read_dataframe(
             naturalearth_lowres,

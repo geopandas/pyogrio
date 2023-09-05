@@ -1031,9 +1031,10 @@ def ogr_read(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
-    if not read_geometry and not return_fids and columns is not None and len(columns) == 0:
+    if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(
-            "reading no columns, no geometry and no fids is not supported"
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
         )
 
     try:
@@ -1198,9 +1199,10 @@ def ogr_open_arrow(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
-    if not read_geometry and not return_fids and columns is not None and len(columns) == 0:
+    if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(
-            "reading no columns, no geometry and no fids is not supported"
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
         )
 
     reader = None

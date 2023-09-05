@@ -94,7 +94,11 @@ def test_read_no_geometry(naturalearth_lowres):
 
 def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
     with pytest.raises(
-        ValueError, match="reading no columns, no geometry and no fids is not supported"
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
     ):
         _ = read(
             naturalearth_lowres, columns=[], read_geometry=False, return_fids=False
