@@ -162,11 +162,13 @@ def read_info(
     ``crs``, ``geometry`` and ``total_bounds`` will be ``None`` and ``features`` will be
     0 for a nonspatial layer.
 
-    ``features`` will be -1 if determining this is expensive. You can force to calculate
-    it anyway using the ``force_featurecount`` parameter.
+    ``features`` will be -1 if this is an expensive operation for this driver. You can
+    force it to be calculated using the ``force_featurecount`` parameter.
 
-    ``total_bounds`` will be None if determining this is expensive. You can force to
-    calculate it anyway using the ``force_total_bounds`` parameter.
+    ``total_bounds`` is the 2-dimensional extent of all features within the dataset:
+    (xmin, ymin, xmax, ymax). It will be None if this operation is expensive for this
+    driver or if the data source is nonspatial. You can force it to be calculated using
+    the ``force_total_bounds`` parameter.
 
     Parameters
     ----------
