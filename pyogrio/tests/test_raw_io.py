@@ -540,6 +540,15 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
 
 
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write(filename, geometry, field_data, **meta)
+
+
 def assert_equal_result(result1, result2):
     meta1, index1, geometry1, field_data1 = result1
     meta2, index2, geometry2, field_data2 = result2

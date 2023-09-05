@@ -3,7 +3,7 @@ import os
 
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path
+from pyogrio.util import get_vsi_path, vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -387,6 +387,8 @@ def write(
     layer_options=None,
     **kwargs,
 ):
+    path = vsi_path(str(path))
+
     if driver is None:
         driver = detect_driver(path)
 
@@ -451,7 +453,7 @@ def write(
                 raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
     ogr_write(
-        str(path),
+        path,
         layer=layer,
         driver=driver,
         geometry=geometry,
