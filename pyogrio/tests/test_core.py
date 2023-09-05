@@ -229,6 +229,11 @@ def test_read_info(naturalearth_lowres):
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["driver"] == "ESRI Shapefile"
+    assert meta["capabilities"]["random_read"] is True
+    assert meta["capabilities"]["fast_set_next_by_index"] is True
+    assert meta["capabilities"]["fast_spatial_filter"] is False
+    assert meta["capabilities"]["fast_feature_count"] is True
+    assert meta["capabilities"]["fast_total_bounds"] is True
 
 
 @pytest.mark.parametrize(

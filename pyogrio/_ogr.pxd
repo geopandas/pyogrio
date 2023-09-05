@@ -302,6 +302,8 @@ cdef extern from "ogr_api.h":
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
     const char*     OLCFastSpatialFilter
+    const char*     OLCFastFeatureCount
+    const char*     OLCFastGetExtent
     const char*     OLCTransactions
 
 
