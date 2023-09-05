@@ -118,7 +118,7 @@ def read(
         spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
-        The sql dialect the sql statement is written in. Possible values:
+        The SQL dialect the ``sql`` statement is written in. Possible values:
 
           - **None**: if the datasource natively supports sql, its specific sql dialect
             should be used (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
