@@ -10,7 +10,8 @@
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
--   Add `total_bounds` of layer to `read_info` (#281)
+-   In `read_info`, the result now also contains the `total_bounds` of the layer as well
+    as some extra `capabilities` of the data source driver (#281)
 
 ### Bug fixes
 
@@ -19,6 +20,15 @@
     `use_arrow=True` (#265)
 -   Fix errors reading OSM data due to invalid feature count and incorrect
     reading of OSM layers beyond the first layer (#271)
+
+### Potentially breaking changes
+
+-   In `read_info` (#281):
+    -   the `features` property in the result will now be -1 if calculating the
+        feature count is an expensive operation for this driver. You can force it to be
+        calculated using the `force_feature_count` parameter.
+    -   for the keys in the `capabilities` property, the values will now be booleans 
+        instead of 1 or 0.
 
 ## 0.6.0 (2023-04-27)
 
