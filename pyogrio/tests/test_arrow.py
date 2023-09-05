@@ -32,6 +32,20 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
 
 
+@pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
+def test_read_arrow_skip_features(naturalearth_lowres, skip_features, expected):
+    table = read_arrow(naturalearth_lowres, skip_features=skip_features)[1]
+    assert len(table) == expected
+
+
+@pytest.mark.parametrize(
+    "max_features, expected", [(0, 0), (10, 10), (200, 177), (100000, 177)]
+)
+def test_read_arrow_max_features(naturalearth_lowres, max_features, expected):
+    table = read_arrow(naturalearth_lowres, max_features=max_features)[1]
+    assert len(table) == expected
+
+
 def test_read_arrow_fid(naturalearth_lowres_all_ext):
     kwargs = {"use_arrow": True, "where": "fid >= 2 AND fid <= 3"}
 
@@ -97,3 +111,19 @@ def test_open_arrow_batch_size(naturalearth_lowres):
 
         assert count == 2, "Should be two batches given the batch_size parameter"
         assert len(tables[0]) == batch_size, "First table should match the batch size"
+
+
+@pytest.mark.parametrize("skip_features, max_features", [(10, None), (0, 10), (10, 10)])
+def test_open_arrow_skip_features_max_features_unsupported(
+    naturalearth_lowres, skip_features, max_features
+):
+    """skip_features and max_features are not supported for the Arrow stream
+    interface"""
+    with pytest.raises(
+        ValueError,
+        match="specifying 'skip_features' or 'max_features' is not supported for Arrow",
+    ):
+        with open_arrow(
+            naturalearth_lowres, skip_features=skip_features, max_features=max_features
+        ) as (meta, reader):
+            pass

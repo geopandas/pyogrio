@@ -166,6 +166,14 @@ processes:
 >>> read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10, max_features=10)
 ```
 
+NOTE: if `use_arrow` is `True`, `skip_features` and `max_features` will incur
+additional overhead because all features up to the next batch size above
+`max_features` (or size of data layer) will be read prior to slicing out the
+requested range of features. If `max_features` is less than the maximum Arrow
+batch size (65,536 features) only `max_features` will be read. All features
+up to `skip_features` are read from the data source and later discarded because
+the Arrow interface does not support randomly seeking a starting feature.
+
 ## Filter records by attribute value
 
 You can use the `where` parameter to define a GDAL-compatible SQL WHERE query against

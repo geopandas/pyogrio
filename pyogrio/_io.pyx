@@ -606,9 +606,8 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
         warnings.warn(f"Layer '{name}' does not have any features to read")
         return 0, 0
 
-    # validate skip_features, max_features
     if skip_features < 0 or skip_features >= feature_count:
-        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+        skip_features = feature_count
 
     if max_features < 0:
         raise ValueError("'max_features' must be >= 0")
@@ -793,6 +792,10 @@ cdef get_features(
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+
+    if num_features == 0:
+        return fid_data, geometries, field_data
+
     i = 0
     while True:
         try:
@@ -1578,7 +1581,7 @@ def ogr_write(
 
     if num_fields == 0 and geometry is None:
         raise ValueError("You must provide at least a geometry column or a field")
-    
+
     if num_fields > 0:
         num_records = len(field_data[0])
         for i in range(1, len(field_data)):

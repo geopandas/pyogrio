@@ -196,6 +196,17 @@ def read_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
+    from pyarrow import Table
+
+    # limit batch size to max_features if set
+    if "batch_size" in kwargs:
+        batch_size = kwargs.pop("batch_size")
+    else:
+        batch_size = 65_536
+
+    if max_features is not None and max_features < batch_size:
+        batch_size = max_features
+
     with open_arrow(
         path_or_buffer,
         layer=layer,
@@ -203,18 +214,45 @@ def read_arrow(
         columns=columns,
         read_geometry=read_geometry,
         force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features,
         where=where,
         bbox=bbox,
         fids=fids,
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=return_fids,
+        batch_size=batch_size,
         **kwargs,
     ) as source:
         meta, reader = source
-        table = reader.read_all()
+
+        if max_features is not None:
+            batches = []
+            count = 0
+            while True:
+                try:
+                    batch = reader.read_next_batch()
+                    batches.append(batch)
+
+                    count += len(batch)
+                    if count > max_features:
+                        break
+
+                except StopIteration:
+                    break
+
+            # use combine_chunks to release the original memory that included
+            # too many features
+            table = (
+                Table.from_batches(batches)
+                .slice(skip_features, max_features)
+                .combine_chunks()
+            )
+
+        elif skip_features > 0:
+            table = reader.read_all().slice(skip_features).combine_chunks()
+
+        else:
+            table = reader.read_all()
 
     return meta, table
 

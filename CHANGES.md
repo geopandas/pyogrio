@@ -11,6 +11,15 @@
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 
+-   using `skip_features` greater than the number of features available in a data
+    layer now returns empty arrays for `read` and an empty DataFrame for
+    `read_dataframe` instead of raising a `ValueError`
+-   enabled `skip_features` and `max_features` for `read_arrow` and
+    `read_dataframe(path, use_arrow=True)`. Note that this incurs overhead
+    because all features up to the next batch size above `max_features` (or size
+    of data layer) will be read prior to slicing out the requested range of
+    features.
+
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)
