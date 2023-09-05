@@ -150,6 +150,10 @@ To skip the first 10 features:
 >>> read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10)
 ```
 
+NOTE: Using this parameter may incur significant overhead if the driver does not
+support the capability to randomly seek to a specific feature, because it will
+need to iterate over all prior features.
+
 NOTE: the index of the GeoDataFrame is based on the features that are read from
 the file, it does not start at `skip_features`.
 
