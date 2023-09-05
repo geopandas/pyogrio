@@ -274,28 +274,24 @@ def test_read_info_force_feature_count_exception(data_dir):
 
 
 @pytest.mark.parametrize(
-    "force_feature_count, exp_feature_count, exp_feature_count_lines",
-    [(True, 8, 36), (False, -1, -1)],
+    "layer, force, expected",
+    [
+        ("points", False, -1),
+        ("points", True, 8),
+        ("lines", False, -1),
+        ("lines", True, 36),
+    ],
 )
-def test_read_info_force_feature_count(
-    data_dir, force_feature_count, exp_feature_count, exp_feature_count_lines
-):
+def test_read_info_force_feature_count(data_dir, layer, force, expected):
     # the sample OSM file has non-increasing node IDs which causes the default
     # custom indexing to raise an exception iterating over features
     meta = read_info(
         data_dir / "sample.osm.pbf",
-        force_feature_count=force_feature_count,
+        layer=layer,
+        force_feature_count=force,
         USE_CUSTOM_INDEXING=False,
     )
-    assert meta["features"] == exp_feature_count
-
-    meta = read_info(
-        data_dir / "sample.osm.pbf",
-        layer="lines",
-        force_feature_count=force_feature_count,
-        USE_CUSTOM_INDEXING=False,
-    )
-    assert meta["features"] == exp_feature_count_lines
+    assert meta["features"] == expected
 
 
 @pytest.mark.parametrize(
