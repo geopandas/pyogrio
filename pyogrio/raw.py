@@ -84,7 +84,8 @@ def read(
         be ignored and 2D geometries to be returned
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
-        features.  Must be less than the total number of features in the file.
+        features.   If greater than available number of features, empty arrays
+        will be returned.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
