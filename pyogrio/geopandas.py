@@ -105,7 +105,7 @@ def read_dataframe(
     sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in. Possible values:
 
-          - **None**: if the datasource natively supports sql, its specific sql dialect
+          - **None**: if the datasource natively supports SQL, its specific SQL dialect
             should be used (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
             datasource doesn't natively support sql, the `OGRSQL`_ dialect is the
             default.
