@@ -153,7 +153,7 @@ def read_info(
     /,
     layer=None,
     encoding=None,
-    force_featurecount=False,
+    force_feature_count=False,
     force_total_bounds=False,
     **kwargs,
 ):
@@ -163,7 +163,7 @@ def read_info(
     0 for a nonspatial layer.
 
     ``features`` will be -1 if this is an expensive operation for this driver. You can
-    force it to be calculated using the ``force_featurecount`` parameter.
+    force it to be calculated using the ``force_feature_count`` parameter.
 
     ``total_bounds`` is the 2-dimensional extent of all features within the dataset:
     (xmin, ymin, xmax, ymax). It will be None if this operation is expensive for this
@@ -179,7 +179,7 @@ def read_info(
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
-    force_featurecount : bool, optional (default: False)
+    force_feature_count : bool, optional (default: False)
         True if the feature count should be computed even if it is expensive.
     force_total_bounds : bool, optional (default: False)
         True if the total bounds should be computed even if it is expensive.
@@ -214,7 +214,7 @@ def read_info(
             path,
             layer=layer,
             encoding=encoding,
-            force_featurecount=force_featurecount,
+            force_feature_count=force_feature_count,
             force_total_bounds=force_total_bounds,
             dataset_kwargs=dataset_kwargs,
         )

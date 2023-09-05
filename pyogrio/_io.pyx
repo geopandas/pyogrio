@@ -1387,7 +1387,7 @@ def ogr_read_info(
     dataset_kwargs,
     object layer=None,
     object encoding=None,
-    int force_featurecount=False,
+    int force_feature_count=False,
     int force_total_bounds=False):
 
     cdef const char *path_c = NULL
@@ -1423,7 +1423,7 @@ def ogr_read_info(
             'fields': fields[:,2], # return only names
             'dtypes': fields[:,3],
             'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer, force_featurecount),
+            'features': get_feature_count(ogr_layer, force_feature_count),
             'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
             'driver': get_driver(ogr_dataset),
             "capabilities": {
