@@ -109,7 +109,7 @@ def read(
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
     sql : str, optional (default: None)
-        The sql statement to execute. Look at the sql_dialect parameter for
+        The SQL statement to execute. See the sql_dialect parameter for
         more information on the syntax to use for the query. When combined
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
