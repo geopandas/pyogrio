@@ -389,7 +389,7 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
 
     Returns
     -------
-    Optional[Tuple[float, float, float, float]]
+    tuple of (xmin, ymin, xmax, ymax) or None
         The total bounds of the layer, or None if they could not be determined.
     """
 
