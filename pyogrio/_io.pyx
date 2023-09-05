@@ -1927,7 +1927,7 @@ def ogr_write(
         GDALClose(ogr_dataset)
 
         # GDAL will set an error if there was an error writing the data source
-        # on close (some operations in some drivers only happen
+        # on close
         exc = exc_check()
         if exc:
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")

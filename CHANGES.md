@@ -18,8 +18,8 @@
     `use_arrow=True` (#265)
 -   Fix errors reading OSM data due to invalid feature count and incorrect
     reading of OSM layers beyond the first layer (#271)
--   Raise an exception if a data source could not be written when error was not
-    raised by GDAL until closing the data source
+-   Always raise an exception if there is an error when writing a data source
+    (#284)
 
 ## 0.6.0 (2023-04-27)
 
