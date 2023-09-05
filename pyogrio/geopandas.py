@@ -77,7 +77,7 @@ def read_dataframe(
         Where clause to filter features in layer by attribute values. If the datasource
         natively supports SQL, its specific SQL dialect will be used by default (eg. SQLite and
         GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
-        should be used. Note that it is not possible to overrule the sql dialect, this
+        should be used. Note that it is not possible to overrule the SQL dialect, this
         is only possible when you use the ``sql`` parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
