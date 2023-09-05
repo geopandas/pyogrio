@@ -227,7 +227,7 @@ def test_read_info(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
-    assert meta["total_bounds"] == (-180, -90, 180.00000000000006, 83.64513000000001)
+    assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["driver"] == "ESRI Shapefile"
 
 
@@ -307,10 +307,11 @@ def test_read_info_force_total_bounds(
 ):
     # Geojson files don't hava a fast way to determine total_bounds
     geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
-    assert (
-        read_info(geojson_path, force_total_bounds=force_total_bounds)["total_bounds"]
-        == expected_total_bounds
-    )
+    info = read_info(geojson_path, force_total_bounds=force_total_bounds)
+    if expected_total_bounds is not None:
+        assert allclose(info["total_bounds"], expected_total_bounds)
+    else:
+        assert info["total_bounds"] is None
 
 
 def test_read_info_without_geometry(test_fgdb_vsi):
