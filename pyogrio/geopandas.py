@@ -72,8 +72,7 @@ def read_dataframe(
         features.  If greater than available number of features, an empty
         DataFrame will be returned.
     max_features : int, optional (default: None)
-        Number of features to read from the file.  Must be less than the total
-        number of features in the file minus skip_features (if used).
+        Number of features to read from the file.
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values.  Uses a
         restricted form of SQL WHERE clause, defined here:
