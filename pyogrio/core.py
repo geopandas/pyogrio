@@ -201,8 +201,9 @@ def read_info(
                 "features": <feature count or -1>,
                 "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
-                "dataset_metadata" "<dict of dataset metadata or None>"
-                "layer_metadata" "<dict of layer metadata or None>"
+                "capabilities": "<dict of driver capabilities>"
+                "dataset_metadata": "<dict of dataset metadata or None>"
+                "layer_metadata": "<dict of layer metadata or None>"
             }
     """
     path, buffer = get_vsi_path(path_or_buffer)
