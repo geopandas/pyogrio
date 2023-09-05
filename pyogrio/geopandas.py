@@ -78,7 +78,7 @@ def read_dataframe(
         natively supports SQL, its specific SQL dialect will be used by default (eg. SQLite and
         GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
         should be used. Note that it is not possible to overrule the sql dialect, this
-        is only possible when you use the sql parameter.
+        is only possible when you use the ``sql`` parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
