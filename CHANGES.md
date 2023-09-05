@@ -10,7 +10,7 @@
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
-    columns, no geometry and no fids (#280)
+    columns, geometry, or fids (#280)
 
 ### Bug fixes
 
