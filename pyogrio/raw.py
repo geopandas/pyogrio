@@ -113,7 +113,7 @@ def read(
         more information on the syntax to use for the query. When combined
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
-        sql query. Be aware that this can have an impact on performance,
+        SQL query. Be aware that this can have an impact on performance,
         (e.g. filtering with the ``bbox`` keyword may not use
         spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
