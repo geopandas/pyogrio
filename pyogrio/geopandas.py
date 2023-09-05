@@ -75,7 +75,7 @@ def read_dataframe(
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the datasource
-        natively supports sql, its specific sql dialect should be used (eg. SQLite and
+        natively supports SQL, its specific SQL dialect will be used by default (eg. SQLite and
         GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
         should be used. Note that it is not possible to overrule the sql dialect, this
         is only possible when you use the sql parameter.
