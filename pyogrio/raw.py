@@ -121,7 +121,7 @@ def read(
         The SQL dialect the ``sql`` statement is written in. Possible values:
 
           - **None**: if the datasource natively supports SQL, its specific SQL dialect
-            should be used (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
+            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL). If the
             datasource doesn't natively support SQL, the `OGRSQL`_ dialect is the
             default.
           - '`OGRSQL`_': can be used on any datasource. Performance can suffer
