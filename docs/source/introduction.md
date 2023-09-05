@@ -172,7 +172,9 @@ additional overhead because all features up to the next batch size above
 requested range of features. If `max_features` is less than the maximum Arrow
 batch size (65,536 features) only `max_features` will be read. All features
 up to `skip_features` are read from the data source and later discarded because
-the Arrow interface does not support randomly seeking a starting feature.
+the Arrow interface does not support randomly seeking a starting feature. This
+overhead is in comparison to reading via Arrow without these parameters, which
+is generally much faster than not using Arrow.
 
 ## Filter records by attribute value
 
