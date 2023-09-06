@@ -1061,6 +1061,12 @@ def ogr_read(
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
 
+    if not (read_geometry or return_fids or columns is None or len(columns) > 0):
+        raise ValueError(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        )
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1222,6 +1228,12 @@ def ogr_open_arrow(
 
     if sql is not None and layer is not None:
         raise ValueError("'sql' paramater cannot be combined with 'layer'")
+
+    if not (read_geometry or return_fids or columns is None or len(columns) > 0):
+        raise ValueError(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        )
 
     reader = None
     try:
@@ -1613,7 +1625,7 @@ def ogr_write(
 
     if num_fields == 0 and geometry is None:
         raise ValueError("You must provide at least a geometry column or a field")
-    
+
     if num_fields > 0:
         num_records = len(field_data[0])
         for i in range(1, len(field_data)):
@@ -1960,3 +1972,9 @@ def ogr_write(
     ### Final cleanup
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
+
+        # GDAL will set an error if there was an error writing the data source
+        # on close
+        exc = exc_check()
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")

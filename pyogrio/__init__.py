@@ -8,6 +8,7 @@ except Exception:
 
 from pyogrio.core import (
     list_drivers,
+    detect_write_driver,
     list_layers,
     read_bounds,
     read_info,
@@ -27,6 +28,7 @@ del get_versions
 
 __all__ = [
     "list_drivers",
+    "detect_write_driver",
     "list_layers",
     "read_bounds",
     "read_info",
