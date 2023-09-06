@@ -88,7 +88,8 @@ def detect_write_driver(path):
     elif len(drivers) > 1:
         raise ValueError(
             f"Could not infer driver from path: {path}; multiple drivers are "
-            "available for that extension.  Please specify driver explicitly"
+            f"available for that extension: {', '.join(drivers)}.  Please "
+            "specify driver explicitly."
         )
 
     return drivers[0]
