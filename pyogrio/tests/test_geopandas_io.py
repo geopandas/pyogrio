@@ -14,7 +14,7 @@ from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
-from pyogrio.tests.conftest import ALL_EXTS, DRIVERS, HAS_GEOS, use_arrow
+from pyogrio.tests.conftest import ALL_EXTS, DRIVERS, HAS_ARROW, HAS_GEOS
 
 try:
     import pandas as pd
@@ -29,6 +29,21 @@ except ImportError:
 
 
 pytest.importorskip("geopandas")
+
+
+use_arrow = pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not HAS_ARROW,
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)
 
 
 def spatialite_available(path):

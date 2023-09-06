@@ -127,18 +127,3 @@ def test_ogr_types_list():
 @pytest.fixture(scope="session")
 def test_datetime():
     return _data_dir / "test_datetime.geojson"
-
-
-use_arrow = pytest.mark.parametrize(
-    "use_arrow",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skipif(
-                not HAS_ARROW,
-                reason="Arrow tests require pyarrow and GDAL>=3.6",
-            ),
-        ),
-    ],
-)
