@@ -94,27 +94,27 @@ def read_dataframe(
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
     sql : str, optional (default: None)
-        The sql statement to execute. Look at the sql_dialect parameter for
+        The SQL statement to execute. Look at the sql_dialect parameter for
         more information on the syntax to use for the query. When combined
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
-        sql query. Be aware that this can have an impact on performance,
+        SQL query. Be aware that this can have an impact on performance,
         (e.g. filtering with the ``bbox`` keyword may not use
         spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
-        The sql dialect the sql statement is written in. Possible values:
+        The SQL dialect the SQL statement is written in. Possible values:
 
           - **None**: if the data source natively supports SQL, its specific SQL dialect
             will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
             If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
             the default.
           - '`OGRSQL`_': can be used on any data source. Performance can suffer
-            when used on data sources with native support for sql.
+            when used on data sources with native support for SQL.
           - '`SQLITE`_': can be used on any data source. All spatialite_
             functions can be used. Performance can suffer on data sources with
-            native support for sql, except for Geopackage and SQLite as this is
-            their native sql dialect.
+            native support for SQL, except for Geopackage and SQLite as this is
+            their native SQL dialect.
 
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the

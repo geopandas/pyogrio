@@ -90,10 +90,10 @@ def read(
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the data source
-        natively supports sql, its specific sql dialect should be used (eg. SQLite and
+        natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
         GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
-        should be used. Note that it is not possible to overrule the sql dialect, this
-        is only possible when you use the sql parameter.
+        should be used. Note that it is not possible to overrule the SQL dialect, this
+        is only possible when you use the SQL parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -125,11 +125,11 @@ def read(
             If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
             the default.
           - '`OGRSQL`_': can be used on any data source. Performance can suffer
-            when used on data sources with native support for sql.
+            when used on data sources with native support for SQL.
           - '`SQLITE`_': can be used on any data source. All spatialite_
             functions can be used. Performance can suffer on data sources with
-            native support for sql, except for Geopackage and SQLite as this is
-            their native sql dialect.
+            native support for SQL, except for Geopackage and SQLite as this is
+            their native SQL dialect.
 
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
