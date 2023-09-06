@@ -47,11 +47,6 @@ def test_read_arrow_columns(naturalearth_lowres):
     assert result.columns.tolist() == ["continent", "geometry"]
 
 
-def test_read_arrow_layer_without_geometry(test_fgdb_vsi):
-    result = read_dataframe(test_fgdb_vsi, layer="basetable", use_arrow=True)
-    assert type(result) is pd.DataFrame
-
-
 def test_read_arrow_ignore_geometry(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, read_geometry=False)
     assert type(result) is pd.DataFrame

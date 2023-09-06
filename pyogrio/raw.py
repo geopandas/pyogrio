@@ -1,9 +1,9 @@
 import warnings
-import os
 
 from pyogrio._env import GDALEnv
+from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path
+from pyogrio.util import get_vsi_path, vsi_path, _preprocess_options_key_value
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -14,17 +14,6 @@ with GDALEnv():
         remove_virtual_file,
         _get_driver_metadata_item,
     )
-
-
-DRIVERS = {
-    ".fgb": "FlatGeobuf",
-    ".geojson": "GeoJSON",
-    ".geojsonl": "GeoJSONSeq",
-    ".geojsons": "GeoJSONSeq",
-    ".gpkg": "GPKG",
-    ".json": "GeoJSON",
-    ".shp": "ESRI Shapefile",
-}
 
 
 DRIVERS_NO_MIXED_SINGLE_MULTI = {
@@ -85,6 +74,9 @@ def read(
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
+        Using this parameter may incur significant overhead if the driver does
+        not support the capability to randomly seek to a specific feature,
+        because it will need to iterate over all prior features.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
@@ -307,26 +299,6 @@ def open_arrow(
             remove_virtual_file(path)
 
 
-def detect_driver(path):
-    # try to infer driver from path
-    parts = os.path.splitext(path)
-    if len(parts) != 2:
-        raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly"
-        )
-
-    ext = parts[1].lower()
-    driver = DRIVERS.get(ext, None)
-    if driver is None:
-        raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly"
-        )
-
-    return driver
-
-
 def _parse_options_names(xml):
     """Convert metadata xml to list of names"""
     # Based on Fiona's meta.py
@@ -342,27 +314,6 @@ def _parse_options_names(xml):
                 options.append(option.attrib["name"])
 
     return options
-
-
-def _preprocess_options_key_value(options):
-    """
-    Preprocess options, eg `spatial_index=True` gets converted
-    to `SPATIAL_INDEX="YES"`.
-    """
-    if not isinstance(options, dict):
-        raise TypeError(f"Expected options to be a dict, got {type(options)}")
-
-    result = {}
-    for k, v in options.items():
-        if v is None:
-            continue
-        k = k.upper()
-        if isinstance(v, bool):
-            v = "ON" if v else "OFF"
-        else:
-            v = str(v)
-        result[k] = v
-    return result
 
 
 def write(
@@ -387,8 +338,10 @@ def write(
     layer_options=None,
     **kwargs,
 ):
+    path = vsi_path(str(path))
+
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     # verify that driver supports writing
     if not ogr_driver_supports_write(driver):
@@ -451,7 +404,7 @@ def write(
                 raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
     ogr_write(
-        str(path),
+        path,
         layer=layer,
         driver=driver,
         geometry=geometry,

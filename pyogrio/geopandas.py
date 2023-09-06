@@ -1,6 +1,12 @@
 import numpy as np
-from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
-from pyogrio.raw import detect_driver, read, read_arrow, write
+from pyogrio.raw import (
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    detect_write_driver,
+    read,
+    read_arrow,
+    write,
+)
 from pyogrio.errors import DataSourceError
 
 
@@ -70,6 +76,9 @@ def read_dataframe(
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
+        Using this parameter may incur significant overhead if the driver does
+        not support the capability to randomly seek to a specific feature,
+        because it will need to iterate over all prior features.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
@@ -170,8 +179,12 @@ def read_dataframe(
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
             df.index.names = ["fid"]
+
         geometry_name = meta["geometry_name"] or "wkb_geometry"
-        if geometry_name in df.columns:
+        if not fid_as_index and len(df.columns) == 0:
+            # Index not asked, no geometry column and no attribute columns: return empty
+            return pd.DataFrame()
+        elif geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
             return gp.GeoDataFrame(df, geometry="geometry")
         else:
@@ -309,7 +322,7 @@ def write_dataframe(
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:

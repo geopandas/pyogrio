@@ -7,13 +7,16 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
-from pyogrio.raw import DRIVERS, read, write
+from pyogrio import (
+    list_layers,
+    list_drivers,
+    read_info,
+    set_gdal_config_options,
+    __gdal_version__,
+)
+from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
-from pyogrio.tests.conftest import prepare_testfile
-
-# mapping of driver name to extension
-DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
 
 
 def test_read(naturalearth_lowres):
@@ -92,15 +95,20 @@ def test_read_no_geometry(naturalearth_lowres):
     assert geometry is None
 
 
-def test_read_columns(naturalearth_lowres):
-    # read no columns or geometry
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=[], read_geometry=False
-    )
-    assert geometry is None
-    assert len(fields) == 0
-    array_equal(meta["fields"], np.empty(shape=(0, 4), dtype="object"))
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
+    with pytest.raises(
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
+    ):
+        _ = read(
+            naturalearth_lowres, columns=[], read_geometry=False, return_fids=False
+        )
 
+
+def test_read_columns(naturalearth_lowres):
     columns = ["NAME", "NAME_LONG"]
     meta, _, geometry, fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False
@@ -212,23 +220,6 @@ def test_read_fids(naturalearth_lowres):
         assert np.array_equal(fields[-1], expected_fields[-1][subset])
 
 
-def test_return_fids(naturalearth_lowres):
-    # default is to not return fids
-    fids = read(naturalearth_lowres)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=False)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
-        1
-    ]
-    assert fids is not None
-    assert fids.dtype == np.int64
-    # Note: shapefile FIDS start at 0
-    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
-
-
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
@@ -255,6 +246,33 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], max_features=5)
+
+
+def test_read_return_fids(naturalearth_lowres):
+    # default is to not return fids
+    fids = read(naturalearth_lowres)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=False)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
+        1
+    ]
+    assert fids is not None
+    assert fids.dtype == np.int64
+    # Note: shapefile FIDS start at 0
+    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
+
+
+def test_read_return_only_fids(naturalearth_lowres):
+    _, fids, geometry, field_data = read(
+        naturalearth_lowres, columns=[], read_geometry=False, return_fids=True
+    )
+    assert fids is not None
+    assert len(fids) == 177
+    assert geometry is None
+    assert len(field_data) == 0
 
 
 def test_write(tmpdir, naturalearth_lowres):
@@ -538,6 +556,24 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    # set config options to avoid errors on open due to GDAL S3 configuration
+    set_gdal_config_options(
+        {
+            "AWS_ACCESS_KEY_ID": "invalid",
+            "AWS_SECRET_ACCESS_KEY": "invalid",
+            "AWS_NO_SIGN_REQUEST": True,
+        }
+    )
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write(filename, geometry, field_data, **meta)
 
 
 def assert_equal_result(result1, result2):

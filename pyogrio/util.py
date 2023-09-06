@@ -140,3 +140,24 @@ def _construct_vsi_path(path, archive, scheme) -> str:
             return "/{}/{}{}".format(prefix, suffix, path)
 
     return path
+
+
+def _preprocess_options_key_value(options):
+    """
+    Preprocess options, eg `spatial_index=True` gets converted
+    to `SPATIAL_INDEX="YES"`.
+    """
+    if not isinstance(options, dict):
+        raise TypeError(f"Expected options to be a dict, got {type(options)}")
+
+    result = {}
+    for k, v in options.items():
+        if v is None:
+            continue
+        k = k.upper()
+        if isinstance(v, bool):
+            v = "ON" if v else "OFF"
+        else:
+            v = str(v)
+        result[k] = v
+    return result
