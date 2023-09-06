@@ -393,18 +393,12 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
         The total bounds of the layer, or None if they could not be determined.
     """
 
-    cdef OGREnvelope ogr_envelope = NULL
+    cdef OGREnvelope ogr_envelope
     try:
         exc_wrap_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
-        if ogr_envelope == NULL:
-            bounds = None
-        else:
-            bounds = (
-                ogr_envelope.MinX,
-                ogr_envelope.MinY,
-                ogr_envelope.MaxX,
-                ogr_envelope.MaxY,
-            )
+        bounds = (
+           ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
+        )
 
     except CPLE_BaseError:
         bounds = None
