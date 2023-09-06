@@ -27,8 +27,8 @@
     -   the `features` property in the result will now be -1 if calculating the
         feature count is an expensive operation for this driver. You can force it to be
         calculated using the `force_feature_count` parameter.
-    -   for the keys in the `capabilities` property, the values will now be booleans 
-        instead of 1 or 0.
+    -   for boolean values in the `capabilities` property, the values will now be 
+        booleans instead of 1 or 0.
 
 ## 0.6.0 (2023-04-27)
 
