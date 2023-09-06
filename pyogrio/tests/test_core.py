@@ -12,6 +12,7 @@ from pyogrio import (
     get_gdal_config_option,
     get_gdal_data_path,
 )
+from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError, DataLayerError
 
 from pyogrio._env import GDALEnv
@@ -42,6 +43,58 @@ def test_get_gdal_data_path():
 
 def test_gdal_geos_version():
     assert __gdal_geos_version__ is None or isinstance(__gdal_geos_version__, tuple)
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("test.shp", "ESRI Shapefile"),
+        ("test.shp.zip", "ESRI Shapefile"),
+        ("test.geojson", "GeoJSON"),
+        ("test.geojsonl", "GeoJSONSeq"),
+        ("test.gpkg", "GPKG"),
+        pytest.param(
+            "test.gpkg.zip",
+            "GPKG",
+            marks=pytest.mark.skipif(
+                __gdal_version__ < (3, 7, 0),
+                reason="writing *.gpkg.zip requires GDAL >= 3.7.0",
+            ),
+        ),
+        # postgres can be detected by prefix instead of extension
+        pytest.param(
+            "PG:dbname=test",
+            "PostgreSQL",
+            marks=pytest.mark.skipif(
+                "PostgreSQL" not in list_drivers(),
+                reason="PostgreSQL path test requires PostgreSQL driver",
+            ),
+        ),
+    ],
+)
+def test_detect_write_driver(path, expected):
+    assert detect_write_driver(path) == expected
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "test.svg",  # only supports read
+        "test.",  # not a valid extension
+        "test",  # no extension or prefix
+        "test.foo",  # not a valid extension
+        "FOO:test",  # not a valid prefix
+    ],
+)
+def test_detect_write_driver_unsupported(path):
+    with pytest.raises(ValueError, match="Could not infer driver from path"):
+        detect_write_driver(path)
+
+
+@pytest.mark.parametrize("path", ["test.xml", "test.txt"])
+def test_detect_write_driver_multiple_unsupported(path):
+    with pytest.raises(ValueError, match="multiple drivers are available"):
+        detect_write_driver(path)
 
 
 @pytest.mark.parametrize(

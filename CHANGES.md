@@ -11,6 +11,10 @@
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 -   Add `arrow_to_pandas_kwargs` parameter to `read_dataframe` + reduce memory usage
     with `use_arrow=True` (#273)
+-   Raise error if `read` or `read_dataframe` is called with parameters to read no
+    columns, geometry, or fids (#280)
+-   Automatically detect supported driver by extension for all available
+    write drivers and addition of `detect_write_driver` (#270)
 
 ### Bug fixes
 
@@ -19,6 +23,8 @@
     `use_arrow=True` (#265)
 -   Fix errors reading OSM data due to invalid feature count and incorrect
     reading of OSM layers beyond the first layer (#271)
+-   Always raise an exception if there is an error when writing a data source
+    (#284)
 
 ## 0.6.0 (2023-04-27)
 

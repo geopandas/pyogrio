@@ -8,6 +8,21 @@ from pyogrio.raw import read, write
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
+
+# mapping of driver extension to driver name for well-supported drivers
+DRIVERS = {
+    ".fgb": "FlatGeobuf",
+    ".geojson": "GeoJSON",
+    ".geojsonl": "GeoJSONSeq",
+    ".geojsons": "GeoJSONSeq",
+    ".gpkg": "GPKG",
+    ".json": "GeoJSON",
+    ".shp": "ESRI Shapefile",
+}
+
+# mapping of driver name to extension
+DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+
 ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
 
 

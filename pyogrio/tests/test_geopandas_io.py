@@ -10,11 +10,10 @@ from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_versio
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
-    DRIVERS,
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
-from pyogrio.tests.conftest import ALL_EXTS
+from pyogrio.tests.conftest import ALL_EXTS, DRIVERS
 
 try:
     import pandas as pd
@@ -76,6 +75,36 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
 
 
 @pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+@pytest.mark.parametrize(
+    "columns, fid_as_index, exp_len", [(None, False, 2), ([], True, 2), ([], False, 0)]
+)
+def test_read_layer_without_geometry(
+    test_fgdb_vsi, columns, fid_as_index, use_arrow, exp_len
+):
+    result = read_dataframe(
+        test_fgdb_vsi,
+        layer="basetable",
+        columns=columns,
+        fid_as_index=fid_as_index,
+        use_arrow=use_arrow,
+    )
+    assert type(result) is pd.DataFrame
+    assert len(result) == exp_len
+
+
+@pytest.mark.parametrize(
     "naturalearth_lowres, expected_ext",
     [(".gpkg", ".gpkg"), (".shp", ".shp")],
     indirect=["naturalearth_lowres"],
@@ -91,6 +120,36 @@ def test_read_no_geometry(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, read_geometry=False)
     assert isinstance(df, pd.DataFrame)
     assert not isinstance(df, gp.GeoDataFrame)
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
+    with pytest.raises(
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
+    ):
+        _ = read_dataframe(
+            naturalearth_lowres,
+            columns=[],
+            read_geometry=False,
+            fid_as_index=False,
+            use_arrow=use_arrow,
+        )
 
 
 def test_read_force_2d(test_fgdb_vsi):
@@ -157,13 +216,43 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        fid_as_index=True,
+        **kwargs,
+    )
     if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
         # File format where fid starts at 1
         assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
     else:
         # File format where fid starts at 0
         assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres,
+        columns=[],
+        read_geometry=False,
+        fid_as_index=True,
+        use_arrow=use_arrow,
+    )
+    assert df is not None
+    assert len(df) == 177
+    assert len(df.columns) == 0
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
