@@ -7,7 +7,13 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
+from pyogrio import (
+    list_layers,
+    list_drivers,
+    read_info,
+    set_gdal_config_options,
+    __gdal_version__,
+)
 from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
@@ -535,6 +541,24 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+
+
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    # set config options to avoid errors on open due to GDAL S3 configuration
+    set_gdal_config_options(
+        {
+            "AWS_ACCESS_KEY_ID": "invalid",
+            "AWS_SECRET_ACCESS_KEY": "invalid",
+            "AWS_NO_SIGN_REQUEST": True,
+        }
+    )
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write(filename, geometry, field_data, **meta)
 
 
 def assert_equal_result(result1, result2):

@@ -3,7 +3,7 @@ import warnings
 from pyogrio._env import GDALEnv
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path, _preprocess_options_key_value
+from pyogrio.util import get_vsi_path, vsi_path, _preprocess_options_key_value
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -74,6 +74,9 @@ def read(
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
+        Using this parameter may incur significant overhead if the driver does
+        not support the capability to randomly seek to a specific feature,
+        because it will need to iterate over all prior features.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
@@ -335,6 +338,8 @@ def write(
     layer_options=None,
     **kwargs,
 ):
+    path = vsi_path(str(path))
+
     if driver is None:
         driver = detect_write_driver(path)
 
@@ -399,7 +404,7 @@ def write(
                 raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
     ogr_write(
-        str(path),
+        path,
         layer=layer,
         driver=driver,
         geometry=geometry,
