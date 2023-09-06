@@ -31,7 +31,6 @@ DRIVERS = {
     ".geojsonl": "GeoJSONSeq",
     ".geojsons": "GeoJSONSeq",
     ".gpkg": "GPKG",
-    ".json": "GeoJSON",
     ".shp": "ESRI Shapefile",
 }
 

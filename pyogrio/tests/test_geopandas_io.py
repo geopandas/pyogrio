@@ -501,7 +501,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
-    is_json = ext in [".json", ".geojson", ".geojsonl"]
+    is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
 
@@ -541,7 +541,7 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     assert isinstance(result_df, pd.DataFrame)
 
     # some dtypes do not round-trip precisely through these file types
-    check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
+    check_dtype = ext not in [".geojson", ".geojsonl", ".xlsx"]
 
     if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
