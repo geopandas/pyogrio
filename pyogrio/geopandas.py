@@ -179,8 +179,12 @@ def read_dataframe(
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
             df.index.names = ["fid"]
+
         geometry_name = meta["geometry_name"] or "wkb_geometry"
-        if geometry_name in df.columns:
+        if not fid_as_index and len(df.columns) == 0:
+            # Index not asked, no geometry column and no attribute columns: return empty
+            return pd.DataFrame()
+        elif geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
             return gp.GeoDataFrame(df, geometry="geometry")
         else:

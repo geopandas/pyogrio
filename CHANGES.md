@@ -5,11 +5,12 @@
 ### Improvements
 
 -   Support writing dataframes without geometry column (#267)
-
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
+-   Raise error if `read` or `read_dataframe` is called with parameters to read no
+    columns, geometry, or fids (#280)
 
 -   Automatically detect supported driver by extension for all available
     write drivers and addition of `detect_write_driver` (#270)
