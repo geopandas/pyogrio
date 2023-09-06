@@ -198,6 +198,32 @@ will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect this bbox will be returned.
 `pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
+## Filter records by a geometry
+
+You can use the `mask` parameter to select only those features that intersect
+with a Shapely (>= 2.0) geometry.
+
+```python
+>>> mask = shapely.Polygon(([-80,8], [-80, 10], [-85,10], [-85,8], [-80,8]))
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask)
+```
+
+Note: the `mask` values must be in the same CRS as the dataset.
+
+If your mask geometry is in some other representation, such as GeoJSON, you will
+need to convert it to a Shapely geometry before using `mask`.
+
+```python
+>>> mask_geojson = '{"type":"Polygon","coordinates":[[[-80.0,8.0],[-80.0,10.0],[-85.0,10.0],[-85.0,8.0],[-80.0,8.0]]]}'
+>>> mask = shapely.from_geojson(mask_geojson)
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask)
+```
+
+Note: if GEOS is present and used by GDAL, only geometries that intersect `mask`
+will be returned; if GEOS is not available or not used by GDAL, all geometries
+with bounding boxes that intersect the bounding box of `mask` will be returned.
+`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+
 ## Execute a sql query
 
 You can use the `sql` parameter to execute a sql query on a dataset.
@@ -322,6 +348,7 @@ This function supports options to subset features from the dataset:
 -   `max_features`
 -   `where`
 -   `bbox`
+-   `mask`
 
 ## Write a GeoPandas GeoDataFrame
 

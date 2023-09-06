@@ -3,7 +3,12 @@ import warnings
 from pyogrio._env import GDALEnv
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path, vsi_path, _preprocess_options_key_value
+from pyogrio.util import (
+    get_vsi_path,
+    vsi_path,
+    _preprocess_options_key_value,
+    _mask_to_wkb,
+)
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -38,6 +43,7 @@ def read(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -91,6 +97,15 @@ def read(
         and used by GDAL, only geometries that intersect this bbox will be
         returned; if GEOS is not available or not used by GDAL, all geometries
         with bounding boxes that intersect this bbox will be returned.
+        Cannot be combined with ``mask`` keyword.
+    mask : Shapely geometry, optional (default: None)
+        If present, will be used to filter records whose geometry intersects
+        this geometry.  This must be in the same CRS as the dataset.  If GEOS is
+        present and used by GDAL, only geometries that intersect this geometry
+        will be returned; if GEOS is not available or not used by GDAL, all
+        geometries with bounding boxes that intersect the bounding box of this
+        geometry will be returned.  Requires Shapely >= 2.0.
+        Cannot be combined with ``bbox`` keyword.
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (`skip_features`, `max_features`,
@@ -137,6 +152,7 @@ def read(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
             fids=fids,
             sql=sql,
             sql_dialect=sql_dialect,
@@ -162,6 +178,7 @@ def read_arrow(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -199,6 +216,7 @@ def read_arrow(
         max_features=max_features,
         where=where,
         bbox=bbox,
+        mask=mask,
         fids=fids,
         sql=sql,
         sql_dialect=sql_dialect,
@@ -223,6 +241,7 @@ def open_arrow(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -287,6 +306,7 @@ def open_arrow(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
             fids=fids,
             sql=sql,
             sql_dialect=sql_dialect,

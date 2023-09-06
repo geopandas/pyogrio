@@ -1,5 +1,5 @@
 from pyogrio._env import GDALEnv
-from pyogrio.util import get_vsi_path, _preprocess_options_key_value
+from pyogrio.util import get_vsi_path, _preprocess_options_key_value, _mask_to_wkb
 
 
 with GDALEnv():
@@ -127,6 +127,7 @@ def read_bounds(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
 ):
     """Read bounds of each feature.
 
@@ -159,6 +160,14 @@ def read_bounds(
         and used by GDAL, only geometries that intersect this bbox will be
         returned; if GEOS is not available or not used by GDAL, all geometries
         with bounding boxes that intersect this bbox will be returned.
+    mask : Shapely geometry, optional (default: None)
+        If present, will be used to filter records whose geometry intersects
+        this geometry.  This must be in the same CRS as the dataset.  If GEOS is
+        present and used by GDAL, only geometries that intersect this geometry
+        will be returned; if GEOS is not available or not used by GDAL, all
+        geometries with bounding boxes that intersect the bounding box of this
+        geometry will be returned.  Requires Shapely >= 2.0.
+        Cannot be combined with ``bbox`` keyword.
 
     Returns
     -------
@@ -177,6 +186,7 @@ def read_bounds(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
         )
     finally:
         if buffer is not None:

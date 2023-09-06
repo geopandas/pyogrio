@@ -23,7 +23,8 @@ try:
     from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
-    from shapely.geometry import Point
+    from shapely.geometry import box, GeometryCollection, Point, Polygon
+
 except ImportError:
     pass
 
@@ -307,6 +308,101 @@ def test_read_bbox(naturalearth_lowres_all_ext):
     assert len(df) == 2
 
     assert np.array_equal(df.iso_a3, ["PAN", "CRI"])
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_mask_invalid(naturalearth_lowres, use_arrow, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read_dataframe(naturalearth_lowres, use_arrow=use_arrow, mask=mask)
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+def test_read_bbox_mask_invalid(naturalearth_lowres, use_arrow):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read_dataframe(
+            naturalearth_lowres,
+            use_arrow=use_arrow,
+            bbox=(-85, 8, -80, 10),
+            mask=Point(-105, 55),
+        )
+
+
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        (Point(-105, 55), ["CAN"]),
+        (box(-85, 8, -80, 10), ["PAN", "CRI"]),
+        (
+            Polygon(
+                (
+                    [6.101929483362767, 50.97085041206964],
+                    [5.773001596839322, 50.90661120482673],
+                    [5.593156133704326, 50.642648747710325],
+                    [6.059271089606312, 50.686051894002475],
+                    [6.374064065737485, 50.851481340346965],
+                    [6.101929483362767, 50.97085041206964],
+                )
+            ),
+            ["DEU", "BEL", "NLD"],
+        ),
+        (
+            GeometryCollection([Point(-7.7, 53), box(-85, 8, -80, 10)]),
+            ["PAN", "CRI", "IRL"],
+        ),
+    ],
+)
+def test_read_mask(naturalearth_lowres_all_ext, use_arrow, mask, expected):
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=True, mask=mask)
+
+    print(df.iso_a3)
+
+    assert len(df) == len(expected)
+    assert np.array_equal(df.iso_a3, expected)
 
 
 def test_read_fids(naturalearth_lowres_all_ext):

@@ -1,6 +1,7 @@
 import contextlib
 import json
 import os
+from packaging.version import Version
 import sys
 
 import numpy as np
@@ -17,6 +18,14 @@ from pyogrio import (
 from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
+
+try:
+    import shapely
+
+    if Version(shapely.__version__) < Version("2.0.0"):
+        shapely = None
+except ImportError:
+    shapely = None
 
 
 def test_read(naturalearth_lowres):
@@ -198,6 +207,60 @@ def test_read_bbox(naturalearth_lowres_all_ext):
 
     assert len(geometry) == 2
     assert np.array_equal(fields[3], ["PAN", "CRI"])
+
+
+@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_mask_invalid(naturalearth_lowres, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read(naturalearth_lowres, mask=mask)
+
+
+@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+def test_read_bbox_mask_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read(naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55))
+
+
+@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        (shapely.Point(-105, 55), ["CAN"]),
+        (shapely.box(-85, 8, -80, 10), ["PAN", "CRI"]),
+        (
+            shapely.Polygon(
+                (
+                    [6.101929483362767, 50.97085041206964],
+                    [5.773001596839322, 50.90661120482673],
+                    [5.593156133704326, 50.642648747710325],
+                    [6.059271089606312, 50.686051894002475],
+                    [6.374064065737485, 50.851481340346965],
+                    [6.101929483362767, 50.97085041206964],
+                )
+            ),
+            ["DEU", "BEL", "NLD"],
+        ),
+        (
+            shapely.GeometryCollection(
+                [shapely.Point(-7.7, 53), shapely.box(-85, 8, -80, 10)]
+            ),
+            ["PAN", "CRI", "IRL"],
+        ),
+    ],
+)
+def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
+    geometry, fields = read(naturalearth_lowres_all_ext, mask=mask)[2:]
+
+    assert np.array_equal(fields[3], expected)
+    assert len(geometry) == len(expected)
 
 
 def test_read_fids(naturalearth_lowres):

@@ -11,9 +11,11 @@
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
     columns, geometry, or fids (#280)
-
 -   Automatically detect supported driver by extension for all available
     write drivers and addition of `detect_write_driver` (#270)
+-   Addition of `mask` parameter to `open_arrow`, `read`, `read_dataframe`,
+    and `read_bounds` functions to select only the features in the dataset that
+    intersect the mask geometry.
 
 ### Bug fixes
 
