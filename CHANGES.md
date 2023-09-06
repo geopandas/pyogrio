@@ -11,6 +11,9 @@
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 
+-   Automatically detect supported driver by extension for all available
+    write drivers and addition of `detect_write_driver` (#270)
+
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)

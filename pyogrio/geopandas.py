@@ -1,6 +1,12 @@
 import numpy as np
-from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
-from pyogrio.raw import detect_driver, read, read_arrow, write
+from pyogrio.raw import (
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    detect_write_driver,
+    read,
+    read_arrow,
+    write,
+)
 from pyogrio.errors import DataSourceError
 
 
@@ -312,7 +318,7 @@ def write_dataframe(
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
