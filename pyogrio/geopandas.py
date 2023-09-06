@@ -74,7 +74,7 @@ def read_dataframe(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values. If the datasource
+        Where clause to filter features in layer by attribute values. If the data source
         natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
         GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
         should be used. Note that it is not possible to overrule the SQL dialect, this
@@ -105,14 +105,14 @@ def read_dataframe(
     sql_dialect : str, optional (default: None)
         The sql dialect the sql statement is written in. Possible values:
 
-          - **None**: if the datasource natively supports SQL, its specific SQL dialect
+          - **None**: if the data source natively supports SQL, its specific SQL dialect
             will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
-            If the datasource doesn't natively support SQL, the `OGRSQL`_ dialect is the
-            default.
-          - '`OGRSQL`_': can be used on any datasource. Performance can suffer
-            when used on datasources with native support for sql.
-          - '`SQLITE`_': can be used on any datasource. All spatialite_
-            functions can be used. Performance can suffer on datasources with
+            If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
+            the default.
+          - '`OGRSQL`_': can be used on any data source. Performance can suffer
+            when used on data sources with native support for sql.
+          - '`SQLITE`_': can be used on any data source. All spatialite_
+            functions can be used. Performance can suffer on data sources with
             native support for sql, except for Geopackage and SQLite as this is
             their native sql dialect.
 

@@ -169,7 +169,7 @@ processes:
 ## Filter records by attribute value
 
 You can use the `where` parameter to filter features in layer by attribute values. If
-the datasource natively supports SQL, its specific SQL dialect should be used
+the data source natively supports SQL, its specific SQL dialect should be used
 (eg. SQLite and GeoPackage:
 [SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect), PostgreSQL).
 If it doesn't, the [OGRSQL WHERE](https://gdal.org/user/ogr_sql_dialect.html#where)
@@ -205,7 +205,7 @@ the dataset natively supports sql, the sql statement will be passed through
 as such. Hence, the sql query should be written in the relevant native sql
 dialect (e.g. [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)/
 [Sqlite](https://gdal.org/drivers/vector/sqlite.html),
-[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource
+[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the data source
 doesn't natively support sql (e.g.
 [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html),
 [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose
