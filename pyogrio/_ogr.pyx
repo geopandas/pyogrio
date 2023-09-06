@@ -356,7 +356,7 @@ def _get_drivers_for_path(path):
             drivers.append(name)
         else:
             prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
-            if prefix is not None and str(path).lower().startswith(prefix.lower()):
+            if prefix is not None and path.startswith(prefix.lower()):
                 drivers.append(name)
 
     return drivers
