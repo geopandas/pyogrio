@@ -52,7 +52,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "osgeo/gdal:ubuntu-small-3.4.0" # python 3.8.10
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.6.3" # python 3.10.6
 
     steps:
       - name: Download sdist from artifacts
@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           python3 -m pip install --no-cache-dir wheelhouse/artifact/*.tar.gz
-          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely
+          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely>=2
           python3 -m pip install --no-cache-dir --no-deps geopandas
           python3 -m pip list
 

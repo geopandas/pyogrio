@@ -3,8 +3,23 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
-from pyogrio import __gdal_version_string__, __version__, list_drivers
+from pyogrio import (
+    __gdal_version__,
+    __gdal_version_string__,
+    __gdal_geos_version__,
+    __version__,
+    list_drivers,
+)
 from pyogrio.raw import read, write
+
+try:
+    import pyarrow
+except ImportError:
+    pyarrow = None
+
+
+HAS_ARROW = __gdal_version__ >= (3, 6, 0) and pyarrow is not None
+HAS_GEOS = __gdal_geos_version__ is not None
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
@@ -112,3 +127,18 @@ def test_ogr_types_list():
 @pytest.fixture(scope="session")
 def test_datetime():
     return _data_dir / "test_datetime.geojson"
+
+
+use_arrow = pytest.mark.parametrize(
+    "use_arrow",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not HAS_ARROW,
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+    ],
+)

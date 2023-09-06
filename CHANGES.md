@@ -15,6 +15,10 @@
 -   Automatically detect supported driver by extension for all available
     write drivers and addition of `detect_write_driver` (#270)
 
+### Other changes
+
+-   test suite requires Shapely >= 2.0
+
 ### Bug fixes
 
 -   Fix int32 overflow when reading int64 columns (#260)

@@ -2,10 +2,9 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.11 and GDAL 3.1.x - 3.6.x
+Supports Python 3.8 - 3.11 and GDAL 3.5.x - 3.6.x
 
-Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos`
-or `geopandas>=0.12` with `shapely>=2`.
+Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
 Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
 a further speed-up when specifying `use_arrow=True`.
@@ -84,6 +83,7 @@ and uses `Black` and `Flake8` to ensure consistent formatting.
 
 It is recommended to install `pre-commit` and register its hooks so the formatting is
 automatically verified when you commit code.
+
 ```
 pre-commit install
 ```
@@ -149,6 +149,7 @@ It is also possible to install the necessary dependencies using conda.
 
 After cloning the environment, you can create a conda environment with the necessary
 dependencies like this:
+
 ```
 conda env create -f environment-dev.yml
 ```

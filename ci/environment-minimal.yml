@@ -5,4 +5,4 @@ dependencies:
   - numpy
   - libgdal
   - pytest
-
+  - shapely>=2

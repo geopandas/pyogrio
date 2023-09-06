@@ -5,5 +5,5 @@ dependencies:
   - numpy
   - libgdal==3.5.1
   - pytest
-  - pygeos
+  - shapely>=2
   - geopandas-base
