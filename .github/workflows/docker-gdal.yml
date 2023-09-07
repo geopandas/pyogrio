@@ -41,7 +41,8 @@ jobs:
           python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
 
       - name: Install pyarrow
-        if: matrix.container == 'osgeo/gdal:ubuntu-small-latest'
+        # GDAL>=3.6 required to use Arrow API
+        if: matrix.container != 'osgeo/gdal:ubuntu-small-3.5.3'
         run: |
           python3 -m pip install pyarrow
 

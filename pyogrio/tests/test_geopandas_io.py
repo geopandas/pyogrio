@@ -5,7 +5,6 @@ from packaging.version import Version
 
 import numpy as np
 import pytest
-import shapely
 
 from pyogrio import list_layers, read_info, __gdal_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
@@ -14,7 +13,12 @@ from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
-from pyogrio.tests.conftest import ALL_EXTS, DRIVERS, HAS_ARROW, HAS_GEOS
+from pyogrio.tests.conftest import (
+    ALL_EXTS,
+    DRIVERS,
+    requires_arrow_api,
+    requires_gdal_geos,
+)
 
 try:
     import pandas as pd
@@ -23,6 +27,8 @@ try:
     import geopandas as gp
     from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
+
+    import shapely  # if geopandas is present, shapely is expected to be present
 
 except ImportError:
     pass
@@ -35,13 +41,7 @@ use_arrow = pytest.mark.parametrize(
     "use_arrow",
     [
         False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skipif(
-                not HAS_ARROW,
-                reason="Arrow tests require pyarrow and GDAL>=3.6",
-            ),
-        ),
+        pytest.param(True, marks=requires_arrow_api),
     ],
 )
 
@@ -429,7 +429,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
         )
 
 
-@pytest.mark.skipif(not HAS_GEOS, reason="Spatial SQL operations require GEOS")
+@requires_gdal_geos
 @pytest.mark.parametrize(
     "naturalearth_lowres",
     [ext for ext in ALL_EXTS if ext != ".gpkg"],
@@ -454,7 +454,7 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.skipif(not HAS_GEOS, reason="Spatial SQL operations require GEOS")
+@requires_gdal_geos
 @pytest.mark.parametrize(
     "naturalearth_lowres", [".gpkg"], indirect=["naturalearth_lowres"]
 )

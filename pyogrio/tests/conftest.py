@@ -4,22 +4,12 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import pytest
 
 from pyogrio import (
-    __gdal_version__,
     __gdal_version_string__,
-    __gdal_geos_version__,
     __version__,
     list_drivers,
 )
+from pyogrio._compat import HAS_ARROW_API, HAS_GDAL_GEOS, HAS_SHAPELY
 from pyogrio.raw import read, write
-
-try:
-    import pyarrow
-except ImportError:
-    pyarrow = None
-
-
-HAS_ARROW = __gdal_version__ >= (3, 6, 0) and pyarrow is not None
-HAS_GEOS = __gdal_geos_version__ is not None
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
@@ -50,6 +40,18 @@ def pytest_report_header(config):
         f"GDAL {__gdal_version_string__}\n"
         f"Supported drivers: {drivers}"
     )
+
+
+# marks to skip tests if optional dependecies are not present
+requires_arrow_api = pytest.mark.skipif(
+    not HAS_ARROW_API, reason="GDAL>=3.6 and pyarrow required"
+)
+
+requires_gdal_geos = pytest.mark.skipif(
+    not HAS_GDAL_GEOS, reason="GDAL compiled with GEOS required"
+)
+
+requires_shapely = pytest.mark.skipif(not HAS_SHAPELY, reason="Shapely >= 2.0 required")
 
 
 def prepare_testfile(testfile_path, dst_dir, ext):
