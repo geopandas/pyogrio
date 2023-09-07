@@ -313,8 +313,9 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], bbox=(0, 0, 0.0001, 0.0001))
 
-    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
-        read(naturalearth_lowres, fids=[1], mask=shapely.Point(0, 0))
+    if shapely is not None:
+        with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+            read(naturalearth_lowres, fids=[1], mask=shapely.Point(0, 0))
 
 
 def test_read_return_fids(naturalearth_lowres):
