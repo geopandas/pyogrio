@@ -598,8 +598,7 @@ cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
     cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb_buffer = wkb
 
-    # err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
-    err = OGR_G_CreateFromWkb(wkb_buffer, OGR_L_GetSpatialRef(ogr_layer), &ogr_geometry, len(wkb))
+    err = OGR_G_CreateFromWkb(wkb_buffer, NULL, &ogr_geometry, len(wkb))
     if err:
         if ogr_geometry != NULL:
             OGR_G_DestroyGeometry(ogr_geometry)
@@ -1045,11 +1044,10 @@ def ogr_read(
     path_c = path_b
 
     if fids is not None:
-        # TODO: probably need to add mask here too
-        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
             raise ValueError(
-                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
-                "'skip_features' or 'max_features'"
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features' or 'max_features'"
             )
         fids = np.asarray(fids, dtype=np.intc)
 

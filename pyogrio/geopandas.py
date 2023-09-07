@@ -105,11 +105,12 @@ def read_dataframe(
         Cannot be combined with ``bbox`` keyword.
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
-        with other keywords to select a subset (``skip_features``, ``max_features``,
-        ``where``, ``bbox`` or ``sql``). Note that the starting index is driver and file
-        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
-        still depend on the specific file). The performance of reading a large
-        number of features usings FIDs is also driver specific.
+        with other keywords to select a subset (``skip_features``,
+        ``max_features``, ``where``, ``bbox``, ``mask``, or ``sql``). Note that
+        the starting index is driver and file specific (e.g. typically 0 for
+        Shapefile and 1 for GeoPackage, but can still depend on the specific
+        file). The performance of reading a large number of features usings FIDs
+        is also driver specific.
     sql : str, optional (default: None)
         The sql statement to execute. Look at the sql_dialect parameter for
         more information on the syntax to use for the query. When combined

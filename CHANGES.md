@@ -15,7 +15,9 @@
     write drivers and addition of `detect_write_driver` (#270)
 -   Addition of `mask` parameter to `open_arrow`, `read`, `read_dataframe`,
     and `read_bounds` functions to select only the features in the dataset that
-    intersect the mask geometry.
+    intersect the mask geometry (#285). Note: there is a known GDAL bug when
+    using the Arrow interface that causes it to return too many features; a fix
+    is expected in GDAL 3.8.0.
 
 ### Bug fixes
 

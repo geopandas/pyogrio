@@ -298,16 +298,46 @@ def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
         read_dataframe(naturalearth_lowres_all_ext, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres_all_ext):
-    # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
-        assert len(df) == 0
+@pytest.mark.parametrize(
+    "use_arrow",
+    [
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                not has_pyarrow or __gdal_version__ < (3, 6, 0),
+                reason="Arrow tests require pyarrow and GDAL>=3.6",
+            ),
+        ),
+        False,
+    ],
+)
+@pytest.mark.parametrize(
+    "bbox,expected",
+    [
+        ((0, 0, 0.00001, 0.00001), []),
+        ((-85, 8, -80, 10), ["PAN", "CRI"]),
+        ((-104, 54, -105, 55), ["CAN"]),
+    ],
+)
+def test_read_bbox(naturalearth_lowres_all_ext, use_arrow, bbox, expected):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
-    assert len(df) == 2
+    if len(expected) == 0 and not use_arrow:
+        # should return no features
+        with pytest.warns(UserWarning, match="does not have any features to read"):
+            df = read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox
+            )
 
-    assert np.array_equal(df.iso_a3, ["PAN", "CRI"])
+    else:
+        df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox)
+
+    assert np.array_equal(df.iso_a3, expected)
 
 
 @pytest.mark.parametrize(
@@ -396,10 +426,20 @@ def test_read_bbox_mask_invalid(naturalearth_lowres, use_arrow):
         ),
     ],
 )
-def test_read_mask(naturalearth_lowres_all_ext, use_arrow, mask, expected):
-    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=True, mask=mask)
+def test_read_mask(
+    naturalearth_lowres_all_ext,
+    use_arrow,
+    mask,
+    expected,
+):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
-    print(df.iso_a3)
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, mask=mask)
 
     assert len(df) == len(expected)
     assert np.array_equal(df.iso_a3, expected)
