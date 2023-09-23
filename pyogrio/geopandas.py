@@ -134,8 +134,8 @@ def read_dataframe(
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
     arrow_to_pandas_kwargs : dict, optional (default: None)
-        When use_arrow is True, these kwargs will be passed to the `to_pandas`_ () call
-        for the arrow to pandas conversion.
+        When use_arrow is True, these kwargs will be passed to the ```to_pandas`_ ()``
+        call for the arrow to pandas conversion.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
