@@ -1,0 +1,53 @@
+name: Conda Tests Installed
+
+on:
+  pull_request:
+    branches: [ main, v0.** ]
+  schedule:
+    - cron: "0 0 * * *"
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  TestsOnInstalled:    
+    name: ${{ matrix.checkout_ref }} - python ${{ matrix.python }} - ${{ matrix.os }}
+    timeout-minutes: 30
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest"]
+        python: ["3.11"]
+        include:
+          - checkout_ref: "v0.6.0"
+            # nomkl: openblas instead of mkl saves 600 MB. Linux OK, but 50% slower on Windows and OSX!
+            install_extra_args: >-
+              geopandas-base
+              nomkl
+              pyarrow
+              pyogrio=0.6.0
+              pytest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.checkout_ref }}
+          sparse-checkout: |
+            tests
+      - name: Install Conda environment with Micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          micromamba-version: "1.5.1-0"
+          environment-name: tests-conda-installed-env
+          create-args: >-
+            python=${{ matrix.python }}
+            ${{ matrix.install_extra_args }}
+
+      - name: Test
+        run: |
+          pytest --color=yes tests/
