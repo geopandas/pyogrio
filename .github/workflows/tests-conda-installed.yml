@@ -38,7 +38,7 @@ jobs:
         with:
           ref: ${{ matrix.checkout_ref }}
           sparse-checkout: |
-            tests
+            pyogrio/tests
       - name: Install Conda environment with Micromamba
         uses: mamba-org/setup-micromamba@v1
         with:
