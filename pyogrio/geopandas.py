@@ -199,7 +199,7 @@ def read_dataframe(
 
         # split_blocks and self_destruct decrease memory usage, but have as side effect
         # that accessing table afterwards causes crash, so del table to avoid.
-        kwargs = {"split_blocks": True, "self_destruct": True}
+        kwargs = {"self_destruct": True}
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
         df = table.to_pandas(**kwargs)
