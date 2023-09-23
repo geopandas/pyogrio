@@ -50,4 +50,4 @@ jobs:
 
       - name: Test
         run: |
-          pytest --color=yes pyogrio/tests/
+          pytest -v -r s pyogrio/tests
