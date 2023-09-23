@@ -51,3 +51,4 @@ jobs:
       - name: Test
         run: |
           pytest -v -r s pyogrio/tests
+        shell: micromamba-shell {0}
