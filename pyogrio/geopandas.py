@@ -84,9 +84,11 @@ def read_dataframe(
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values.  Uses a
-        restricted form of SQL WHERE clause, defined here:
-        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        Where clause to filter features in layer by attribute values. If the data source
+        natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
+        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
+        should be used. Note that it is not possible to overrule the SQL dialect, this
+        is only possible when you use the ``sql`` parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -102,28 +104,27 @@ def read_dataframe(
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
     sql : str, optional (default: None)
-        The sql statement to execute. Look at the sql_dialect parameter for
+        The SQL statement to execute. Look at the sql_dialect parameter for
         more information on the syntax to use for the query. When combined
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
-        sql query. Be aware that this can have an impact on performance,
+        SQL query. Be aware that this can have an impact on performance,
         (e.g. filtering with the ``bbox`` keyword may not use
         spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
-        The sql dialect the sql statement is written in. Possible values:
+        The SQL dialect the SQL statement is written in. Possible values:
 
-          - **None**: if the datasource natively supports sql, the specific
-            sql syntax for this datasource should be used (eg. SQLite,
-            PostgreSQL, Oracle,...). If the datasource doesn't natively
-            support sql, the 'OGRSQL_' dialect is the
-            default.
-          - 'OGRSQL_': can be used on any datasource. Performance can suffer
-            when used on datasources with native support for sql.
-          - 'SQLITE_': can be used on any datasource. All spatialite_
-            functions can be used. Performance can suffer on datasources with
-            native support for sql, except for GPKG and SQLite as this is
-            their native sql dialect.
+          - **None**: if the data source natively supports SQL, its specific SQL dialect
+            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
+            If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
+            the default.
+          - '`OGRSQL`_': can be used on any data source. Performance can suffer
+            when used on data sources with native support for SQL.
+          - '`SQLITE`_': can be used on any data source. All spatialite_
+            functions can be used. Performance can suffer on data sources with
+            native support for SQL, except for Geopackage and SQLite as this is
+            their native SQL dialect.
 
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
@@ -133,7 +134,7 @@ def read_dataframe(
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
     arrow_to_pandas_kwargs: dict, optional (default: None)
-        When use_arrow is True, these kwargs will be passed to the _TO_PANDAS call.
+        When use_arrow is True, these kwargs will be passed to the _`to_pandas` call.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -142,10 +143,25 @@ def read_dataframe(
     -------
     GeoDataFrame or DataFrame (if no geometry is present)
 
-    .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
-    .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
-    .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
-    .. _TO_PANDAS: https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
+    .. _OGRSQL:
+
+        https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+
+    .. _OGRSQL WHERE:
+
+        https://gdal.org/user/ogr_sql_dialect.html#where
+
+    .. _SQLITE:
+
+        https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+
+    .. _spatialite:
+
+        https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+
+    .. _to_pandas:
+
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
 
     """  # noqa: E501
     try:
