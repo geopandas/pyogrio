@@ -21,7 +21,6 @@ try:
         assert_index_equal,
         assert_series_equal,
     )
-    import pytz
 
     import geopandas as gp
     from geopandas.array import from_wkt
@@ -154,7 +153,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
 
     assert_series_equal(df.col, expected)
     # test write and read round trips
-    fpath = tmp_path / "test.gpkg"
+    fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     assert_series_equal(df_read.col, expected)
@@ -163,17 +162,16 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
 def test_write_datetime_mixed_offset(tmp_path):
     # Summer Time (GMT+11), standard time (GMT+10)
     dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
-    tz = pytz.timezone("Australia/Sydney")
     ser_naive = pd.Series(pd.to_datetime(dates), name="dates")
-    ser_localised = ser_naive.dt.tz_localize(tz)
-    ser_utc = ser_localised.dt.tz_convert(pytz.UTC)
+    ser_localised = ser_naive.dt.tz_localize("Australia/Sydney")
+    ser_utc = ser_localised.dt.tz_convert("UTC")
     if PANDAS_GE_20:
         ser_utc = ser_utc.dt.as_unit("ms")
 
     df = gp.GeoDataFrame(
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
     )
-    fpath = tmp_path / "test.gpkg"
+    fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     df_local = read_dataframe(fpath)
     # GDAL tz only encodes offsets, not timezones, for multiple offsets
