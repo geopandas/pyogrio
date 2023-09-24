@@ -368,13 +368,14 @@ def write_dataframe(
         if isinstance(ser.dtype, pd.DatetimeTZDtype):
             # Deal with datetimes with timezones by passing down timezone separately
             # pass down naive datetime
-            col = ser.dt.tz_localize(None).values
-            # pandas only supports a single offset per column
-            # access via array since we want a numpy array not a series
-            # (only care about the utc offset, not actually the date)
-            # but ser.array.timetz won't have valid utc offset for pytz time zones
-            # (per https://docs.python.org/3/library/datetime.html#datetime.time.utcoffset) # noqa
-            timezone_cols_metadata[name] = ser.array.to_pydatetime()
+            naive = ser.dt.tz_localize(None)
+            col = naive.values
+            # compute offset relative to UTC explicitly
+            tz_offset = naive - ser.dt.tz_convert("UTC").dt.tz_localize(None)
+            # Convert to GDAL timezone offset representation.
+            # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
+            gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
+            timezone_cols_metadata[name] = gdal_offset_representation
         else:
             col = ser.values
         if isinstance(col, pd.api.extensions.ExtensionArray):

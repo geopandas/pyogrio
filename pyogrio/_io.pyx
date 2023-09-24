@@ -1484,15 +1484,6 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
-FIFTEEN_MINUTE_DELTA = datetime.timedelta(minutes=15)
-
-cdef int timezone_to_gdal_offset(tz_as_datetime):
-    """Convert to GDAL timezone offset representation.
-    
-    https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
-    """
-    return tz_as_datetime.utcoffset() / FIFTEEN_MINUTE_DELTA + 100
-
 # TODO: set geometry and field data as memory views?
 def ogr_write(
     str path, str layer, str driver, geometry, fields, field_data, field_mask,
@@ -1830,7 +1821,7 @@ def ogr_write(
                         if tz_array is None:
                             gdal_tz = 0
                         else:
-                            gdal_tz = timezone_to_gdal_offset(tz_array[i])
+                            gdal_tz = tz_array[i]
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_idx,
