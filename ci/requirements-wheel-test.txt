@@ -5,4 +5,4 @@ pyproj
 shapely
 packaging
 # optional test dependencies
-pyarrow
+pyarrow ; (python_version < '3.12') or (python_full_version >= '3.12.1')
