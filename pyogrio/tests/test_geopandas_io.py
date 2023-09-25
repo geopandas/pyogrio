@@ -459,7 +459,7 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     "naturalearth_lowres", [".gpkg"], indirect=["naturalearth_lowres"]
 )
 def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
-    # "INDIRECT_SQL" prohibits GDAL from passing the sql statement to sqlite.
+    # "INDIRECT_SQL" prohibits GDAL from passing the SQL statement to sqlite.
     # Because the statement is processed within GDAL it is possible to use
     # spatialite functions even if sqlite isn't built with spatialite support.
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"

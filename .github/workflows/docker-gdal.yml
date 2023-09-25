@@ -33,7 +33,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y git python3-pip
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Python Dependencies
         run: |
