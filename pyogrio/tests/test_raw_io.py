@@ -17,7 +17,12 @@ from pyogrio import (
 from pyogrio._compat import HAS_SHAPELY
 from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
-from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
+from pyogrio.tests.conftest import (
+    DRIVERS,
+    DRIVER_EXT,
+    prepare_testfile,
+    requires_arrow_api,
+)
 
 
 def test_read(naturalearth_lowres):
@@ -835,9 +840,11 @@ def test_write_float_nan_null(tmp_path, dtype):
     assert '{ "col": NaN }' in content
 
 
-@pytest.mark.skipif("Arrow" not in list_drivers(), reason="GDAL not built with Arrow")
+@requires_arrow_api
+@pytest.mark.skipif(
+    "Arrow" not in list_drivers(), reason="Arrow driver is not available"
+)
 def test_write_float_nan_null_arrow(tmp_path):
-    pyarrow = pytest.importorskip("pyarrow")
     import pyarrow.feather
 
     # Point(0, 0)
