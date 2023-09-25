@@ -320,7 +320,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
-cdef get_feature_count(OGRLayerH ogr_layer):
+cdef get_feature_count(OGRLayerH ogr_layer, int force):
     """Get the feature count of a layer.
 
     If GDAL returns an unknown count (-1), this iterates over every feature
@@ -329,6 +329,8 @@ cdef get_feature_count(OGRLayerH ogr_layer):
     Parameters
     ----------
     ogr_layer : pointer to open OGR layer
+    force : bool
+        True if the feature count should be computed even if it is expensive
 
     Returns
     -------
@@ -337,12 +339,12 @@ cdef get_feature_count(OGRLayerH ogr_layer):
     """
 
     cdef OGRFeatureH ogr_feature = NULL
-    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, force)
 
     # if GDAL refuses to give us the feature count, we have to loop over all
     # features ourselves and get the count.  This can happen for some drivers
     # (e.g., OSM) or if a where clause is invalid but not rejected as error
-    if feature_count == -1:
+    if force and feature_count == -1:
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
@@ -374,6 +376,34 @@ cdef get_feature_count(OGRLayerH ogr_layer):
                     ogr_feature = NULL
 
     return feature_count
+
+
+cdef get_total_bounds(OGRLayerH ogr_layer, int force):
+    """Get the total bounds of a layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    force : bool
+        True if the total bounds should be computed even if it is expensive
+
+    Returns
+    -------
+    tuple of (xmin, ymin, xmax, ymax) or None
+        The total bounds of the layer, or None if they could not be determined.
+    """
+
+    cdef OGREnvelope ogr_envelope
+    try:
+        exc_wrap_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
+        bounds = (
+           ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
+        )
+
+    except CPLE_BaseError:
+        bounds = None
+    
+    return bounds
 
 
 cdef set_metadata(GDALMajorObjectH obj, object metadata):
@@ -598,7 +628,7 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     skip_features : number of features to skip from beginning of available range
     max_features : maximum number of features to read from available range
     """
-    feature_count = get_feature_count(ogr_layer)
+    feature_count = get_feature_count(ogr_layer, 1)
     num_features = max_features
 
     if feature_count == 0:
@@ -1369,7 +1399,9 @@ def ogr_read_info(
     str path,
     dataset_kwargs,
     object layer=None,
-    object encoding=None):
+    object encoding=None,
+    int force_feature_count=False,
+    int force_total_bounds=False):
 
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
@@ -1404,12 +1436,15 @@ def ogr_read_info(
             'fields': fields[:,2], # return only names
             'dtypes': fields[:,3],
             'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer),
+            'features': get_feature_count(ogr_layer, force_feature_count),
+            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
             'driver': get_driver(ogr_dataset),
             "capabilities": {
-                "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
-                "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
-                "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
+                "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
+                "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
+                "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter) == 1,
+                "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
+                "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
             'layer_metadata': get_metadata(ogr_layer),
             'dataset_metadata': get_metadata(ogr_dataset),
