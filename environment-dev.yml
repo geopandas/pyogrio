@@ -4,7 +4,7 @@ channels:
 dependencies:
   - numpy
   - geopandas-base
-  - libgdal
+  - libgdal==3.6.2
   - pyarrow
   - shapely>=2
   # Specific for dev
