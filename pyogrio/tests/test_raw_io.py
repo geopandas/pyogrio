@@ -14,9 +14,15 @@ from pyogrio import (
     set_gdal_config_options,
     __gdal_version__,
 )
+from pyogrio._compat import HAS_SHAPELY
 from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
-from pyogrio.tests.conftest import prepare_testfile, DRIVERS, DRIVER_EXT
+from pyogrio.tests.conftest import (
+    DRIVERS,
+    DRIVER_EXT,
+    prepare_testfile,
+    requires_arrow_api,
+)
 
 
 def test_read(naturalearth_lowres):
@@ -582,20 +588,17 @@ def assert_equal_result(result1, result2):
 
     assert np.array_equal(meta1["fields"], meta2["fields"])
     assert np.array_equal(index1, index2)
-    # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
-    # the WKB values are not exactly equal, therefore parsing with pygeos to compare
-    # with tolerance
-    try:
-        from shapely import from_wkb, equals_exact
-    except ImportError:
-        try:
-            from pygeos import from_wkb, equals_exact
-        except ImportError:
-            pytest.skip("Test requires pygeos or shapely>=2")
-    assert equals_exact(
-        from_wkb(geometry1), from_wkb(geometry2), tolerance=0.00001
-    ).all()
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+
+    if HAS_SHAPELY:
+        import shapely
+
+        # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work
+        # because the WKB values are not exactly equal, therefore parsing with
+        # shapely to compare with tolerance
+        assert shapely.equals_exact(
+            shapely.from_wkb(geometry1), shapely.from_wkb(geometry2), tolerance=0.00001
+        ).all()
 
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
@@ -837,9 +840,11 @@ def test_write_float_nan_null(tmp_path, dtype):
     assert '{ "col": NaN }' in content
 
 
-@pytest.mark.skipif("Arrow" not in list_drivers(), reason="GDAL not built with Arrow")
+@requires_arrow_api
+@pytest.mark.skipif(
+    "Arrow" not in list_drivers(), reason="Arrow driver is not available"
+)
 def test_write_float_nan_null_arrow(tmp_path):
-    pyarrow = pytest.importorskip("pyarrow")
     import pyarrow.feather
 
     # Point(0, 0)
