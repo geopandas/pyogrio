@@ -11,6 +11,8 @@
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 -   Add `arrow_to_pandas_kwargs` parameter to `read_dataframe` + reduce memory usage
     with `use_arrow=True` (#273)
+-   In `read_info`, the result now also contains the `total_bounds` of the layer as well
+    as some extra `capabilities` of the data source driver (#281)
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
     columns, geometry, or fids (#280)
 -   Automatically detect supported driver by extension for all available
@@ -25,6 +27,15 @@
     reading of OSM layers beyond the first layer (#271)
 -   Always raise an exception if there is an error when writing a data source
     (#284)
+
+### Potentially breaking changes
+
+-   In `read_info` (#281):
+    -   the `features` property in the result will now be -1 if calculating the
+        feature count is an expensive operation for this driver. You can force it to be
+        calculated using the `force_feature_count` parameter.
+    -   for boolean values in the `capabilities` property, the values will now be 
+        booleans instead of 1 or 0.
 
 ## 0.6.0 (2023-04-27)
 
