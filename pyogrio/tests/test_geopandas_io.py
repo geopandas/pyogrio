@@ -37,13 +37,15 @@ except ImportError:
 pytest.importorskip("geopandas")
 
 
-use_arrow = pytest.mark.parametrize(
-    "use_arrow",
-    [
+@pytest.fixture(
+    scope="session",
+    params=[
         False,
         pytest.param(True, marks=requires_arrow_api),
     ],
 )
+def use_arrow(request):
+    return request.param
 
 
 def spatialite_available(path):
@@ -76,7 +78,6 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
     assert len(df) == 177
 
 
-@use_arrow
 @pytest.mark.parametrize(
     "columns, fid_as_index, exp_len", [(None, False, 2), ([], True, 2), ([], False, 0)]
 )
@@ -112,7 +113,6 @@ def test_read_no_geometry(naturalearth_lowres_all_ext):
     assert not isinstance(df, gp.GeoDataFrame)
 
 
-@use_arrow
 def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
     with pytest.raises(
         ValueError,
@@ -207,7 +207,6 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
         assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
-@use_arrow
 def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
     df = read_dataframe(
         naturalearth_lowres,
@@ -1077,7 +1076,6 @@ def test_read_multisurface(data_dir):
     assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
-@use_arrow
 def test_read_dataset_kwargs(data_dir, use_arrow):
     filename = data_dir / "test_nested.geojson"
 
@@ -1109,7 +1107,6 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
     assert_geodataframe_equal(df, expected)
 
 
-@use_arrow
 def test_read_invalid_dataset_kwargs(naturalearth_lowres, use_arrow):
     with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
         read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
