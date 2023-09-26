@@ -2,23 +2,22 @@ import math
 
 import pytest
 
-from pyogrio import __gdal_version__, read_dataframe
+from pyogrio import read_dataframe
 from pyogrio.raw import open_arrow, read_arrow
+from pyogrio.tests.conftest import requires_arrow_api
 
 try:
     import pandas as pd
     from pandas.testing import assert_frame_equal, assert_index_equal
     from geopandas.testing import assert_geodataframe_equal
+
+    import pyarrow
 except ImportError:
     pass
 
-
+# skip all tests in this file if Arrow API or GeoPandas are unavailable
+pytestmark = requires_arrow_api
 pytest.importorskip("geopandas")
-pyarrow = pytest.importorskip("pyarrow")
-
-pytestmark = pytest.mark.skipif(
-    __gdal_version__ < (3, 6, 0), reason="Arrow tests require GDAL>=3.6"
-)
 
 
 def test_read_arrow(naturalearth_lowres_all_ext):
@@ -59,11 +58,6 @@ def test_read_arrow_fid(naturalearth_lowres_all_ext):
 def test_read_arrow_columns(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, columns=["continent"])
     assert result.columns.tolist() == ["continent", "geometry"]
-
-
-def test_read_arrow_layer_without_geometry(test_fgdb_vsi):
-    result = read_dataframe(test_fgdb_vsi, layer="basetable", use_arrow=True)
-    assert type(result) is pd.DataFrame
 
 
 def test_read_arrow_ignore_geometry(naturalearth_lowres):

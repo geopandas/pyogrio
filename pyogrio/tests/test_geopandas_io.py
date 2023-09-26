@@ -6,15 +6,19 @@ from packaging.version import Version
 import numpy as np
 import pytest
 
-from pyogrio import list_layers, read_info, __gdal_version__, __gdal_geos_version__
+from pyogrio import list_layers, read_info, __gdal_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import (
-    DRIVERS,
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
 )
-from pyogrio.tests.conftest import ALL_EXTS
+from pyogrio.tests.conftest import (
+    ALL_EXTS,
+    DRIVERS,
+    requires_arrow_api,
+    requires_gdal_geos,
+)
 
 try:
     import pandas as pd
@@ -24,15 +28,8 @@ try:
     from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
-    from shapely.geometry import Point
-except ImportError:
-    pass
+    import shapely  # if geopandas is present, shapely is expected to be present
 
-has_pyarrow = False
-try:
-    import pyarrow  # noqa
-
-    has_pyarrow = True
 except ImportError:
     pass
 
@@ -40,9 +37,15 @@ except ImportError:
 pytest.importorskip("geopandas")
 
 
-# Note: this will also be false for GDAL < 3.4 when GEOS may be present but we
-# cannot verify it
-has_geos = __gdal_geos_version__ is not None
+@pytest.fixture(
+    scope="session",
+    params=[
+        False,
+        pytest.param(True, marks=requires_arrow_api),
+    ],
+)
+def use_arrow(request):
+    return request.param
 
 
 def spatialite_available(path):
@@ -76,6 +79,23 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi):
 
 
 @pytest.mark.parametrize(
+    "columns, fid_as_index, exp_len", [(None, False, 2), ([], True, 2), ([], False, 0)]
+)
+def test_read_layer_without_geometry(
+    test_fgdb_vsi, columns, fid_as_index, use_arrow, exp_len
+):
+    result = read_dataframe(
+        test_fgdb_vsi,
+        layer="basetable",
+        columns=columns,
+        fid_as_index=fid_as_index,
+        use_arrow=use_arrow,
+    )
+    assert type(result) is pd.DataFrame
+    assert len(result) == exp_len
+
+
+@pytest.mark.parametrize(
     "naturalearth_lowres, expected_ext",
     [(".gpkg", ".gpkg"), (".shp", ".shp")],
     indirect=["naturalearth_lowres"],
@@ -91,6 +111,23 @@ def test_read_no_geometry(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, read_geometry=False)
     assert isinstance(df, pd.DataFrame)
     assert not isinstance(df, gp.GeoDataFrame)
+
+
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
+    with pytest.raises(
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
+    ):
+        _ = read_dataframe(
+            naturalearth_lowres,
+            columns=[],
+            read_geometry=False,
+            fid_as_index=False,
+            use_arrow=use_arrow,
+        )
 
 
 def test_read_force_2d(test_fgdb_vsi):
@@ -157,13 +194,30 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
-    df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        fid_as_index=True,
+        **kwargs,
+    )
     if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
         # File format where fid starts at 1
         assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
     else:
         # File format where fid starts at 0
         assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+
+
+def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres,
+        columns=[],
+        read_geometry=False,
+        fid_as_index=True,
+        use_arrow=use_arrow,
+    )
+    assert df is not None
+    assert len(df) == 177
+    assert len(df.columns) == 0
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
@@ -241,19 +295,6 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.parametrize(
-    "use_arrow",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skipif(
-                not has_pyarrow or __gdal_version__ < (3, 6, 0),
-                reason="Arrow tests require pyarrow and GDAL>=3.6",
-            ),
-        ),
-    ],
-)
 @pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
 def test_read_skip_features(
     naturalearth_lowres_all_ext, use_arrow, skip_features, expected
@@ -398,7 +439,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     assert len(df) == 0
 
 
-@pytest.mark.skipif(not has_geos, reason="Spatial SQL operations require GEOS")
+@requires_gdal_geos
 @pytest.mark.parametrize(
     "naturalearth_lowres",
     [ext for ext in ALL_EXTS if ext != ".gpkg"],
@@ -423,12 +464,12 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.skipif(not has_geos, reason="Spatial SQL operations require GEOS")
+@requires_gdal_geos
 @pytest.mark.parametrize(
     "naturalearth_lowres", [".gpkg"], indirect=["naturalearth_lowres"]
 )
 def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
-    # "INDIRECT_SQL" prohibits GDAL from passing the sql statement to sqlite.
+    # "INDIRECT_SQL" prohibits GDAL from passing the SQL statement to sqlite.
     # Because the statement is processed within GDAL it is possible to use
     # spatialite functions even if sqlite isn't built with spatialite support.
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
@@ -470,7 +511,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
-    is_json = ext in [".json", ".geojson", ".geojsonl"]
+    is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
 
@@ -510,7 +551,7 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     assert isinstance(result_df, pd.DataFrame)
 
     # some dtypes do not round-trip precisely through these file types
-    check_dtype = ext not in [".json", ".geojson", ".geojsonl", ".xlsx"]
+    check_dtype = ext not in [".geojson", ".geojsonl", ".xlsx"]
 
     if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
@@ -786,22 +827,15 @@ def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
 def test_write_dataframe_truly_mixed(tmp_path, ext):
-    from shapely.geometry import (
-        box,
-        LineString,
-        MultiLineString,
-        MultiPoint,
-        MultiPolygon,
-        Point,
-    )
-
     geometry = [
-        Point(0, 0),
-        LineString([(0, 0), (1, 1)]),
-        box(0, 0, 1, 1),
-        MultiPoint([Point(1, 1), Point(2, 2)]),
-        MultiLineString([LineString([(1, 1), (2, 2)]), LineString([(2, 2), (3, 3)])]),
-        MultiPolygon([box(1, 1, 2, 2), box(2, 2, 3, 3)]),
+        shapely.Point(0, 0),
+        shapely.LineString([(0, 0), (1, 1)]),
+        shapely.box(0, 0, 1, 1),
+        shapely.MultiPoint([shapely.Point(1, 1), shapely.Point(2, 2)]),
+        shapely.MultiLineString(
+            [shapely.LineString([(1, 1), (2, 2)]), shapely.LineString([(2, 2), (3, 3)])]
+        ),
+        shapely.MultiPolygon([shapely.box(1, 1, 2, 2), shapely.box(2, 2, 3, 3)]),
     ]
 
     df = gp.GeoDataFrame(
@@ -825,11 +859,14 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
 def test_write_dataframe_truly_mixed_invalid(tmp_path):
     # Shapefile doesn't support generic "Geometry" / "Unknown" type
     # for mixed geometries
-    from shapely.geometry import Point, LineString, box
 
     df = gp.GeoDataFrame(
         {"col": [1.0, 2.0, 3.0]},
-        geometry=[Point(0, 0), LineString([(0, 0), (1, 1)]), box(0, 0, 1, 1)],
+        geometry=[
+            shapely.Point(0, 0),
+            shapely.LineString([(0, 0), (1, 1)]),
+            shapely.box(0, 0, 1, 1),
+        ],
         crs="EPSG:4326",
     )
 
@@ -845,7 +882,12 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path):
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".fgb"])
 @pytest.mark.parametrize(
     "geoms",
-    [[None, Point(1, 1)], [Point(1, 1), None], [None, Point(1, 1, 2)], [None, None]],
+    [
+        [None, shapely.Point(1, 1)],
+        [shapely.Point(1, 1), None],
+        [None, shapely.Point(1, 1, 2)],
+        [None, None],
+    ],
 )
 def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext):
     filename = tmp_path / f"test{ext}"
@@ -880,10 +922,8 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
 
 
 def test_write_read_mixed_column_values(tmp_path):
-    from shapely.geometry import Point
-
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
-    geoms = [Point(0, 0) for _ in mixed_values]
+    geoms = [shapely.Point(0, 0) for _ in mixed_values]
     test_gdf = gp.GeoDataFrame(
         {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
     )
@@ -899,10 +939,8 @@ def test_write_read_mixed_column_values(tmp_path):
 
 
 def test_write_read_null(tmp_path):
-    from shapely.geometry import Point
-
     output_path = tmp_path / "test_write_nan.gpkg"
-    geom = Point(0, 0)
+    geom = shapely.Point(0, 0)
     test_data = {
         "geometry": [geom, geom, geom],
         "float64": [1.0, None, np.nan],
@@ -1049,19 +1087,6 @@ def test_read_multisurface(data_dir):
     assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
-@pytest.mark.parametrize(
-    "use_arrow",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skipif(
-                not has_pyarrow or __gdal_version__ < (3, 6, 0),
-                reason="Arrow tests require pyarrow and GDAL>=3.6",
-            ),
-        ),
-    ],
-)
 def test_read_dataset_kwargs(data_dir, use_arrow):
     filename = data_dir / "test_nested.geojson"
 
@@ -1073,7 +1098,7 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
             "top_level": ["A"],
             "intermediate_level": ['{ "bottom_level": "B" }'],
         },
-        geometry=[Point(0, 0)],
+        geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
 
@@ -1086,26 +1111,13 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
             "top_level": ["A"],
             "intermediate_level_bottom_level": ["B"],
         },
-        geometry=[Point(0, 0)],
+        geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
 
     assert_geodataframe_equal(df, expected)
 
 
-@pytest.mark.parametrize(
-    "use_arrow",
-    [
-        False,
-        pytest.param(
-            True,
-            marks=pytest.mark.skipif(
-                not has_pyarrow or __gdal_version__ < (3, 6, 0),
-                reason="Arrow tests require pyarrow and GDAL>=3.6",
-            ),
-        ),
-    ],
-)
 def test_read_invalid_dataset_kwargs(naturalearth_lowres, use_arrow):
     with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
         read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
@@ -1120,7 +1132,9 @@ def test_write_nullable_dtypes(tmp_path):
         "col4": pd.Series([True, False, None], dtype="boolean"),
         "col5": pd.Series(["a", None, "b"], dtype="string"),
     }
-    input_gdf = gp.GeoDataFrame(test_data, geometry=[Point(0, 0)] * 3, crs="epsg:31370")
+    input_gdf = gp.GeoDataFrame(
+        test_data, geometry=[shapely.Point(0, 0)] * 3, crs="epsg:31370"
+    )
     write_dataframe(input_gdf, path)
     output_gdf = read_dataframe(path)
     # We read it back as default (non-nullable) numpy dtypes, so we cast

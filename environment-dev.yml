@@ -4,9 +4,9 @@ channels:
 dependencies:
   - numpy
   - geopandas-base
-  - libgdal ==3.6.2
+  - libgdal==3.6.2
   - pyarrow
-  - shapely
+  - shapely>=2
   # Specific for dev
   - cython
   - pre-commit
