@@ -207,7 +207,7 @@ with a Shapely (>= 2.0) geometry.
 
 ```python
 >>> mask = shapely.Polygon(([-80,8], [-80, 10], [-85,10], [-85,8], [-80,8]))
->>> read_dataframe('ne_10m_admin_0_countries.shp', mask)
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask=mask)
 ```
 
 Note: the `mask` values must be in the same CRS as the dataset.
@@ -218,7 +218,7 @@ need to convert it to a Shapely geometry before using `mask`.
 ```python
 >>> mask_geojson = '{"type":"Polygon","coordinates":[[[-80.0,8.0],[-80.0,10.0],[-85.0,10.0],[-85.0,8.0],[-80.0,8.0]]]}'
 >>> mask = shapely.from_geojson(mask_geojson)
->>> read_dataframe('ne_10m_admin_0_countries.shp', mask)
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask=mask)
 ```
 
 Note: if GEOS is present and used by GDAL, only geometries that intersect `mask`
