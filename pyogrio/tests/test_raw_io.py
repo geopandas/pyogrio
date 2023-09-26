@@ -215,7 +215,9 @@ def test_read_bbox(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 @pytest.mark.parametrize(
     "mask",
     [
@@ -229,40 +231,45 @@ def test_read_mask_invalid(naturalearth_lowres, mask):
         read(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 def test_read_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read(naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55))
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 @pytest.mark.parametrize(
     "mask,expected",
     [
-        (shapely.Point(-105, 55), ["CAN"]),
-        (shapely.box(-85, 8, -80, 10), ["PAN", "CRI"]),
+        ("POINT (-105 55)", ["CAN"]),
+        ("POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))", ["PAN", "CRI"]),
         (
-            shapely.Polygon(
-                (
-                    [6.101929483362767, 50.97085041206964],
-                    [5.773001596839322, 50.90661120482673],
-                    [5.593156133704326, 50.642648747710325],
-                    [6.059271089606312, 50.686051894002475],
-                    [6.374064065737485, 50.851481340346965],
-                    [6.101929483362767, 50.97085041206964],
-                )
-            ),
+            """POLYGON ((
+                6.101929 50.97085,
+                5.773002 50.906611,
+                5.593156 50.642649,
+                6.059271 50.686052,
+                6.374064 50.851481,
+                6.101929 50.97085
+            ))""",
             ["DEU", "BEL", "NLD"],
         ),
         (
-            shapely.GeometryCollection(
-                [shapely.Point(-7.7, 53), shapely.box(-85, 8, -80, 10)]
-            ),
+            """GEOMETRYCOLLECTION (
+                POINT (-7.7 53),
+                POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))
+            )""",
             ["PAN", "CRI", "IRL"],
         ),
     ],
 )
 def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
+    mask = shapely.from_wkt(mask)
+
     geometry, fields = read(naturalearth_lowres_all_ext, mask=mask)[2:]
 
     assert np.array_equal(fields[3], expected)
@@ -319,7 +326,7 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], bbox=(0, 0, 0.0001, 0.0001))
 
-    if shapely is not None:
+    if HAS_SHAPELY:
         with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
             read(naturalearth_lowres, fids=[1], mask=shapely.Point(0, 0))
 
@@ -661,8 +668,6 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
     if HAS_SHAPELY:
-        import shapely
-
         # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work
         # because the WKB values are not exactly equal, therefore parsing with
         # shapely to compare with tolerance
