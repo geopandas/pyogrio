@@ -402,7 +402,7 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
 
     except CPLE_BaseError:
         bounds = None
-    
+
     return bounds
 
 
@@ -1215,6 +1215,9 @@ def ogr_open_arrow(
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
+    IF CTE_GDAL_VERSION < (3, 6, 0):
+        raise RuntimeError("Need GDAL>=3.6 for Arrow support")
+
     path_b = path.encode('utf-8')
     path_c = path_b
 
@@ -1224,9 +1227,15 @@ def ogr_open_arrow(
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
 
-    if skip_features or max_features:
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        if skip_features:
+            raise ValueError(
+                "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
+            )
+
+    if max_features:
         raise ValueError(
-            "specifying 'skip_features' or 'max_features' is not supported for Arrow"
+            "specifying 'max_features' is not supported for Arrow"
         )
 
     if sql is not None and layer is not None:
@@ -1310,13 +1319,15 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        IF CTE_GDAL_VERSION < (3, 6, 0):
-            raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         stream_ptr = <uintptr_t> &stream
+
+        if skip_features:
+            # only supported for GDAL >= 3.8.0; have to do this after getting
+            # the Arrow stream
+            OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         # stream has to be consumed before the Dataset is closed
         import pyarrow as pa

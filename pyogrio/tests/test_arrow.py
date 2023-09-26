@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from pyogrio import read_dataframe
+from pyogrio import __gdal_version__, read_dataframe
 from pyogrio.raw import open_arrow, read_arrow
 from pyogrio.tests.conftest import requires_arrow_api
 
@@ -128,17 +128,34 @@ def test_open_arrow_batch_size(naturalearth_lowres):
         assert len(tables[0]) == batch_size, "First table should match the batch size"
 
 
-@pytest.mark.parametrize("skip_features, max_features", [(10, None), (0, 10), (10, 10)])
-def test_open_arrow_skip_features_max_features_unsupported(
-    naturalearth_lowres, skip_features, max_features
-):
-    """skip_features and max_features are not supported for the Arrow stream
-    interface"""
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 0),
+    reason="skip_features supported by Arrow stream API for GDAL>=3.8.0",
+)
+@pytest.mark.parametrize("skip_features", [10, 200])
+def test_open_arrow_skip_features_unsupported(naturalearth_lowres, skip_features):
+    """skip_features are not supported for the Arrow stream interface for
+    GDAL < 3.8.0"""
     with pytest.raises(
         ValueError,
-        match="specifying 'skip_features' or 'max_features' is not supported for Arrow",
+        match="specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0",
     ):
-        with open_arrow(
-            naturalearth_lowres, skip_features=skip_features, max_features=max_features
-        ) as (meta, reader):
+        with open_arrow(naturalearth_lowres, skip_features=skip_features) as (
+            meta,
+            reader,
+        ):
+            pass
+
+
+@pytest.mark.parametrize("max_features", [10, 200])
+def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
+    """max_features are not supported for the Arrow stream interface"""
+    with pytest.raises(
+        ValueError,
+        match="specifying 'max_features' is not supported for Arrow",
+    ):
+        with open_arrow(naturalearth_lowres, max_features=max_features) as (
+            meta,
+            reader,
+        ):
             pass

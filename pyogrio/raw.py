@@ -242,6 +242,12 @@ def read_arrow(
     if max_features is not None and max_features < batch_size:
         batch_size = max_features
 
+    # handle skip_features internally within open_arrow if GDAL >= 3.8.0
+    gdal_skip_features = 0
+    if get_gdal_version() >= (3, 8, 0):
+        gdal_skip_features = skip_features
+        skip_features = 0
+
     with open_arrow(
         path_or_buffer,
         layer=layer,
@@ -255,6 +261,7 @@ def read_arrow(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=return_fids,
+        skip_features=gdal_skip_features,
         batch_size=batch_size,
         **kwargs,
     ) as source:
@@ -278,7 +285,7 @@ def read_arrow(
             # use combine_chunks to release the original memory that included
             # too many features
             table = (
-                Table.from_batches(batches)
+                Table.from_batches(batches, schema=reader.schema)
                 .slice(skip_features, max_features)
                 .combine_chunks()
             )
