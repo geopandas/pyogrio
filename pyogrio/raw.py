@@ -269,7 +269,7 @@ def read_arrow(
                     batches.append(batch)
 
                     count += len(batch)
-                    if count > max_features:
+                    if count >= (skip_features + max_features):
                         break
 
                 except StopIteration:

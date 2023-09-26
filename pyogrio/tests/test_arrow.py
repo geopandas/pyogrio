@@ -45,6 +45,27 @@ def test_read_arrow_max_features(naturalearth_lowres, max_features, expected):
     assert len(table) == expected
 
 
+@pytest.mark.parametrize(
+    "skip_features, max_features, expected",
+    [
+        (0, 0, 0),
+        (10, 0, 0),
+        (200, 0, 0),
+        (1, 200, 176),
+        (176, 10, 1),
+        (100, 100, 77),
+        (100, 100000, 77),
+    ],
+)
+def test_read_arrow_skip_features_max_features(
+    naturalearth_lowres, skip_features, max_features, expected
+):
+    table = read_arrow(
+        naturalearth_lowres, skip_features=skip_features, max_features=max_features
+    )[1]
+    assert len(table) == expected
+
+
 def test_read_arrow_fid(naturalearth_lowres_all_ext):
     kwargs = {"use_arrow": True, "where": "fid >= 2 AND fid <= 3"}
 
