@@ -1,5 +1,3 @@
-from packaging.version import Version
-
 import numpy as np
 from numpy import array_equal, allclose
 import pytest
@@ -17,7 +15,7 @@ from pyogrio import (
 )
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError, DataLayerError
-from pyogrio.tests.conftest import prepare_testfile
+from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
 
 from pyogrio._env import GDALEnv
 
@@ -29,11 +27,8 @@ with GDALEnv():
 
 try:
     import shapely
-
-    if Version(shapely.__version__) < Version("2.0.0"):
-        shapely = None
 except ImportError:
-    shapely = None
+    pass
 
 
 def test_gdal_data():
@@ -253,7 +248,9 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     )
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 @pytest.mark.parametrize(
     "mask",
     [
@@ -267,7 +264,9 @@ def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
         read_bounds(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read_bounds(
@@ -275,34 +274,37 @@ def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
         )
 
 
-@pytest.mark.skipif(not shapely, reason="Shapely is required for mask functionality")
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 @pytest.mark.parametrize(
     "mask,expected",
     [
-        (shapely.Point(-105, 55), [3]),
-        (shapely.box(-85, 8, -80, 10), [33, 34]),
+        ("POINT (-105 55)", [3]),
+        ("POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))", [33, 34]),
         (
-            shapely.Polygon(
-                (
-                    [6.101929483362767, 50.97085041206964],
-                    [5.773001596839322, 50.90661120482673],
-                    [5.593156133704326, 50.642648747710325],
-                    [6.059271089606312, 50.686051894002475],
-                    [6.374064065737485, 50.851481340346965],
-                    [6.101929483362767, 50.97085041206964],
-                )
-            ),
+            """POLYGON ((
+                6.101929 50.97085,
+                5.773002 50.906611,
+                5.593156 50.642649,
+                6.059271 50.686052,
+                6.374064 50.851481,
+                6.101929 50.97085
+            ))""",
             [121, 129, 130],
         ),
         (
-            shapely.GeometryCollection(
-                [shapely.Point(-7.7, 53), shapely.box(-85, 8, -80, 10)]
-            ),
+            """GEOMETRYCOLLECTION (
+                POINT (-7.7 53),
+                POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))
+            )""",
             [33, 34, 133],
         ),
     ],
 )
 def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
+    mask = shapely.from_wkt(mask)
+
     fids = read_bounds(naturalearth_lowres_all_ext, mask=mask)[0]
 
     if naturalearth_lowres_all_ext.suffix == ".gpkg":

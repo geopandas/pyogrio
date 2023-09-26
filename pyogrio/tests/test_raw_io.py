@@ -1,7 +1,6 @@
 import contextlib
 import json
 import os
-from packaging.version import Version
 import sys
 
 import numpy as np
@@ -27,11 +26,8 @@ from pyogrio.tests.conftest import (
 
 try:
     import shapely
-
-    if Version(shapely.__version__) < Version("2.0.0"):
-        shapely = None
 except ImportError:
-    shapely = None
+    pass
 
 
 def test_read(naturalearth_lowres):
