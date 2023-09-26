@@ -364,7 +364,7 @@ You can write a `GeoDataFrame` `df` to a file as follows:
 By default, the appropriate driver is inferred from the extension of the filename:
 
 -   `.fgb`: [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)
--   `.geojson`, `.json`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
+-   `.geojson`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
 -   `.geojsonl`, `.geojsons`: [GeoJSONSeq](https://gdal.org/drivers/vector/geojsonseq.html)
 -   `.gpkg`: [GPKG](https://gdal.org/drivers/vector/gpkg.html)
 -   `.shp`: [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html)

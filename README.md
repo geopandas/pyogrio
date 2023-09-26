@@ -32,10 +32,9 @@ substantial change. Please see [CHANGES](CHANGES.md).
 
 ## Requirements
 
-Supports Python 3.8 - 3.11 and GDAL 3.1.x - 3.6.x.
+Supports Python 3.8 - 3.11 and GDAL 3.4.x - 3.7.x.
 
-Reading to GeoDataFrames requires `geopandas>=0.8` with `pygeos`
-or `geopandas>=0.12` with `shapely>=2`.
+Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
 Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
 a further speed-up when specifying `use_arrow=True`.

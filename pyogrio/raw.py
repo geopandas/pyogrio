@@ -1,6 +1,7 @@
 import warnings
 
 from pyogrio._env import GDALEnv
+from pyogrio._compat import HAS_ARROW_API
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import (
@@ -328,10 +329,8 @@ def open_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
-    try:
-        import pyarrow  # noqa
-    except ImportError:
-        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
+    if not HAS_ARROW_API:
+        raise RuntimeError("pyarrow and GDAL>= 3.6 required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
 
