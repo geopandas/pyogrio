@@ -211,10 +211,10 @@ def test_write_datetime_mixed_offset(tmp_path):
     )
     fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
-    df_local = read_dataframe(fpath)
+    result = read_dataframe(fpath)
     # GDAL tz only encodes offsets, not timezones, for multiple offsets
     # read as utc datetime as otherwise would be read as string
-    assert_series_equal(ser_utc, df_local["dates"])
+    assert_series_equal(result["date"], ser_utc)
 
 
 def test_read_null_values(test_fgdb_vsi):
