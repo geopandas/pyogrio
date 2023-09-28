@@ -129,16 +129,22 @@ def test_read_columns(naturalearth_lowres):
     array_equal(meta["fields"], columns[:2])
 
 
-def test_read_skip_features(naturalearth_lowres):
-    expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
-    geometry, fields = read(naturalearth_lowres, skip_features=10)[2:]
+@pytest.mark.parametrize("skip_features", [10, 200])
+def test_read_skip_features(naturalearth_lowres_all_ext, skip_features):
+    expected_geometry, expected_fields = read(naturalearth_lowres_all_ext)[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, skip_features=skip_features)[
+        2:
+    ]
 
-    assert len(geometry) == len(expected_geometry) - 10
-    assert len(fields[0]) == len(expected_fields[0]) - 10
+    # skipping more features than available in layer returns empty arrays
+    expected_count = max(len(expected_geometry) - skip_features, 0)
 
-    assert np.array_equal(geometry, expected_geometry[10:])
+    assert len(geometry) == expected_count
+    assert len(fields[0]) == expected_count
+
+    assert np.array_equal(geometry, expected_geometry[skip_features:])
     # Last field has more variable data
-    assert np.array_equal(fields[-1], expected_fields[-1][10:])
+    assert np.array_equal(fields[-1], expected_fields[-1][skip_features:])
 
 
 def test_read_max_features(naturalearth_lowres):

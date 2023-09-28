@@ -295,6 +295,17 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
+@pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
+def test_read_skip_features(
+    naturalearth_lowres_all_ext, use_arrow, skip_features, expected
+):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, skip_features=skip_features, use_arrow=use_arrow
+    )
+    assert len(df) == expected
+    assert isinstance(df, gp.GeoDataFrame)
+
+
 def test_read_non_existent_file():
     # ensure consistent error type / message from GDAL
     with pytest.raises(DataSourceError, match="No such file or directory"):
@@ -422,10 +433,10 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     assert len(df) == 1
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
-    with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
-        _ = read_dataframe(
-            naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
-        )
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
+    )
+    assert len(df) == 0
 
 
 @requires_gdal_geos
