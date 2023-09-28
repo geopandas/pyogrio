@@ -305,6 +305,9 @@ def test_read_mask_sql(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["CAN"])
 
 
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
 def test_read_mask_where(naturalearth_lowres_all_ext):
     fields = read(
         naturalearth_lowres_all_ext,
