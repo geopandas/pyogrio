@@ -101,12 +101,6 @@ def get_gdal_config_option(str name):
 
 
 def ogr_driver_supports_write(driver):
-    # exclude drivers known to be unsupported by pyogrio even though they are
-    # supported for write by GDAL
-    if driver in {"XLSX"}:
-        return False
-
-
     # check metadata for driver to see if it supports write
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == 'YES':
         return True
@@ -323,3 +317,46 @@ def _get_driver_metadata_item(driver, metadata_item):
             metadata = None
 
     return metadata
+
+
+def _get_drivers_for_path(path):
+    cdef OGRSFDriverH driver = NULL
+    cdef int i
+    cdef char *name_c
+
+    path = str(path).lower()
+
+    parts = os.path.splitext(path)
+    if len(parts) == 2 and len(parts[1]) > 1:
+        ext = parts[1][1:]
+    else:
+        ext = None
+
+
+    # allow specific drivers to have a .zip extension to match GDAL behavior
+    if ext == 'zip':
+        if path.endswith('.shp.zip'):
+            ext = 'shp.zip'
+        elif path.endswith('.gpkg.zip'):
+            ext = 'gpkg.zip'
+
+    drivers = []
+    for i in range(OGRGetDriverCount()):
+        driver = OGRGetDriver(i)
+        name_c = <char *>OGR_Dr_GetName(driver)
+        name = get_string(name_c)
+
+        if not ogr_driver_supports_write(name):
+            continue
+
+        # extensions is a space-delimited list of supported extensions
+        # for driver
+        extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+        if ext is not None and extensions is not None and ext in extensions.lower().split(' '):
+            drivers.append(name)
+        else:
+            prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
+            if prefix is not None and path.startswith(prefix.lower()):
+                drivers.append(name)
+
+    return drivers

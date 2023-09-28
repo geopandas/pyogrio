@@ -7,13 +7,22 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
-from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
-from pyogrio.raw import DRIVERS, read, write
+from pyogrio import (
+    list_layers,
+    list_drivers,
+    read_info,
+    set_gdal_config_options,
+    __gdal_version__,
+)
+from pyogrio._compat import HAS_SHAPELY
+from pyogrio.raw import read, write
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
-from pyogrio.tests.conftest import prepare_testfile
-
-# mapping of driver name to extension
-DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+from pyogrio.tests.conftest import (
+    DRIVERS,
+    DRIVER_EXT,
+    prepare_testfile,
+    requires_arrow_api,
+)
 
 
 def test_read(naturalearth_lowres):
@@ -92,15 +101,20 @@ def test_read_no_geometry(naturalearth_lowres):
     assert geometry is None
 
 
-def test_read_columns(naturalearth_lowres):
-    # read no columns or geometry
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=[], read_geometry=False
-    )
-    assert geometry is None
-    assert len(fields) == 0
-    array_equal(meta["fields"], np.empty(shape=(0, 4), dtype="object"))
+def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
+    with pytest.raises(
+        ValueError,
+        match=(
+            "at least one of read_geometry or return_fids must be True or columns must "
+            "be None or non-empty"
+        ),
+    ):
+        _ = read(
+            naturalearth_lowres, columns=[], read_geometry=False, return_fids=False
+        )
 
+
+def test_read_columns(naturalearth_lowres):
     columns = ["NAME", "NAME_LONG"]
     meta, _, geometry, fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False
@@ -212,24 +226,6 @@ def test_read_fids(naturalearth_lowres):
         assert np.array_equal(fields[-1], expected_fields[-1][subset])
 
 
-def test_return_fids(naturalearth_lowres):
-
-    # default is to not return fids
-    fids = read(naturalearth_lowres)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=False)[1]
-    assert fids is None
-
-    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
-        1
-    ]
-    assert fids is not None
-    assert fids.dtype == np.int64
-    # Note: shapefile FIDS start at 0
-    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
-
-
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
@@ -256,6 +252,33 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], max_features=5)
+
+
+def test_read_return_fids(naturalearth_lowres):
+    # default is to not return fids
+    fids = read(naturalearth_lowres)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=False)[1]
+    assert fids is None
+
+    fids = read(naturalearth_lowres, return_fids=True, skip_features=2, max_features=2)[
+        1
+    ]
+    assert fids is not None
+    assert fids.dtype == np.int64
+    # Note: shapefile FIDS start at 0
+    assert np.array_equal(fids, np.array([2, 3], dtype="int64"))
+
+
+def test_read_return_only_fids(naturalearth_lowres):
+    _, fids, geometry, field_data = read(
+        naturalearth_lowres, columns=[], read_geometry=False, return_fids=True
+    )
+    assert fids is not None
+    assert len(fids) == 177
+    assert geometry is None
+    assert len(field_data) == 0
 
 
 def test_write(tmpdir, naturalearth_lowres):
@@ -316,6 +339,111 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     )
 
 
+def test_write_no_fields(tmp_path, naturalearth_lowres):
+    """Test writing file with no fields/attribute columns."""
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    field_data = None
+    meta["fields"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] == "EPSG:4326"
+    assert meta["geometry_type"] == "Polygon"
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (0,)
+    assert len(fields) == 0
+    assert len(geometry) == 177
+
+    # quick test that WKB is a Polygon type
+    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
+
+def test_write_no_geom(tmp_path, naturalearth_lowres):
+    """Test writing file with no geometry column."""
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    geometry = None
+    meta["geometry_type"] = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    meta, _, geometry, fields = read(filename)
+
+    assert meta["crs"] is None
+    assert meta["geometry_type"] is None
+    assert meta["encoding"] == "UTF-8"
+    assert meta["fields"].shape == (5,)
+
+    assert meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(fields) == 5
+    assert len(fields[0]) == 177
+
+
+def test_write_no_geom_data(tmp_path, naturalearth_lowres):
+    """Test writing file with no geometry data passed but a geometry_type specified.
+
+    In this case the geometry_type is ignored, so a file without geometry column is
+    written.
+    """
+    # Prepare test data
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    # If geometry data is set to None, meta["geometry_type"] is ignored and so no
+    # geometry column will be created.
+    geometry = None
+
+    # Test
+    filename = tmp_path / "test.gpkg"
+    write(filename, geometry, field_data, driver="GPKG", **meta)
+
+    # Check result
+    assert os.path.exists(filename)
+    result_meta, _, result_geometry, result_field_data = read(filename)
+
+    assert result_meta["crs"] is None
+    assert result_meta["geometry_type"] is None
+    assert result_meta["encoding"] == "UTF-8"
+    assert result_meta["fields"].shape == (5,)
+
+    assert result_meta["fields"].tolist() == [
+        "pop_est",
+        "continent",
+        "name",
+        "iso_a3",
+        "gdp_md_est",
+    ]
+
+    assert len(result_field_data) == 5
+    assert len(result_field_data[0]) == 177
+    assert result_geometry is None
+
+
+def test_write_no_geom_no_fields():
+    """Test writing file with no geometry column nor fields -> error."""
+    with pytest.raises(
+        ValueError,
+        match="You must provide at least a geometry column or a field",
+    ):
+        write("test.gpkg", geometry=None, field_data=None, fields=None)
+
+
 @pytest.mark.skipif(
     __gdal_version__ < (3, 6, 0),
     reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
@@ -368,7 +496,7 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
 
     assert os.path.exists(filename)
 
-    assert read_info(filename)["features"] == 177
+    assert read_info(filename, force_feature_count=True)["features"] == 177
 
     with pytest.raises(DataSourceError):
         write(filename, geometry, field_data, driver=driver, append=True, **meta)
@@ -436,26 +564,41 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
 
 
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    # set config options to avoid errors on open due to GDAL S3 configuration
+    set_gdal_config_options(
+        {
+            "AWS_ACCESS_KEY_ID": "invalid",
+            "AWS_SECRET_ACCESS_KEY": "invalid",
+            "AWS_NO_SIGN_REQUEST": True,
+        }
+    )
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write(filename, geometry, field_data, **meta)
+
+
 def assert_equal_result(result1, result2):
     meta1, index1, geometry1, field_data1 = result1
     meta2, index2, geometry2, field_data2 = result2
 
     assert np.array_equal(meta1["fields"], meta2["fields"])
     assert np.array_equal(index1, index2)
-    # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work because
-    # the WKB values are not exactly equal, therefore parsing with pygeos to compare
-    # with tolerance
-    try:
-        from shapely import from_wkb, equals_exact
-    except ImportError:
-        try:
-            from pygeos import from_wkb, equals_exact
-        except ImportError:
-            pytest.skip("Test requires pygeos or shapely>=2")
-    assert equals_exact(
-        from_wkb(geometry1), from_wkb(geometry2), tolerance=0.00001
-    ).all()
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+
+    if HAS_SHAPELY:
+        import shapely
+
+        # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work
+        # because the WKB values are not exactly equal, therefore parsing with
+        # shapely to compare with tolerance
+        assert shapely.equals_exact(
+            shapely.from_wkb(geometry1), shapely.from_wkb(geometry2), tolerance=0.00001
+        ).all()
 
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
@@ -583,6 +726,25 @@ def test_read_write_datetime(tmp_path):
             assert np.array_equal(result[idx], field_data[idx], equal_nan=True)
 
 
+@pytest.mark.parametrize("ext", ["gpkg", "fgb"])
+def test_read_write_int64_large(tmp_path, ext):
+    # Test if value > max int32 is correctly written and read.
+    # Test introduced to validate https://github.com/geopandas/pyogrio/issues/259
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    field_data = [np.array([1, 2192502720, -5], dtype="int64")]
+    fields = ["overflow_int64"]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+    result = read(filename)[3]
+    assert np.array_equal(result, field_data)
+    assert result[0].dtype == field_data[0].dtype
+
+
 def test_read_data_types_numeric_with_null(test_gpkg_nulls):
     fields = read(test_gpkg_nulls)[3]
 
@@ -691,9 +853,11 @@ def test_write_float_nan_null(tmp_path, dtype):
     assert '{ "col": NaN }' in content
 
 
-@pytest.mark.skipif("Arrow" not in list_drivers(), reason="GDAL not built with Arrow")
+@requires_arrow_api
+@pytest.mark.skipif(
+    "Arrow" not in list_drivers(), reason="Arrow driver is not available"
+)
 def test_write_float_nan_null_arrow(tmp_path):
-    pyarrow = pytest.importorskip("pyarrow")
     import pyarrow.feather
 
     # Point(0, 0)

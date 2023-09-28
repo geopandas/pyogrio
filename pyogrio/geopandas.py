@@ -1,6 +1,14 @@
 import numpy as np
-from pyogrio.raw import DRIVERS_NO_MIXED_SINGLE_MULTI, DRIVERS_NO_MIXED_DIMENSIONS
-from pyogrio.raw import detect_driver, read, read_arrow, write
+
+from pyogrio._compat import HAS_GEOPANDAS
+from pyogrio.raw import (
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+    DRIVERS_NO_MIXED_DIMENSIONS,
+    detect_write_driver,
+    read,
+    read_arrow,
+    write,
+)
 from pyogrio.errors import DataSourceError
 from packaging.version import Version
 
@@ -100,13 +108,18 @@ def read_dataframe(
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
+        Using this parameter may incur significant overhead if the driver does
+        not support the capability to randomly seek to a specific feature,
+        because it will need to iterate over all prior features.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values.  Uses a
-        restricted form of SQL WHERE clause, defined here:
-        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
+        Where clause to filter features in layer by attribute values. If the data source
+        natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
+        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
+        should be used. Note that it is not possible to overrule the SQL dialect, this
+        is only possible when you use the ``sql`` parameter.
         Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax) (default: None)
         If present, will be used to filter records whose geometry intersects this
@@ -122,28 +135,27 @@ def read_dataframe(
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
     sql : str, optional (default: None)
-        The sql statement to execute. Look at the sql_dialect parameter for
+        The SQL statement to execute. Look at the sql_dialect parameter for
         more information on the syntax to use for the query. When combined
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
-        sql query. Be aware that this can have an impact on performance,
+        SQL query. Be aware that this can have an impact on performance,
         (e.g. filtering with the ``bbox`` keyword may not use
         spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
-        The sql dialect the sql statement is written in. Possible values:
+        The SQL dialect the SQL statement is written in. Possible values:
 
-          - **None**: if the datasource natively supports sql, the specific
-            sql syntax for this datasource should be used (eg. SQLite,
-            PostgreSQL, Oracle,...). If the datasource doesn't natively
-            support sql, the 'OGRSQL_' dialect is the
-            default.
-          - 'OGRSQL_': can be used on any datasource. Performance can suffer
-            when used on datasources with native support for sql.
-          - 'SQLITE_': can be used on any datasource. All spatialite_
-            functions can be used. Performance can suffer on datasources with
-            native support for sql, except for GPKG and SQLite as this is
-            their native sql dialect.
+          - **None**: if the data source natively supports SQL, its specific SQL dialect
+            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
+            If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
+            the default.
+          - '`OGRSQL`_': can be used on any data source. Performance can suffer
+            when used on data sources with native support for SQL.
+          - '`SQLITE`_': can be used on any data source. All spatialite_
+            functions can be used. Performance can suffer on data sources with
+            native support for SQL, except for Geopackage and SQLite as this is
+            their native SQL dialect.
 
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
@@ -160,18 +172,29 @@ def read_dataframe(
     -------
     GeoDataFrame or DataFrame (if no geometry is present)
 
-    .. _OGRSQL: https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
-    .. _SQLITE: https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
-    .. _spatialite: https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+    .. _OGRSQL:
+
+        https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+
+    .. _OGRSQL WHERE:
+
+        https://gdal.org/user/ogr_sql_dialect.html#where
+
+    .. _SQLITE:
+
+        https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+
+    .. _spatialite:
+
+        https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
     """
-    try:
-        import pandas as pd
-        import geopandas as gp
-        from geopandas.array import from_wkb
-
-    except ImportError:
+    if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
+
+    import pandas as pd
+    import geopandas as gp
+    from geopandas.array import from_wkb
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
@@ -199,8 +222,15 @@ def read_dataframe(
     if use_arrow:
         meta, table = result
         df = table.to_pandas()
+        if fid_as_index:
+            df = df.set_index(meta["fid_column"])
+            df.index.names = ["fid"]
+
         geometry_name = meta["geometry_name"] or "wkb_geometry"
-        if geometry_name in df.columns:
+        if not fid_as_index and len(df.columns) == 0:
+            # Index not asked, no geometry column and no attribute columns: return empty
+            return pd.DataFrame()
+        elif geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
             return gp.GeoDataFrame(df, geometry="geometry")
         else:
@@ -250,7 +280,7 @@ def write_dataframe(
 
     Parameters
     ----------
-    df : GeoDataFrame
+    df : GeoDataFrame or DataFrame
         The data to write. For attribute columns of the "object" dtype,
         all values will be converted to strings to be written to the
         output file, except None and np.nan, which will be set to NULL
@@ -324,38 +354,37 @@ def write_dataframe(
         option).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
-    try:
-        import geopandas as gp
-        from geopandas.array import to_wkb
-        import pandas as pd
 
-        # if geopandas is available so is pyproj
-        from pyproj.enums import WktVersion
+    if not HAS_GEOPANDAS:
+        raise ImportError("geopandas is required to use pyogrio.write_dataframe()")
 
-    except ImportError:
-        raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
+    from geopandas.array import to_wkb
+    import pandas as pd
+    from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
     path = str(path)
 
-    if not isinstance(df, gp.GeoDataFrame):
-        raise ValueError("'df' must be a GeoDataFrame")
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
-    if len(geometry_columns) == 0:
-        raise ValueError("'df' does not have a geometry column")
-
     if len(geometry_columns) > 1:
         raise ValueError(
             "'df' must have only one geometry column. "
             "Multiple geometry columns are not supported for output using OGR."
         )
 
-    geometry_column = geometry_columns[0]
-    geometry = df[geometry_column]
-    fields = [c for c in df.columns if not c == geometry_column]
+    if len(geometry_columns) > 0:
+        geometry_column = geometry_columns[0]
+        geometry = df[geometry_column]
+        fields = [c for c in df.columns if not c == geometry_column]
+    else:
+        geometry_column = None
+        geometry = None
+        fields = list(df.columns)
 
     # TODO: may need to fill in pd.NA, etc
     field_data = []
@@ -392,7 +421,9 @@ def write_dataframe(
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
-    if geometry_type is None or promote_to_multi is None:
+    if geometry_column is not None and (
+        geometry_type is None or promote_to_multi is None
+    ):
         tmp_geometry_type = "Unknown"
         has_z = False
 
@@ -449,7 +480,7 @@ def write_dataframe(
                 geometry_type = f"{geometry_type} Z"
 
     crs = None
-    if geometry.crs:
+    if geometry_column is not None and geometry.crs:
         # TODO: this may need to be WKT1, due to issues
         # if possible use EPSG codes instead
         epsg = geometry.crs.to_epsg()
@@ -458,11 +489,15 @@ def write_dataframe(
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 
+    # If there is geometry data, prepare it to be written
+    if geometry_column is not None:
+        geometry = to_wkb(geometry.values)
+
     write(
         path,
         layer=layer,
         driver=driver,
-        geometry=to_wkb(geometry.values),
+        geometry=geometry,
         field_data=field_data,
         field_mask=field_mask,
         fields=fields,

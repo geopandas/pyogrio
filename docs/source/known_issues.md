@@ -65,3 +65,45 @@ convert the datetimes to string.
 
 Timezone information is ignored at the moment, both when reading and when writing
 datetime columns.
+
+## Support for OpenStreetMap (OSM) data
+
+OpenStreetMap data do not natively support calculating the feature count by data
+layer due to the internal data structures. To get around this, Pyogrio iterates
+over all features first to calculate the feature count that is used to allocate
+arrays that contain the geometries and attributes read from the data layer, and
+then iterates over all feature again to populate those arrays. Further, data
+within the file are not structured at the top level to support fast reading by
+layer, which means that reading data by layer may need to read all records
+within the data source, not just those belonging to a particular layer. This is
+inefficient and slow, and is exacerbated when attemping to read from
+remotely-hosted data sources rather than local files.
+
+You may also be instructed by GDAL to enable interleaved reading mode via an
+error message when you try to read a large file without it, which you can do in
+one of two ways:
+
+1. Set config option used for all operations
+
+```python
+from pyogrio import set_gdal_config_options
+
+set_gdal_config_options({"OGR_INTERLEAVED_READING": True})
+```
+
+2. Set dataset open option
+
+```python
+
+from pyogrio import read_dataframe
+
+df = read_dataframe(path, INTERLEAVED_READING=True)
+```
+
+We recommend the following to sidestep performance issues:
+
+-   download remote OSM data sources to local files before attempting
+    to read
+-   the `use_arrow=True` option may speed up reading from OSM files
+-   if possible, use a different tool such as `ogr2ogr` to translate the OSM
+    data source into a more performant format for reading by layer, such as GPKG

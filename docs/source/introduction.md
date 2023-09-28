@@ -150,6 +150,10 @@ To skip the first 10 features:
 >>> read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10)
 ```
 
+NOTE: Using this parameter may incur significant overhead if the driver does not
+support the capability to randomly seek to a specific feature, because it will
+need to iterate over all prior features.
+
 NOTE: the index of the GeoDataFrame is based on the features that are read from
 the file, it does not start at `skip_features`.
 
@@ -168,15 +172,17 @@ processes:
 
 ## Filter records by attribute value
 
-You can use the `where` parameter to define a GDAL-compatible SQL WHERE query against
-the records in the dataset:
+You can use the `where` parameter to filter features in layer by attribute values. If
+the data source natively supports SQL, its specific SQL dialect should be used
+(eg. SQLite and GeoPackage:
+[SQLITE](https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect), PostgreSQL).
+If it doesn't, the [OGRSQL WHERE](https://gdal.org/user/ogr_sql_dialect.html#where)
+syntax should be used. Note that it is not possible to overrule the SQL dialect, this is
+only possible when you use the `sql` parameter.
 
 ```python
 >>> read_dataframe('ne_10m_admin_0_countries.shp', where="POP_EST >= 10000000 AND POP_EST < 100000000")
 ```
-
-See [GDAL docs](https://gdal.org/api/vector_c_api.html#_CPPv424OGR_L_SetAttributeFilter9OGRLayerHPKc)
-for more information about restrictions of the `where` expression.
 
 ## Filter records by spatial extent
 
@@ -203,7 +209,7 @@ the dataset natively supports sql, the sql statement will be passed through
 as such. Hence, the sql query should be written in the relevant native sql
 dialect (e.g. [GeoPackage](https://gdal.org/drivers/vector/gpkg.html)/
 [Sqlite](https://gdal.org/drivers/vector/sqlite.html),
-[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the datasource
+[PostgreSQL](https://gdal.org/drivers/vector/pg.html)). If the data source
 doesn't natively support sql (e.g.
 [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html),
 [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)), you can choose
@@ -331,7 +337,7 @@ You can write a `GeoDataFrame` `df` to a file as follows:
 By default, the appropriate driver is inferred from the extension of the filename:
 
 -   `.fgb`: [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)
--   `.geojson`, `.json`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
+-   `.geojson`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
 -   `.geojsonl`, `.geojsons`: [GeoJSONSeq](https://gdal.org/drivers/vector/geojsonseq.html)
 -   `.gpkg`: [GPKG](https://gdal.org/drivers/vector/gpkg.html)
 -   `.shp`: [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html)

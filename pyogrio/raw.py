@@ -1,9 +1,10 @@
 import warnings
-import os
 
 from pyogrio._env import GDALEnv
+from pyogrio._compat import HAS_ARROW_API
+from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path
+from pyogrio.util import get_vsi_path, vsi_path, _preprocess_options_key_value
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -14,17 +15,6 @@ with GDALEnv():
         remove_virtual_file,
         _get_driver_metadata_item,
     )
-
-
-DRIVERS = {
-    ".fgb": "FlatGeobuf",
-    ".geojson": "GeoJSON",
-    ".geojsonl": "GeoJSONSeq",
-    ".geojsons": "GeoJSONSeq",
-    ".gpkg": "GPKG",
-    ".json": "GeoJSON",
-    ".shp": "ESRI Shapefile",
-}
 
 
 DRIVERS_NO_MIXED_SINGLE_MULTI = {
@@ -86,14 +76,19 @@ def read(
     skip_features : int, optional (default: 0)
         Number of features to skip from the beginning of the file before returning
         features.  Must be less than the total number of features in the file.
+        Using this parameter may incur significant overhead if the driver does
+        not support the capability to randomly seek to a specific feature,
+        because it will need to iterate over all prior features.
     max_features : int, optional (default: None)
         Number of features to read from the file.  Must be less than the total
         number of features in the file minus skip_features (if used).
     where : str, optional (default: None)
-        Where clause to filter features in layer by attribute values.  Uses a
-        restricted form of SQL WHERE clause, defined here:
-        http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
-        Examples: "ISO_A3 = 'CAN'", "POP_EST > 10000000 AND POP_EST < 100000000"
+        Where clause to filter features in layer by attribute values. If the data source
+        natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
+        GeoPackage: `SQLITE`_, PostgreSQL). If it doesn't, the `OGRSQL WHERE`_ syntax
+        should be used. Note that it is not possible to overrule the SQL dialect, this
+        is only possible when you use the SQL parameter.
+        Examples: ``"ISO_A3 = 'CAN'"``, ``"POP_EST > 10000000 AND POP_EST < 100000000"``
     bbox : tuple of (xmin, ymin, xmax, ymax), optional (default: None)
         If present, will be used to filter records whose geometry intersects this
         box.  This must be in the same CRS as the dataset.  If GEOS is present
@@ -107,6 +102,29 @@ def read(
         specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
         still depend on the specific file). The performance of reading a large
         number of features usings FIDs is also driver specific.
+    sql : str, optional (default: None)
+        The SQL statement to execute. See the sql_dialect parameter for
+        more information on the syntax to use for the query. When combined
+        with other keywords like ``columns``, ``skip_features``,
+        ``max_features``, ``where`` or ``bbox``, those are applied after the
+        SQL query. Be aware that this can have an impact on performance,
+        (e.g. filtering with the ``bbox`` keyword may not use
+        spatial indexes).
+        Cannot be combined with the ``layer`` or ``fids`` keywords.
+    sql_dialect : str, optional (default: None)
+        The SQL dialect the ``sql`` statement is written in. Possible values:
+
+          - **None**: if the data source natively supports SQL, its specific SQL dialect
+            will be used by default (eg. SQLite and Geopackage: `SQLITE`_, PostgreSQL).
+            If the data source doesn't natively support SQL, the `OGRSQL`_ dialect is
+            the default.
+          - '`OGRSQL`_': can be used on any data source. Performance can suffer
+            when used on data sources with native support for SQL.
+          - '`SQLITE`_': can be used on any data source. All spatialite_
+            functions can be used. Performance can suffer on data sources with
+            native support for SQL, except for Geopackage and SQLite as this is
+            their native SQL dialect.
+
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
@@ -133,6 +151,23 @@ def read(
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>"
         }
+
+    .. _OGRSQL:
+
+        https://gdal.org/user/ogr_sql_dialect.html#ogr-sql-dialect
+
+    .. _OGRSQL WHERE:
+
+        https://gdal.org/user/ogr_sql_dialect.html#where
+
+    .. _SQLITE:
+
+        https://gdal.org/user/sql_sqlite_dialect.html#sql-sqlite-dialect
+
+    .. _spatialite:
+
+        https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
+
     """
     path, buffer = get_vsi_path(path_or_buffer)
 
@@ -280,10 +315,8 @@ def open_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
-    try:
-        import pyarrow  # noqa
-    except ImportError:
-        raise RuntimeError("the 'pyarrow' package is required to read using arrow")
+    if not HAS_ARROW_API:
+        raise RuntimeError("pyarrow and GDAL>= 3.6 required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
 
@@ -313,26 +346,6 @@ def open_arrow(
             remove_virtual_file(path)
 
 
-def detect_driver(path):
-    # try to infer driver from path
-    parts = os.path.splitext(path)
-    if len(parts) != 2:
-        raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly"
-        )
-
-    ext = parts[1].lower()
-    driver = DRIVERS.get(ext, None)
-    if driver is None:
-        raise ValueError(
-            f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly"
-        )
-
-    return driver
-
-
 def _parse_options_names(xml):
     """Convert metadata xml to list of names"""
     # Based on Fiona's meta.py
@@ -348,27 +361,6 @@ def _parse_options_names(xml):
                 options.append(option.attrib["name"])
 
     return options
-
-
-def _preprocess_options_key_value(options):
-    """
-    Preprocess options, eg `spatial_index=True` gets converted
-    to `SPATIAL_INDEX="YES"`.
-    """
-    if not isinstance(options, dict):
-        raise TypeError(f"Expected options to be a dict, got {type(options)}")
-
-    result = {}
-    for k, v in options.items():
-        if v is None:
-            continue
-        k = k.upper()
-        if isinstance(v, bool):
-            v = "ON" if v else "OFF"
-        else:
-            v = str(v)
-        result[k] = v
-    return result
 
 
 def write(
@@ -395,11 +387,10 @@ def write(
     **kwargs,
 ):
     kwargs.pop("dtypes", None)
-    if geometry_type is None:
-        raise ValueError("geometry_type must be provided")
+    path = vsi_path(str(path))
 
     if driver is None:
-        driver = detect_driver(path)
+        driver = detect_write_driver(path)
 
     # verify that driver supports writing
     if not ogr_driver_supports_write(driver):
@@ -429,13 +420,13 @@ def write(
                 if not isinstance(v, str):
                     raise ValueError(f"metadata value {v} must be a string")
 
-    if promote_to_multi is None:
+    if geometry is not None and promote_to_multi is None:
         promote_to_multi = (
             geometry_type.startswith("Multi")
             and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
         )
 
-    if crs is None:
+    if geometry is not None and crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
             "projection information defined and may not be usable in other "
@@ -462,7 +453,7 @@ def write(
                 raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
     ogr_write(
-        str(path),
+        path,
         layer=layer,
         driver=driver,
         geometry=geometry,

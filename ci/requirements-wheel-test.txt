@@ -2,7 +2,7 @@ pytest
 # dependencies of geopandas (installed separately with --no-deps to avoid fiona)
 pandas
 pyproj
-shapely
+shapely>=2
 packaging
 # optional test dependencies
 pyarrow

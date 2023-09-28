@@ -3,11 +3,30 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 import pytest
 
-from pyogrio import __gdal_version_string__, __version__, list_drivers
+from pyogrio import (
+    __gdal_version_string__,
+    __version__,
+    list_drivers,
+)
+from pyogrio._compat import HAS_ARROW_API, HAS_GDAL_GEOS, HAS_SHAPELY
 from pyogrio.raw import read, write
 
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
+
+# mapping of driver extension to driver name for well-supported drivers
+DRIVERS = {
+    ".fgb": "FlatGeobuf",
+    ".geojson": "GeoJSON",
+    ".geojsonl": "GeoJSONSeq",
+    ".geojsons": "GeoJSONSeq",
+    ".gpkg": "GPKG",
+    ".shp": "ESRI Shapefile",
+}
+
+# mapping of driver name to extension
+DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
+
 ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
 
 
@@ -21,6 +40,18 @@ def pytest_report_header(config):
         f"GDAL {__gdal_version_string__}\n"
         f"Supported drivers: {drivers}"
     )
+
+
+# marks to skip tests if optional dependecies are not present
+requires_arrow_api = pytest.mark.skipif(
+    not HAS_ARROW_API, reason="GDAL>=3.6 and pyarrow required"
+)
+
+requires_gdal_geos = pytest.mark.skipif(
+    not HAS_GDAL_GEOS, reason="GDAL compiled with GEOS required"
+)
+
+requires_shapely = pytest.mark.skipif(not HAS_SHAPELY, reason="Shapely >= 2.0 required")
 
 
 def prepare_testfile(testfile_path, dst_dir, ext):

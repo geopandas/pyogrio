@@ -214,13 +214,13 @@ cdef extern from "ogr_api.h":
     int             OGR_F_GetFieldAsDateTimeEx(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, float *s, int *z)
     double          OGR_F_GetFieldAsDouble(OGRFeatureH feature, int n)
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
-    long            OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
+    int64_t         OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
     const char*     OGR_F_GetFieldAsString(OGRFeatureH feature, int n)
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)
     void            OGR_F_SetFieldDateTime(OGRFeatureH feature, int n, int y, int m, int d, int hh, int mm, int ss, int tz)
     void            OGR_F_SetFieldDouble(OGRFeatureH feature, int n, double value)
     void            OGR_F_SetFieldInteger(OGRFeatureH feature, int n, int value)
-    void            OGR_F_SetFieldInteger64(OGRFeatureH feature, int n, long long value)
+    void            OGR_F_SetFieldInteger64(OGRFeatureH feature, int n, int64_t value)
     void            OGR_F_SetFieldString(OGRFeatureH feature, int n, char *value)
     void            OGR_F_SetFieldBinary(OGRFeatureH feature, int n, int l, unsigned char *value)
     void            OGR_F_SetFieldNull(OGRFeatureH feature, int n)  # new in GDAL 2.2
@@ -278,7 +278,9 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
     OGRErr                  OGR_L_CreateField(OGRLayerH layer, OGRFieldDefnH fielddefn, int flexible)
     const char*             OGR_L_GetName(OGRLayerH layer)
+    const char*             OGR_L_GetFIDColumn(OGRLayerH layer)
     const char*             OGR_L_GetGeometryColumn(OGRLayerH layer)
+    OGRErr                  OGR_L_GetExtent(OGRLayerH layer, OGREnvelope *psExtent, int bForce)
     OGRSpatialReferenceH    OGR_L_GetSpatialRef(OGRLayerH layer)
     int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
     OGRFeatureDefnH         OGR_L_GetLayerDefn(OGRLayerH layer)
@@ -300,6 +302,8 @@ cdef extern from "ogr_api.h":
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
     const char*     OLCFastSpatialFilter
+    const char*     OLCFastFeatureCount
+    const char*     OLCFastGetExtent
     const char*     OLCTransactions
 
 

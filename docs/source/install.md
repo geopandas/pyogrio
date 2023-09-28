@@ -2,10 +2,9 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.11 and GDAL 3.1.x - 3.6.x
+Supports Python 3.8 - 3.11 and GDAL 3.4.x - 3.7.x
 
-Reading to GeoDataFrames requires requires `geopandas>=0.8` with `pygeos`
-or `geopandas>=0.12` with `shapely>=2`.
+Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
 Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
 a further speed-up when specifying `use_arrow=True`.
@@ -70,16 +69,24 @@ exactly the same GDAL library.
 
 Clone this repository to a local folder.
 
-Install an appropriate distribution of GDAL for your system. Either
-`gdal-config` must be on your system path (to automatically determine the
-GDAL paths), or either the `GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and
-`GDAL_VERSION` environment variables need to be set.
+Install an appropriate distribution of GDAL for your system. Either `gdal-config` must
+be on your system path (to automatically determine the GDAL paths), or either the
+`GDAL_INCLUDE_PATH`, `GDAL_LIBRARY_PATH`, and `GDAL_VERSION` environment variables need
+to be set. Specific instructions on how to install these dependencies on Windows can be
+found below.
 
 Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
-Pyogrio follows the
-[GeoPandas Style Guide](https://geopandas.org/en/stable/community/contributing.html#style-guide-linting) and uses `Black` and `Flake8` to ensure consistent
-formatting.
+Pyogrio follows the [GeoPandas Style Guide]
+(https://geopandas.org/en/stable/community/contributing.html#style-guide-linting)
+and uses `Black` and `Flake8` to ensure consistent formatting.
+
+It is recommended to install `pre-commit` and register its hooks so the formatting is
+automatically verified when you commit code.
+
+```
+pre-commit install
+```
 
 Run `python setup.py develop` to build the extensions in Cython.
 
@@ -91,6 +98,11 @@ pytest pyogrio/tests
 
 ### Windows
 
+There are different ways to install the necessary dependencies and setup your local
+development environment on windows.
+
+#### vcpkg
+
 [vcpkg](https://vcpkg.io/en/index.html) is used to build pyogrio from source
 as part of creating the Pyogrio Python wheels for Windows. You can install
 GDAL and other dependencies using vcpkg, and then build Pyogrio from source.
@@ -101,8 +113,10 @@ of the wheel-building process.
 We do not yet have instructions on building Pyogrio from source using vcpkg for
 local development; please feel free to contribute additional documentation!
 
-Alternatively, you can install GDAL from an appropriate provider of Windows
-binaries. We've heard that the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
+#### OSGeo4W
+
+You can also install GDAL from an appropriate provider of Windows binaries. We've heard
+that the [OSGeo4W](https://trac.osgeo.org/osgeo4w/) works.
 
 To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
@@ -128,6 +142,34 @@ The location of the GDAL DLLs must be on your system `PATH`.
 
 `--no-use-pep517` is required in order to pass additional options to the build
 backend (see https://github.com/pypa/pip/issues/5771).
+
+#### Conda
+
+It is also possible to install the necessary dependencies using conda.
+
+After cloning the environment, you can create a conda environment with the necessary
+dependencies like this:
+
+```
+conda env create -f environment-dev.yml
+```
+
+Before being able to build on Windows, you need to set some additional environment
+variables because the location of the GDAL binaries and headers cannot be
+automatically determined.
+
+After activating the `pyogrio-dev` environment the `CONDA_PREFIX` environment variable
+will be available. Assuming GDAL 3.6.2 is installed, you will be able to set the
+necessary environment variables as follows:
+
+```bash
+set GDAL_INCLUDE_PATH=%CONDA_PREFIX%\Library\include
+set GDAL_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib
+set GDAL_VERSION=3.6.2
+```
+
+Now you should be able to run `python setup.py develop` to build the extensions in
+Cython.
 
 ## GDAL and PROJ data files
 

@@ -5,4 +5,3 @@ dependencies:
   - numpy
   - libgdal
   - pytest
-
