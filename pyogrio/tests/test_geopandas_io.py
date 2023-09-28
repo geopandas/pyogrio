@@ -229,7 +229,6 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
     )
     fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
-    breakpoint()
     result = read_dataframe(fpath)
     assert_geodataframe_equal(df, result)
 
