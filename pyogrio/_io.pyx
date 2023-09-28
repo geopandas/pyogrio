@@ -761,7 +761,8 @@ cdef process_fields(
         elif field_type == OFTDateTime or field_type == OFTDate:
             
             if datetime_as_string:
-                # defer datetime parsing to user/ pandas layer 
+                # defer datetime parsing to user/ pandas layer
+                # Update to OGR_F_GetFieldAsISO8601DateTime when GDAL 3.7+ only
                 data[i] = get_string(OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding)
             else:
                 success = OGR_F_GetFieldAsDateTimeEx(

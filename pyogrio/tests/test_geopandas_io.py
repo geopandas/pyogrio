@@ -188,10 +188,9 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     else:
         expected = pd.to_datetime(raw_expected)
     expected = pd.Series(expected, name="col")
-
     assert_series_equal(df.col, expected)
     # test write and read round trips
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     assert_series_equal(df_read.col, expected)
@@ -207,14 +206,32 @@ def test_write_datetime_mixed_offset(tmp_path):
         ser_utc = ser_utc.dt.as_unit("ms")
 
     df = gp.GeoDataFrame(
-        {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]}
+        {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]},
+        crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     result = read_dataframe(fpath)
     # GDAL tz only encodes offsets, not timezones, for multiple offsets
     # read as utc datetime as otherwise would be read as string
-    assert_series_equal(result["date"], ser_utc)
+    assert_series_equal(result["dates"], ser_utc)
+
+
+def test_read_write_datetime_tz_with_nulls(tmp_path):
+    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+    fpath = tmp_path / "test.geojson"
+    write_dataframe(df, fpath)
+    breakpoint()
+    result = read_dataframe(fpath)
+    assert_geodataframe_equal(df, result)
 
 
 def test_read_null_values(test_fgdb_vsi):
