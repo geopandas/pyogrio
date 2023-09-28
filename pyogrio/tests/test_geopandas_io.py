@@ -291,6 +291,28 @@ def test_read_bbox(naturalearth_lowres_all_ext, use_arrow, bbox, expected):
     assert np.array_equal(df.iso_a3, expected)
 
 
+def test_read_bbox_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_bbox_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
 @pytest.mark.parametrize(
     "mask",
     [
@@ -357,6 +379,28 @@ def test_read_mask(
 
     assert len(df) == len(expected)
     assert np.array_equal(df.iso_a3, expected)
+
+
+def test_read_mask_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
 
 
 def test_read_fids(naturalearth_lowres_all_ext):

@@ -113,7 +113,7 @@ def read(
         Array of integer feature id (FID) values to select. Cannot be combined
         with other keywords to select a subset (``skip_features``,
         ``max_features``, ``where``, ``bbox``, or ``mask``). Note that the
-        starting index is driver  and file specific (e.g. typically 0 for
+        starting index is driver and file specific (e.g. typically 0 for
         Shapefile and 1 for GeoPackage, but can still depend on the specific
         file). The performance of reading a large number of features usings FIDs
         is also driver specific.
@@ -123,8 +123,7 @@ def read(
         with other keywords like ``columns``, ``skip_features``,
         ``max_features``, ``where`` or ``bbox``, those are applied after the
         SQL query. Be aware that this can have an impact on performance,
-        (e.g. filtering with the ``bbox`` keyword may not use
-        spatial indexes).
+        (e.g. filtering with the ``bbox`` keyword may not use spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The SQL dialect the ``sql`` statement is written in. Possible values:

@@ -211,6 +211,26 @@ def test_read_bbox(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["PAN", "CRI"])
 
 
+def test_read_bbox_sql(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        bbox=(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
+def test_read_bbox_where(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        bbox=(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
 @pytest.mark.skipif(
     not HAS_SHAPELY, reason="Shapely is required for mask functionality"
 )
@@ -270,6 +290,29 @@ def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
 
     assert np.array_equal(fields[3], expected)
     assert len(geometry) == len(expected)
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_mask_sql(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        mask=shapely.box(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
+def test_read_mask_where(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        mask=shapely.box(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
 
 
 def test_read_fids(naturalearth_lowres):
