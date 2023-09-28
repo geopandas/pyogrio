@@ -14,6 +14,7 @@ from pyogrio import (
 )
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError, DataLayerError
+from pyogrio.tests.conftest import prepare_testfile
 
 from pyogrio._env import GDALEnv
 
@@ -279,7 +280,13 @@ def test_read_info(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
+    assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["driver"] == "ESRI Shapefile"
+    assert meta["capabilities"]["random_read"] is True
+    assert meta["capabilities"]["fast_set_next_by_index"] is True
+    assert meta["capabilities"]["fast_spatial_filter"] is False
+    assert meta["capabilities"]["fast_feature_count"] is True
+    assert meta["capabilities"]["fast_total_bounds"] is True
 
 
 @pytest.mark.parametrize(
@@ -321,19 +328,48 @@ def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
 
 def test_read_info_force_feature_count_exception(data_dir):
     with pytest.raises(DataLayerError, match="Could not iterate over features"):
-        read_info(data_dir / "sample.osm.pbf", layer="lines")
+        read_info(data_dir / "sample.osm.pbf", layer="lines", force_feature_count=True)
 
 
-def test_read_info_force_feature_count(data_dir):
+@pytest.mark.parametrize(
+    "layer, force, expected",
+    [
+        ("points", False, -1),
+        ("points", True, 8),
+        ("lines", False, -1),
+        ("lines", True, 36),
+    ],
+)
+def test_read_info_force_feature_count(data_dir, layer, force, expected):
     # the sample OSM file has non-increasing node IDs which causes the default
     # custom indexing to raise an exception iterating over features
-    meta = read_info(data_dir / "sample.osm.pbf", USE_CUSTOM_INDEXING=False)
-    assert meta["features"] == 8
-
     meta = read_info(
-        data_dir / "sample.osm.pbf", layer="lines", USE_CUSTOM_INDEXING=False
+        data_dir / "sample.osm.pbf",
+        layer=layer,
+        force_feature_count=force,
+        USE_CUSTOM_INDEXING=False,
     )
-    assert meta["features"] == 36
+    assert meta["features"] == expected
+
+
+@pytest.mark.parametrize(
+    "force_total_bounds, expected_total_bounds",
+    [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
+)
+def test_read_info_force_total_bounds(
+    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
+):
+    # Geojson files don't hava a fast way to determine total_bounds
+    geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
+    info = read_info(geojson_path, force_total_bounds=force_total_bounds)
+    if expected_total_bounds is not None:
+        assert allclose(info["total_bounds"], expected_total_bounds)
+    else:
+        assert info["total_bounds"] is None
+
+
+def test_read_info_without_geometry(test_fgdb_vsi):
+    assert read_info(test_fgdb_vsi)["total_bounds"] is None
 
 
 @pytest.mark.parametrize(
