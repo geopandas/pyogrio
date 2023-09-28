@@ -231,7 +231,9 @@ jobs:
         shell: bash
         run: |
           python -m pip install -r ci/requirements-wheel-test.txt
-          python -m pip install --no-deps geopandas
+          if [[ ${{ matrix.python-version }} != "3.12" ]; then
+            python -m pip install --no-deps geopandas
+          fi
           python -m pip install --pre --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
