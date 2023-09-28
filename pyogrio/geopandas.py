@@ -1,4 +1,6 @@
 import numpy as np
+
+from pyogrio._compat import HAS_GEOPANDAS
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -165,13 +167,12 @@ def read_dataframe(
         https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
 
     """  # noqa: E501
-    try:
-        import pandas as pd
-        import geopandas as gp
-        from geopandas.array import from_wkb
-
-    except ImportError:
+    if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
+
+    import pandas as pd
+    import geopandas as gp
+    from geopandas.array import from_wkb
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
@@ -335,15 +336,13 @@ def write_dataframe(
         option).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
-    try:
-        from geopandas.array import to_wkb
-        import pandas as pd
 
-        # if geopandas is available so is pyproj
-        from pyproj.enums import WktVersion
+    if not HAS_GEOPANDAS:
+        raise ImportError("geopandas is required to use pyogrio.write_dataframe()")
 
-    except ImportError:
-        raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
+    from geopandas.array import to_wkb
+    import pandas as pd
+    from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
     path = str(path)
 
