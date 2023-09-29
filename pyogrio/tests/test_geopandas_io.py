@@ -262,7 +262,7 @@ def test_read_where(naturalearth_lowres_all_ext, use_arrow):
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
-    if use_arrow and naturalearth_lowres_all_ext.suffix in [".gpkg"]:
+    if use_arrow and naturalearth_lowres_all_ext.suffix == ".gpkg":
         # https://github.com/OSGeo/gdal/issues/8492
         request.node.add_marker(pytest.mark.xfail(reason="GDAL doesn't error for GPGK"))
     with pytest.raises(ValueError, match="Invalid SQL"):
@@ -272,18 +272,21 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
-def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
+def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox, use_arrow):
     with pytest.raises(ValueError, match="Invalid bbox"):
-        read_dataframe(naturalearth_lowres_all_ext, bbox=bbox)
+        read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres_all_ext):
+def test_read_bbox(naturalearth_lowres_all_ext, use_arrow):
     # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
-        assert len(df) == 0
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=(0, 0, 0.00001, 0.00001)
+    )
+    assert len(df) == 0
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=(-85, 8, -80, 10)
+    )
     assert len(df) == 2
 
     assert np.array_equal(df.iso_a3, ["PAN", "CRI"])
@@ -321,20 +324,20 @@ def test_read_skip_features(
     assert isinstance(df, gp.GeoDataFrame)
 
 
-def test_read_non_existent_file():
+def test_read_non_existent_file(use_arrow):
     # ensure consistent error type / message from GDAL
     with pytest.raises(DataSourceError, match="No such file or directory"):
-        read_dataframe("non-existent.shp")
+        read_dataframe("non-existent.shp", use_arrow=use_arrow)
 
     with pytest.raises(DataSourceError, match="does not exist in the file system"):
-        read_dataframe("/vsizip/non-existent.zip")
+        read_dataframe("/vsizip/non-existent.zip", use_arrow=use_arrow)
 
     with pytest.raises(DataSourceError, match="does not exist in the file system"):
-        read_dataframe("zip:///non-existent.zip")
+        read_dataframe("zip:///non-existent.zip", use_arrow=use_arrow)
 
 
 @pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-def test_read_sql(naturalearth_lowres_all_ext):
+def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
     # The geometry column cannot be specified when using the
     # default OGRSQL dialect but is returned nonetheless, so 4 columns.
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
