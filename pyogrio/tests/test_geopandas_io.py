@@ -100,10 +100,7 @@ def test_read_layer_without_geometry(
     [(".gpkg", ".gpkg"), (".shp", ".shp")],
     indirect=["naturalearth_lowres"],
 )
-def test_fixture_naturalearth_lowres(
-    naturalearth_lowres,
-    expected_ext,
-):
+def test_fixture_naturalearth_lowres(naturalearth_lowres, expected_ext):
     # Test the fixture with "indirect" parameter
     assert naturalearth_lowres.suffix == expected_ext
     df = read_dataframe(naturalearth_lowres)
