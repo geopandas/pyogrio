@@ -4,17 +4,22 @@
 
 ### Improvements
 
--   Support writing dataframes without geometry column (#267)
+-   Support writing dataframes without geometry column (#267).
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
 -   In `read_info`, the result now also contains the `total_bounds` of the layer as well
-    as some extra `capabilities` of the data source driver (#281)
+    as some extra `capabilities` of the data source driver (#281).
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
-    columns, geometry, or fids (#280)
+    columns, geometry, or fids (#280).
 -   Automatically detect supported driver by extension for all available
-    write drivers and addition of `detect_write_driver` (#270)
+    write drivers and addition of `detect_write_driver` (#270).
+-   Addition of `mask` parameter to `open_arrow`, `read`, `read_dataframe`,
+    and `read_bounds` functions to select only the features in the dataset that
+    intersect the mask geometry (#285). Note: GDAL < 3.8.0 returns features that
+    intersect the bounding box of the mask when using the Arrow interface for
+    some drivers; this has been fixed in GDAL 3.8.0.
 -   Removed warning when no features are read from the data source (#299).
 
 ### Other changes

@@ -260,15 +260,137 @@ def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
         read_dataframe(naturalearth_lowres_all_ext, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres_all_ext):
-    # should return no features
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
-    assert len(df) == 0
+@pytest.mark.parametrize(
+    "bbox,expected",
+    [
+        ((0, 0, 0.00001, 0.00001), []),
+        ((-85, 8, -80, 10), ["PAN", "CRI"]),
+        ((-104, 54, -105, 55), ["CAN"]),
+    ],
+)
+def test_read_bbox(naturalearth_lowres_all_ext, use_arrow, bbox, expected):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
-    assert len(df) == 2
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox)
 
-    assert np.array_equal(df.iso_a3, ["PAN", "CRI"])
+    assert np.array_equal(df.iso_a3, expected)
+
+
+def test_read_bbox_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_bbox_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_mask_invalid(naturalearth_lowres, use_arrow, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read_dataframe(naturalearth_lowres, use_arrow=use_arrow, mask=mask)
+
+
+def test_read_bbox_mask_invalid(naturalearth_lowres, use_arrow):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read_dataframe(
+            naturalearth_lowres,
+            use_arrow=use_arrow,
+            bbox=(-85, 8, -80, 10),
+            mask=shapely.Point(-105, 55),
+        )
+
+
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        (shapely.Point(-105, 55), ["CAN"]),
+        (shapely.box(-85, 8, -80, 10), ["PAN", "CRI"]),
+        (
+            shapely.Polygon(
+                (
+                    [6.101929483362767, 50.97085041206964],
+                    [5.773001596839322, 50.90661120482673],
+                    [5.593156133704326, 50.642648747710325],
+                    [6.059271089606312, 50.686051894002475],
+                    [6.374064065737485, 50.851481340346965],
+                    [6.101929483362767, 50.97085041206964],
+                )
+            ),
+            ["DEU", "BEL", "NLD"],
+        ),
+        (
+            shapely.GeometryCollection(
+                [shapely.Point(-7.7, 53), shapely.box(-85, 8, -80, 10)]
+            ),
+            ["PAN", "CRI", "IRL"],
+        ),
+    ],
+)
+def test_read_mask(
+    naturalearth_lowres_all_ext,
+    use_arrow,
+    mask,
+    expected,
+):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
+
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, mask=mask)
+
+    assert len(df) == len(expected)
+    assert np.array_equal(df.iso_a3, expected)
+
+
+def test_read_mask_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
 
 
 def test_read_fids(naturalearth_lowres_all_ext):

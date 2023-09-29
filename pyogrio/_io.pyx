@@ -595,8 +595,8 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
         raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'")
 
 
-cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
-    """Applies spatial filter to layer.
+cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
+    """Applies bounding box spatial filter to layer.
 
     Parameters
     ----------
@@ -614,6 +614,28 @@ cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
 
     xmin, ymin, xmax, ymax = bbox
     OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
+
+
+cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
+    """Applies geometry spatial filter to layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    wkb: WKB encoding of geometry
+    """
+
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef unsigned char *wkb_buffer = wkb
+
+    err = OGR_G_CreateFromWkb(wkb_buffer, NULL, &ogr_geometry, len(wkb))
+    if err:
+        if ogr_geometry != NULL:
+            OGR_G_DestroyGeometry(ogr_geometry)
+        raise GeometryError("Could not create mask geometry") from None
+
+    OGR_L_SetSpatialFilter(ogr_layer, ogr_geometry)
+    OGR_G_DestroyGeometry(ogr_geometry)
 
 
 cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_features=0):
@@ -1032,6 +1054,7 @@ def ogr_read(
     int max_features=0,
     object where=None,
     tuple bbox=None,
+    object mask=None,
     object fids=None,
     str sql=None,
     str sql_dialect=None,
@@ -1052,10 +1075,10 @@ def ogr_read(
     path_c = path_b
 
     if fids is not None:
-        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
             raise ValueError(
-                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
-                "'skip_features' or 'max_features'"
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features' or 'max_features'"
             )
         fids = np.asarray(fids, dtype=np.intc)
 
@@ -1067,6 +1090,9 @@ def ogr_read(
             "at least one of read_geometry or return_fids must be True or columns must "
             "be None or non-empty"
         )
+
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
 
     try:
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1138,7 +1164,10 @@ def ogr_read(
 
             # Apply the spatial filter
             if bbox is not None:
-                apply_spatial_filter(ogr_layer, bbox)
+                apply_bbox_filter(ogr_layer, bbox)
+
+            elif mask is not None:
+                apply_geometry_filter(ogr_layer, mask)
 
             # Limit feature range to available range
             skip_features, num_features = validate_feature_range(
@@ -1195,6 +1224,7 @@ def ogr_open_arrow(
     int max_features=0,
     object where=None,
     tuple bbox=None,
+    object mask=None,
     object fids=None,
     str sql=None,
     str sql_dialect=None,
@@ -1245,6 +1275,9 @@ def ogr_open_arrow(
             "be None or non-empty"
         )
 
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
+
     reader = None
     try:
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1293,7 +1326,10 @@ def ogr_open_arrow(
 
         # Apply the spatial filter
         if bbox is not None:
-            apply_spatial_filter(ogr_layer, bbox)
+            apply_bbox_filter(ogr_layer, bbox)
+
+        elif mask is not None:
+            apply_geometry_filter(ogr_layer, mask)
 
         # Limit to specified columns
         if ignored_fields:
@@ -1373,7 +1409,8 @@ def ogr_read_bounds(
     int skip_features=0,
     int max_features=0,
     object where=None,
-    tuple bbox=None):
+    tuple bbox=None,
+    object mask=None):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1382,6 +1419,9 @@ def ogr_read_bounds(
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
     cdef double xmin, ymin, xmax, ymax
+
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -1399,7 +1439,10 @@ def ogr_read_bounds(
 
     # Apply the spatial filter
     if bbox is not None:
-        apply_spatial_filter(ogr_layer, bbox)
+        apply_bbox_filter(ogr_layer, bbox)
+
+    elif mask is not None:
+        apply_geometry_filter(ogr_layer, mask)
 
     # Limit feature range to available range
     skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)

@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import array_equal, allclose
 import pytest
 
@@ -14,7 +15,7 @@ from pyogrio import (
 )
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError, DataLayerError
-from pyogrio.tests.conftest import prepare_testfile
+from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
 
 from pyogrio._env import GDALEnv
 
@@ -22,6 +23,12 @@ with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
     from pyogrio._ogr import ogr_driver_supports_write, has_gdal_data, has_proj_data
+
+
+try:
+    import shapely
+except ImportError:
+    pass
 
 
 def test_gdal_data():
@@ -238,6 +245,73 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
             [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read_bounds(naturalearth_lowres, mask=mask)
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read_bounds(
+            naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55)
+        )
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        ("POINT (-105 55)", [3]),
+        ("POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))", [33, 34]),
+        (
+            """POLYGON ((
+                6.101929 50.97085,
+                5.773002 50.906611,
+                5.593156 50.642649,
+                6.059271 50.686052,
+                6.374064 50.851481,
+                6.101929 50.97085
+            ))""",
+            [121, 129, 130],
+        ),
+        (
+            """GEOMETRYCOLLECTION (
+                POINT (-7.7 53),
+                POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))
+            )""",
+            [33, 34, 133],
+        ),
+    ],
+)
+def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
+    mask = shapely.from_wkt(mask)
+
+    fids = read_bounds(naturalearth_lowres_all_ext, mask=mask)[0]
+
+    if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # fid in gpkg is 1-based
+        assert array_equal(fids, np.array(expected) + 1)
+    else:
+        # fid in other formats is 0-based
+        assert array_equal(fids, expected)
 
 
 @pytest.mark.skipif(
