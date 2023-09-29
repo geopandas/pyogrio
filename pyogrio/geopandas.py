@@ -77,14 +77,14 @@ def read_dataframe(
         If the geometry has Z values, setting this to True will cause those to
         be ignored and 2D geometries to be returned
     skip_features : int, optional (default: 0)
-        Number of features to skip from the beginning of the file before returning
-        features.  Must be less than the total number of features in the file.
-        Using this parameter may incur significant overhead if the driver does
-        not support the capability to randomly seek to a specific feature,
-        because it will need to iterate over all prior features.
+        Number of features to skip from the beginning of the file before
+        returning features.  If greater than available number of features, an
+        empty DataFrame will be returned.  Using this parameter may incur
+        significant overhead if the driver does not support the capability to
+        randomly seek to a specific feature, because it will need to iterate
+        over all prior features.
     max_features : int, optional (default: None)
-        Number of features to read from the file.  Must be less than the total
-        number of features in the file minus skip_features (if used).
+        Number of features to read from the file.
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the data source
         natively supports SQL, its specific SQL dialect should be used (eg. SQLite and

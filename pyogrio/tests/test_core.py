@@ -220,10 +220,9 @@ def test_read_bounds_bbox_invalid(naturalearth_lowres, bbox):
 
 def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        fids, bounds = read_bounds(
-            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
-        )
+    fids, bounds = read_bounds(
+        naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+    )
 
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
