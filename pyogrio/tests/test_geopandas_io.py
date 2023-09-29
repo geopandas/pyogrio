@@ -220,7 +220,6 @@ def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
     assert len(df.columns) == 0
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where(naturalearth_lowres_all_ext):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres_all_ext, where="")
@@ -250,7 +249,6 @@ def test_read_where(naturalearth_lowres_all_ext):
     assert len(df) == 0
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_where_invalid(naturalearth_lowres_all_ext):
     with pytest.raises(ValueError, match="Invalid SQL"):
         read_dataframe(naturalearth_lowres_all_ext, where="invalid")
@@ -264,9 +262,8 @@ def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
 
 def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
-        assert len(df) == 0
+    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
+    assert len(df) == 0
 
     df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
     assert len(df) == 2
@@ -318,7 +315,6 @@ def test_read_non_existent_file():
         read_dataframe("zip:///non-existent.zip")
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 def test_read_sql(naturalearth_lowres_all_ext):
     # The geometry column cannot be specified when using the
     # default OGRSQL dialect but is returned nonetheless, so 4 columns.
@@ -572,7 +568,6 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
         )
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
