@@ -148,28 +148,16 @@ def test_read_force_2d(test_fgdb_vsi):
 @pytest.mark.filterwarnings("ignore: Measured")
 def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
+    kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
+
     # The first layer is read by default (NOTE: first layer has no features)
-    df = read_dataframe(
-        test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False, max_features=1
-    )
-    df2 = read_dataframe(
-        test_fgdb_vsi,
-        layer=layers[0][0],
-        use_arrow=use_arrow,
-        read_geometry=False,
-        max_features=1,
-    )
+    df = read_dataframe(test_fgdb_vsi, **kwargs)
+    df2 = read_dataframe(test_fgdb_vsi, layer=layers[0][0], **kwargs)
     assert_frame_equal(df, df2)
 
     # Reading a specific layer should return that layer.
     # Detected here by a known column.
-    df = read_dataframe(
-        test_fgdb_vsi,
-        layer="test_lines",
-        use_arrow=use_arrow,
-        read_geometry=False,
-        max_features=1,
-    )
+    df = read_dataframe(test_fgdb_vsi, layer="test_lines", **kwargs)
     assert "RIVER_MILE" in df.columns
 
 
