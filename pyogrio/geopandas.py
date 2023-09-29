@@ -116,12 +116,12 @@ def read_dataframe(
         file). The performance of reading a large number of features usings FIDs
         is also driver specific.
     sql : str, optional (default: None)
-        The SQL statement to execute. Look at the sql_dialect parameter for
-        more information on the syntax to use for the query. When combined
-        with other keywords like ``columns``, ``skip_features``,
-        ``max_features``, ``where`` or ``bbox``, those are applied after the
-        SQL query. Be aware that this can have an impact on performance,
-        (e.g. filtering with the ``bbox`` keyword may not use spatial indexes).
+        The SQL statement to execute. Look at the sql_dialect parameter for more
+        information on the syntax to use for the query. When combined with other
+        keywords like ``columns``, ``skip_features``, ``max_features``,
+        ``where``, ``bbox``, or ``mask``, those are applied after the SQL query.
+        Be aware that this can have an impact on performance, (e.g. filtering
+        with the ``bbox`` or ``mask`` keywords may not use spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The SQL dialect the SQL statement is written in. Possible values:
