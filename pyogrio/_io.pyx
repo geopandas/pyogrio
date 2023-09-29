@@ -633,7 +633,6 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
 
     if feature_count == 0:
         name = OGR_L_GetName(ogr_layer)
-        warnings.warn(f"Layer '{name}' does not have any features to read")
         return 0, 0
 
     if skip_features < 0 or skip_features >= feature_count:
