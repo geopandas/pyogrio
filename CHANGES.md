@@ -15,7 +15,7 @@
     columns, geometry, or fids (#280)
 -   Automatically detect supported driver by extension for all available
     write drivers and addition of `detect_write_driver` (#270)
--   Removed warning when no features are read from the data source.
+-   Removed warning when no features are read from the data source (#299).
 
 ### Other changes
 

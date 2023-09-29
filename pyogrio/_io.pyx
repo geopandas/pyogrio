@@ -632,7 +632,6 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     num_features = max_features
 
     if feature_count == 0:
-        name = OGR_L_GetName(ogr_layer)
         return 0, 0
 
     if skip_features < 0 or skip_features >= feature_count:
