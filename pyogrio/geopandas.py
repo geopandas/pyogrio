@@ -51,7 +51,12 @@ def _try_parse_datetime(ser):
             ".*parsing datetimes with mixed time zones will raise.*",
             FutureWarning,
         )
-        res = pd.to_datetime(ser, **datetime_kwargs)
+        # pre-emptive try catch for when pandas will raise
+        # (can tighten the exception type in future when it does)
+        try:
+            res = pd.to_datetime(ser, **datetime_kwargs)
+        except Exception:
+            pass
     # if object dtype, try parse as utc instead
     if res.dtype == "object":
         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
