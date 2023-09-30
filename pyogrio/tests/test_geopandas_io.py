@@ -706,7 +706,7 @@ def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
     # geojson has no spatial index, so passing keyword should raise
-    outfilename = tmp_path / "test.geosjon"
+    outfilename = tmp_path / "test.geojson"
     with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
         write_dataframe(df, outfilename, spatial_index=True)
 
@@ -864,7 +864,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
 def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
-    filename = tmp_path / "test.geosjon"
+    filename = tmp_path / "test.geojson"
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
