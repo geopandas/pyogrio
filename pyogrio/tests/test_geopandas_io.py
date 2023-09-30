@@ -190,7 +190,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     expected = pd.Series(expected, name="col")
     assert_series_equal(df.col, expected)
     # test write and read round trips
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     assert_series_equal(df_read.col, expected)
@@ -209,7 +209,7 @@ def test_write_datetime_mixed_offset(tmp_path):
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]},
         crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     result = read_dataframe(fpath)
     # GDAL tz only encodes offsets, not timezones, for multiple offsets
@@ -227,7 +227,7 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
         {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
         crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.geojson"
+    fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     result = read_dataframe(fpath)
     assert_geodataframe_equal(df, result)
@@ -650,7 +650,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
 
 def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
-    output_path = tmp_path / "test.geojson"
+    output_path = tmp_path / "test.gpkg"
 
     write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
 
@@ -706,7 +706,7 @@ def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
     # geojson has no spatial index, so passing keyword should raise
-    outfilename = tmp_path / "test.geojson"
+    outfilename = tmp_path / "test.gpkg"
     with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
         write_dataframe(df, outfilename, spatial_index=True)
 
@@ -864,7 +864,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
 def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
 
-    filename = tmp_path / "test.geojson"
+    filename = tmp_path / "test.gpkg"
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
@@ -1201,7 +1201,7 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
 
     df = read_dataframe(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.geojson")
+    filename = os.path.join(str(tmpdir), "test.gpkg")
     write_dataframe(df, filename, **{metadata_type: metadata})
 
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
@@ -1220,7 +1220,7 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
 )
 def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
     with pytest.raises(ValueError, match="must be a string"):
-        filename = os.path.join(str(tmpdir), "test.geojson")
+        filename = os.path.join(str(tmpdir), "test.gpkg")
         write_dataframe(
             read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
         )
@@ -1230,7 +1230,7 @@ def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
 def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
     """metadata is silently ignored"""
 
-    filename = os.path.join(str(tmpdir), "test.geojson")
+    filename = os.path.join(str(tmpdir), "test.gpkg")
     write_dataframe(
         read_dataframe(naturalearth_lowres),
         filename,
