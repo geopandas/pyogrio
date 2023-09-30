@@ -190,7 +190,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     expected = pd.Series(expected, name="col")
     assert_series_equal(df.col, expected)
     # test write and read round trips
-    fpath = tmp_path / "test.gpkg"
+    fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
     assert_series_equal(df_read.col, expected)
@@ -209,7 +209,7 @@ def test_write_datetime_mixed_offset(tmp_path):
         {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]},
         crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.gpkg"
+    fpath = tmp_path / "test.geojson"
     write_dataframe(df, fpath)
     result = read_dataframe(fpath)
     # GDAL tz only encodes offsets, not timezones, for multiple offsets
@@ -650,7 +650,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
 
 def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
     input_gdf = read_dataframe(naturalearth_lowres)
-    output_path = tmp_path / "test.gpkg"
+    output_path = tmp_path / "test.geojson"
 
     write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
 
@@ -1201,7 +1201,7 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
 
     df = read_dataframe(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+    filename = os.path.join(str(tmpdir), "test.geojson")
     write_dataframe(df, filename, **{metadata_type: metadata})
 
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
@@ -1220,7 +1220,7 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
 )
 def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
     with pytest.raises(ValueError, match="must be a string"):
-        filename = os.path.join(str(tmpdir), "test.gpkg")
+        filename = os.path.join(str(tmpdir), "test.geojson")
         write_dataframe(
             read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
         )

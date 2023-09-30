@@ -11,6 +11,7 @@ from pyogrio.raw import (
 )
 from pyogrio.errors import DataSourceError
 from packaging.version import Version
+import warnings
 
 
 try:
@@ -44,7 +45,13 @@ def _try_parse_datetime(ser):
         datetime_kwargs = dict(format="ISO8601", errors="ignore")
     else:
         datetime_kwargs = dict(yearfirst=True)
-    res = pd.to_datetime(ser, **datetime_kwargs)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            ".*parsing datetimes with mixed time zones will raise.*",
+            FutureWarning,
+        )
+        res = pd.to_datetime(ser, **datetime_kwargs)
     # if object dtype, try parse as utc instead
     if res.dtype == "object":
         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
