@@ -1,5 +1,10 @@
 import numpy as np
-import shapely
+
+try:
+    import shapely  # if geopandas is present, shapely is expected to be present
+
+except ImportError:
+    pass
 
 from pyogrio._compat import HAS_GEOPANDAS
 from pyogrio.raw import (
