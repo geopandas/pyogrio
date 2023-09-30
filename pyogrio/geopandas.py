@@ -183,7 +183,7 @@ def read_dataframe(
     import pandas as pd
     import geopandas as gp
     from geopandas.array import from_wkb
-    import shapely
+    import shapely  # if geopandas is present, shapely is expected to be present
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
