@@ -1,4 +1,5 @@
 import numpy as np
+import shapely
 
 from pyogrio._compat import HAS_GEOPANDAS
 from pyogrio.raw import (
@@ -187,13 +188,14 @@ def read_dataframe(
     path_or_buffer = _stringify_path(path_or_buffer)
 
     read_func = read_arrow if use_arrow else read
+    force_2d_read = False if use_arrow else force_2d
     result = read_func(
         path_or_buffer,
         layer=layer,
         encoding=encoding,
         columns=columns,
         read_geometry=read_geometry,
-        force_2d=force_2d,
+        force_2d=force_2d_read,
         skip_features=skip_features,
         max_features=max_features,
         where=where,
@@ -227,6 +229,8 @@ def read_dataframe(
             return pd.DataFrame()
         elif geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+            if force_2d:
+                df["geometry"] = shapely.force_2d(df["geometry"])
             return gp.GeoDataFrame(df, geometry="geometry")
         else:
             return df

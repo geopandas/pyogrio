@@ -130,7 +130,7 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
         )
 
 
-def test_read_force_2d(test_fgdb_vsi):
+def test_read_force_2d(test_fgdb_vsi, use_arrow):
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
     ):
@@ -138,7 +138,11 @@ def test_read_force_2d(test_fgdb_vsi):
         assert df.iloc[0].geometry.has_z
 
         df = read_dataframe(
-            test_fgdb_vsi, layer="test_lines", force_2d=True, max_features=1
+            test_fgdb_vsi,
+            layer="test_lines",
+            force_2d=True,
+            max_features=1,
+            use_arrow=use_arrow,
         )
         assert not df.iloc[0].geometry.has_z
 
