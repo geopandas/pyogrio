@@ -1,3 +1,4 @@
+from packaging.version import Version
 import re
 import sys
 from urllib.parse import urlparse
@@ -161,3 +162,41 @@ def _preprocess_options_key_value(options):
             v = str(v)
         result[k] = v
     return result
+
+
+def _mask_to_wkb(mask):
+    """Convert a Shapely mask geometry to WKB.
+
+    Parameters
+    ----------
+    mask : Shapely geometry
+
+    Returns
+    -------
+    WKB bytes or None
+
+    Raises
+    ------
+    ValueError
+        raised if Shapely >= 2.0 is not available or mask is not a Shapely
+        Geometry object
+    """
+
+    if mask is None:
+        return mask
+
+    try:
+        import shapely
+
+        if Version(shapely.__version__) < Version("2.0.0"):
+            shapely = None
+    except ImportError:
+        shapely = None
+
+    if not shapely:
+        raise ValueError("'mask' parameter requires Shapely >= 2.0")
+
+    if not isinstance(mask, shapely.Geometry):
+        raise ValueError("'mask' parameter must be a Shapely geometry")
+
+    return shapely.to_wkb(mask)

@@ -98,6 +98,18 @@ def test_read_arrow_nested_types(test_ogr_types_list):
     assert result["list_int64"][0].tolist() == [0, 1]
 
 
+def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
+    # with arrow, list types are supported
+    arrow_to_pandas_kwargs = {"strings_to_categorical": True}
+    result = read_dataframe(
+        test_fgdb_vsi,
+        use_arrow=True,
+        arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
+    )
+    assert "SEGMENT_NAME" in result.columns
+    assert result["SEGMENT_NAME"].dtype.name == "category"
+
+
 def test_read_arrow_raw(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     assert isinstance(meta, dict)

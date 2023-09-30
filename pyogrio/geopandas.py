@@ -39,11 +39,13 @@ def read_dataframe(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=False,
+    arrow_to_pandas_kwargs=None,
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -97,21 +99,30 @@ def read_dataframe(
         and used by GDAL, only geometries that intersect this bbox will be
         returned; if GEOS is not available or not used by GDAL, all geometries
         with bounding boxes that intersect this bbox will be returned.
+        Cannot be combined with ``mask`` keyword.
+    mask : Shapely geometry, optional (default: None)
+        If present, will be used to filter records whose geometry intersects
+        this geometry.  This must be in the same CRS as the dataset.  If GEOS is
+        present and used by GDAL, only geometries that intersect this geometry
+        will be returned; if GEOS is not available or not used by GDAL, all
+        geometries with bounding boxes that intersect the bounding box of this
+        geometry will be returned.  Requires Shapely >= 2.0.
+        Cannot be combined with ``bbox`` keyword.
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
-        with other keywords to select a subset (``skip_features``, ``max_features``,
-        ``where``, ``bbox`` or ``sql``). Note that the starting index is driver and file
-        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
-        still depend on the specific file). The performance of reading a large
-        number of features usings FIDs is also driver specific.
+        with other keywords to select a subset (``skip_features``,
+        ``max_features``, ``where``, ``bbox``, ``mask``, or ``sql``). Note that
+        the starting index is driver and file specific (e.g. typically 0 for
+        Shapefile and 1 for GeoPackage, but can still depend on the specific
+        file). The performance of reading a large number of features usings FIDs
+        is also driver specific.
     sql : str, optional (default: None)
-        The SQL statement to execute. Look at the sql_dialect parameter for
-        more information on the syntax to use for the query. When combined
-        with other keywords like ``columns``, ``skip_features``,
-        ``max_features``, ``where`` or ``bbox``, those are applied after the
-        SQL query. Be aware that this can have an impact on performance,
-        (e.g. filtering with the ``bbox`` keyword may not use
-        spatial indexes).
+        The SQL statement to execute. Look at the sql_dialect parameter for more
+        information on the syntax to use for the query. When combined with other
+        keywords like ``columns``, ``skip_features``, ``max_features``,
+        ``where``, ``bbox``, or ``mask``, those are applied after the SQL query.
+        Be aware that this can have an impact on performance, (e.g. filtering
+        with the ``bbox`` or ``mask`` keywords may not use spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The SQL dialect the SQL statement is written in. Possible values:
@@ -130,10 +141,13 @@ def read_dataframe(
     fid_as_index : bool, optional (default: False)
         If True, will use the FIDs of the features that were read as the
         index of the GeoDataFrame.  May start at 0 or 1 depending on the driver.
-    use_arrow : bool, default False
+    use_arrow : bool, optional (default: False)
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+    arrow_to_pandas_kwargs : dict, optional (default: None)
+        When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
+        call for the arrow to pandas conversion.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -158,7 +172,11 @@ def read_dataframe(
 
         https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
-    """
+    .. _to_pandas:
+
+        https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
+
+    """  # noqa: E501
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
@@ -180,6 +198,7 @@ def read_dataframe(
         max_features=max_features,
         where=where,
         bbox=bbox,
+        mask=mask,
         fids=fids,
         sql=sql,
         sql_dialect=sql_dialect,
@@ -189,7 +208,15 @@ def read_dataframe(
 
     if use_arrow:
         meta, table = result
-        df = table.to_pandas()
+
+        # split_blocks and self_destruct decrease memory usage, but have as side effect
+        # that accessing table afterwards causes crash, so del table to avoid.
+        kwargs = {"self_destruct": True}
+        if arrow_to_pandas_kwargs is not None:
+            kwargs.update(arrow_to_pandas_kwargs)
+        df = table.to_pandas(**kwargs)
+        del table
+
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
             df.index.names = ["fid"]

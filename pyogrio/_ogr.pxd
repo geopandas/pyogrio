@@ -255,6 +255,7 @@ cdef extern from "ogr_api.h":
     void            OGR_Fld_SetSubType(OGRFieldDefnH fielddefn, OGRFieldSubType subtype)
 
     OGRGeometryH        OGR_G_CreateGeometry(int wkbtypecode)
+    OGRErr              OGR_G_CreateFromWkb(const void *bytes, OGRSpatialReferenceH srs, OGRGeometryH *geometry, int nbytes)
     void                OGR_G_DestroyGeometry(OGRGeometryH geometry)
     void                OGR_G_ExportToWkb(OGRGeometryH geometry, int endianness, unsigned char *buffer)
     void                OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
@@ -291,6 +292,7 @@ cdef extern from "ogr_api.h":
     OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
     int                     OGR_L_GetFeatureCount(OGRLayerH layer, int m)
     void                    OGR_L_SetSpatialFilterRect(OGRLayerH layer, double xmin, double ymin, double xmax, double ymax)
+    void                    OGR_L_SetSpatialFilter(OGRLayerH layer, OGRGeometryH geometry)
     OGRErr                  OGR_L_SetIgnoredFields(OGRLayerH layer, const char** fields)
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
