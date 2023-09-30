@@ -1,11 +1,5 @@
 import numpy as np
 
-try:
-    import shapely  # if geopandas is present, shapely is expected to be present
-
-except ImportError:
-    pass
-
 from pyogrio._compat import HAS_GEOPANDAS
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
@@ -189,6 +183,7 @@ def read_dataframe(
     import pandas as pd
     import geopandas as gp
     from geopandas.array import from_wkb
+    import shapely
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
