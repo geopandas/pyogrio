@@ -9,6 +9,8 @@
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
+-   Add `arrow_to_pandas_kwargs` parameter to `read_dataframe` + reduce memory usage
+    with `use_arrow=True` (#273)
 -   In `read_info`, the result now also contains the `total_bounds` of the layer as well
     as some extra `capabilities` of the data source driver (#281).
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
