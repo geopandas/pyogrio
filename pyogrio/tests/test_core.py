@@ -1,3 +1,4 @@
+import numpy as np
 from numpy import array_equal, allclose
 import pytest
 
@@ -14,6 +15,7 @@ from pyogrio import (
 )
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError, DataLayerError
+from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
 
 from pyogrio._env import GDALEnv
 
@@ -21,6 +23,12 @@ with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
     from pyogrio._ogr import ogr_driver_supports_write, has_gdal_data, has_proj_data
+
+
+try:
+    import shapely
+except ImportError:
+    pass
 
 
 def test_gdal_data():
@@ -212,10 +220,9 @@ def test_read_bounds_bbox_invalid(naturalearth_lowres, bbox):
 
 def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        fids, bounds = read_bounds(
-            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
-        )
+    fids, bounds = read_bounds(
+        naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
+    )
 
     assert fids.shape == (0,)
     assert bounds.shape == (4, 0)
@@ -238,6 +245,73 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
             [-85.94172543, 8.22502798, -82.54619626, 11.21711925],
         ],
     )
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read_bounds(naturalearth_lowres, mask=mask)
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read_bounds(
+            naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55)
+        )
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        ("POINT (-105 55)", [3]),
+        ("POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))", [33, 34]),
+        (
+            """POLYGON ((
+                6.101929 50.97085,
+                5.773002 50.906611,
+                5.593156 50.642649,
+                6.059271 50.686052,
+                6.374064 50.851481,
+                6.101929 50.97085
+            ))""",
+            [121, 129, 130],
+        ),
+        (
+            """GEOMETRYCOLLECTION (
+                POINT (-7.7 53),
+                POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))
+            )""",
+            [33, 34, 133],
+        ),
+    ],
+)
+def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
+    mask = shapely.from_wkt(mask)
+
+    fids = read_bounds(naturalearth_lowres_all_ext, mask=mask)[0]
+
+    if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # fid in gpkg is 1-based
+        assert array_equal(fids, np.array(expected) + 1)
+    else:
+        # fid in other formats is 0-based
+        assert array_equal(fids, expected)
 
 
 @pytest.mark.skipif(
@@ -279,7 +353,13 @@ def test_read_info(naturalearth_lowres):
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
     assert meta["features"] == 177
+    assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["driver"] == "ESRI Shapefile"
+    assert meta["capabilities"]["random_read"] is True
+    assert meta["capabilities"]["fast_set_next_by_index"] is True
+    assert meta["capabilities"]["fast_spatial_filter"] is False
+    assert meta["capabilities"]["fast_feature_count"] is True
+    assert meta["capabilities"]["fast_total_bounds"] is True
 
 
 @pytest.mark.parametrize(
@@ -321,19 +401,48 @@ def test_read_info_invalid_dataset_kwargs(naturalearth_lowres):
 
 def test_read_info_force_feature_count_exception(data_dir):
     with pytest.raises(DataLayerError, match="Could not iterate over features"):
-        read_info(data_dir / "sample.osm.pbf", layer="lines")
+        read_info(data_dir / "sample.osm.pbf", layer="lines", force_feature_count=True)
 
 
-def test_read_info_force_feature_count(data_dir):
+@pytest.mark.parametrize(
+    "layer, force, expected",
+    [
+        ("points", False, -1),
+        ("points", True, 8),
+        ("lines", False, -1),
+        ("lines", True, 36),
+    ],
+)
+def test_read_info_force_feature_count(data_dir, layer, force, expected):
     # the sample OSM file has non-increasing node IDs which causes the default
     # custom indexing to raise an exception iterating over features
-    meta = read_info(data_dir / "sample.osm.pbf", USE_CUSTOM_INDEXING=False)
-    assert meta["features"] == 8
-
     meta = read_info(
-        data_dir / "sample.osm.pbf", layer="lines", USE_CUSTOM_INDEXING=False
+        data_dir / "sample.osm.pbf",
+        layer=layer,
+        force_feature_count=force,
+        USE_CUSTOM_INDEXING=False,
     )
-    assert meta["features"] == 36
+    assert meta["features"] == expected
+
+
+@pytest.mark.parametrize(
+    "force_total_bounds, expected_total_bounds",
+    [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
+)
+def test_read_info_force_total_bounds(
+    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
+):
+    # Geojson files don't hava a fast way to determine total_bounds
+    geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
+    info = read_info(geojson_path, force_total_bounds=force_total_bounds)
+    if expected_total_bounds is not None:
+        assert allclose(info["total_bounds"], expected_total_bounds)
+    else:
+        assert info["total_bounds"] is None
+
+
+def test_read_info_without_geometry(test_fgdb_vsi):
+    assert read_info(test_fgdb_vsi)["total_bounds"] is None
 
 
 @pytest.mark.parametrize(

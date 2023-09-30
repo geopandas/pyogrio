@@ -4,16 +4,38 @@
 
 ### Improvements
 
--   Support writing dataframes without geometry column (#267)
+-   Support writing dataframes without geometry column (#267).
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant
     performance impacts for some data sources that would otherwise return an
     unknown count (count is used in `read_info`, `read`, `read_dataframe`) (#271).
+-   Add `arrow_to_pandas_kwargs` parameter to `read_dataframe` + reduce memory usage
+    with `use_arrow=True` (#273)
+-   In `read_info`, the result now also contains the `total_bounds` of the layer as well
+    as some extra `capabilities` of the data source driver (#281).
 -   Raise error if `read` or `read_dataframe` is called with parameters to read no
-    columns, geometry, or fids (#280)
-
+    columns, geometry, or fids (#280).
 -   Automatically detect supported driver by extension for all available
-    write drivers and addition of `detect_write_driver` (#270)
+    write drivers and addition of `detect_write_driver` (#270).
+-   Addition of `mask` parameter to `open_arrow`, `read`, `read_dataframe`,
+    and `read_bounds` functions to select only the features in the dataset that
+    intersect the mask geometry (#285). Note: GDAL < 3.8.0 returns features that
+    intersect the bounding box of the mask when using the Arrow interface for
+    some drivers; this has been fixed in GDAL 3.8.0.
+-   Removed warning when no features are read from the data source (#299).
+
+### Other changes
+
+-   test suite requires Shapely >= 2.0
+
+-   using `skip_features` greater than the number of features available in a data
+    layer now returns empty arrays for `read` and an empty DataFrame for
+    `read_dataframe` instead of raising a `ValueError` (#282).
+-   enabled `skip_features` and `max_features` for `read_arrow` and
+    `read_dataframe(path, use_arrow=True)`. Note that this incurs overhead
+    because all features up to the next batch size above `max_features` (or size
+    of data layer) will be read prior to slicing out the requested range of
+    features (#282).
 
 ### Bug fixes
 
@@ -24,6 +46,15 @@
     reading of OSM layers beyond the first layer (#271)
 -   Always raise an exception if there is an error when writing a data source
     (#284)
+
+### Potentially breaking changes
+
+-   In `read_info` (#281):
+    -   the `features` property in the result will now be -1 if calculating the
+        feature count is an expensive operation for this driver. You can force it to be
+        calculated using the `force_feature_count` parameter.
+    -   for boolean values in the `capabilities` property, the values will now be
+        booleans instead of 1 or 0.
 
 ## 0.6.0 (2023-04-27)
 

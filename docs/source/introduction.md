@@ -170,6 +170,16 @@ processes:
 >>> read_dataframe('ne_10m_admin_0_countries.shp', skip_features=10, max_features=10)
 ```
 
+NOTE: if `use_arrow` is `True`, `skip_features` and `max_features` will incur
+additional overhead because all features up to the next batch size above
+`max_features` (or size of data layer) will be read prior to slicing out the
+requested range of features. If `max_features` is less than the maximum Arrow
+batch size (65,536 features) only `max_features` will be read. All features
+up to `skip_features` are read from the data source and later discarded because
+the Arrow interface does not support randomly seeking a starting feature. This
+overhead is in comparison to reading via Arrow without these parameters, which
+is generally much faster than not using Arrow.
+
 ## Filter records by attribute value
 
 You can use the `where` parameter to filter features in layer by attribute values. If
@@ -198,6 +208,32 @@ Note: the `bbox` values must be in the same CRS as the dataset.
 Note: if GEOS is present and used by GDAL, only geometries that intersect `bbox`
 will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect this bbox will be returned.
+`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+
+## Filter records by a geometry
+
+You can use the `mask` parameter to select only those features that intersect
+with a Shapely (>= 2.0) geometry.
+
+```python
+>>> mask = shapely.Polygon(([-80,8], [-80, 10], [-85,10], [-85,8], [-80,8]))
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask=mask)
+```
+
+Note: the `mask` values must be in the same CRS as the dataset.
+
+If your mask geometry is in some other representation, such as GeoJSON, you will
+need to convert it to a Shapely geometry before using `mask`.
+
+```python
+>>> mask_geojson = '{"type":"Polygon","coordinates":[[[-80.0,8.0],[-80.0,10.0],[-85.0,10.0],[-85.0,8.0],[-80.0,8.0]]]}'
+>>> mask = shapely.from_geojson(mask_geojson)
+>>> read_dataframe('ne_10m_admin_0_countries.shp', mask=mask)
+```
+
+Note: if GEOS is present and used by GDAL, only geometries that intersect `mask`
+will be returned; if GEOS is not available or not used by GDAL, all geometries
+with bounding boxes that intersect the bounding box of `mask` will be returned.
 `pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
 ## Execute a sql query
@@ -324,6 +360,7 @@ This function supports options to subset features from the dataset:
 -   `max_features`
 -   `where`
 -   `bbox`
+-   `mask`
 
 ## Write a GeoPandas GeoDataFrame
 
@@ -337,7 +374,7 @@ You can write a `GeoDataFrame` `df` to a file as follows:
 By default, the appropriate driver is inferred from the extension of the filename:
 
 -   `.fgb`: [FlatGeobuf](https://gdal.org/drivers/vector/flatgeobuf.html)
--   `.geojson`, `.json`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
+-   `.geojson`: [GeoJSON](https://gdal.org/drivers/vector/geojson.html)
 -   `.geojsonl`, `.geojsons`: [GeoJSONSeq](https://gdal.org/drivers/vector/geojsonseq.html)
 -   `.gpkg`: [GPKG](https://gdal.org/drivers/vector/gpkg.html)
 -   `.shp`: [ESRI Shapefile](https://gdal.org/drivers/vector/shapefile.html)

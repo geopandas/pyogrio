@@ -320,7 +320,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     return driver
 
 
-cdef get_feature_count(OGRLayerH ogr_layer):
+cdef get_feature_count(OGRLayerH ogr_layer, int force):
     """Get the feature count of a layer.
 
     If GDAL returns an unknown count (-1), this iterates over every feature
@@ -329,6 +329,8 @@ cdef get_feature_count(OGRLayerH ogr_layer):
     Parameters
     ----------
     ogr_layer : pointer to open OGR layer
+    force : bool
+        True if the feature count should be computed even if it is expensive
 
     Returns
     -------
@@ -337,12 +339,12 @@ cdef get_feature_count(OGRLayerH ogr_layer):
     """
 
     cdef OGRFeatureH ogr_feature = NULL
-    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, 1)
+    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, force)
 
     # if GDAL refuses to give us the feature count, we have to loop over all
     # features ourselves and get the count.  This can happen for some drivers
     # (e.g., OSM) or if a where clause is invalid but not rejected as error
-    if feature_count == -1:
+    if force and feature_count == -1:
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
@@ -374,6 +376,34 @@ cdef get_feature_count(OGRLayerH ogr_layer):
                     ogr_feature = NULL
 
     return feature_count
+
+
+cdef get_total_bounds(OGRLayerH ogr_layer, int force):
+    """Get the total bounds of a layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    force : bool
+        True if the total bounds should be computed even if it is expensive
+
+    Returns
+    -------
+    tuple of (xmin, ymin, xmax, ymax) or None
+        The total bounds of the layer, or None if they could not be determined.
+    """
+
+    cdef OGREnvelope ogr_envelope
+    try:
+        exc_wrap_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
+        bounds = (
+           ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
+        )
+
+    except CPLE_BaseError:
+        bounds = None
+
+    return bounds
 
 
 cdef set_metadata(GDALMajorObjectH obj, object metadata):
@@ -565,8 +595,8 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
         raise ValueError(f"Invalid SQL query for layer '{OGR_L_GetName(ogr_layer)}': '{where}'")
 
 
-cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
-    """Applies spatial filter to layer.
+cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
+    """Applies bounding box spatial filter to layer.
 
     Parameters
     ----------
@@ -586,6 +616,28 @@ cdef apply_spatial_filter(OGRLayerH ogr_layer, bbox):
     OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
 
 
+cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
+    """Applies geometry spatial filter to layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    wkb: WKB encoding of geometry
+    """
+
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef unsigned char *wkb_buffer = wkb
+
+    err = OGR_G_CreateFromWkb(wkb_buffer, NULL, &ogr_geometry, len(wkb))
+    if err:
+        if ogr_geometry != NULL:
+            OGR_G_DestroyGeometry(ogr_geometry)
+        raise GeometryError("Could not create mask geometry") from None
+
+    OGR_L_SetSpatialFilter(ogr_layer, ogr_geometry)
+    OGR_G_DestroyGeometry(ogr_geometry)
+
+
 cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_features=0):
     """Limit skip_features and max_features to bounds available for dataset.
 
@@ -598,17 +650,14 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     skip_features : number of features to skip from beginning of available range
     max_features : maximum number of features to read from available range
     """
-    feature_count = get_feature_count(ogr_layer)
+    feature_count = get_feature_count(ogr_layer, 1)
     num_features = max_features
 
     if feature_count == 0:
-        name = OGR_L_GetName(ogr_layer)
-        warnings.warn(f"Layer '{name}' does not have any features to read")
         return 0, 0
 
-    # validate skip_features, max_features
     if skip_features < 0 or skip_features >= feature_count:
-        raise ValueError(f"'skip_features' must be between 0 and {feature_count-1}")
+        skip_features = feature_count
 
     if max_features < 0:
         raise ValueError("'max_features' must be >= 0")
@@ -793,6 +842,10 @@ cdef get_features(
     ]
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+
+    if num_features == 0:
+        return fid_data, geometries, field_data
+
     i = 0
     while True:
         try:
@@ -1001,6 +1054,7 @@ def ogr_read(
     int max_features=0,
     object where=None,
     tuple bbox=None,
+    object mask=None,
     object fids=None,
     str sql=None,
     str sql_dialect=None,
@@ -1021,10 +1075,10 @@ def ogr_read(
     path_c = path_b
 
     if fids is not None:
-        if where is not None or bbox is not None or sql is not None or skip_features or max_features:
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
             raise ValueError(
-                "cannot set both 'fids' and any of 'where', 'bbox', 'sql', "
-                "'skip_features' or 'max_features'"
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features' or 'max_features'"
             )
         fids = np.asarray(fids, dtype=np.intc)
 
@@ -1036,6 +1090,9 @@ def ogr_read(
             "at least one of read_geometry or return_fids must be True or columns must "
             "be None or non-empty"
         )
+
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
 
     try:
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1107,7 +1164,10 @@ def ogr_read(
 
             # Apply the spatial filter
             if bbox is not None:
-                apply_spatial_filter(ogr_layer, bbox)
+                apply_bbox_filter(ogr_layer, bbox)
+
+            elif mask is not None:
+                apply_geometry_filter(ogr_layer, mask)
 
             # Limit feature range to available range
             skip_features, num_features = validate_feature_range(
@@ -1164,6 +1224,7 @@ def ogr_open_arrow(
     int max_features=0,
     object where=None,
     tuple bbox=None,
+    object mask=None,
     object fids=None,
     str sql=None,
     str sql_dialect=None,
@@ -1182,6 +1243,9 @@ def ogr_open_arrow(
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
+    IF CTE_GDAL_VERSION < (3, 6, 0):
+        raise RuntimeError("Need GDAL>=3.6 for Arrow support")
+
     path_b = path.encode('utf-8')
     path_c = path_b
 
@@ -1191,9 +1255,15 @@ def ogr_open_arrow(
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
 
-    if skip_features or max_features:
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        if skip_features:
+            raise ValueError(
+                "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
+            )
+
+    if max_features:
         raise ValueError(
-            "specifying 'skip_features' or 'max_features' is not supported for Arrow"
+            "specifying 'max_features' is not supported for Arrow"
         )
 
     if sql is not None and layer is not None:
@@ -1204,6 +1274,9 @@ def ogr_open_arrow(
             "at least one of read_geometry or return_fids must be True or columns must "
             "be None or non-empty"
         )
+
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
 
     reader = None
     try:
@@ -1253,7 +1326,10 @@ def ogr_open_arrow(
 
         # Apply the spatial filter
         if bbox is not None:
-            apply_spatial_filter(ogr_layer, bbox)
+            apply_bbox_filter(ogr_layer, bbox)
+
+        elif mask is not None:
+            apply_geometry_filter(ogr_layer, mask)
 
         # Limit to specified columns
         if ignored_fields:
@@ -1277,13 +1353,15 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        IF CTE_GDAL_VERSION < (3, 6, 0):
-            raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         stream_ptr = <uintptr_t> &stream
+
+        if skip_features:
+            # only supported for GDAL >= 3.8.0; have to do this after getting
+            # the Arrow stream
+            OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         # stream has to be consumed before the Dataset is closed
         import pyarrow as pa
@@ -1331,7 +1409,8 @@ def ogr_read_bounds(
     int skip_features=0,
     int max_features=0,
     object where=None,
-    tuple bbox=None):
+    tuple bbox=None,
+    object mask=None):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1340,6 +1419,9 @@ def ogr_read_bounds(
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
     cdef double xmin, ymin, xmax, ymax
+
+    if bbox and mask:
+        raise ValueError("cannot set both 'bbox' and 'mask'")
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -1357,7 +1439,10 @@ def ogr_read_bounds(
 
     # Apply the spatial filter
     if bbox is not None:
-        apply_spatial_filter(ogr_layer, bbox)
+        apply_bbox_filter(ogr_layer, bbox)
+
+    elif mask is not None:
+        apply_geometry_filter(ogr_layer, mask)
 
     # Limit feature range to available range
     skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)
@@ -1369,7 +1454,9 @@ def ogr_read_info(
     str path,
     dataset_kwargs,
     object layer=None,
-    object encoding=None):
+    object encoding=None,
+    int force_feature_count=False,
+    int force_total_bounds=False):
 
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
@@ -1404,12 +1491,15 @@ def ogr_read_info(
             'fields': fields[:,2], # return only names
             'dtypes': fields[:,3],
             'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer),
+            'features': get_feature_count(ogr_layer, force_feature_count),
+            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
             'driver': get_driver(ogr_dataset),
             "capabilities": {
-                "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead),
-                "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex),
-                "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter),
+                "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
+                "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
+                "fast_spatial_filter": OGR_L_TestCapability(ogr_layer, OLCFastSpatialFilter) == 1,
+                "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
+                "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
             'layer_metadata': get_metadata(ogr_layer),
             'dataset_metadata': get_metadata(ogr_dataset),

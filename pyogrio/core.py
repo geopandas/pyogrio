@@ -1,5 +1,5 @@
 from pyogrio._env import GDALEnv
-from pyogrio.util import get_vsi_path, _preprocess_options_key_value
+from pyogrio.util import get_vsi_path, _preprocess_options_key_value, _mask_to_wkb
 
 
 with GDALEnv():
@@ -88,7 +88,8 @@ def detect_write_driver(path):
     elif len(drivers) > 1:
         raise ValueError(
             f"Could not infer driver from path: {path}; multiple drivers are "
-            "available for that extension.  Please specify driver explicitly"
+            f"available for that extension: {', '.join(drivers)}.  Please "
+            "specify driver explicitly."
         )
 
     return drivers[0]
@@ -127,6 +128,7 @@ def read_bounds(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
 ):
     """Read bounds of each feature.
 
@@ -159,6 +161,14 @@ def read_bounds(
         and used by GDAL, only geometries that intersect this bbox will be
         returned; if GEOS is not available or not used by GDAL, all geometries
         with bounding boxes that intersect this bbox will be returned.
+    mask : Shapely geometry, optional (default: None)
+        If present, will be used to filter records whose geometry intersects
+        this geometry.  This must be in the same CRS as the dataset.  If GEOS is
+        present and used by GDAL, only geometries that intersect this geometry
+        will be returned; if GEOS is not available or not used by GDAL, all
+        geometries with bounding boxes that intersect the bounding box of this
+        geometry will be returned.  Requires Shapely >= 2.0.
+        Cannot be combined with ``bbox`` keyword.
 
     Returns
     -------
@@ -177,6 +187,7 @@ def read_bounds(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
         )
     finally:
         if buffer is not None:
@@ -184,11 +195,27 @@ def read_bounds(
     return result
 
 
-def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
+def read_info(
+    path_or_buffer,
+    /,
+    layer=None,
+    encoding=None,
+    force_feature_count=False,
+    force_total_bounds=False,
+    **kwargs,
+):
     """Read information about an OGR data source.
 
-    ``crs`` and ``geometry`` will be ``None`` and ``features`` will be 0 for a
-    nonspatial layer.
+    ``crs``, ``geometry`` and ``total_bounds`` will be ``None`` and ``features`` will be
+    0 for a nonspatial layer.
+
+    ``features`` will be -1 if this is an expensive operation for this driver. You can
+    force it to be calculated using the ``force_feature_count`` parameter.
+
+    ``total_bounds`` is the 2-dimensional extent of all features within the dataset:
+    (xmin, ymin, xmax, ymax). It will be None if this is an expensive operation for this
+    driver or if the data source is nonspatial. You can force it to be calculated using
+    the ``force_total_bounds`` parameter.
 
     Parameters
     ----------
@@ -199,6 +226,10 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
+    force_feature_count : bool, optional (default: False)
+        True if the feature count should be computed even if it is expensive.
+    force_total_bounds : bool, optional (default: False)
+        True if the total bounds should be computed even if it is expensive.
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -214,10 +245,12 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
                 "geometry": "<geometry type>",
-                "features": <feature count>,
+                "features": <feature count or -1>,
+                "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
-                "dataset_metadata" "<dict of dataset metadata or None>"
-                "layer_metadata" "<dict of layer metadata or None>"
+                "capabilities": "<dict of driver capabilities>"
+                "dataset_metadata": "<dict of dataset metadata or None>"
+                "layer_metadata": "<dict of layer metadata or None>"
             }
     """
     path, buffer = get_vsi_path(path_or_buffer)
@@ -226,7 +259,12 @@ def read_info(path_or_buffer, /, layer=None, encoding=None, **kwargs):
 
     try:
         result = ogr_read_info(
-            path, layer=layer, encoding=encoding, dataset_kwargs=dataset_kwargs
+            path,
+            layer=layer,
+            encoding=encoding,
+            force_feature_count=force_feature_count,
+            force_total_bounds=force_total_bounds,
+            dataset_kwargs=dataset_kwargs,
         )
     finally:
         if buffer is not None:
