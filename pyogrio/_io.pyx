@@ -1253,7 +1253,11 @@ def ogr_open_arrow(
         raise ValueError("forcing 2D is not supported for Arrow")
 
     if fids is not None:
-        raise ValueError("reading by FID is not supported for Arrow")
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features' or 'max_features'"
+            )
 
     IF CTE_GDAL_VERSION < (3, 8, 0):
         if skip_features:
@@ -1315,10 +1319,19 @@ def ogr_open_arrow(
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
         fid_column = get_string(OGR_L_GetFIDColumn(ogr_layer))
+        fid_column_where = fid_column
         # OGR_L_GetFIDColumn returns the column name if it is a custom column,
-        # or "" if not. For arrow, the default column name is "OGC_FID".
+        # or "" if not. For arrow, the default column name used to return the FID data
+        # read is "OGC_FID". When accessing the underlying datasource like when using a
+        # where clause, the default column name is "FID".
         if fid_column == "":
             fid_column = "OGC_FID"
+            fid_column_where = "FID"
+
+        # Use fids list to create a where clause, as arrow doesn't support direct fid
+        # filtering.
+        if fids is not None:
+            where = f"{fid_column_where} IN ({','.join(fids.astype(str))})"
 
         # Apply the attribute filter
         if where is not None and where != "":

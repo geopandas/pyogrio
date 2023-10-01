@@ -408,10 +408,12 @@ def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
     assert np.array_equal(df.iso_a3, ["CAN"])
 
 
-def test_read_fids(naturalearth_lowres_all_ext):
+def test_read_fids(naturalearth_lowres_all_ext, use_arrow):
     # ensure keyword is properly passed through
-    fids = np.array([1, 10, 5], dtype=np.int64)
-    df = read_dataframe(naturalearth_lowres_all_ext, fids=fids, fid_as_index=True)
+    fids = np.array([1, 5, 10], dtype=np.int64)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, fids=fids, fid_as_index=True, use_arrow=use_arrow
+    )
     assert len(df) == 3
     assert np.array_equal(fids, df.index.values)
 
