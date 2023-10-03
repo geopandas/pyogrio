@@ -147,6 +147,8 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+        Defaults to False, but this default can also be globally overridden
+        by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
