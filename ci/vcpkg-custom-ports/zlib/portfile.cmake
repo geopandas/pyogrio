@@ -1,15 +1,17 @@
-set(VERSION 1.2.5)
+set(VERSION 1.2.5.2)
 
 vcpkg_download_distfile(ARCHIVE_FILE
-    URLS "https://downloads.sourceforge.net/project/libpng/zlib/${VERSION}/zlib-${VERSION}.tar.gz"
-    FILENAME "zlib125.tar.gz"
-    SHA512 83ce467787903b7e90ece203aaea0be42174b9cf4a9aa16fe3f72925a4993b549d50154dec4cc76b4cb1aa0b7b966118772aca3d73efa0601167256ff7ce7a12
+    URLS "http://zlib.net/fossils/zlib-1.2.5.2.tar.gz"
+    FILENAME "zlib-1.2.5.2.tar.gz"
+    SHA512 d4bd29ebfd5642253cecb9b8364ee6de87442d192229a9080cc306b819745e80c0791bd0a8abefd0c5e11c958bc85485d5d5d051b4770e45f6f479f3bb16e867
 )
 
 vcpkg_extract_source_archive_ex(
     OUT_SOURCE_PATH SOURCE_PATH
     ARCHIVE ${ARCHIVE_FILE}
     REF ${VERSION}
+    PATCHES
+        "0002-skip-building-examples.patch"
 )
 
 # This is generated during the cmake build

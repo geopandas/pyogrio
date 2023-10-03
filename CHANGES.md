@@ -57,6 +57,10 @@
     -   for boolean values in the `capabilities` property, the values will now be
         booleans instead of 1 or 0.
 
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.6.4 to GDAL 3.7.2.
+
 ## 0.6.0 (2023-04-27)
 
 ### Improvements
