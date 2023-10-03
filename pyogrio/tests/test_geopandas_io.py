@@ -593,7 +593,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     )
     assert len(df) == 1
 
-    sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
+    sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
     df = read_dataframe(
         naturalearth_lowres_all_ext,
         sql=sql,
