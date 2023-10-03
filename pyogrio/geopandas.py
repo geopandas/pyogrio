@@ -188,14 +188,14 @@ def read_dataframe(
     path_or_buffer = _stringify_path(path_or_buffer)
 
     read_func = read_arrow if use_arrow else read
-    force_2d_read = False if use_arrow else force_2d
+    gdal_force_2d = False if use_arrow else force_2d
     result = read_func(
         path_or_buffer,
         layer=layer,
         encoding=encoding,
         columns=columns,
         read_geometry=read_geometry,
-        force_2d=force_2d_read,
+        force_2d=gdal_force_2d,
         skip_features=skip_features,
         max_features=max_features,
         where=where,
