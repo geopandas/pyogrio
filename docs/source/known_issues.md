@@ -107,3 +107,13 @@ We recommend the following to sidestep performance issues:
 -   the `use_arrow=True` option may speed up reading from OSM files
 -   if possible, use a different tool such as `ogr2ogr` to translate the OSM
     data source into a more performant format for reading by layer, such as GPKG
+
+## Incorrect results when using a spatial filter and Arrow interface
+
+Due to [a bug in GDAL](https://github.com/OSGeo/gdal/issues/8347), when using
+the Arrow interface (e.g., via `use_arrow` on `read_dataframe`) certain drivers
+(e.g., GPKG, FlatGeobuf, Arrow, Parquet) returned features whose bounding boxes
+intersected the bounding box specified by `bbox` or `mask` geometry instead of
+those whose geometry intersected the `bbox` or `mask`.
+
+A fix is expected in GDAL 3.8.0.

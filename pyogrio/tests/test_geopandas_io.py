@@ -110,8 +110,10 @@ def test_fixture_naturalearth_lowres(naturalearth_lowres, expected_ext):
     assert len(df) == 177
 
 
-def test_read_no_geometry(naturalearth_lowres_all_ext):
-    df = read_dataframe(naturalearth_lowres_all_ext, read_geometry=False)
+def test_read_no_geometry(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, use_arrow=use_arrow, read_geometry=False
+    )
     assert isinstance(df, pd.DataFrame)
     assert not isinstance(df, gp.GeoDataFrame)
 
@@ -147,26 +149,24 @@ def test_read_force_2d(test_fgdb_vsi):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
-def test_read_layer(test_fgdb_vsi):
+def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
+    kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
+
     # The first layer is read by default (NOTE: first layer has no features)
-    df = read_dataframe(test_fgdb_vsi, read_geometry=False, max_features=1)
-    df2 = read_dataframe(
-        test_fgdb_vsi, layer=layers[0][0], read_geometry=False, max_features=1
-    )
+    df = read_dataframe(test_fgdb_vsi, **kwargs)
+    df2 = read_dataframe(test_fgdb_vsi, layer=layers[0][0], **kwargs)
     assert_frame_equal(df, df2)
 
     # Reading a specific layer should return that layer.
     # Detected here by a known column.
-    df = read_dataframe(
-        test_fgdb_vsi, layer="test_lines", read_geometry=False, max_features=1
-    )
+    df = read_dataframe(test_fgdb_vsi, layer="test_lines", **kwargs)
     assert "RIVER_MILE" in df.columns
 
 
-def test_read_layer_invalid(naturalearth_lowres_all_ext):
+def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
     with pytest.raises(DataLayerError, match="Layer 'wrong' could not be opened"):
-        read_dataframe(naturalearth_lowres_all_ext, layer="wrong")
+        read_dataframe(naturalearth_lowres_all_ext, layer="wrong", use_arrow=use_arrow)
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
@@ -233,16 +233,16 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
     assert_geodataframe_equal(df, result)
 
 
-def test_read_null_values(test_fgdb_vsi):
-    df = read_dataframe(test_fgdb_vsi, read_geometry=False)
+def test_read_null_values(test_fgdb_vsi, use_arrow):
+    df = read_dataframe(test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
     assert df.SEGMENT_NAME.isnull().max()
     assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
 
 
-def test_read_fid_as_index(naturalearth_lowres_all_ext):
-    kwargs = {"skip_features": 2, "max_features": 2}
+def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
+    kwargs = {"use_arrow": use_arrow, "skip_features": 2, "max_features": 2}
 
     # default is to not set FIDs as index
     df = read_dataframe(naturalearth_lowres_all_ext, **kwargs)
@@ -277,58 +277,190 @@ def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
     assert len(df.columns) == 0
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-def test_read_where(naturalearth_lowres_all_ext):
+def test_read_where(naturalearth_lowres_all_ext, use_arrow):
     # empty filter should return full set of records
-    df = read_dataframe(naturalearth_lowres_all_ext, where="")
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, where="")
     assert len(df) == 177
 
     # should return singular item
-    df = read_dataframe(naturalearth_lowres_all_ext, where="iso_a3 = 'CAN'")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, use_arrow=use_arrow, where="iso_a3 = 'CAN'"
+    )
     assert len(df) == 1
     assert df.iloc[0].iso_a3 == "CAN"
 
     df = read_dataframe(
-        naturalearth_lowres_all_ext, where="iso_a3 IN ('CAN', 'USA', 'MEX')"
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        where="iso_a3 IN ('CAN', 'USA', 'MEX')",
     )
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
 
     # should return items within range
     df = read_dataframe(
-        naturalearth_lowres_all_ext, where="POP_EST >= 10000000 AND POP_EST < 100000000"
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        where="POP_EST >= 10000000 AND POP_EST < 100000000",
     )
     assert len(df) == 75
     assert df.pop_est.min() >= 10000000
     assert df.pop_est.max() < 100000000
 
     # should match no items
-    df = read_dataframe(naturalearth_lowres_all_ext, where="ISO_A3 = 'INVALID'")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, use_arrow=use_arrow, where="ISO_A3 = 'INVALID'"
+    )
     assert len(df) == 0
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-def test_read_where_invalid(naturalearth_lowres_all_ext):
+def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
+    if use_arrow and naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # https://github.com/OSGeo/gdal/issues/8492
+        request.node.add_marker(pytest.mark.xfail(reason="GDAL doesn't error for GPGK"))
     with pytest.raises(ValueError, match="Invalid SQL"):
-        read_dataframe(naturalearth_lowres_all_ext, where="invalid")
+        read_dataframe(
+            naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+        )
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
-def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox):
+def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox, use_arrow):
     with pytest.raises(ValueError, match="Invalid bbox"):
-        read_dataframe(naturalearth_lowres_all_ext, bbox=bbox)
+        read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox)
 
 
-def test_read_bbox(naturalearth_lowres_all_ext):
-    # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        df = read_dataframe(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))
-        assert len(df) == 0
+@pytest.mark.parametrize(
+    "bbox,expected",
+    [
+        ((0, 0, 0.00001, 0.00001), []),
+        ((-85, 8, -80, 10), ["PAN", "CRI"]),
+        ((-104, 54, -105, 55), ["CAN"]),
+    ],
+)
+def test_read_bbox(naturalearth_lowres_all_ext, use_arrow, bbox, expected):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
-    df = read_dataframe(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
-    assert len(df) == 2
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, bbox=bbox)
 
-    assert np.array_equal(df.iso_a3, ["PAN", "CRI"])
+    assert np.array_equal(df.iso_a3, expected)
+
+
+def test_read_bbox_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_bbox_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        bbox=(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_mask_invalid(naturalearth_lowres, use_arrow, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read_dataframe(naturalearth_lowres, use_arrow=use_arrow, mask=mask)
+
+
+def test_read_bbox_mask_invalid(naturalearth_lowres, use_arrow):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read_dataframe(
+            naturalearth_lowres,
+            use_arrow=use_arrow,
+            bbox=(-85, 8, -80, 10),
+            mask=shapely.Point(-105, 55),
+        )
+
+
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        (shapely.Point(-105, 55), ["CAN"]),
+        (shapely.box(-85, 8, -80, 10), ["PAN", "CRI"]),
+        (
+            shapely.Polygon(
+                (
+                    [6.101929483362767, 50.97085041206964],
+                    [5.773001596839322, 50.90661120482673],
+                    [5.593156133704326, 50.642648747710325],
+                    [6.059271089606312, 50.686051894002475],
+                    [6.374064065737485, 50.851481340346965],
+                    [6.101929483362767, 50.97085041206964],
+                )
+            ),
+            ["DEU", "BEL", "NLD"],
+        ),
+        (
+            shapely.GeometryCollection(
+                [shapely.Point(-7.7, 53), shapely.box(-85, 8, -80, 10)]
+            ),
+            ["PAN", "CRI", "IRL"],
+        ),
+    ],
+)
+def test_read_mask(
+    naturalearth_lowres_all_ext,
+    use_arrow,
+    mask,
+    expected,
+):
+    if (
+        use_arrow
+        and __gdal_version__ < (3, 8, 0)
+        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+    ):
+        pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
+
+    df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, mask=mask)
+
+    assert len(df) == len(expected)
+    assert np.array_equal(df.iso_a3, expected)
+
+
+def test_read_mask_sql(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
+
+
+def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext,
+        use_arrow=use_arrow,
+        mask=shapely.box(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )
+    assert len(df) == 1
+    assert np.array_equal(df.iso_a3, ["CAN"])
 
 
 def test_read_fids(naturalearth_lowres_all_ext):
@@ -352,20 +484,30 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
-def test_read_non_existent_file():
+@pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
+def test_read_skip_features(
+    naturalearth_lowres_all_ext, use_arrow, skip_features, expected
+):
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, skip_features=skip_features, use_arrow=use_arrow
+    )
+    assert len(df) == expected
+    assert isinstance(df, gp.GeoDataFrame)
+
+
+def test_read_non_existent_file(use_arrow):
     # ensure consistent error type / message from GDAL
     with pytest.raises(DataSourceError, match="No such file or directory"):
-        read_dataframe("non-existent.shp")
+        read_dataframe("non-existent.shp", use_arrow=use_arrow)
 
     with pytest.raises(DataSourceError, match="does not exist in the file system"):
-        read_dataframe("/vsizip/non-existent.zip")
+        read_dataframe("/vsizip/non-existent.zip", use_arrow=use_arrow)
 
     with pytest.raises(DataSourceError, match="does not exist in the file system"):
-        read_dataframe("zip:///non-existent.zip")
+        read_dataframe("zip:///non-existent.zip", use_arrow=use_arrow)
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
-def test_read_sql(naturalearth_lowres_all_ext):
+def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
     # The geometry column cannot be specified when using the
     # default OGRSQL dialect but is returned nonetheless, so 4 columns.
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
@@ -479,10 +621,10 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     assert len(df) == 1
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
-    with pytest.raises(ValueError, match="'skip_features' must be between 0 and 0"):
-        _ = read_dataframe(
-            naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
-        )
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
+    )
+    assert len(df) == 0
 
 
 @requires_gdal_geos
@@ -618,7 +760,6 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
         )
 
 
-@pytest.mark.filterwarnings("ignore:.*Layer .* does not have any features to read")
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 def test_write_empty_dataframe(tmp_path, ext):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)

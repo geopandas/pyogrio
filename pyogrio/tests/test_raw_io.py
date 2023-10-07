@@ -24,6 +24,11 @@ from pyogrio.tests.conftest import (
     requires_arrow_api,
 )
 
+try:
+    import shapely
+except ImportError:
+    pass
+
 
 def test_read(naturalearth_lowres):
     meta, _, geometry, fields = read(naturalearth_lowres)
@@ -129,16 +134,22 @@ def test_read_columns(naturalearth_lowres):
     array_equal(meta["fields"], columns[:2])
 
 
-def test_read_skip_features(naturalearth_lowres):
-    expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
-    geometry, fields = read(naturalearth_lowres, skip_features=10)[2:]
+@pytest.mark.parametrize("skip_features", [10, 200])
+def test_read_skip_features(naturalearth_lowres_all_ext, skip_features):
+    expected_geometry, expected_fields = read(naturalearth_lowres_all_ext)[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, skip_features=skip_features)[
+        2:
+    ]
 
-    assert len(geometry) == len(expected_geometry) - 10
-    assert len(fields[0]) == len(expected_fields[0]) - 10
+    # skipping more features than available in layer returns empty arrays
+    expected_count = max(len(expected_geometry) - skip_features, 0)
 
-    assert np.array_equal(geometry, expected_geometry[10:])
+    assert len(geometry) == expected_count
+    assert len(fields[0]) == expected_count
+
+    assert np.array_equal(geometry, expected_geometry[skip_features:])
     # Last field has more variable data
-    assert np.array_equal(fields[-1], expected_fields[-1][10:])
+    assert np.array_equal(fields[-1], expected_fields[-1][skip_features:])
 
 
 def test_read_max_features(naturalearth_lowres):
@@ -175,9 +186,8 @@ def test_read_where(naturalearth_lowres):
     assert max(fields[0]) < 100000000
 
     # should match no items
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'INVALID'")[2:]
-        assert len(geometry) == 0
+    geometry, fields = read(naturalearth_lowres, where="iso_a3 = 'INVALID'")[2:]
+    assert len(geometry) == 0
 
 
 def test_read_where_invalid(naturalearth_lowres):
@@ -193,10 +203,9 @@ def test_read_bbox_invalid(naturalearth_lowres, bbox):
 
 def test_read_bbox(naturalearth_lowres_all_ext):
     # should return no features
-    with pytest.warns(UserWarning, match="does not have any features to read"):
-        geometry, fields = read(
-            naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001)
-        )[2:]
+    geometry, fields = read(naturalearth_lowres_all_ext, bbox=(0, 0, 0.00001, 0.00001))[
+        2:
+    ]
 
     assert len(geometry) == 0
 
@@ -204,6 +213,113 @@ def test_read_bbox(naturalearth_lowres_all_ext):
 
     assert len(geometry) == 2
     assert np.array_equal(fields[3], ["PAN", "CRI"])
+
+
+def test_read_bbox_sql(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        bbox=(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
+def test_read_bbox_where(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        bbox=(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask",
+    [
+        {"type": "Point", "coordinates": [0, 0]},
+        '{"type": "Point", "coordinates": [0, 0]}',
+        "invalid",
+    ],
+)
+def test_read_mask_invalid(naturalearth_lowres, mask):
+    with pytest.raises(ValueError, match="'mask' parameter must be a Shapely geometry"):
+        read(naturalearth_lowres, mask=mask)
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_bbox_mask_invalid(naturalearth_lowres):
+    with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
+        read(naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55))
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+@pytest.mark.parametrize(
+    "mask,expected",
+    [
+        ("POINT (-105 55)", ["CAN"]),
+        ("POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))", ["PAN", "CRI"]),
+        (
+            """POLYGON ((
+                6.101929 50.97085,
+                5.773002 50.906611,
+                5.593156 50.642649,
+                6.059271 50.686052,
+                6.374064 50.851481,
+                6.101929 50.97085
+            ))""",
+            ["DEU", "BEL", "NLD"],
+        ),
+        (
+            """GEOMETRYCOLLECTION (
+                POINT (-7.7 53),
+                POLYGON ((-80 8, -80 10, -85 10, -85 8, -80 8))
+            )""",
+            ["PAN", "CRI", "IRL"],
+        ),
+    ],
+)
+def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
+    mask = shapely.from_wkt(mask)
+
+    geometry, fields = read(naturalearth_lowres_all_ext, mask=mask)[2:]
+
+    assert np.array_equal(fields[3], expected)
+    assert len(geometry) == len(expected)
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_mask_sql(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        mask=shapely.box(-180, 50, -100, 90),
+        sql="SELECT * from naturalearth_lowres where iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
+
+
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_mask_where(naturalearth_lowres_all_ext):
+    fields = read(
+        naturalearth_lowres_all_ext,
+        mask=shapely.box(-180, 50, -100, 90),
+        where="iso_a3 not in ('USA', 'RUS')",
+    )[3]
+    assert len(fields[3]) == 1
+    assert np.array_equal(fields[3], ["CAN"])
 
 
 def test_read_fids(naturalearth_lowres):
@@ -252,6 +368,13 @@ def test_read_fids_unsupported_keywords(naturalearth_lowres):
 
     with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
         read(naturalearth_lowres, fids=[1], max_features=5)
+
+    with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+        read(naturalearth_lowres, fids=[1], bbox=(0, 0, 0.0001, 0.0001))
+
+    if HAS_SHAPELY:
+        with pytest.raises(ValueError, match="cannot set both 'fids' and any of"):
+            read(naturalearth_lowres, fids=[1], mask=shapely.Point(0, 0))
 
 
 def test_read_return_fids(naturalearth_lowres):
@@ -591,8 +714,6 @@ def assert_equal_result(result1, result2):
     assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
 
     if HAS_SHAPELY:
-        import shapely
-
         # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work
         # because the WKB values are not exactly equal, therefore parsing with
         # shapely to compare with tolerance

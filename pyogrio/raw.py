@@ -4,7 +4,12 @@ from pyogrio._env import GDALEnv
 from pyogrio._compat import HAS_ARROW_API
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import get_vsi_path, vsi_path, _preprocess_options_key_value
+from pyogrio.util import (
+    get_vsi_path,
+    vsi_path,
+    _preprocess_options_key_value,
+    _mask_to_wkb,
+)
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
@@ -39,6 +44,7 @@ def read(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -74,14 +80,14 @@ def read(
         If the geometry has Z values, setting this to True will cause those to
         be ignored and 2D geometries to be returned
     skip_features : int, optional (default: 0)
-        Number of features to skip from the beginning of the file before returning
-        features.  Must be less than the total number of features in the file.
-        Using this parameter may incur significant overhead if the driver does
-        not support the capability to randomly seek to a specific feature,
-        because it will need to iterate over all prior features.
+        Number of features to skip from the beginning of the file before
+        returning features.  If greater than available number of features, an
+        empty DataFrame will be returned.  Using this parameter may incur
+        significant overhead if the driver does not support the capability to
+        randomly seek to a specific feature, because it will need to iterate
+        over all prior features.
     max_features : int, optional (default: None)
-        Number of features to read from the file.  Must be less than the total
-        number of features in the file minus skip_features (if used).
+        Number of features to read from the file.
     where : str, optional (default: None)
         Where clause to filter features in layer by attribute values. If the data source
         natively supports SQL, its specific SQL dialect should be used (eg. SQLite and
@@ -95,21 +101,30 @@ def read(
         and used by GDAL, only geometries that intersect this bbox will be
         returned; if GEOS is not available or not used by GDAL, all geometries
         with bounding boxes that intersect this bbox will be returned.
+        Cannot be combined with ``mask`` keyword.
+    mask : Shapely geometry, optional (default: None)
+        If present, will be used to filter records whose geometry intersects
+        this geometry.  This must be in the same CRS as the dataset.  If GEOS is
+        present and used by GDAL, only geometries that intersect this geometry
+        will be returned; if GEOS is not available or not used by GDAL, all
+        geometries with bounding boxes that intersect the bounding box of this
+        geometry will be returned.  Requires Shapely >= 2.0.
+        Cannot be combined with ``bbox`` keyword.
     fids : array-like, optional (default: None)
         Array of integer feature id (FID) values to select. Cannot be combined
-        with other keywords to select a subset (`skip_features`, `max_features`,
-        `where` or `bbox`). Note that the starting index is driver and file
-        specific (e.g. typically 0 for Shapefile and 1 for GeoPackage, but can
-        still depend on the specific file). The performance of reading a large
-        number of features usings FIDs is also driver specific.
+        with other keywords to select a subset (``skip_features``,
+        ``max_features``, ``where``, ``bbox``, or ``mask``). Note that the
+        starting index is driver and file specific (e.g. typically 0 for
+        Shapefile and 1 for GeoPackage, but can still depend on the specific
+        file). The performance of reading a large number of features usings FIDs
+        is also driver specific.
     sql : str, optional (default: None)
-        The SQL statement to execute. See the sql_dialect parameter for
-        more information on the syntax to use for the query. When combined
-        with other keywords like ``columns``, ``skip_features``,
-        ``max_features``, ``where`` or ``bbox``, those are applied after the
-        SQL query. Be aware that this can have an impact on performance,
-        (e.g. filtering with the ``bbox`` keyword may not use
-        spatial indexes).
+        The SQL statement to execute. Look at the sql_dialect parameter for more
+        information on the syntax to use for the query. When combined with other
+        keywords like ``columns``, ``skip_features``, ``max_features``,
+        ``where``, ``bbox``, or ``mask``, those are applied after the SQL query.
+        Be aware that this can have an impact on performance, (e.g. filtering
+        with the ``bbox`` or ``mask`` keywords may not use spatial indexes).
         Cannot be combined with the ``layer`` or ``fids`` keywords.
     sql_dialect : str, optional (default: None)
         The SQL dialect the ``sql`` statement is written in. Possible values:
@@ -187,6 +202,7 @@ def read(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
             fids=fids,
             sql=sql,
             sql_dialect=sql_dialect,
@@ -213,6 +229,7 @@ def read_arrow(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -239,6 +256,23 @@ def read_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
+    from pyarrow import Table
+
+    # limit batch size to max_features if set
+    if "batch_size" in kwargs:
+        batch_size = kwargs.pop("batch_size")
+    else:
+        batch_size = 65_536
+
+    if max_features is not None and max_features < batch_size:
+        batch_size = max_features
+
+    # handle skip_features internally within open_arrow if GDAL >= 3.8.0
+    gdal_skip_features = 0
+    if get_gdal_version() >= (3, 8, 0):
+        gdal_skip_features = skip_features
+        skip_features = 0
+
     with open_arrow(
         path_or_buffer,
         layer=layer,
@@ -246,18 +280,47 @@ def read_arrow(
         columns=columns,
         read_geometry=read_geometry,
         force_2d=force_2d,
-        skip_features=skip_features,
-        max_features=max_features,
         where=where,
         bbox=bbox,
+        mask=mask,
         fids=fids,
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=return_fids,
+        skip_features=gdal_skip_features,
+        batch_size=batch_size,
         **kwargs,
     ) as source:
         meta, reader = source
-        table = reader.read_all()
+
+        if max_features is not None:
+            batches = []
+            count = 0
+            while True:
+                try:
+                    batch = reader.read_next_batch()
+                    batches.append(batch)
+
+                    count += len(batch)
+                    if count >= (skip_features + max_features):
+                        break
+
+                except StopIteration:
+                    break
+
+            # use combine_chunks to release the original memory that included
+            # too many features
+            table = (
+                Table.from_batches(batches, schema=reader.schema)
+                .slice(skip_features, max_features)
+                .combine_chunks()
+            )
+
+        elif skip_features > 0:
+            table = reader.read_all().slice(skip_features).combine_chunks()
+
+        else:
+            table = reader.read_all()
 
     return meta, table
 
@@ -274,6 +337,7 @@ def open_arrow(
     max_features=None,
     where=None,
     bbox=None,
+    mask=None,
     fids=None,
     sql=None,
     sql_dialect=None,
@@ -336,6 +400,7 @@ def open_arrow(
             max_features=max_features or 0,
             where=where,
             bbox=bbox,
+            mask=_mask_to_wkb(mask),
             fids=fids,
             sql=sql,
             sql_dialect=sql_dialect,

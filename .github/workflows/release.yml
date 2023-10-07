@@ -52,7 +52,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.6.3" # python 3.10.6
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.7.2"
 
     steps:
       - name: Download sdist from artifacts
@@ -110,7 +110,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.14.1
+        uses: pypa/cibuildwheel@v2.16.0
 
       - uses: actions/upload-artifact@v3
         with:
@@ -155,7 +155,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.6.4-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.7.2-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -171,9 +171,9 @@ jobs:
           cd $VCPKG_INSTALLATION_ROOT
           # on mac the clone is not clean, otherwise git pull fails
           git reset --hard
-          # pull latest version to ensure the required commit with GDAL 3.6 is available
+          # pull latest version to ensure the required commit with GDAL 3.7 is available
           git pull
-          git checkout 580f143d123ce6abb5c135b11d6402c9a54bc9b9
+          git checkout 62988594de235334bc83609a060773eb2c8a8478
 
       - name: Install GDAL
         env:
@@ -190,7 +190,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.14.1
+        uses: pypa/cibuildwheel@v2.16.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -208,7 +208,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - name: Checkout
@@ -218,6 +218,7 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
           cache: "pip"
           cache-dependency-path: "ci/requirements-wheel-test.txt"
 
@@ -230,7 +231,9 @@ jobs:
         shell: bash
         run: |
           python -m pip install -r ci/requirements-wheel-test.txt
-          python -m pip install --no-deps geopandas
+          if [ ${{ matrix.python-version }} != "3.12" ]; then
+            python -m pip install --no-deps geopandas
+          fi
           python -m pip install --pre --find-links wheelhouse/artifact pyogrio
           python -m pip list
 
