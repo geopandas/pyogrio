@@ -775,7 +775,7 @@ def test_read_datetime_millisecond(test_datetime):
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
 
-def test_read_datetime_tz(test_datetime_tz):
+def test_read_datetime_as_string(test_datetime_tz):
     field = read(test_datetime_tz)[3][0]
     assert field.dtype == "datetime64[ms]"
     # timezone is ignored in numpy layer

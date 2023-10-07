@@ -129,7 +129,8 @@ def read(
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as a string
-        array, instead of a datetime64 array (used to extract timezone info).
+        array (which can be used to extract timezone info), instead of
+        a datetime64 array.
 
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
@@ -148,6 +149,7 @@ def read(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>"
         }
@@ -386,6 +388,8 @@ def write(
     timezone_cols_metadata=None,
     **kwargs,
 ):
+    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # read, and it is convenient to pass meta directly into write for round trip tests)
     kwargs.pop("dtypes", None)
     path = vsi_path(str(path))
 

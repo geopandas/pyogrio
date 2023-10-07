@@ -52,6 +52,9 @@ def _try_parse_datetime(ser):
         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
 
     if res.dtype != "object":
+        # GDAL only supports ms precision, convert outputs to match.
+        # Pandas 2.0 supports datetime[ms] directly, prior versions only support [ns],
+        # Instead, round the values to [ms] precision.
         if PANDAS_GE_20:
             res = res.dt.as_unit("ms")
         else:
@@ -202,6 +205,9 @@ def read_dataframe(
 
     read_func = read_arrow if use_arrow else read
     if not use_arrow:
+        # For arrow, datetimes are read as is.
+        # For numpy IO, datetimes are read as string values to preserve timezone info
+        # as numpy does not directly support timezones.
         kwargs["datetime_as_string"] = True
     result = read_func(
         path_or_buffer,
@@ -392,34 +398,37 @@ def write_dataframe(
     field_data = []
     field_mask = []
     # dict[str, np.array(datetime.datetime)] special case for dt-tz fields
-    timezone_cols_metadata = {}
+    gdal_tz_offsets = {}
     for name in fields:
-        ser = df[name]
-        col = ser.values
-        if isinstance(ser.dtype, pd.DatetimeTZDtype):
+        col = df[name]
+        values = col.values
+        if isinstance(col.dtype, pd.DatetimeTZDtype):
             # Deal with datetimes with timezones by passing down timezone separately
             # pass down naive datetime
-            naive = ser.dt.tz_localize(None)
-            col = naive.values
+            naive = col.dt.tz_localize(None)
+            values = naive.values
             # compute offset relative to UTC explicitly
-            tz_offset = naive - ser.dt.tz_convert("UTC").dt.tz_localize(None)
+            tz_offset = naive - col.dt.tz_convert("UTC").dt.tz_localize(None)
             # Convert to GDAL timezone offset representation.
+            # GMT is represented as 100 and offsets are represented by adding /
+            # subtracting 1 for every 15 minutes different from GMT.
             # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
+            # Convert each row offset to a signed multiple of 15m and add to GMT value
             gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
-            timezone_cols_metadata[name] = gdal_offset_representation
+            gdal_tz_offsets[name] = gdal_offset_representation
         else:
-            col = ser.values
-        if isinstance(col, pd.api.extensions.ExtensionArray):
+            values = col.values
+        if isinstance(values, pd.api.extensions.ExtensionArray):
             from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
 
-            if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
-                field_data.append(col._data)
-                field_mask.append(col._mask)
+            if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(values._data)
+                field_mask.append(values._mask)
             else:
-                field_data.append(np.asarray(col))
-                field_mask.append(np.asarray(col.isna()))
+                field_data.append(np.asarray(values))
+                field_mask.append(np.asarray(values.isna()))
         else:
-            field_data.append(col)
+            field_data.append(values)
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
@@ -514,6 +523,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
-        timezone_cols_metadata=timezone_cols_metadata,
+        timezone_cols_metadata=gdal_tz_offsets,
         **kwargs,
     )

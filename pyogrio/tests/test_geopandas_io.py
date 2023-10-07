@@ -187,34 +187,34 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
         expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
     else:
         expected = pd.to_datetime(raw_expected)
-    expected = pd.Series(expected, name="col")
-    assert_series_equal(df.col, expected)
+    expected = pd.Series(expected, name="datetime_col")
+    assert_series_equal(df.datetime_col, expected)
     # test write and read round trips
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     df_read = read_dataframe(fpath)
-    assert_series_equal(df_read.col, expected)
+    assert_series_equal(df_read.datetime_col, expected)
 
 
 def test_write_datetime_mixed_offset(tmp_path):
-    # Summer Time (GMT+11), standard time (GMT+10)
+    # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
     dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
-    ser_naive = pd.Series(pd.to_datetime(dates), name="dates")
-    ser_localised = ser_naive.dt.tz_localize("Australia/Sydney")
-    ser_utc = ser_localised.dt.tz_convert("UTC")
+    naive_col = pd.Series(pd.to_datetime(dates), name="dates")
+    localised_col = naive_col.dt.tz_localize("Australia/Sydney")
+    utc_col = localised_col.dt.tz_convert("UTC")
     if PANDAS_GE_20:
-        ser_utc = ser_utc.dt.as_unit("ms")
+        utc_col = utc_col.dt.as_unit("ms")
 
     df = gp.GeoDataFrame(
-        {"dates": ser_localised, "geometry": [Point(1, 1), Point(1, 1)]},
+        {"dates": localised_col, "geometry": [Point(1, 1), Point(1, 1)]},
         crs="EPSG:4326",
     )
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)
     result = read_dataframe(fpath)
-    # GDAL tz only encodes offsets, not timezones, for multiple offsets
-    # read as utc datetime as otherwise would be read as string
-    assert_series_equal(result["dates"], ser_utc)
+    # GDAL tz only encodes offsets, not timezones
+    # check multiple offsets are read as utc datetime instead of string values
+    assert_series_equal(result["dates"], utc_col)
 
 
 def test_read_write_datetime_tz_with_nulls(tmp_path):
