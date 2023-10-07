@@ -68,10 +68,10 @@ convert the datetimes to string.
 Timezone information is preserved where possible, however GDAL only represents
 time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or 
 `zoneinfo`). This means that dataframes with columns containing multiple offsets 
-e.g. when switching from standard time to summer time will be written correctly,
-but when read via `pyogrio.read_dataframe()` will be returned in UTC time, as
-there is no way to reconstruct the original timezone from the individual offsets
-present.
+(e.g. when switching from standard time to summer time) will be written correctly,
+but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime 
+column, as there is no way to reconstruct the original timezone from the individual 
+offsets present.
 
 ## Support for OpenStreetMap (OSM) data
 
