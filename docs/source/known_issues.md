@@ -55,16 +55,23 @@ with obscure error messages.
 ## Support for reading and writing DateTimes
 
 GDAL only supports datetimes at a millisecond resolution. Reading data will thus
-give at most millisecond resolution (`datetime64[ms]` data type), even though
-the data is cast `datetime64[ns]` data type when reading into a data frame
-using `pyogrio.read_dataframe()`. When writing, only precision up to ms is retained.
+give at most millisecond resolution (`datetime64[ms]` data type). With pandas 2.0
+`pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]` 
+correspondingly. For previous versions of pandas, `datetime64[ns]` is used as 
+ms precision was not supported. When writing, only precision up to 
+ms is retained.
 
 Not all file formats have dedicated support to store datetime data, like ESRI
 Shapefile. For such formats, or if you require precision > ms, a workaround is to
 convert the datetimes to string.
 
-Timezone information is ignored at the moment, both when reading and when writing
-datetime columns.
+Timezone information is preserved where possible, however GDAL only represents
+time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or 
+`zoneinfo`). This means that dataframes with columns containing multiple offsets 
+e.g. when switching from standard time to summer time will be written correctly,
+but when read via `pyogrio.read_dataframe()` will be returned in UTC time, as
+there is no way to reconstruct the original timezone from the individual offsets
+present.
 
 ## Support for OpenStreetMap (OSM) data
 
