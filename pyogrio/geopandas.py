@@ -1,6 +1,6 @@
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS
+from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_20
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -10,17 +10,7 @@ from pyogrio.raw import (
     write,
 )
 from pyogrio.errors import DataSourceError
-from packaging.version import Version
 import warnings
-
-
-try:
-    import pandas
-
-    PANDAS_GE_20 = Version(pandas.__version__) >= Version("2.0.0")
-
-except ImportError:
-    PANDAS_GE_20 = None
 
 
 def _stringify_path(path):
