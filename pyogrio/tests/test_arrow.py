@@ -1,4 +1,6 @@
+import contextlib
 import math
+import os
 
 import pytest
 
@@ -171,3 +173,25 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
             reader,
         ):
             pass
+
+
+@contextlib.contextmanager
+def use_arrow_context():
+    original = os.environ.get("PYOGRIO_USE_ARROW", None)
+    os.environ["PYOGRIO_USE_ARROW"] = "1"
+    yield
+    if original:
+        os.environ["PYOGRIO_USE_ARROW"] = original
+    else:
+        del os.environ["PYOGRIO_USE_ARROW"]
+
+
+def test_enable_with_environment_variable(test_ogr_types_list):
+    # list types are only supported with arrow, so don't work by default and work
+    # when arrow is enabled through env variable
+    result = read_dataframe(test_ogr_types_list)
+    assert "list_int64" not in result.columns
+
+    with use_arrow_context():
+        result = read_dataframe(test_ogr_types_list)
+    assert "list_int64" in result.columns

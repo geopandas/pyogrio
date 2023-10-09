@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from pyogrio._compat import HAS_GEOPANDAS
@@ -44,7 +46,7 @@ def read_dataframe(
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
-    use_arrow=False,
+    use_arrow=None,
     arrow_to_pandas_kwargs=None,
     **kwargs,
 ):
@@ -145,6 +147,8 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+        Defaults to False, but this default can also be globally overridden
+        by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
@@ -185,6 +189,9 @@ def read_dataframe(
     from geopandas.array import from_wkb
 
     path_or_buffer = _stringify_path(path_or_buffer)
+
+    if use_arrow is None:
+        use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
 
     read_func = read_arrow if use_arrow else read
     result = read_func(
