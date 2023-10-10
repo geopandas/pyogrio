@@ -152,6 +152,11 @@ def test_read_skip_features(naturalearth_lowres_all_ext, skip_features):
     assert np.array_equal(fields[-1], expected_fields[-1][skip_features:])
 
 
+def test_read_negative_skip_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
+        read(naturalearth_lowres, skip_features=-1)
+
+
 def test_read_max_features(naturalearth_lowres):
     expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
     geometry, fields = read(naturalearth_lowres, max_features=2)[2:]
@@ -161,6 +166,11 @@ def test_read_max_features(naturalearth_lowres):
 
     assert np.array_equal(geometry, expected_geometry[:2])
     assert np.array_equal(fields[-1], expected_fields[-1][:2])
+
+
+def test_read_negative_max_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'max_features' must be >= 0"):
+        read(naturalearth_lowres, max_features=-1)
 
 
 def test_read_where(naturalearth_lowres):

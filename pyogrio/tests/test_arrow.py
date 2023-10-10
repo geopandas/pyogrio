@@ -39,12 +39,22 @@ def test_read_arrow_skip_features(naturalearth_lowres, skip_features, expected):
     assert len(table) == expected
 
 
+def test_read_arrow_negative_skip_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
+        read_arrow(naturalearth_lowres, skip_features=-1)
+
+
 @pytest.mark.parametrize(
     "max_features, expected", [(0, 0), (10, 10), (200, 177), (100000, 177)]
 )
 def test_read_arrow_max_features(naturalearth_lowres, max_features, expected):
     table = read_arrow(naturalearth_lowres, max_features=max_features)[1]
     assert len(table) == expected
+
+
+def test_read_arrow_negative_max_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'max_features' must be >= 0"):
+        read_arrow(naturalearth_lowres, max_features=-1)
 
 
 @pytest.mark.parametrize(
