@@ -490,7 +490,7 @@ def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features)
     )
 
 
-def testt_read_negative_max_features(naturalearth_lowres, use_arrow):
+def test_read_negative_max_features(naturalearth_lowres, use_arrow):
     with pytest.raises(ValueError, match="'max_features' must be >= 0"):
         read_dataframe(naturalearth_lowres, max_features=-1, use_arrow=use_arrow)
 
