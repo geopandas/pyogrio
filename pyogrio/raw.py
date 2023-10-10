@@ -250,6 +250,12 @@ def read_arrow(
     """
     from pyarrow import Table
 
+    if skip_features < 0:
+        raise ValueError("'skip_features' must be >= 0")
+
+    if max_features is not None and max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
+
     # limit batch size to max_features if set
     if "batch_size" in kwargs:
         batch_size = kwargs.pop("batch_size")
