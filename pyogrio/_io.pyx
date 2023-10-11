@@ -161,6 +161,11 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         raise DataSourceError("Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))) from None
 
     except CPLE_BaseError as exc:
+        if str(exc).endswith("not recognized as a supported file format."):
+            raise DataSourceError(
+                f"{str(exc)} It might help to specify the correct driver explicitly by "
+                "prefixing the file path with `<DRIVER>:`"
+            )
         raise DataSourceError(str(exc))
 
 
