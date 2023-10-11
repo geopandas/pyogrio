@@ -80,16 +80,18 @@ def detect_write_driver(path):
     if len(drivers) == 0:
         raise ValueError(
             f"Could not infer driver from path: {path}; please specify driver "
-            "explicitly, e.g. by prefixing the file path with `<DRIVER>:`"
+            "explicitly, e.g. by prefixing the file path with '<DRIVER>:', "
+            "e.g. 'GPKG:path'."
         )
 
     # if there are multiple drivers detected, user needs to specify the correct
     # one manually
     elif len(drivers) > 1:
         raise ValueError(
-            f"Could not infer driver from path: {path}; multiple drivers are "
-            f"available for that extension: {', '.join(drivers)}.  Please specify "
-            "driver explicitly, e.g. by prefixing the file path with `<DRIVER>:`"
+            f"Could not infer driver from path: {path}; multiple drivers are available "
+            f"for that extension: {', '.join(drivers)}. Please specify driver "
+            "explicitly, e.g. by prefixing the file path with '<DRIVER>:', "
+            "e.g. 'GPKG:path'."
         )
 
     return drivers[0]
