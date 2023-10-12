@@ -906,23 +906,27 @@ def test_read_datetime_millisecond(test_datetime):
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
 
-@pytest.mark.parametrize("prefix_driver", [True, False])
-def test_read_unsupported_ext(tmp_path, prefix_driver):
+def test_read_unsupported_ext(tmp_path):
     test_unsupported_path = tmp_path / "test.unsupported"
     with open(test_unsupported_path, "w") as file:
         file.write("column1,column2\n")
         file.write("data1,data2")
 
-    if prefix_driver:
-        _, _, _, field_data = read(f"CSV:{test_unsupported_path}")
-        assert len(field_data) == 2
-        assert field_data[0] == "data1"
+    with pytest.raises(
+        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+    ):
+        read(test_unsupported_path)
 
-    else:
-        with pytest.raises(
-            DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
-        ):
-            read(test_unsupported_path)
+
+def test_read_unsupported_ext_with_prefix(tmp_path):
+    test_unsupported_path = tmp_path / "test.unsupported"
+    with open(test_unsupported_path, "w") as file:
+        file.write("column1,column2\n")
+        file.write("data1,data2")
+
+    _, _, _, field_data = read(f"CSV:{test_unsupported_path}")
+    assert len(field_data) == 2
+    assert field_data[0] == "data1"
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
