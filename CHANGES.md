@@ -37,6 +37,8 @@
     because all features up to the next batch size above `max_features` (or size
     of data layer) will be read prior to slicing out the requested range of
     features (#282).
+-   The `use_arrow=True` option can be enabled globally for testing using the
+    `PYOGRIO_USE_ARROW=1` environment variable (#296).
 
 ### Bug fixes
 
