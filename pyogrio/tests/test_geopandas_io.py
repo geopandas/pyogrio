@@ -429,15 +429,70 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
-def test_read_skip_features(
-    naturalearth_lowres_all_ext, use_arrow, skip_features, expected
-):
+@pytest.mark.parametrize("skip_features", [10, 200])
+def test_read_skip_features(naturalearth_lowres_all_ext, use_arrow, skip_features):
+    ext = naturalearth_lowres_all_ext.suffix
+    expected = (
+        read_dataframe(naturalearth_lowres_all_ext)
+        .iloc[skip_features:]
+        .reset_index(drop=True)
+    )
+
     df = read_dataframe(
         naturalearth_lowres_all_ext, skip_features=skip_features, use_arrow=use_arrow
     )
-    assert len(df) == expected
-    assert isinstance(df, gp.GeoDataFrame)
+    assert len(df) == len(expected)
+
+    # Coordinates are not precisely equal when written to JSON
+    # dtypes do not necessarily round-trip precisely through JSON
+    is_json = ext in [".geojson", ".geojsonl"]
+    # In .geojsonl the vertices are reordered, so normalize
+    is_jsons = ext == ".geojsonl"
+
+    assert_geodataframe_equal(
+        df,
+        expected,
+        check_less_precise=is_json,
+        check_index_type=False,
+        check_dtype=not is_json,
+        normalize=is_jsons,
+    )
+
+
+def test_read_negative_skip_features(naturalearth_lowres, use_arrow):
+    with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
+        read_dataframe(naturalearth_lowres, skip_features=-1, use_arrow=use_arrow)
+
+
+@pytest.mark.parametrize("max_features", [10, 100])
+def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features):
+    ext = naturalearth_lowres_all_ext.suffix
+    expected = read_dataframe(naturalearth_lowres_all_ext).iloc[:max_features]
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, max_features=max_features, use_arrow=use_arrow
+    )
+
+    assert len(df) == len(expected)
+
+    # Coordinates are not precisely equal when written to JSON
+    # dtypes do not necessarily round-trip precisely through JSON
+    is_json = ext in [".geojson", ".geojsonl"]
+    # In .geojsonl the vertices are reordered, so normalize
+    is_jsons = ext == ".geojsonl"
+
+    assert_geodataframe_equal(
+        df,
+        expected,
+        check_less_precise=is_json,
+        check_index_type=False,
+        check_dtype=not is_json,
+        normalize=is_jsons,
+    )
+
+
+def test_read_negative_max_features(naturalearth_lowres, use_arrow):
+    with pytest.raises(ValueError, match="'max_features' must be >= 0"):
+        read_dataframe(naturalearth_lowres, max_features=-1, use_arrow=use_arrow)
 
 
 def test_read_non_existent_file(use_arrow):
