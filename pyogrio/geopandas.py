@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 
 from pyogrio._compat import HAS_GEOPANDAS
@@ -44,7 +46,7 @@ def read_dataframe(
     sql=None,
     sql_dialect=None,
     fid_as_index=False,
-    use_arrow=False,
+    use_arrow=None,
     arrow_to_pandas_kwargs=None,
     **kwargs,
 ):
@@ -145,6 +147,8 @@ def read_dataframe(
         Whether to use Arrow as the transfer mechanism of the read data
         from GDAL to Python (requires GDAL >= 3.6 and `pyarrow` to be
         installed). When enabled, this provides a further speed-up.
+        Defaults to False, but this default can also be globally overridden
+        by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
@@ -183,17 +187,22 @@ def read_dataframe(
     import pandas as pd
     import geopandas as gp
     from geopandas.array import from_wkb
+    import shapely  # if geopandas is present, shapely is expected to be present
 
     path_or_buffer = _stringify_path(path_or_buffer)
 
+    if use_arrow is None:
+        use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
+
     read_func = read_arrow if use_arrow else read
+    gdal_force_2d = False if use_arrow else force_2d
     result = read_func(
         path_or_buffer,
         layer=layer,
         encoding=encoding,
         columns=columns,
         read_geometry=read_geometry,
-        force_2d=force_2d,
+        force_2d=gdal_force_2d,
         skip_features=skip_features,
         max_features=max_features,
         where=where,
@@ -227,6 +236,8 @@ def read_dataframe(
             return pd.DataFrame()
         elif geometry_name in df.columns:
             df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+            if force_2d:
+                df["geometry"] = shapely.force_2d(df["geometry"])
             return gp.GeoDataFrame(df, geometry="geometry")
         else:
             return df

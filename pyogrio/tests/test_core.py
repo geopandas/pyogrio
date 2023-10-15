@@ -191,12 +191,22 @@ def test_read_bounds_max_features(naturalearth_lowres):
     assert bounds.shape == (4, 2)
 
 
+def test_read_bounds_negative_max_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'max_features' must be >= 0"):
+        read_bounds(naturalearth_lowres, max_features=-1)
+
+
 def test_read_bounds_skip_features(naturalearth_lowres):
     expected_bounds = read_bounds(naturalearth_lowres, max_features=11)[1][:, 10]
     fids, bounds = read_bounds(naturalearth_lowres, skip_features=10)
     assert bounds.shape == (4, 167)
     assert allclose(bounds[:, 0], expected_bounds)
     assert fids[0] == 10
+
+
+def test_read_bounds_negative_skip_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
+        read_bounds(naturalearth_lowres, skip_features=-1)
 
 
 def test_read_bounds_where_invalid(naturalearth_lowres_all_ext):

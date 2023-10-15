@@ -23,6 +23,7 @@
     intersect the bounding box of the mask when using the Arrow interface for
     some drivers; this has been fixed in GDAL 3.8.0.
 -   Removed warning when no features are read from the data source (#299).
+-   Add support for `force_2d=True` with `use_arrow=True` in `read_dataframe` (#300).
 
 ### Other changes
 
@@ -36,6 +37,8 @@
     because all features up to the next batch size above `max_features` (or size
     of data layer) will be read prior to slicing out the requested range of
     features (#282).
+-   The `use_arrow=True` option can be enabled globally for testing using the
+    `PYOGRIO_USE_ARROW=1` environment variable (#296).
 
 ### Bug fixes
 

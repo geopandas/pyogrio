@@ -158,10 +158,17 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         return ogr_dataset
 
     except NullPointerError:
-        raise DataSourceError("Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))) from None
+        raise DataSourceError(
+            "Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))
+        ) from None
 
     except CPLE_BaseError as exc:
-        raise DataSourceError(str(exc))
+        if str(exc).endswith("not recognized as a supported file format."):
+            raise DataSourceError(
+                f"{str(exc)} It might help to specify the correct driver explicitly by "
+                "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
+            ) from None
+        raise DataSourceError(str(exc)) from None
 
 
 cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
@@ -650,17 +657,15 @@ cdef validate_feature_range(OGRLayerH ogr_layer, int skip_features=0, int max_fe
     skip_features : number of features to skip from beginning of available range
     max_features : maximum number of features to read from available range
     """
+
     feature_count = get_feature_count(ogr_layer, 1)
     num_features = max_features
 
     if feature_count == 0:
         return 0, 0
 
-    if skip_features < 0 or skip_features >= feature_count:
+    if skip_features >= feature_count:
         skip_features = feature_count
-
-    if max_features < 0:
-        raise ValueError("'max_features' must be >= 0")
 
     elif max_features == 0:
         num_features = feature_count - skip_features
@@ -1094,6 +1099,12 @@ def ogr_read(
     if bbox and mask:
         raise ValueError("cannot set both 'bbox' and 'mask'")
 
+    if skip_features < 0:
+        raise ValueError("'skip_features' must be >= 0")
+
+    if max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1261,6 +1272,9 @@ def ogr_open_arrow(
                 "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
             )
 
+    if skip_features < 0:
+        raise ValueError("'skip_features' must be >= 0")
+
     if max_features:
         raise ValueError(
             "specifying 'max_features' is not supported for Arrow"
@@ -1422,6 +1436,12 @@ def ogr_read_bounds(
 
     if bbox and mask:
         raise ValueError("cannot set both 'bbox' and 'mask'")
+
+    if skip_features < 0:
+        raise ValueError("'skip_features' must be >= 0")
+
+    if max_features < 0:
+        raise ValueError("'max_features' must be >= 0")
 
     path_b = path.encode('utf-8')
     path_c = path_b
