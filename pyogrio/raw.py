@@ -265,10 +265,11 @@ def read_arrow(
     if max_features is not None and max_features < batch_size:
         batch_size = max_features
 
-    # handle skip_features internally within open_arrow if GDAL >= 3.8.0
-    gdal_skip_features = 0
-    if get_gdal_version() >= (3, 8, 0):
-        gdal_skip_features = skip_features
+    # if where or sql statement specified, gdal has issues applying skip features in
+    # some cases, so handle it locally.
+    local_skip_features = 0
+    if where is not None or sql is not None:
+        local_skip_features = skip_features
         skip_features = 0
 
     with open_arrow(
@@ -285,7 +286,7 @@ def read_arrow(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=return_fids,
-        skip_features=gdal_skip_features,
+        skip_features=skip_features,
         batch_size=batch_size,
         **kwargs,
     ) as source:
@@ -300,7 +301,7 @@ def read_arrow(
                     batches.append(batch)
 
                     count += len(batch)
-                    if count >= (skip_features + max_features):
+                    if count >= (local_skip_features + max_features):
                         break
 
                 except StopIteration:
@@ -310,12 +311,12 @@ def read_arrow(
             # too many features
             table = (
                 Table.from_batches(batches, schema=reader.schema)
-                .slice(skip_features, max_features)
+                .slice(local_skip_features, max_features)
                 .combine_chunks()
             )
 
-        elif skip_features > 0:
-            table = reader.read_all().slice(skip_features).combine_chunks()
+        elif local_skip_features > 0:
+            table = reader.read_all().slice(local_skip_features).combine_chunks()
 
         else:
             table = reader.read_all()

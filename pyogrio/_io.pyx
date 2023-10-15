@@ -1266,11 +1266,11 @@ def ogr_open_arrow(
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
 
-    IF CTE_GDAL_VERSION < (3, 8, 0):
-        if skip_features:
-            raise ValueError(
-                "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
-            )
+    if skip_features and (sql is not None or where is not None):
+        raise ValueError(
+            "specifying 'skip_features' is not supported for Arrow in combination with "
+            "'sql' or 'where'. You can use the LIMIT and OFFSET clauses in the query."
+        )
 
     if skip_features < 0:
         raise ValueError("'skip_features' must be >= 0")
@@ -1370,13 +1370,12 @@ def ogr_open_arrow(
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
+        stream_ptr = <uintptr_t> &stream
+
         if skip_features:
-            # only supported for GDAL >= 3.8.0; have to do this after getting
-            # the Arrow stream
+            # For GDAL < 3.8.0 this needs to be set after getting the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        stream_ptr = <uintptr_t> &stream
-        
         # stream has to be consumed before the Dataset is closed
         import pyarrow as pa
         reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
