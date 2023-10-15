@@ -673,7 +673,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     else:
         assert len(df_skip) == len(df_offset)
         assert len(df_skip) == 1
-        assert df_skip.iso_a3 == df_offset.iso_a3
+        assert df_skip.iso_a3.to_list() == df_offset.iso_a3.to_list()
 
 
 @requires_gdal_geos
