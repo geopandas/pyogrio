@@ -1367,13 +1367,13 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        if skip_features:
-            # only supported for GDAL >= 3.8.0; have to do this before getting
-            # the Arrow stream
-            OGR_L_SetNextByIndex(ogr_layer, skip_features)
-
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+
+        if skip_features:
+            # only supported for GDAL >= 3.8.0; have to do this after getting
+            # the Arrow stream
+            OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         stream_ptr = <uintptr_t> &stream
         

@@ -642,6 +642,14 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     assert len(df) == 1
     assert df.iso_a3.tolist() == ["MEX"]
 
+    sql = "SELECT * FROM naturalearth_lowres"
+    df_all = read_dataframe(
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        use_arrow=use_arrow,
+    )
+
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df = read_dataframe(
         naturalearth_lowres_all_ext,
@@ -683,6 +691,14 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
         skip_features=5,
         use_arrow=use_arrow,
     )
+    sql = "SELECT * FROM naturalearth_lowres LIMIT 1 OFFSET 0"
+    df_offset0skip1 = read_dataframe(
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        skip_features=1,
+        use_arrow=use_arrow,
+    )
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df_skip = read_dataframe(
         naturalearth_lowres_all_ext,
@@ -696,10 +712,16 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     else:
         assert len(df_skip) == len(df_offset)
         assert len(df_skip) == 1
-        assert df_skip.iso_a3.to_list() == df_offset.iso_a3.to_list()
-        assert df_skip.iso_a3.to_list() == df_offset1skip5.iso_a3.to_list()
-        assert df_skip.iso_a3.to_list() == df_offset5skip1.iso_a3.to_list()
-        assert df_skip.iso_a3.to_list() == df_offset5.iso_a3.to_list()
+        df_skip.iso_a3.to_list() == df_offset.iso_a3.to_list()
+
+        message = (
+            f"More info: df_all.iso_a3: {df_all.iso_a3.to_list()}, "
+            f"df_offset1skip5.iso_a3: {df_offset1skip5.iso_a3.to_list()}, "
+            f"df_offset5skip1.iso_a3: {df_offset5skip1.iso_a3.to_list()}, "
+            f"df_offset0skip1.iso_a3: {df_offset0skip1.iso_a3.to_list()}, "
+            f"df_offset5.iso_a3: {df_offset5.iso_a3.to_list()}, "
+        )
+        raise Exception(message)
 
 
 @requires_gdal_geos
