@@ -657,7 +657,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
         naturalearth_lowres_all_ext,
         sql=sql,
         skip_features=1,
-        sql_dialect="SQLITE",
+        # sql_dialect="SQLITE",
         use_arrow=use_arrow,
     )
     assert len(df) == 0
