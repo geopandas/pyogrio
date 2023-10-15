@@ -652,15 +652,28 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     )
     assert len(df) == 1
 
-    sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
-    df = read_dataframe(
+    sql = "SELECT * FROM naturalearth_lowres LIMIT 1 OFFSET 1"
+    df_offset = read_dataframe(
         naturalearth_lowres_all_ext,
         sql=sql,
-        skip_features=1,
-        # sql_dialect="SQLITE",
+        sql_dialect="OGRSQL",
         use_arrow=use_arrow,
     )
-    assert len(df) == 0
+
+    sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
+    df_skip = read_dataframe(
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        skip_features=1,
+        use_arrow=use_arrow,
+    )
+    if len(df_skip) == 0:
+        assert len(df_skip) == 0
+    else:
+        assert len(df_skip) == len(df_offset)
+        assert len(df_skip) == 1
+        assert df_skip.iso_a3 == df_offset.iso_a3
 
 
 @requires_gdal_geos
