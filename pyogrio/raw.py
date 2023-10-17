@@ -456,7 +456,7 @@ def write(
     metadata=None,
     dataset_options=None,
     layer_options=None,
-    timezone_cols_metadata=None,
+    gdal_tz_offsets=None,
     **kwargs,
 ):
     # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
@@ -545,5 +545,5 @@ def write(
         layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
-        timezone_cols_metadata=timezone_cols_metadata,
+        gdal_tz_offsets=gdal_tz_offsets,
     )

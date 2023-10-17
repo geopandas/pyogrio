@@ -561,6 +561,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
-        timezone_cols_metadata=gdal_tz_offsets,
+        gdal_tz_offsets=gdal_tz_offsets,
         **kwargs,
     )
