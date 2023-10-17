@@ -152,6 +152,11 @@ def test_read_skip_features(naturalearth_lowres_all_ext, skip_features):
     assert np.array_equal(fields[-1], expected_fields[-1][skip_features:])
 
 
+def test_read_negative_skip_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
+        read(naturalearth_lowres, skip_features=-1)
+
+
 def test_read_max_features(naturalearth_lowres):
     expected_geometry, expected_fields = read(naturalearth_lowres)[2:]
     geometry, fields = read(naturalearth_lowres, max_features=2)[2:]
@@ -161,6 +166,11 @@ def test_read_max_features(naturalearth_lowres):
 
     assert np.array_equal(geometry, expected_geometry[:2])
     assert np.array_equal(fields[-1], expected_fields[-1][:2])
+
+
+def test_read_negative_max_features(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'max_features' must be >= 0"):
+        read(naturalearth_lowres, max_features=-1)
 
 
 def test_read_where(naturalearth_lowres):
@@ -894,6 +904,29 @@ def test_read_datetime_millisecond(test_datetime):
     assert field.dtype == "datetime64[ms]"
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
+
+
+def test_read_unsupported_ext(tmp_path):
+    test_unsupported_path = tmp_path / "test.unsupported"
+    with open(test_unsupported_path, "w") as file:
+        file.write("column1,column2\n")
+        file.write("data1,data2")
+
+    with pytest.raises(
+        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+    ):
+        read(test_unsupported_path)
+
+
+def test_read_unsupported_ext_with_prefix(tmp_path):
+    test_unsupported_path = tmp_path / "test.unsupported"
+    with open(test_unsupported_path, "w") as file:
+        file.write("column1,column2\n")
+        file.write("data1,data2")
+
+    _, _, _, field_data = read(f"CSV:{test_unsupported_path}")
+    assert len(field_data) == 2
+    assert field_data[0] == "data1"
 
 
 def test_read_datetime_as_string(test_datetime_tz):

@@ -23,6 +23,7 @@
     intersect the bounding box of the mask when using the Arrow interface for
     some drivers; this has been fixed in GDAL 3.8.0.
 -   Removed warning when no features are read from the data source (#299).
+-   Add support for `force_2d=True` with `use_arrow=True` in `read_dataframe` (#300).
 
 ### Other changes
 
