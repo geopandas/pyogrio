@@ -1665,7 +1665,7 @@ def ogr_write(
     str crs, str geometry_type, str encoding, object dataset_kwargs,
     object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
     bint append=False, dataset_metadata=None, layer_metadata=None,
-    timezone_cols_metadata=None
+    gdal_tz_offsets=None
 ):
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -1736,8 +1736,8 @@ def ogr_write(
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
 
-    if timezone_cols_metadata is None:
-        timezone_cols_metadata = {}
+    if gdal_tz_offsets is None:
+        gdal_tz_offsets = {}
 
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
@@ -2012,7 +2012,7 @@ def ogr_write(
                         OGR_F_SetFieldNull(ogr_feature, field_idx)
                     else:
                         datetime = field_value.astype("datetime64[ms]").item()
-                        tz_array = timezone_cols_metadata.get(fields[field_idx], None)
+                        tz_array = gdal_tz_offsets.get(fields[field_idx], None)
                         if tz_array is None:
                             gdal_tz = 0
                         else:
