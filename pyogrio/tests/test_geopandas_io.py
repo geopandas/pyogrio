@@ -174,8 +174,10 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
-def test_read_datetime(test_fgdb_vsi):
-    df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
+def test_read_datetime(test_fgdb_vsi, use_arrow):
+    df = read_dataframe(
+        test_fgdb_vsi, layer="test_lines", use_arrow=use_arrow, max_features=1
+    )
     if PANDAS_GE_20:
         # starting with pandas 2.0, it preserves the passed datetime resolution
         assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
