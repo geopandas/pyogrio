@@ -435,11 +435,10 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
-    # dict[str, np.array(datetime.datetime)] special case for dt-tz fields
+    # dict[str, np.array(int)] special case for dt-tz fields
     gdal_tz_offsets = {}
     for name in fields:
         col = df[name]
-        values = col.values
         if isinstance(col.dtype, pd.DatetimeTZDtype):
             # Deal with datetimes with timezones by passing down timezone separately
             # pass down naive datetime
