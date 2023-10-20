@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS
+from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_20
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -12,6 +12,7 @@ from pyogrio.raw import (
     write,
 )
 from pyogrio.errors import DataSourceError
+import warnings
 
 
 def _stringify_path(path):
@@ -27,6 +28,40 @@ def _stringify_path(path):
 
     # pass-though other objects
     return path
+
+
+def _try_parse_datetime(ser):
+    import pandas as pd  # only called when pandas is known to be installed
+
+    if PANDAS_GE_20:
+        datetime_kwargs = dict(format="ISO8601", errors="ignore")
+    else:
+        datetime_kwargs = dict(yearfirst=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            ".*parsing datetimes with mixed time zones will raise.*",
+            FutureWarning,
+        )
+        # pre-emptive try catch for when pandas will raise
+        # (can tighten the exception type in future when it does)
+        try:
+            res = pd.to_datetime(ser, **datetime_kwargs)
+        except Exception:
+            pass
+    # if object dtype, try parse as utc instead
+    if res.dtype == "object":
+        res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
+
+    if res.dtype != "object":
+        # GDAL only supports ms precision, convert outputs to match.
+        # Pandas 2.0 supports datetime[ms] directly, prior versions only support [ns],
+        # Instead, round the values to [ms] precision.
+        if PANDAS_GE_20:
+            res = res.dt.as_unit("ms")
+        else:
+            res = res.dt.round(freq="ms")
+    return res
 
 
 def read_dataframe(
@@ -196,6 +231,11 @@ def read_dataframe(
 
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
+    if not use_arrow:
+        # For arrow, datetimes are read as is.
+        # For numpy IO, datetimes are read as string values to preserve timezone info
+        # as numpy does not directly support timezones.
+        kwargs["datetime_as_string"] = True
     result = read_func(
         path_or_buffer,
         layer=layer,
@@ -250,8 +290,10 @@ def read_dataframe(
         index = pd.Index(index, name="fid")
     else:
         index = None
-
     df = pd.DataFrame(data, columns=columns, index=index)
+    for dtype, c in zip(meta["dtypes"], df.columns):
+        if dtype.startswith("datetime"):
+            df[c] = _try_parse_datetime(df[c])
 
     if geometry is None or not read_geometry:
         return df
@@ -393,19 +435,37 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    # dict[str, np.array(int)] special case for dt-tz fields
+    gdal_tz_offsets = {}
     for name in fields:
-        col = df[name].values
-        if isinstance(col, pd.api.extensions.ExtensionArray):
+        col = df[name]
+        if isinstance(col.dtype, pd.DatetimeTZDtype):
+            # Deal with datetimes with timezones by passing down timezone separately
+            # pass down naive datetime
+            naive = col.dt.tz_localize(None)
+            values = naive.values
+            # compute offset relative to UTC explicitly
+            tz_offset = naive - col.dt.tz_convert("UTC").dt.tz_localize(None)
+            # Convert to GDAL timezone offset representation.
+            # GMT is represented as 100 and offsets are represented by adding /
+            # subtracting 1 for every 15 minutes different from GMT.
+            # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
+            # Convert each row offset to a signed multiple of 15m and add to GMT value
+            gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
+            gdal_tz_offsets[name] = gdal_offset_representation
+        else:
+            values = col.values
+        if isinstance(values, pd.api.extensions.ExtensionArray):
             from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
 
-            if isinstance(col, (IntegerArray, FloatingArray, BooleanArray)):
-                field_data.append(col._data)
-                field_mask.append(col._mask)
+            if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(values._data)
+                field_mask.append(values._mask)
             else:
-                field_data.append(np.asarray(col))
-                field_mask.append(np.asarray(col.isna()))
+                field_data.append(np.asarray(values))
+                field_mask.append(np.asarray(values.isna()))
         else:
-            field_data.append(col)
+            field_data.append(values)
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
@@ -500,5 +560,6 @@ def write_dataframe(
         metadata=metadata,
         dataset_options=dataset_options,
         layer_options=layer_options,
+        gdal_tz_offsets=gdal_tz_offsets,
         **kwargs,
     )

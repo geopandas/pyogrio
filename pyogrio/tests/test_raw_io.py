@@ -929,6 +929,19 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
     assert field_data[0] == "data1"
 
 
+def test_read_datetime_as_string(test_datetime_tz):
+    field = read(test_datetime_tz)[3][0]
+    assert field.dtype == "datetime64[ms]"
+    # timezone is ignored in numpy layer
+    assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
+    assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
+    field = read(test_datetime_tz, datetime_as_string=True)[3][0]
+    assert field.dtype == "object"
+    # GDAL doesn't return strings in ISO format (yet)
+    assert field[0] == "2020/01/01 09:00:00.123-05"
+    assert field[1] == "2020/01/01 10:00:00-05"
+
+
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_read_write_null_geometry(tmp_path, ext):
     # Point(0, 0), null
