@@ -128,3 +128,8 @@ def test_ogr_types_list():
 @pytest.fixture(scope="session")
 def test_datetime():
     return _data_dir / "test_datetime.geojson"
+
+
+@pytest.fixture(scope="session")
+def test_datetime_tz():
+    return _data_dir / "test_datetime_tz.geojson"
