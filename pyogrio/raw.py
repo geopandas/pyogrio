@@ -49,6 +49,7 @@ def read(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Read OGR data source into numpy arrays.
@@ -141,6 +142,11 @@ def read(
 
     return_fids : bool, optional (default: False)
         If True, will return the FIDs of the feature that were read.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as a string
+        array (which can be used to extract timezone info), instead of
+        a datetime64 array.
+
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -158,6 +164,7 @@ def read(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>"
         }
@@ -201,6 +208,7 @@ def read(
             sql_dialect=sql_dialect,
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
+            datetime_as_string=datetime_as_string,
         )
     finally:
         if buffer is not None:
@@ -449,8 +457,12 @@ def write(
     metadata=None,
     dataset_options=None,
     layer_options=None,
+    gdal_tz_offsets=None,
     **kwargs,
 ):
+    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # read, and it is convenient to pass meta directly into write for round trip tests)
+    kwargs.pop("dtypes", None)
     path = vsi_path(str(path))
 
     if driver is None:
@@ -534,4 +546,5 @@ def write(
         layer_metadata=layer_metadata,
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
+        gdal_tz_offsets=gdal_tz_offsets,
     )
