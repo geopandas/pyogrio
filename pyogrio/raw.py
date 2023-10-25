@@ -277,6 +277,7 @@ def read_arrow(
     gdal_skip_features = 0
     if get_gdal_version() >= (3, 8, 0):
         gdal_skip_features = skip_features
+        skip_features = 0
 
     with open_arrow(
         path_or_buffer,
