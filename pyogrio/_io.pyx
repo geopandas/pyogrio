@@ -1283,11 +1283,11 @@ def ogr_open_arrow(
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
 
-    if skip_features and (sql is not None or where is not None):
-        raise ValueError(
-            "specifying 'skip_features' is not supported for Arrow in combination with "
-            "'sql' or 'where'. You can use the LIMIT and OFFSET clauses in the query."
-        )
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        if skip_features:
+            raise ValueError(
+                "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
+            )
 
     if skip_features < 0:
         raise ValueError("'skip_features' must be >= 0")
