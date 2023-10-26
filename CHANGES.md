@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 0.7.1 (2023-10-26)
+
+- Fix unspecified dependency on ``packaging`` (#318).
+
 ## 0.7.0 (2023-10-25)
 
 ### Improvements

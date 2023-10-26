@@ -1,4 +1,3 @@
-from packaging.version import Version
 import re
 import sys
 from urllib.parse import urlparse
@@ -188,7 +187,7 @@ def _mask_to_wkb(mask):
     try:
         import shapely
 
-        if Version(shapely.__version__) < Version("2.0.0"):
+        if int(shapely.__version__.split(".")[0]) < 2:
             shapely = None
     except ImportError:
         shapely = None
