@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
--   Add `packaging` as a dependency.
+-   Add `packaging` as a dependency (#320).
 
 ## 0.7.1 (2023-10-26)
 
