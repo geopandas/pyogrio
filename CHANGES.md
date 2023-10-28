@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.7.2 (2023-10-27)
+
+### Bug fixes
+
+-   Add `packaging` as a dependency (#320).
+
 ## 0.7.1 (2023-10-26)
 
 ### Bug fixes
