@@ -1449,6 +1449,7 @@ def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
 def test_read_dataframe_arrow_dtypes(tmp_path):
     # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
     # column can be converted with from_wkb in case of missing values
+    pytest.importorskip("pyarrow")
     filename = tmp_path / "test.gpkg"
     df = gp.GeoDataFrame(
         {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
