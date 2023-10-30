@@ -1,10 +1,12 @@
 # CHANGELOG
 
-## 0.7.2 (2023-10-27)
+## 0.7.2 (2023-10-30)
 
 ### Bug fixes
 
 -   Add `packaging` as a dependency (#320).
+-   Fix conversion of WKB to geometries with missing values when using
+    `pandas.ArrowDtype` (#319).
 
 ## 0.7.1 (2023-10-26)
 

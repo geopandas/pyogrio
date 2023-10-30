@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_20
+from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -275,7 +275,11 @@ def read_dataframe(
             # Index not asked, no geometry column and no attribute columns: return empty
             return pd.DataFrame()
         elif geometry_name in df.columns:
-            df["geometry"] = from_wkb(df.pop(geometry_name), crs=meta["crs"])
+            wkb_values = df.pop(geometry_name)
+            if PANDAS_GE_15 and wkb_values.dtype != object:
+                # for example ArrowDtype will otherwise create numpy array with pd.NA
+                wkb_values = wkb_values.to_numpy(na_value=None)
+            df["geometry"] = from_wkb(wkb_values, crs=meta["crs"])
             if force_2d:
                 df["geometry"] = shapely.force_2d(df["geometry"])
             return gp.GeoDataFrame(df, geometry="geometry")
