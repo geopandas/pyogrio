@@ -6,7 +6,7 @@
 
 -   Add `packaging` as a dependency (#320).
 -   Fix conversion of WKB to geometries with missing values when using
-    `pandas.ArrowDtype` (#319).
+    `pandas.ArrowDtype` (#321).
 
 ## 0.7.1 (2023-10-26)
 
