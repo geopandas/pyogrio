@@ -2,6 +2,8 @@ import re
 import sys
 from urllib.parse import urlparse
 
+from packaging.version import Version
+
 from pyogrio._env import GDALEnv
 
 with GDALEnv():
@@ -187,7 +189,7 @@ def _mask_to_wkb(mask):
     try:
         import shapely
 
-        if int(shapely.__version__.split(".")[0]) < 2:
+        if Version(shapely.__version__) < Version("2.0.0"):
             shapely = None
     except ImportError:
         shapely = None

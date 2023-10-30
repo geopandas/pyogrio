@@ -17,6 +17,7 @@ from pyogrio.tests.conftest import (
     requires_arrow_api,
     requires_gdal_geos,
 )
+from pyogrio._compat import PANDAS_GE_15
 
 try:
     import pandas as pd
@@ -1442,3 +1443,26 @@ def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
 
     assert read_info(filename)[metadata_key] is None
+
+
+@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
+def test_read_dataframe_arrow_dtypes(tmp_path):
+    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
+    # column can be converted with from_wkb in case of missing values
+    pytest.importorskip("pyarrow")
+    filename = tmp_path / "test.gpkg"
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
+    )
+    write_dataframe(df, filename)
+
+    result = read_dataframe(
+        filename,
+        use_arrow=True,
+        arrow_to_pandas_kwargs={
+            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
+        },
+    )
+    assert isinstance(result["col"].dtype, pd.ArrowDtype)
+    result["col"] = result["col"].astype("float64")
+    assert_geodataframe_equal(result, df)
