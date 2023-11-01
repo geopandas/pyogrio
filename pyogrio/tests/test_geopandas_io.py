@@ -188,7 +188,8 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
 
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
-    # Make the index non-consecutive to test this case as well
+    # Make the index non-consecutive to test this case as well. Added for issue
+    # https://github.com/geopandas/pyogrio/issues/324
     df = df.set_index(np.array([0, 2]))
     raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
 
