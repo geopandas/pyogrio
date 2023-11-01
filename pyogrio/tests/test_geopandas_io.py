@@ -188,6 +188,8 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
 
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
+    # Make the index non-consecutive to test this case as well
+    df = df.set_index(np.array([0, 2]))
     raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
 
     if PANDAS_GE_20:
@@ -195,7 +197,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     else:
         expected = pd.to_datetime(raw_expected)
     expected = pd.Series(expected, name="datetime_col")
-    assert_series_equal(df.datetime_col, expected)
+    assert_series_equal(df.datetime_col, expected, check_index=False)
     # test write and read round trips
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath)

@@ -439,6 +439,7 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    df = df.reset_index(drop=True)
     # dict[str, np.array(int)] special case for dt-tz fields
     gdal_tz_offsets = {}
     for name in fields:
