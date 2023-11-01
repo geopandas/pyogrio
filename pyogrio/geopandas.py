@@ -456,7 +456,7 @@ def write_dataframe(
             # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
             # Convert each row offset to a signed multiple of 15m and add to GMT value
             gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
-            gdal_tz_offsets[name] = gdal_offset_representation
+            gdal_tz_offsets[name] = gdal_offset_representation.values
         else:
             values = col.values
         if isinstance(values, pd.api.extensions.ExtensionArray):
