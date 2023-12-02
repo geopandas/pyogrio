@@ -1,7 +1,8 @@
-from packaging.version import Version
 import re
 import sys
 from urllib.parse import urlparse
+
+from packaging.version import Version
 
 from pyogrio._env import GDALEnv
 

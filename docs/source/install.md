@@ -40,8 +40,6 @@ most likely due to the installation process falling back to installing from the
 source distribution because the available wheels are not compatible with your
 platform.
 
-Note: binary wheels are currently limited to x86_64 architectures.
-
 ### Troubleshooting installation errors
 
 If you install GeoPandas or Fiona using `pip`, you may encounter issues related
