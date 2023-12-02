@@ -1,14 +1,12 @@
 import contextlib
 from datetime import datetime
 import os
-from packaging.version import Version
-
 import numpy as np
 import pytest
 
 from pyogrio import list_layers, read_info, __gdal_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
-from pyogrio.geopandas import read_dataframe, write_dataframe
+from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
@@ -19,16 +17,22 @@ from pyogrio.tests.conftest import (
     requires_arrow_api,
     requires_gdal_geos,
 )
+from pyogrio._compat import PANDAS_GE_15
 
 try:
     import pandas as pd
-    from pandas.testing import assert_frame_equal, assert_index_equal
+    from pandas.testing import (
+        assert_frame_equal,
+        assert_index_equal,
+        assert_series_equal,
+    )
 
     import geopandas as gp
     from geopandas.array import from_wkt
     from geopandas.testing import assert_geodataframe_equal
 
     import shapely  # if geopandas is present, shapely is expected to be present
+    from shapely.geometry import Point
 
 except ImportError:
     pass
@@ -175,11 +179,68 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
     df = read_dataframe(
         test_fgdb_vsi, layer="test_lines", use_arrow=use_arrow, max_features=1
     )
-    if Version(pd.__version__) >= Version("2.0.0"):
+    if PANDAS_GE_20:
         # starting with pandas 2.0, it preserves the passed datetime resolution
         assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
     else:
         assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
+
+
+def test_read_datetime_tz(test_datetime_tz, tmp_path):
+    df = read_dataframe(test_datetime_tz)
+    # Make the index non-consecutive to test this case as well. Added for issue
+    # https://github.com/geopandas/pyogrio/issues/324
+    df = df.set_index(np.array([0, 2]))
+    raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
+
+    if PANDAS_GE_20:
+        expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
+    else:
+        expected = pd.to_datetime(raw_expected)
+    expected = pd.Series(expected, name="datetime_col")
+    assert_series_equal(df.datetime_col, expected, check_index=False)
+    # test write and read round trips
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath)
+    df_read = read_dataframe(fpath)
+    assert_series_equal(df_read.datetime_col, expected)
+
+
+def test_write_datetime_mixed_offset(tmp_path):
+    # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
+    dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
+    naive_col = pd.Series(pd.to_datetime(dates), name="dates")
+    localised_col = naive_col.dt.tz_localize("Australia/Sydney")
+    utc_col = localised_col.dt.tz_convert("UTC")
+    if PANDAS_GE_20:
+        utc_col = utc_col.dt.as_unit("ms")
+
+    df = gp.GeoDataFrame(
+        {"dates": localised_col, "geometry": [Point(1, 1), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath)
+    result = read_dataframe(fpath)
+    # GDAL tz only encodes offsets, not timezones
+    # check multiple offsets are read as utc datetime instead of string values
+    assert_series_equal(result["dates"], utc_col)
+
+
+def test_read_write_datetime_tz_with_nulls(tmp_path):
+    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath)
+    result = read_dataframe(fpath)
+    assert_geodataframe_equal(df, result)
 
 
 def test_read_null_values(test_fgdb_vsi, use_arrow):
@@ -1387,3 +1448,26 @@ def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
 
     assert read_info(filename)[metadata_key] is None
+
+
+@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
+def test_read_dataframe_arrow_dtypes(tmp_path):
+    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
+    # column can be converted with from_wkb in case of missing values
+    pytest.importorskip("pyarrow")
+    filename = tmp_path / "test.gpkg"
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
+    )
+    write_dataframe(df, filename)
+
+    result = read_dataframe(
+        filename,
+        use_arrow=True,
+        arrow_to_pandas_kwargs={
+            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
+        },
+    )
+    assert isinstance(result["col"].dtype, pd.ArrowDtype)
+    result["col"] = result["col"].astype("float64")
+    assert_geodataframe_equal(result, df)

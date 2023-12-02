@@ -1,9 +1,31 @@
 # CHANGELOG
 
-## 0.7.0 (???)
+## 0.7.3 (???)
+
+### Bug fixes
+
+-   Fix error in `write_dataframe` if input has a date column and
+    non-consecutive index values (#325).
+
+## 0.7.2 (2023-10-30)
+
+### Bug fixes
+
+-   Add `packaging` as a dependency (#320).
+-   Fix conversion of WKB to geometries with missing values when using
+    `pandas.ArrowDtype` (#321).
+
+## 0.7.1 (2023-10-26)
+
+### Bug fixes
+
+-   Fix unspecified dependency on `packaging` (#318).
+
+## 0.7.0 (2023-10-25)
 
 ### Improvements
 
+-   Support reading and writing datetimes with timezones (#253).
 -   Support writing dataframes without geometry column (#267).
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant

@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
-        python: ["3.10", "3.11"]
+        python: ["3.10", "3.11", "3.12"]
         env: ["environment.yml"]
         include:
           # environment with lower versions of optional dependencies
@@ -66,4 +66,4 @@ jobs:
 
       - name: Test
         run: |
-          pytest -v -r s pyogrio/tests
+          pytest -v --color=yes -r s pyogrio/tests

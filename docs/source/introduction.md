@@ -464,6 +464,27 @@ You can also read from a URL with this syntax:
 >>> read_dataframe("zip+https://s3.amazonaws.com/bucket/shapefile.zip")
 ```
 
+## Reading and writing DateTimes
+
+GDAL only supports datetimes at a millisecond resolution. Reading data will thus
+give at most millisecond resolution (`datetime64[ms]` data type). With pandas 2.0
+`pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]` 
+correspondingly. For previous versions of pandas, `datetime64[ns]` is used as 
+ms precision was not supported. When writing, only precision up to 
+ms is retained.
+
+Not all file formats have dedicated support to store datetime data, like ESRI
+Shapefile. For such formats, or if you require precision > ms, a workaround is to
+convert the datetimes to string.
+
+Timezone information is preserved where possible, however GDAL only represents
+time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or 
+`zoneinfo`). This means that dataframes with columns containing multiple offsets 
+(e.g. when switching from standard time to summer time) will be written correctly,
+but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime 
+column, as there is no way to reconstruct the original timezone from the individual 
+offsets present.
+
 ## Dataset and layer creation options
 
 It is possible to use dataset and layer creation options available for a given
