@@ -1362,7 +1362,8 @@ def ogr_open_arrow(
         # Use fids list to create a where clause, as arrow doesn't support direct fid
         # filtering.
         if fids is not None:
-            where = f"{fid_column_where} IN ({','.join(fids.astype(str))})"
+            fids_str = ",".join([str(fid) for fid in fids])
+            where = f"{fid_column_where} IN ({fids_str})"
 
         # Apply the attribute filter
         if where is not None and where != "":
