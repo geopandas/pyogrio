@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.7.3 (???)
+
+### Bug fixes
+
+-   Fix error in `write_dataframe` if input has a date column and
+    non-consecutive index values (#325).
+
 ## 0.7.2 (2023-10-30)
 
 ### Bug fixes
