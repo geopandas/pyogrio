@@ -483,6 +483,7 @@ def test_read_fids(naturalearth_lowres_all_ext, fids, use_arrow):
     assert np.array_equal(fids, df.index.values)
 
 
+@requires_arrow_api
 def test_read_fids_arrow_many_error(naturalearth_lowres):
     # Maximum number at time of writing is 4997 for "OGRSQL". For e.g. for SQLite based
     # formats like Geopackage, there is no limit.
