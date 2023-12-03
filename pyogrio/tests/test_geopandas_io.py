@@ -483,6 +483,15 @@ def test_read_fids(naturalearth_lowres_all_ext, fids, use_arrow):
     assert np.array_equal(fids, df.index.values)
 
 
+def test_read_fids_arrow_many_error(naturalearth_lowres):
+    # Maximum number at time of writing is 4997 for "OGRSQL". For e.g. for SQLite based
+    # formats like Geopackage, there is no limit.
+    nb_fids = 4998
+    fids = range(nb_fids)
+    with pytest.raises(ValueError, match=f"error applying filter for {nb_fids} fids"):
+        _ = read_dataframe(naturalearth_lowres, fids=fids, use_arrow=True)
+
+
 def test_read_fids_force_2d(test_fgdb_vsi):
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"

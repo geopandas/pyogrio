@@ -1367,7 +1367,16 @@ def ogr_open_arrow(
 
         # Apply the attribute filter
         if where is not None and where != "":
-            apply_where_filter(ogr_layer, where)
+            try:
+                apply_where_filter(ogr_layer, where)
+            except ValueError as ex:
+                if fids is not None and str(ex).startswith("Invalid SQL query"):
+                    raise ValueError(
+                        f"error applying filter for {len(fids)} fids. Max. number for "
+                        f"drivers with default SQL dialect 'OGRSQL' is 4997: {ex}"
+                    )
+
+                raise
 
         # Apply the spatial filter
         if bbox is not None:
