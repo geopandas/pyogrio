@@ -50,7 +50,7 @@ jobs:
         with:
           environment-file: ci/${{ matrix.env }}
           create-args: |
-            python='${{ matrix.python }}'
+            python==${{ matrix.python }}
             ${{ matrix.extra }}
           cache-environment: true
 
