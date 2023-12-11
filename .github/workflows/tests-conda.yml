@@ -49,7 +49,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: ci/${{ matrix.env }}
-          create-args: |
+          create-args: >-
             python==${{ matrix.python }}
             ${{ matrix.extra }}
           cache-environment: true
