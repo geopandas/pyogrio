@@ -4,8 +4,9 @@ import os
 
 import pytest
 
+import numpy as np
 from pyogrio import __gdal_version__, read_dataframe
-from pyogrio.raw import open_arrow, read_arrow
+from pyogrio.raw import open_arrow, read_arrow, write
 from pyogrio.tests.conftest import requires_arrow_api
 
 try:
@@ -205,3 +206,22 @@ def test_enable_with_environment_variable(test_ogr_types_list):
     with use_arrow_context():
         result = read_dataframe(test_ogr_types_list)
     assert "list_int64" in result.columns
+
+
+def test_arrow_bool_roundtrip(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 5, dtype=object
+    )
+    bool_col = np.array([True, False, True, False, True])
+    field_data = [bool_col]
+    fields = ["bool_col"]
+
+    write(
+        filename, geometry, field_data, fields, geometry_type="Point", crs="EPSG:4326"
+    )
+    table = read_arrow(filename)[1]
+
+    assert np.array_equal(table["bool_col"].to_numpy(), bool_col)
