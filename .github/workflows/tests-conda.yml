@@ -24,7 +24,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.10", "3.11", "3.12"]
-        env: ["environment.yml"]
+        env: ["env.yml"]
         include:
           # environment with lower versions of optional dependencies
           - python: "3.10"
@@ -34,12 +34,12 @@ jobs:
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.9"
-            env: "environment-minimal.yml"
+            env: "env-minimal.yml"
           # environment for older Windows libgdal to make sure gdal_i.lib is
           # properly detected
           - os: "windows-2019"
             python: "3.10"
-            env: "environment-libgdal3.5.1.yml"
+            env: "env-libgdal3.5.1.yml"
 
     steps:
       - name: Checkout repo
