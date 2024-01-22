@@ -149,7 +149,7 @@ jobs:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: vcpkgcache
         with:
           path: |
