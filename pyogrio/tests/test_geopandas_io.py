@@ -1489,6 +1489,7 @@ def test_arrow_bool_roundtrip(tmpdir):
     assert_geodataframe_equal(result, df)
 
 
+@requires_arrow_api
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
