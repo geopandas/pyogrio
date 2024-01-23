@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.11 and GDAL 3.4.x - 3.7.x
+Supports Python 3.8 - 3.11 and GDAL 3.4.x - 3.8.x
 
 Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
@@ -39,8 +39,6 @@ If you get installation errors about Cython or GDAL not being available, this is
 most likely due to the installation process falling back to installing from the
 source distribution because the available wheels are not compatible with your
 platform.
-
-Note: binary wheels are currently limited to x86_64 architectures.
 
 ### Troubleshooting installation errors
 
