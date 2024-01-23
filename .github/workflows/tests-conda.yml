@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   test:
-    name: ${{ matrix.os }} (Python ${{ matrix.python }})
+    name: ${{ matrix.os }}, python ${{ matrix.python }}, ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -24,35 +24,35 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2019]
         python: ["3.10", "3.11", "3.12"]
-        env: ["environment.yml"]
+        env: ["latest"]
         include:
           # environment with lower versions of optional dependencies
           - python: "3.10"
-            extra: |
+            extra: >-
               pandas=1.5
               geopandas=0.12
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
             python: "3.9"
-            env: "environment-minimal.yml"
+            env: "minimal"
           # environment for older Windows libgdal to make sure gdal_i.lib is
           # properly detected
           - os: "windows-2019"
             python: "3.10"
-            env: "environment-libgdal3.5.1.yml"
+            env: "libgdal3.5.1"
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Install Conda environment with Micromamba
-        uses: mamba-org/provision-with-micromamba@main
+        uses: mamba-org/setup-micromamba@v1
         with:
-          environment-file: ci/${{ matrix.env }}
-          extra-specs: |
+          environment-file: ci/envs/${{ matrix.env }}.yml
+          create-args: >-
             python=${{ matrix.python }}
             ${{ matrix.extra }}
-          cache-env: true
+          cache-environment: true
 
       - name: Set environment variables (Windows)
         if: runner.os == 'Windows'
