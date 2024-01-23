@@ -576,13 +576,17 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
     # The geometry column cannot be specified when using the
     # default OGRSQL dialect but is returned nonetheless, so 4 columns.
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df.columns) == 4
     assert len(df) == 177
 
     # Should return single row
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
@@ -590,7 +594,9 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
     sql = """SELECT *
                FROM naturalearth_lowres
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')"""
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df.columns) == 6
     assert len(df) == 3
     assert df.iso_a3.tolist() == ["CAN", "USA", "MEX"]
@@ -599,7 +605,9 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
                FROM naturalearth_lowres
               WHERE iso_a3 IN ('CAN', 'USA', 'MEX')
               ORDER BY name"""
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df.columns) == 6
     assert len(df) == 3
     assert df.iso_a3.tolist() == ["CAN", "MEX", "USA"]
@@ -608,7 +616,9 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
     sql = """SELECT *
                FROM naturalearth_lowres
               WHERE POP_EST >= 10000000 AND POP_EST < 100000000"""
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df) == 75
     assert len(df.columns) == 6
     assert df.pop_est.min() >= 10000000
@@ -616,25 +626,36 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
 
     # Should match no items.
     sql = "SELECT * FROM naturalearth_lowres WHERE ISO_A3 = 'INVALID'"
-    df = read_dataframe(naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL")
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, sql=sql, sql_dialect="OGRSQL", use_arrow=use_arrow
+    )
     assert len(df) == 0
 
 
-def test_read_sql_invalid(naturalearth_lowres_all_ext):
+def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
         with pytest.raises(Exception, match="In ExecuteSQL().*"):
-            read_dataframe(naturalearth_lowres_all_ext, sql="invalid")
+            read_dataframe(
+                naturalearth_lowres_all_ext, sql="invalid", use_arrow=use_arrow
+            )
     else:
         with pytest.raises(Exception, match="SQL Expression Parsing Error"):
-            read_dataframe(naturalearth_lowres_all_ext, sql="invalid")
+            read_dataframe(
+                naturalearth_lowres_all_ext, sql="invalid", use_arrow=use_arrow
+            )
 
     with pytest.raises(
         ValueError, match="'sql' paramater cannot be combined with 'layer'"
     ):
-        read_dataframe(naturalearth_lowres_all_ext, sql="whatever", layer="invalid")
+        read_dataframe(
+            naturalearth_lowres_all_ext,
+            sql="whatever",
+            layer="invalid",
+            use_arrow=use_arrow,
+        )
 
 
-def test_read_sql_columns_where(naturalearth_lowres_all_ext):
+def test_read_sql_columns_where(naturalearth_lowres_all_ext, use_arrow):
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
     df = read_dataframe(
         naturalearth_lowres_all_ext,
@@ -642,13 +663,14 @@ def test_read_sql_columns_where(naturalearth_lowres_all_ext):
         sql_dialect="OGRSQL",
         columns=["iso_a3_renamed", "name"],
         where="iso_a3_renamed IN ('CAN', 'USA', 'MEX')",
+        use_arrow=use_arrow,
     )
     assert len(df.columns) == 3
     assert len(df) == 3
     assert df.iso_a3_renamed.tolist() == ["CAN", "USA", "MEX"]
 
 
-def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
+def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext, use_arrow):
     sql = "SELECT iso_a3 AS iso_a3_renamed, name, pop_est FROM naturalearth_lowres"
     df = read_dataframe(
         naturalearth_lowres_all_ext,
@@ -657,13 +679,14 @@ def test_read_sql_columns_where_bbox(naturalearth_lowres_all_ext):
         columns=["iso_a3_renamed", "name"],
         where="iso_a3_renamed IN ('CRI', 'PAN')",
         bbox=(-85, 8, -80, 10),
+        use_arrow=use_arrow,
     )
     assert len(df.columns) == 3
     assert len(df) == 2
     assert df.iso_a3_renamed.tolist() == ["PAN", "CRI"]
 
 
-def test_read_sql_skip_max(naturalearth_lowres_all_ext):
+def test_read_sql_skip_max(naturalearth_lowres_all_ext, use_arrow):
     sql = """SELECT *
                FROM naturalearth_lowres
               WHERE iso_a3 IN ('CAN', 'MEX', 'USA')
@@ -674,6 +697,7 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
         skip_features=1,
         max_features=1,
         sql_dialect="OGRSQL",
+        use_arrow=use_arrow,
     )
     assert len(df.columns) == 6
     assert len(df) == 1
@@ -681,13 +705,21 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df = read_dataframe(
-        naturalearth_lowres_all_ext, sql=sql, max_features=3, sql_dialect="OGRSQL"
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        max_features=3,
+        sql_dialect="OGRSQL",
+        use_arrow=use_arrow,
     )
     assert len(df) == 1
 
     sql = "SELECT * FROM naturalearth_lowres LIMIT 1"
     df = read_dataframe(
-        naturalearth_lowres_all_ext, sql=sql, skip_features=1, sql_dialect="OGRSQL"
+        naturalearth_lowres_all_ext,
+        sql=sql,
+        sql_dialect="OGRSQL",
+        skip_features=1,
+        use_arrow=use_arrow,
     )
     assert len(df) == 0
 
@@ -698,10 +730,12 @@ def test_read_sql_skip_max(naturalearth_lowres_all_ext):
     [ext for ext in ALL_EXTS if ext != ".gpkg"],
     indirect=["naturalearth_lowres"],
 )
-def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
+def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres, use_arrow):
     # Should return singular item
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="SQLITE")
+    df = read_dataframe(
+        naturalearth_lowres, sql=sql, sql_dialect="SQLITE", use_arrow=use_arrow
+    )
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
@@ -711,7 +745,9 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
     sql = """SELECT ST_Buffer(geometry, 5) AS geometry, name, pop_est, iso_a3
                FROM naturalearth_lowres
               WHERE ISO_A3 = 'CAN'"""
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="SQLITE")
+    df = read_dataframe(
+        naturalearth_lowres, sql=sql, sql_dialect="SQLITE", use_arrow=use_arrow
+    )
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
@@ -721,12 +757,14 @@ def test_read_sql_dialect_sqlite_nogpkg(naturalearth_lowres):
 @pytest.mark.parametrize(
     "naturalearth_lowres", [".gpkg"], indirect=["naturalearth_lowres"]
 )
-def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
+def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     # "INDIRECT_SQL" prohibits GDAL from passing the SQL statement to sqlite.
     # Because the statement is processed within GDAL it is possible to use
     # spatialite functions even if sqlite isn't built with spatialite support.
     sql = "SELECT * FROM naturalearth_lowres WHERE iso_a3 = 'CAN'"
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
+    df = read_dataframe(
+        naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE", use_arrow=use_arrow
+    )
     assert len(df) == 1
     assert len(df.columns) == 6
     assert df.iloc[0].iso_a3 == "CAN"
@@ -736,7 +774,9 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres):
     sql = """SELECT ST_Buffer(geom, 5) AS geometry, name, pop_est, iso_a3
                FROM naturalearth_lowres
               WHERE ISO_A3 = 'CAN'"""
-    df = read_dataframe(naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE")
+    df = read_dataframe(
+        naturalearth_lowres, sql=sql, sql_dialect="INDIRECT_SQLITE", use_arrow=use_arrow
+    )
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
