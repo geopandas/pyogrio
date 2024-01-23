@@ -267,11 +267,8 @@ jobs:
     needs: [test-sdist, test-wheels]
     runs-on: ubuntu-latest
     environment:
-      # FIXME: revert
-      # name: pypi
-      # url: https://pypi.org/p/pyogrio
-      name: testpypi
-      url: https://test.pypi.org/p/pyogrio/
+      name: pypi
+      url: https://pypi.org/p/pyogrio
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
       contents: write # this permission is required for the Github release action
@@ -286,23 +283,14 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # FIXME: remove
-      - name: List artifacts
-        run: |
-          ls dist
-
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        # FIXME: remove
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ github.ref }}
-          name: ${{ github.ref }}
           draft: false
           prerelease: false
           files: dist/*.tar.gz
