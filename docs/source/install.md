@@ -77,7 +77,7 @@ Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
 Pyogrio follows the [GeoPandas Style Guide]
 (https://geopandas.org/en/stable/community/contributing.html#style-guide-linting)
-and uses `Black` and `Ruff` to ensure consistent formatting.
+and uses `Ruff` to ensure consistent formatting.
 
 It is recommended to install `pre-commit` and register its hooks so the formatting is
 automatically verified when you commit code.
