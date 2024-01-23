@@ -1390,7 +1390,8 @@ def ogr_open_arrow(
         stream_ptr = <uintptr_t> &stream
 
         if skip_features:
-            # For GDAL < 3.8.0 this needs to be set after getting the Arrow stream
+            # only supported for GDAL >= 3.8.0; have to do this after getting
+            # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         # stream has to be consumed before the Dataset is closed
