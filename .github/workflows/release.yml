@@ -60,7 +60,7 @@ jobs:
       - name: Download sdist from artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: pyogrio-sdist
+          name: pyogrio-sdist
           path: wheelhouse
 
       - name: Install pip
@@ -217,6 +217,15 @@ jobs:
       matrix:
         os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        include:
+          - os: "ubuntu-20.04"
+            artifact: pyogrio-wheel-linux
+          - os: "windows-latest"
+            artifact: pyogrio-wheel-x64-windows-dynamic-release
+          - os: "macos-11"
+            artifact: pyogrio-wheel-x64-osx-dynamic
+          - os: "macos-latest"
+            artifact: pyogrio-wheel-x64-osx-dynamic
 
     steps:
       - name: Checkout
@@ -233,9 +242,14 @@ jobs:
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: pyogrio-wheel-*
+          name: ${{ matrix.artifact }}
           path: wheelhouse
-          merge-multiple: true
+
+      # FIXME: remove
+      - name: List artifacts
+        run: |
+          ls wheelhouse
+          ls wheelhouse/${{ matrix.artifact }}
 
       - name: Install dependencies and pyogrio wheel
         shell: bash
@@ -244,7 +258,7 @@ jobs:
           if [ ${{ matrix.python-version }} != "3.12" ]; then
             python -m pip install --no-deps geopandas
           fi
-          python -m pip install --pre --find-links wheelhouse/artifact pyogrio
+          python -m pip install --pre --find-links wheelhouse/${{ matrix.artifact }} pyogrio
           python -m pip list
 
       - name: Run tests
