@@ -117,9 +117,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pyogrio-wheel
+          name: pyogrio-wheel-linux
           path: ./wheelhouse/*.whl
-          compression: 0
+          compression-level: 0
 
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
@@ -204,9 +204,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pyogrio-wheel
+          name: pyogrio-wheel-${{ matrix.triplet }}
           path: ./wheelhouse/*.whl
-          compression: 0
+          compression-level: 0
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
@@ -233,7 +233,7 @@ jobs:
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
         with:
-          name: pyogrio-wheel
+          pattern: pyogrio-wheel-*
           path: wheelhouse
           merge-multiple: true
 
