@@ -274,6 +274,7 @@ jobs:
       url: https://test.pypi.org/p/pyogrio/
     permissions:
       id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
+      contents: write # this permission is required for the Github release action
 
     # release on every tag
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
@@ -281,7 +282,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: pyogrio-wheel-*
+          pattern: pyogrio-*
           path: dist
           merge-multiple: true
 
@@ -299,11 +300,10 @@ jobs:
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
         with:
           tag_name: ${{ github.ref }}
           name: ${{ github.ref }}
           draft: false
           prerelease: false
           files: dist/*.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}
