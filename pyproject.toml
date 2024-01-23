@@ -61,3 +61,10 @@ versionfile_source = "pyogrio/_version.py"
 versionfile_build = "pyogrio/_version.py"
 parentdir_prefix = "pyogrio-"
 tag_prefix = "v"
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+exclude = ["docs/*", "benchmarks/*", "pyogrio/_version.py"]
