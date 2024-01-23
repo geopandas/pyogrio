@@ -63,6 +63,11 @@ jobs:
           name: pyogrio-sdist
           path: wheelhouse
 
+      # FIXME: remove
+      - name: List artifacts
+        run: |
+          ls wheelhouse
+
       - name: Install pip
         run: |
           apt-get update && apt-get install -y python3-pip
