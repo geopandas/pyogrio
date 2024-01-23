@@ -63,11 +63,6 @@ jobs:
           name: pyogrio-sdist
           path: wheelhouse
 
-      # FIXME: remove
-      - name: List artifacts
-        run: |
-          ls wheelhouse
-
       - name: Install pip
         run: |
           apt-get update && apt-get install -y python3-pip
@@ -75,7 +70,7 @@ jobs:
       - name: Build from sdist and install test dependencies
         shell: bash
         run: |
-          python3 -m pip install --no-cache-dir wheelhouse/pyogrio-sdist/*.tar.gz
+          python3 -m pip install --no-cache-dir wheelhouse/*.tar.gz
           python3 -m pip install --no-cache-dir pytest pandas pyproj shapely>=2
           python3 -m pip install --no-cache-dir --no-deps geopandas
           python3 -m pip list
@@ -273,36 +268,43 @@ jobs:
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           python -m pytest --pyargs pyogrio.tests -v
 
-  # publish:
-  #   name: Publish pyogrio to GitHub / PyPI
-  #   needs: [test-sdist, test-wheels]
-  #   runs-on: ubuntu-latest
-  #   environment:
-  #     name: pypi
-  #     url: https://pypi.org/p/pyogrio
-  #   permissions:
-  #     id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
+  publish:
+    name: Publish pyogrio to GitHub / PyPI
+    needs: [test-sdist, test-wheels]
+    runs-on: ubuntu-latest
+    environment:
+      # FIXME: revert
+      # name: pypi
+      # url: https://pypi.org/p/pyogrio
+      name: testpypi
+      url: https://test.pypi.org/p/pyogrio/
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
 
-  #   # release on every tag
-  #   if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+    # release on every tag
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
-  #   steps:
-  #     - uses: actions/download-artifact@v4
-  #       with:
-  #         name: artifact
-  #         path: dist
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pyogrio-wheel-*
+          path: dist
+          merge-multiple: true
 
-  #     - name: Publish distribution to PyPI
-  #       uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # FIXME: remove
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
-  #     - name: Create GitHub Release
-  #       id: create_release
-  #       uses: softprops/action-gh-release@v1
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-  #       with:
-  #         tag_name: ${{ github.ref }}
-  #         name: ${{ github.ref }}
-  #         draft: false
-  #         prerelease: false
-  #         files: dist/*.tar.gz
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+          files: dist/*.tar.gz
