@@ -117,7 +117,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
+          name: pyogrio-wheel
           path: ./wheelhouse/*.whl
+          compression: 0
 
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
@@ -190,6 +192,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
+          name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
@@ -199,9 +202,11 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v
+      - uses: actions/upload-artifact@v4
         with:
+          name: pyogrio-wheel
           path: ./wheelhouse/*.whl
+          compression: 0
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
@@ -228,7 +233,9 @@ jobs:
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
         with:
+          name: pyogrio-wheel
           path: wheelhouse
+          merge-multiple: true
 
       - name: Install dependencies and pyogrio wheel
         shell: bash
@@ -247,36 +254,36 @@ jobs:
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           python -m pytest --pyargs pyogrio.tests -v
 
-  publish:
-    name: Publish pyogrio to GitHub / PyPI
-    needs: [test-sdist, test-wheels]
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/pyogrio
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
+  # publish:
+  #   name: Publish pyogrio to GitHub / PyPI
+  #   needs: [test-sdist, test-wheels]
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/pyogrio
+  #   permissions:
+  #     id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
 
-    # release on every tag
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+  #   # release on every tag
+  #   if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: artifact
-          path: dist
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: artifact
+  #         path: dist
 
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  #     - name: Publish distribution to PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
-        with:
-          tag_name: ${{ github.ref }}
-          name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-          files: dist/*.tar.gz
+  #     - name: Create GitHub Release
+  #       id: create_release
+  #       uses: softprops/action-gh-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+  #       with:
+  #         tag_name: ${{ github.ref }}
+  #         name: ${{ github.ref }}
+  #         draft: false
+  #         prerelease: false
+  #         files: dist/*.tar.gz
