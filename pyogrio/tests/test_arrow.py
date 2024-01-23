@@ -232,7 +232,7 @@ def test_arrow_bool_roundtrip(tmpdir):
 
 
 @pytest.mark.skipif(
-    __gdal_version__ >= (3, 8, 8), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+    __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
 def test_arrow_bool_exception(tmpdir):
     filename = os.path.join(str(tmpdir), "test.gpkg")
