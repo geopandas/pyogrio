@@ -208,9 +208,8 @@ def test_enable_with_environment_variable(test_ogr_types_list):
     assert "list_int64" in result.columns
 
 
-@pytest.mark.xfail(
-    __gdal_version__ < (3, 8, 3),
-    reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8998",
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
 def test_arrow_bool_roundtrip(tmpdir):
     filename = os.path.join(str(tmpdir), "test.gpkg")
