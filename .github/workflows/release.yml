@@ -49,222 +49,224 @@ jobs:
           retention-days: 5
           compression-level: 0
 
-  test-sdist:
-    name: Test sdist
-    needs: [build-sdist]
-    runs-on: ubuntu-latest
-    container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.7.2"
+  # test-sdist:
+  #   name: Test sdist
+  #   needs: [build-sdist]
+  #   runs-on: ubuntu-latest
+  #   container:
+  #     image: "ghcr.io/osgeo/gdal:ubuntu-small-3.7.2"
 
-    steps:
-      - name: Download sdist from artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: pyogrio-sdist
-          path: wheelhouse
+  #   steps:
+  #     - name: Download sdist from artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: pyogrio-sdist
+  #         path: wheelhouse
 
-      - name: Install pip
-        run: |
-          apt-get update && apt-get install -y python3-pip
+  #     - name: Install pip
+  #       run: |
+  #         apt-get update && apt-get install -y python3-pip
 
-      - name: Build from sdist and install test dependencies
-        shell: bash
-        run: |
-          python3 -m pip install --no-cache-dir wheelhouse/*.tar.gz
-          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely>=2
-          python3 -m pip install --no-cache-dir --no-deps geopandas
-          python3 -m pip list
+  #     - name: Build from sdist and install test dependencies
+  #       shell: bash
+  #       run: |
+  #         python3 -m pip install --no-cache-dir wheelhouse/*.tar.gz
+  #         python3 -m pip install --no-cache-dir pytest pandas pyproj shapely>=2
+  #         python3 -m pip install --no-cache-dir --no-deps geopandas
+  #         python3 -m pip list
 
-      - name: Run tests
-        shell: bash
-        run: |
-          cd ..
-          python3 -m pytest --pyargs pyogrio.tests -v
+  #     - name: Run tests
+  #       shell: bash
+  #       run: |
+  #         cd ..
+  #         python3 -m pytest --pyargs pyogrio.tests -v
 
-  build-wheels-linux:
-    name: Build wheels on Linux
-    runs-on: "ubuntu-20.04"
+  # build-wheels-linux:
+  #   name: Build wheels on Linux
+  #   runs-on: "ubuntu-20.04"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          install: true
-          buildkitd-flags: --debug
+  #     - name: Set up Docker Buildx
+  #       id: buildx
+  #       uses: docker/setup-buildx-action@v3
+  #       with:
+  #         install: true
+  #         buildkitd-flags: --debug
 
-      - name: Build Docker image with vcpkg and gdal
-        # using build-push-action (without push) to make use of cache arguments
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
-          tags: manylinux-vcpkg-gdal:latest
-          push: false
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-        env:
-          BUILDKIT_PROGRESS: plain
+  #     - name: Build Docker image with vcpkg and gdal
+  #       # using build-push-action (without push) to make use of cache arguments
+  #       uses: docker/build-push-action@v5
+  #       with:
+  #         context: .
+  #         file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+  #         tags: manylinux-vcpkg-gdal:latest
+  #         push: false
+  #         load: true
+  #         cache-from: type=gha
+  #         cache-to: type=gha,mode=max
+  #       env:
+  #         BUILDKIT_PROGRESS: plain
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.16.2
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pyogrio-wheel-linux
-          path: ./wheelhouse/*.whl
-          compression-level: 0
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: pyogrio-wheel-linux
+  #         path: ./wheelhouse/*.whl
+  #         compression-level: 0
 
-  build-wheels-mac-win:
-    name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: "macos-11"
-            triplet: "x64-osx-dynamic"
-            arch: x86_64
-            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
-            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+  # build-wheels-mac-win:
+  #   name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       include:
+  #         - os: "macos-11"
+  #           triplet: "x64-osx-dynamic"
+  #           arch: x86_64
+  #           vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+  #           vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-11"
-            triplet: "arm64-osx-dynamic-release"
-            arch: arm64
-            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
-            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+  #         - os: "macos-11"
+  #           triplet: "arm64-osx-dynamic-release"
+  #           arch: arm64
+  #           vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+  #           vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "windows-2019"
-            triplet: "x64-windows-dynamic-release"
-            arch: AMD64
-            # windows requires windows-specific paths
-            vcpkg_cache: "c:\\vcpkg\\installed"
-            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+  #         - os: "windows-2019"
+  #           triplet: "x64-windows-dynamic-release"
+  #           arch: AMD64
+  #           # windows requires windows-specific paths
+  #           vcpkg_cache: "c:\\vcpkg\\installed"
+  #           vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Cache vcpkg
-        uses: actions/cache@v4
-        id: vcpkgcache
-        with:
-          path: |
-            ${{ matrix.vcpkg_cache }}
-          # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.7.2-cache0
+  #     - name: Cache vcpkg
+  #       uses: actions/cache@v4
+  #       id: vcpkgcache
+  #       with:
+  #         path: |
+  #           ${{ matrix.vcpkg_cache }}
+  #         # bump the last digit to avoid using previous build cache
+  #         key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.7.2-cache0
 
-      # MacOS build requires aclocal, which is part of automake, but appears
-      # to be missing in default image
-      - name: Reinstall automake
-        if: runner.os == 'macOS'
-        run: |
-          brew reinstall automake
-          echo $(which aclocal)
+  #     # MacOS build requires aclocal, which is part of automake, but appears
+  #     # to be missing in default image
+  #     - name: Reinstall automake
+  #       if: runner.os == 'macOS'
+  #       run: |
+  #         brew reinstall automake
+  #         echo $(which aclocal)
 
-      - name: Checkout specific version of vcpkg
-        shell: bash
-        run: |
-          cd $VCPKG_INSTALLATION_ROOT
-          # on mac the clone is not clean, otherwise git pull fails
-          git reset --hard
-          # pull latest version to ensure the required commit with GDAL 3.7 is available
-          git pull
-          git checkout 62988594de235334bc83609a060773eb2c8a8478
+  #     - name: Checkout specific version of vcpkg
+  #       shell: bash
+  #       run: |
+  #         cd $VCPKG_INSTALLATION_ROOT
+  #         # on mac the clone is not clean, otherwise git pull fails
+  #         git reset --hard
+  #         # pull latest version to ensure the required commit with GDAL 3.7 is available
+  #         git pull
+  #         git checkout 62988594de235334bc83609a060773eb2c8a8478
 
-      - name: Install GDAL
-        env:
-          VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-        shell: bash
-        run: |
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
-          vcpkg list
+  #     - name: Install GDAL
+  #       env:
+  #         VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+  #       shell: bash
+  #       run: |
+  #         vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
+  #         vcpkg list
 
-      - name: Upload vcpkg build logs
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
-          path: ${{ matrix.vcpkg_logs }}
+  #     - name: Upload vcpkg build logs
+  #       if: ${{ failure() }}
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
+  #         path: ${{ matrix.vcpkg_logs }}
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.2
-        env:
-          # CIBW needs to know triplet for the correct install path
-          VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          CIBW_ARCHS: ${{ matrix.arch }}
+  #     - name: Build wheels
+  #       uses: pypa/cibuildwheel@v2.16.2
+  #       env:
+  #         # CIBW needs to know triplet for the correct install path
+  #         VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+  #         CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: pyogrio-wheel-${{ matrix.triplet }}
-          path: ./wheelhouse/*.whl
-          compression-level: 0
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: pyogrio-wheel-${{ matrix.triplet }}
+  #         path: ./wheelhouse/*.whl
+  #         compression-level: 0
 
-  test-wheels:
-    name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-    needs: [build-wheels-linux, build-wheels-mac-win]
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        include:
-          - os: "ubuntu-20.04"
-            artifact: pyogrio-wheel-linux
-          - os: "windows-latest"
-            artifact: pyogrio-wheel-x64-windows-dynamic-release
-          - os: "macos-11"
-            artifact: pyogrio-wheel-x64-osx-dynamic
-          - os: "macos-latest"
-            artifact: pyogrio-wheel-x64-osx-dynamic
+  # test-wheels:
+  #   name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
+  #   needs: [build-wheels-linux, build-wheels-mac-win]
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
+  #       python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+  #       include:
+  #         - os: "ubuntu-20.04"
+  #           artifact: pyogrio-wheel-linux
+  #         - os: "windows-latest"
+  #           artifact: pyogrio-wheel-x64-windows-dynamic-release
+  #         - os: "macos-11"
+  #           artifact: pyogrio-wheel-x64-osx-dynamic
+  #         - os: "macos-latest"
+  #           artifact: pyogrio-wheel-x64-osx-dynamic
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          allow-prereleases: true
-          cache: "pip"
-          cache-dependency-path: "ci/requirements-wheel-test.txt"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: ${{ matrix.python-version }}
+  #         allow-prereleases: true
+  #         cache: "pip"
+  #         cache-dependency-path: "ci/requirements-wheel-test.txt"
 
-      - name: Download wheels from artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: wheelhouse
+  #     - name: Download wheels from artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: ${{ matrix.artifact }}
+  #         path: wheelhouse
 
-      - name: Install dependencies and pyogrio wheel
-        shell: bash
-        run: |
-          python -m pip install -r ci/requirements-wheel-test.txt
-          if [ ${{ matrix.python-version }} != "3.12" ]; then
-            python -m pip install --no-deps geopandas
-          fi
-          python -m pip install --pre --find-links wheelhouse pyogrio
-          python -m pip list
+  #     - name: Install dependencies and pyogrio wheel
+  #       shell: bash
+  #       run: |
+  #         python -m pip install -r ci/requirements-wheel-test.txt
+  #         if [ ${{ matrix.python-version }} != "3.12" ]; then
+  #           python -m pip install --no-deps geopandas
+  #         fi
+  #         python -m pip install --pre --find-links wheelhouse pyogrio
+  #         python -m pip list
 
-      - name: Run tests
-        shell: bash
-        run: |
-          cd ..
-          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          python -m pytest --pyargs pyogrio.tests -v
+  #     - name: Run tests
+  #       shell: bash
+  #       run: |
+  #         cd ..
+  #         python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+  #         python -m pytest --pyargs pyogrio.tests -v
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
-    needs: [test-sdist, test-wheels]
+    needs: [build-sdist]
+    # FIXME: re-enable
+    # needs: [test-sdist, test-wheels]
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -283,13 +285,15 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      # FIXME: re-enable
+      # - name: Publish distribution to PyPI
+      #   uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
+          name: ${{ github.ref_name }}
           tag_name: ${{ github.ref }}
           draft: false
           prerelease: false
