@@ -157,13 +157,13 @@ variables because the location of the GDAL binaries and headers cannot be
 automatically determined.
 
 After activating the `pyogrio-dev` environment the `CONDA_PREFIX` environment variable
-will be available. Assuming GDAL 3.6.2 is installed, you will be able to set the
+will be available. Assuming GDAL 3.8.3 is installed, you will be able to set the
 necessary environment variables as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=%CONDA_PREFIX%\Library\include
 set GDAL_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib
-set GDAL_VERSION=3.6.2
+set GDAL_VERSION=3.8.3
 ```
 
 Now you should be able to run `python setup.py develop` to build the extensions in
