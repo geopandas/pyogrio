@@ -1690,9 +1690,9 @@ def ogr_write_arrow(
     return write_arrow_stream_capsule(stream_capsule)
 
 cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule):
-    cdef ArrowArrayStream stream
-    cdef ArrowSchema schema
-    cdef ArrowArray array
+    cdef ArrowArrayStream* stream
+    cdef ArrowSchema* schema
+    cdef ArrowArray* array
 
     stream = PyCapsule_GetPointer(capsule, "arrow_array_stream")
     if not stream:
