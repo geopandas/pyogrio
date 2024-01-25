@@ -7,6 +7,10 @@
 -   Fix error in `write_dataframe` if input has a date column and
     non-consecutive index values (#325).
 
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
+
 ## 0.7.2 (2023-10-30)
 
 ### Bug fixes
