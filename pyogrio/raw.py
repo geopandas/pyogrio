@@ -331,6 +331,16 @@ def read_arrow(
     return meta, table
 
 
+class _ArrowStream:
+    def __init__(self, capsule):
+        self._capsule = capsule
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        if requested_schema is not None:
+            raise NotImplementedError("requested_schema is not supported")
+        return self._capsule
+
+
 def open_arrow(
     path_or_buffer,
     /,
@@ -349,10 +359,11 @@ def open_arrow(
     sql_dialect=None,
     return_fids=False,
     batch_size=65_536,
+    return_pyarrow=True,
     **kwargs,
 ):
     """
-    Open OGR data source as a stream of pyarrow record batches.
+    Open OGR data source as a stream of Arrow record batches.
 
     See docstring of `read` for parameters.
 
@@ -395,7 +406,7 @@ def open_arrow(
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     try:
-        return ogr_open_arrow(
+        reader = ogr_open_arrow(
             path,
             layer=layer,
             encoding=encoding,
@@ -413,7 +424,11 @@ def open_arrow(
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
             batch_size=batch_size,
+            return_capsule=not return_pyarrow,
         )
+        if not return_pyarrow:
+            reader = _ArrowStream(reader)
+        return reader
     finally:
         if buffer is not None:
             remove_virtual_file(path)

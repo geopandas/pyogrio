@@ -18,6 +18,8 @@ from libc.string cimport strlen
 from libc.math cimport isnan
 
 cimport cython
+from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
+
 import numpy as np
 cimport numpy as np
 
@@ -1239,6 +1241,25 @@ def ogr_read(
         field_data
     )
 
+
+cdef void pycapsule_array_stream_deleter(object stream_capsule) noexcept:
+    cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+        stream_capsule, 'arrow_array_stream'
+    )
+    # Do not invoke the deleter on a used/moved capsule
+    if stream.release != NULL:
+        stream.release(stream)
+
+    free(stream)
+
+
+cdef object alloc_c_stream(ArrowArrayStream** c_stream) noexcept:
+    c_stream[0] = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
+    # Ensure the capsule destructor doesn't call a random release pointer
+    c_stream[0].release = NULL
+    return PyCapsule_New(c_stream[0], 'arrow_array_stream', &pycapsule_array_stream_deleter)
+
+
 @contextlib.contextmanager
 def ogr_open_arrow(
     str path,
@@ -1257,7 +1278,9 @@ def ogr_open_arrow(
     str sql=None,
     str sql_dialect=None,
     int return_fids=False,
-    int batch_size=0):
+    int batch_size=0,
+    return_capsule=False,
+):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1268,7 +1291,7 @@ def ogr_open_arrow(
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
-    cdef ArrowArrayStream stream
+    cdef ArrowArrayStream* stream
     cdef ArrowSchema schema
 
     IF CTE_GDAL_VERSION < (3, 6, 0):
@@ -1384,19 +1407,23 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
-            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+        # allocate the stream struct and wrap in capsule to ensure clean-up on error
+        capsule = alloc_c_stream(&stream)
 
-        stream_ptr = <uintptr_t> &stream
+        if not OGR_L_GetArrowStream(ogr_layer, stream, options):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        # stream has to be consumed before the Dataset is closed
-        import pyarrow as pa
-        reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        if return_capsule:
+            reader = capsule
+        else:
+            import pyarrow as pa
+            stream_ptr = <uintptr_t> &stream
+            reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
 
         meta = {
             'crs': crs,
@@ -1407,6 +1434,7 @@ def ogr_open_arrow(
             'fid_column': fid_column,
         }
 
+        # stream has to be consumed before the Dataset is closed
         yield meta, reader
 
     finally:

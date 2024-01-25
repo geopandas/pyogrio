@@ -4,6 +4,7 @@ import os
 
 import pytest
 
+import pyogrio
 from pyogrio import __gdal_version__, read_dataframe
 from pyogrio.raw import open_arrow, read_arrow
 from pyogrio.tests.conftest import requires_arrow_api
@@ -183,6 +184,19 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
             reader,
         ):
             pass
+
+
+def test_open_arrow_capsule_protocol(naturalearth_lowres):
+    pytest.importorskip("pyarrow", minversion="14")
+
+    with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyogrio.raw._ArrowStream)
+
+        result = pyarrow.table(reader)
+
+    expected = read_arrow(naturalearth_lowres)
+    assert result.equals(expected)
 
 
 @contextlib.contextmanager
