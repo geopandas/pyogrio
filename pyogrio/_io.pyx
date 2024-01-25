@@ -1680,16 +1680,92 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 def ogr_write_arrow(
-    obj,
-    str path
+    str path,
+    str layer,
+    str driver,
+    arrow_obj,
+    object dataset_kwargs,
+    object layer_kwargs,
 ):
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
-    stream_capsule = obj.__arrow_c_stream__()
-    return write_arrow_stream_capsule(stream_capsule)
+    cdef const char *path_c = NULL
+    cdef const char *layer_c = NULL
+    cdef const char *driver_c = NULL
+    cdef const char *crs_c = NULL
+    cdef const char *encoding_c = NULL
+    cdef char **dataset_options = NULL
+    cdef char **layer_options = NULL
+    cdef const char *ogr_name = NULL
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH ogr_geometry_multi = NULL
+    cdef OGRFeatureDefnH ogr_featuredef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
+    cdef unsigned char *wkb_buffer = NULL
+    cdef OGRSpatialReferenceH ogr_crs = NULL
+    cdef int layer_idx = -1
+    cdef int supports_transactions = 0
+    cdef OGRwkbGeometryType geometry_code
+    cdef int err = 0
+    cdef int i = 0
+    cdef int num_records = -1
 
-cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule):
+    path_b = path.encode('UTF-8')
+    path_c = path_b
+
+    driver_b = driver.encode('UTF-8')
+    driver_c = driver_b
+
+    if not layer:
+        layer = os.path.splitext(os.path.split(path)[1])[0]
+
+    dataset_options = dict_to_options(dataset_kwargs)
+    ogr_dataset = ogr_create(path_c, driver_c, dataset_options)
+
+    # Setup other layer creation options
+    for k, v in layer_kwargs.items():
+        k = k.encode('UTF-8')
+        v = v.encode('UTF-8')
+        layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
+
+    geometry_code = get_geometry_type_code(geometry_type)
+
+    try:
+
+        layer_b = layer.encode('UTF-8')
+        layer_c = layer_b
+
+        ogr_layer = exc_wrap_pointer(
+                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
+                        geometry_code, layer_options))
+
+    except Exception as exc:
+        OGRReleaseDataSource(ogr_dataset)
+        ogr_dataset = NULL
+        raise DataLayerError(str(exc))
+
+    finally:
+        if ogr_crs != NULL:
+            OSRRelease(ogr_crs)
+            ogr_crs = NULL
+
+        if dataset_options != NULL:
+            CSLDestroy(dataset_options)
+            dataset_options = NULL
+
+        if layer_options != NULL:
+            CSLDestroy(layer_options)
+            layer_options = NULL
+
+
+    stream_capsule = arrow_obj.__arrow_c_stream__()
+    return write_arrow_stream_capsule(ogr_layer, stream_capsule)
+
+cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
     cdef ArrowArrayStream* stream
     cdef ArrowSchema* schema
     cdef ArrowArray* array
@@ -1740,56 +1816,21 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule):
     stream.release(stream)
 
 # Create output fields using CreateFieldFromArrowSchema()
-static bool create_fields_from_arrow_schema(
+cdef void* create_fields_from_arrow_schema(
     OGRLayerH destLayer,
-    const struct ArrowSchema* schema,
+    const ArrowSchema* schema,
     char** options
-):
+) except NULL:
     # The schema object is a struct type where each child is a column.
-    for child in schema.n_children:
-        # Access the metadata for this column
-        const char *metadata = child.metadata
+    for i in range(schema.n_children):
+        child = schema.children[i]
 
-        # TODO: I don't know how to parse this metadata in C... I guess I can just use Python APIs for this in Cython?
-        # https://github.com/OSGeo/gdal/pull/9133/files#diff-37bedc92ae1d5e04706c7b9f8ea9e9fcccf984ca0c9997e2020ff85f1b958433R1159-R1185
-        # if metadata:
-
-        field_name = child.name
+        errcode = OGR_L_CreateFieldFromArrowSchema(
+            destLayer, child, options)
+        if errcode != 0:
+            raise RuntimeError("error while creating field from Arrow")
 
 
-# {
-#     for (int i = 0; i < schemaSrc->n_children; ++i)
-#     {
-#         const char *metadata =
-#             schemaSrc->children[i]->metadata;
-#         if( metadata )
-#         {
-#             char** keyValues = ParseArrowMetadata(metadata);
-#             const char *ARROW_EXTENSION_NAME_KEY = "ARROW:extension:name";
-#             const char *EXTENSION_NAME_OGC_WKB = "ogc.wkb";
-#             const char *EXTENSION_NAME_GEOARROW_WKB = "geoarrow.wkb";
-#             const char* value = CSLFetchNameValue(keyValues, ARROW_EXTENSION_NAME_KEY);
-#             const bool bSkip = ( value && (EQUAL(value, EXTENSION_NAME_OGC_WKB) || EQUAL(value, EXTENSION_NAME_GEOARROW_WKB)) );
-#             CSLDestroy(keyValues);
-#             if( bSkip )
-#                 continue;
-#         }
-
-#         const char *pszFieldName =
-#             schemaSrc->children[i]->name;
-#         if (!EQUAL(pszFieldName, "OGC_FID") &&
-#             !EQUAL(pszFieldName, "wkb_geometry") &&
-#             !OGR_L_CreateFieldFromArrowSchema(
-#                 hDstLayer, schemaSrc->children[i], options))
-#         {
-#             CPLError(CE_Failure, CPLE_AppDefined,
-#                      "Cannot create field %s",
-#                      pszFieldName);
-#             return false;
-#         }
-#     }
-#     return true;
-# }
 
 # TODO: set geometry and field data as memory views?
 def ogr_write(
