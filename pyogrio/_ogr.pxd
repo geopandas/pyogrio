@@ -341,8 +341,8 @@ IF CTE_GDAL_VERSION >= (3, 6, 0):
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
     cdef extern from "ogr_api.h":
-        bool OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
-        bool OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
+        int8_t OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
+        int8_t OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:

@@ -1684,6 +1684,7 @@ def ogr_write_arrow(
     str layer,
     str driver,
     arrow_obj,
+    str geometry_type,
     object dataset_kwargs,
     object layer_kwargs,
 ):
@@ -1766,32 +1767,34 @@ def ogr_write_arrow(
     return write_arrow_stream_capsule(ogr_layer, stream_capsule)
 
 cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
-    cdef ArrowArrayStream* stream
     cdef ArrowSchema* schema
     cdef ArrowArray* array
 
-    stream = PyCapsule_GetPointer(capsule, "arrow_array_stream")
+    cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+        capsule, "arrow_array_stream"
+    )
     if stream == NULL:
         raise RuntimeError("No valid stream.")
 
     if stream.release == NULL:
         raise RuntimeError("Arrow Array Stream was already released.")
 
-    errcode = stream.get_schema(stream, &schema)
+    errcode = stream.get_schema(stream, schema)
     if errcode != 0:
         stream.release(stream)
         raise RuntimeError("Error while accessing schema from stream.")
 
-    errcode = create_fields_from_arrow_schema(destLayer, &schema)
-    if errcode != 0:
-        schema.release(&schema)
+    try:
+        create_fields_from_arrow_schema(destLayer, schema, options)
+    except:
+        schema.release(schema)
         stream.release(stream)
         raise RuntimeError("Error creating Arrow Schema in OGR layer.")
 
     while True:
-        errcode = stream.get_next(stream, &array)
+        errcode = stream.get_next(stream, array)
         if errcode != 1:
-            schema.release(&schema)
+            schema.release(schema)
             stream.release(stream)
             raise RuntimeError("Error while accessing batch from stream.")
 
@@ -1799,20 +1802,20 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
         if array.release == NULL:
             break
 
-        errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
+        errcode = OGR_L_WriteArrowBatch(destLayer, schema, array, options)
         if errcode:
             if array.release != NULL:
-                array.release(&array)
+                array.release(array)
 
-            schema.release(&schema)
+            schema.release(schema)
             stream.release(stream)
             raise RuntimeError("Error while writing batch to OGR layer.")
 
         if array.release != NULL:
-            array.release(&array)
+            array.release(array)
 
 
-    schema.release(&schema)
+    schema.release(schema)
     stream.release(stream)
 
 # Create output fields using CreateFieldFromArrowSchema()
