@@ -195,6 +195,9 @@ cdef extern from "arrow_bridge.h":
         void (*release)(struct ArrowArray*)
 
     struct ArrowSchema:
+        const char* name
+        const char* metadata
+        struct ArrowSchema** children
         int64_t n_children
 
     struct ArrowArrayStream:

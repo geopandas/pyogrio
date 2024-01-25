@@ -1685,10 +1685,10 @@ def ogr_write_arrow(
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
-    stream_capsule = obj.__arrow_c_stream__(requested_schema=requested_schema)
-    return WriteArrowStreamCapsule(stream_capsule)
+    stream_capsule = obj.__arrow_c_stream__()
+    return write_arrow_stream_capsule(stream_capsule)
 
-cdef OGRErr WriteArrowStreamCapsule(object capsule):
+cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule):
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
     cdef ArrowArray array
@@ -1705,7 +1705,7 @@ cdef OGRErr WriteArrowStreamCapsule(object capsule):
         stream.release(stream)
         raise RuntimeError("Error while accessing schema from stream.")
 
-    errcode = CreateFieldsFromArrowSchema(layer, &schema)
+    errcode = create_fields_from_arrow_schema(destLayer, &schema)
     if errcode != 0:
         schema.release(&schema)
         stream.release(stream)
@@ -1722,7 +1722,7 @@ cdef OGRErr WriteArrowStreamCapsule(object capsule):
         if array.release == NULL:
             break
 
-        errcode = OGR_L_WriteArrowBatch(layer, &schema, &array, options)
+        errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
         if errcode:
             if array.release != NULL:
                 array.release(&array)
@@ -1738,6 +1738,57 @@ cdef OGRErr WriteArrowStreamCapsule(object capsule):
     schema.release(&schema)
     stream.release(stream)
 
+# Create output fields using CreateFieldFromArrowSchema()
+static bool create_fields_from_arrow_schema(
+    OGRLayerH destLayer,
+    const struct ArrowSchema* schema,
+    char** options
+):
+    # The schema object is a struct type where each child is a column.
+    for child in schema.n_children:
+        # Access the metadata for this column
+        const char *metadata = child.metadata
+
+        # TODO: I don't know how to parse this metadata in C... I guess I can just use Python APIs for this in Cython?
+        # https://github.com/OSGeo/gdal/pull/9133/files#diff-37bedc92ae1d5e04706c7b9f8ea9e9fcccf984ca0c9997e2020ff85f1b958433R1159-R1185
+        # if metadata:
+
+        field_name = child.name
+
+
+# {
+#     for (int i = 0; i < schemaSrc->n_children; ++i)
+#     {
+#         const char *metadata =
+#             schemaSrc->children[i]->metadata;
+#         if( metadata )
+#         {
+#             char** keyValues = ParseArrowMetadata(metadata);
+#             const char *ARROW_EXTENSION_NAME_KEY = "ARROW:extension:name";
+#             const char *EXTENSION_NAME_OGC_WKB = "ogc.wkb";
+#             const char *EXTENSION_NAME_GEOARROW_WKB = "geoarrow.wkb";
+#             const char* value = CSLFetchNameValue(keyValues, ARROW_EXTENSION_NAME_KEY);
+#             const bool bSkip = ( value && (EQUAL(value, EXTENSION_NAME_OGC_WKB) || EQUAL(value, EXTENSION_NAME_GEOARROW_WKB)) );
+#             CSLDestroy(keyValues);
+#             if( bSkip )
+#                 continue;
+#         }
+
+#         const char *pszFieldName =
+#             schemaSrc->children[i]->name;
+#         if (!EQUAL(pszFieldName, "OGC_FID") &&
+#             !EQUAL(pszFieldName, "wkb_geometry") &&
+#             !OGR_L_CreateFieldFromArrowSchema(
+#                 hDstLayer, schemaSrc->children[i], options))
+#         {
+#             CPLError(CE_Failure, CPLE_AppDefined,
+#                      "Cannot create field %s",
+#                      pszFieldName);
+#             return false;
+#         }
+#     }
+#     return true;
+# }
 
 # TODO: set geometry and field data as memory views?
 def ogr_write(
