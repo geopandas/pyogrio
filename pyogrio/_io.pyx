@@ -16,6 +16,7 @@ from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
+from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
 import numpy as np
