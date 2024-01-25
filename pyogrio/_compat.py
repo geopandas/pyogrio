@@ -30,7 +30,7 @@ HAS_GEOPANDAS = geopandas is not None
 
 PANDAS_GE_15 = pandas is not None and Version(pandas.__version__) >= Version("1.5.0")
 PANDAS_GE_20 = pandas is not None and Version(pandas.__version__) >= Version("2.0.0")
-PANDAS_GE_20 = pandas is not None and Version(pandas.__version__) >= Version("2.2.0")
+PANDAS_GE_22 = pandas is not None and Version(pandas.__version__) >= Version("2.2.0")
 
 HAS_GDAL_GEOS = __gdal_geos_version__ is not None
 
