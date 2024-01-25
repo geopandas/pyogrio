@@ -10,6 +10,10 @@
     a boolean column is detected due to error in GDAL reading boolean values (#335)
     this has been fixed in GDAL >= 3.8.3.
 
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
+
 ## 0.7.2 (2023-10-30)
 
 ### Bug fixes
