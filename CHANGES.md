@@ -6,6 +6,9 @@
 
 -   Fix error in `write_dataframe` if input has a date column and
     non-consecutive index values (#325).
+-   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
+    a boolean column is detected due to error in GDAL reading boolean values (#335)
+    this has been fixed in GDAL >= 3.8.3.
 
 ### Packaging
 
