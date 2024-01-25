@@ -1408,9 +1408,13 @@ def ogr_open_arrow(
         OGR_L_ResetReading(ogr_layer)
 
         # allocate the stream struct and wrap in capsule to ensure clean-up on error
-        capsule = alloc_c_stream(&stream)
+        if return_capsule:
+            capsule = alloc_c_stream(&stream)
+        else:
+            stream = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
 
         if not OGR_L_GetArrowStream(ogr_layer, stream, options):
+            free(stream)
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
@@ -1422,7 +1426,7 @@ def ogr_open_arrow(
             reader = capsule
         else:
             import pyarrow as pa
-            stream_ptr = <uintptr_t> &stream
+            stream_ptr = <uintptr_t> stream
             reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
 
         meta = {
@@ -1457,6 +1461,9 @@ def ogr_open_arrow(
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
+
+        free(stream)
+
 
 def ogr_read_bounds(
     str path,
