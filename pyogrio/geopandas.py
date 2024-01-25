@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20
+from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE_22
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -33,7 +33,9 @@ def _stringify_path(path):
 def _try_parse_datetime(ser):
     import pandas as pd  # only called when pandas is known to be installed
 
-    if PANDAS_GE_20:
+    if PANDAS_GE_22:
+        datetime_kwargs = dict(format="ISO8601")
+    elif PANDAS_GE_20:
         datetime_kwargs = dict(format="ISO8601", errors="ignore")
     else:
         datetime_kwargs = dict(yearfirst=True)
@@ -51,7 +53,10 @@ def _try_parse_datetime(ser):
             pass
     # if object dtype, try parse as utc instead
     if res.dtype == "object":
-        res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
+        try:
+            res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
+        except Exception:
+            pass
 
     if res.dtype != "object":
         # GDAL only supports ms precision, convert outputs to match.
