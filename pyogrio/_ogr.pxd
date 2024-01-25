@@ -191,11 +191,17 @@ cdef extern from "ogr_srs_api.h":
 
 
 cdef extern from "arrow_bridge.h":
+    struct ArrowArray:
+        void (*release)(struct ArrowArray*)
+
     struct ArrowSchema:
         int64_t n_children
 
     struct ArrowArrayStream:
         int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out)
+        int (*get_next)(struct ArrowArrayStream*, struct ArrowArray* out);
+        const char* (*get_last_error)(struct ArrowArrayStream*);
+        void (*release)(struct ArrowArrayStream*);
 
 
 cdef extern from "ogr_api.h":

@@ -783,7 +783,7 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            
+
             if datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
                 # Update to OGR_F_GetFieldAsISO8601DateTime when GDAL 3.7+ only
@@ -851,7 +851,7 @@ cdef get_features(
 
     field_data = [
         np.empty(shape=(num_features, ),
-        dtype = ("object" if datetime_as_string and 
+        dtype = ("object" if datetime_as_string and
                     fields[field_index,3].startswith("datetime") else fields[field_index,3])
         ) for field_index in range(n_fields)
     ]
@@ -950,8 +950,8 @@ cdef get_features_by_fid(
     field_ogr_types = fields[:,1]
     field_data = [
         np.empty(shape=(count, ),
-        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") 
-            else fields[field_index,3])) 
+        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime")
+            else fields[field_index,3]))
         for field_index in range(n_fields)
     ]
 
@@ -1677,6 +1677,66 @@ cdef infer_field_types(list dtypes):
             raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
 
     return field_types
+
+def ogr_write_arrow(
+    obj,
+    str path
+):
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    stream_capsule = obj.__arrow_c_stream__(requested_schema=requested_schema)
+    return WriteArrowStreamCapsule(stream_capsule)
+
+cdef OGRErr WriteArrowStreamCapsule(object capsule):
+    cdef ArrowArrayStream stream
+    cdef ArrowSchema schema
+    cdef ArrowArray array
+
+    stream = PyCapsule_GetPointer(capsule, "arrow_array_stream")
+    if not stream:
+        raise RuntimeError("Accessing PyCapsule pointer named 'arrow_array_stream' failed.")
+
+    if stream.release == NULL:
+        raise RuntimeError("Arrow Array Stream was already released.")
+
+    errcode = stream.get_schema(stream, &schema)
+    if errcode != 0:
+        stream.release(stream)
+        raise RuntimeError("Error while accessing schema from stream.")
+
+    errcode = CreateFieldsFromArrowSchema(layer, &schema)
+    if errcode != 0:
+        schema.release(&schema)
+        stream.release(stream)
+        raise RuntimeError("Error creating Arrow Schema in OGR layer.")
+
+    while True:
+        errcode = stream.get_next(stream, &array)
+        if errcode != 1:
+            schema.release(&schema)
+            stream.release(stream)
+            raise RuntimeError("Error while accessing batch from stream.")
+
+        # We've reached the end of the stream
+        if array.release == NULL:
+            break
+
+        errcode = OGR_L_WriteArrowBatch(layer, &schema, &array, options)
+        if errcode:
+            if array.release != NULL:
+                array.release(&array)
+
+            schema.release(&schema)
+            stream.release(stream)
+            raise RuntimeError("Error while writing batch to OGR layer.")
+
+        if array.release != NULL:
+            array.release(&array)
+
+
+    schema.release(&schema)
+    stream.release(stream)
 
 
 # TODO: set geometry and field data as memory views?
