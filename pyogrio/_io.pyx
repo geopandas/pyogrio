@@ -1695,8 +1695,8 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule):
     cdef ArrowArray* array
 
     stream = PyCapsule_GetPointer(capsule, "arrow_array_stream")
-    if not stream:
-        raise RuntimeError("Accessing PyCapsule pointer named 'arrow_array_stream' failed.")
+    if stream == NULL:
+        raise RuntimeError("No valid stream.")
 
     if stream.release == NULL:
         raise RuntimeError("Arrow Array Stream was already released.")
