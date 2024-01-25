@@ -1262,7 +1262,7 @@ def test_write_read_null(tmp_path):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
@@ -1304,7 +1304,7 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
             "MultiPolygon Z",
             False,
             [
-                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"
             ],
         ),
         (
