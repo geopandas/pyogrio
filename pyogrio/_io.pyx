@@ -1767,7 +1767,7 @@ def ogr_write_arrow(
     return write_arrow_stream_capsule(ogr_layer, stream_capsule)
 
 
-cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
+cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
     cdef ArrowSchema schema
     cdef ArrowArray array
 
@@ -1794,7 +1794,7 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
 
     while True:
         errcode = stream.get_next(stream, &array)
-        if errcode != 1:
+        if errcode != 0:
             schema.release(&schema)
             stream.release(stream)
             raise RuntimeError("Error while accessing batch from stream.")
@@ -1804,7 +1804,7 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
             break
 
         errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
-        if errcode:
+        if not errcode:
             if array.release != NULL:
                 array.release(&array)
 
@@ -1815,16 +1815,16 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
         if array.release != NULL:
             array.release(&array)
 
-
     schema.release(&schema)
     stream.release(stream)
 
+
 # Create output fields using CreateFieldFromArrowSchema()
-cdef void* create_fields_from_arrow_schema(
+cdef create_fields_from_arrow_schema(
     OGRLayerH destLayer,
     const ArrowSchema* schema,
     char** options
-) except NULL:
+):
     # The schema object is a struct type where each child is a column.
     cdef ArrowSchema* child
     for i in range(schema.n_children):
