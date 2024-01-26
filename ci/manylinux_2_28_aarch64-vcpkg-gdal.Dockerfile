@@ -13,8 +13,8 @@ ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
 
 ENV VCPKG_DEFAULT_TRIPLET="arm64-linux-dynamic-release"
-# pkgconf fails to build with default debug mode of arm64-linux host
-ENV VCPKG_DEFAULT_HOST_TRIPLET="arm64-linux-release"
+# # pkgconf fails to build with default debug mode of arm64-linux host
+# ENV VCPKG_DEFAULT_HOST_TRIPLET="arm64-linux-release"
 
 # Must be set when building on arm
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
