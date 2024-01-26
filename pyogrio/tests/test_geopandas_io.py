@@ -1509,3 +1509,42 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     assert isinstance(result["col"].dtype, pd.ArrowDtype)
     result["col"] = result["col"].astype("float64")
     assert_geodataframe_equal(result, df)
+
+
+@requires_arrow_api
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_roundtrip(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    df = gp.GeoDataFrame(
+        {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
+        crs="EPSG:4326",
+    )
+
+    write_dataframe(df, filename)
+    result = read_dataframe(filename, use_arrow=True)
+    assert_geodataframe_equal(result, df)
+
+
+@requires_arrow_api
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_exception(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    df = gp.GeoDataFrame(
+        {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
+        crs="EPSG:4326",
+    )
+
+    write_dataframe(df, filename)
+
+    with pytest.raises(
+        RuntimeError,
+        match="GDAL < 3.8.3 does not correctly read boolean data values using "
+        "the Arrow API",
+    ):
+        read_dataframe(filename, use_arrow=True)
