@@ -1679,7 +1679,7 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
-cdef bint create_dataset_layer(
+cdef create_dataset_layer(
     str path, str layer, str driver, str crs, str geometry_type, str encoding,
     object dataset_kwargs, object layer_kwargs, bint append,
     dataset_metadata, layer_metadata,
