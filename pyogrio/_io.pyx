@@ -1766,9 +1766,10 @@ def ogr_write_arrow(
     stream_capsule = arrow_obj.__arrow_c_stream__()
     return write_arrow_stream_capsule(ogr_layer, stream_capsule)
 
+
 cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
-    cdef ArrowSchema* schema
-    cdef ArrowArray* array
+    cdef ArrowSchema schema
+    cdef ArrowArray array
 
     cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
         capsule, "arrow_array_stream"
@@ -1779,22 +1780,22 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
     if stream.release == NULL:
         raise RuntimeError("Arrow Array Stream was already released.")
 
-    errcode = stream.get_schema(stream, schema)
+    errcode = stream.get_schema(stream, &schema)
     if errcode != 0:
         stream.release(stream)
         raise RuntimeError("Error while accessing schema from stream.")
 
     try:
-        create_fields_from_arrow_schema(destLayer, schema, options)
-    except:
-        schema.release(schema)
-        stream.release(stream)
-        raise RuntimeError("Error creating Arrow Schema in OGR layer.")
+        create_fields_from_arrow_schema(destLayer, &schema, options)
+    except Exception as e:
+       schema.release(&schema)
+       stream.release(stream)
+       raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
 
     while True:
-        errcode = stream.get_next(stream, array)
+        errcode = stream.get_next(stream, &array)
         if errcode != 1:
-            schema.release(schema)
+            schema.release(&schema)
             stream.release(stream)
             raise RuntimeError("Error while accessing batch from stream.")
 
@@ -1802,20 +1803,20 @@ cdef OGRErr write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char
         if array.release == NULL:
             break
 
-        errcode = OGR_L_WriteArrowBatch(destLayer, schema, array, options)
+        errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
         if errcode:
             if array.release != NULL:
-                array.release(array)
+                array.release(&array)
 
-            schema.release(schema)
+            schema.release(&schema)
             stream.release(stream)
             raise RuntimeError("Error while writing batch to OGR layer.")
 
         if array.release != NULL:
-            array.release(array)
+            array.release(&array)
 
 
-    schema.release(schema)
+    schema.release(&schema)
     stream.release(stream)
 
 # Create output fields using CreateFieldFromArrowSchema()
@@ -1825,14 +1826,17 @@ cdef void* create_fields_from_arrow_schema(
     char** options
 ) except NULL:
     # The schema object is a struct type where each child is a column.
+    cdef ArrowSchema* child
     for i in range(schema.n_children):
         child = schema.children[i]
 
         errcode = OGR_L_CreateFieldFromArrowSchema(
             destLayer, child, options)
-        if errcode != 0:
-            raise RuntimeError("error while creating field from Arrow")
-
+        if errcode == 0:
+            raise RuntimeError(
+                f"error while creating field from Arrow for field {i} with name "
+                f"{get_string(child.name)} and type {get_string(child.format)}"
+            )
 
 
 # TODO: set geometry and field data as memory views?
