@@ -336,13 +336,13 @@ cdef extern from "ogr_api.h":
 IF CTE_GDAL_VERSION >= (3, 6, 0):
 
     cdef extern from "ogr_api.h":
-        int8_t OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
+        bint OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
     cdef extern from "ogr_api.h":
-        int8_t OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
-        int8_t OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
+        bint OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
+        bint OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:
