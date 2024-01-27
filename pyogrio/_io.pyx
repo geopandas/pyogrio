@@ -1371,10 +1371,12 @@ def ogr_open_arrow(
                 apply_where_filter(ogr_layer, where)
             except ValueError as ex:
                 if fids is not None and str(ex).startswith("Invalid SQL query"):
+                    # If fids is not None, the where being applied is the one formatted
+                    # above.
                     raise ValueError(
-                        f"error applying filter for {len(fids)} fids. Max. number for "
-                        f"drivers with default SQL dialect 'OGRSQL' is 4997: {ex}"
-                    )
+                        f"error applying filter for {len(fids)} fids; max. number for "
+                        f"drivers with default SQL dialect 'OGRSQL' is 4997"
+                    ) from ex
 
                 raise
 
