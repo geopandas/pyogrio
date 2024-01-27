@@ -265,7 +265,7 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
 
 @pytest.mark.network
 def test_url():
-    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"  # NOQA
+    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
 
     result = pyogrio.raw.read(url)
     assert len(result[2]) == 177
@@ -279,7 +279,7 @@ def test_url():
 
 @pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 def test_url_dataframe():
-    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"  # NOQA
+    url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
 
     assert len(pyogrio.read_dataframe(url)) == 177
 

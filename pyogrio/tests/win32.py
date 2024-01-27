@@ -8,7 +8,6 @@ from tempfile import TemporaryDirectory
 data_dir = Path(__file__).parent.resolve() / "fixtures"
 
 if platform.system() == "Windows":
-
     naturalearth_lowres = data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp")
     test_fgdb_vsi = f"/vsizip/{data_dir}/test_fgdb.gdb.zip"
 

@@ -77,7 +77,7 @@ Building Pyogrio requires requires `Cython`, `numpy`, and `pandas`.
 
 Pyogrio follows the [GeoPandas Style Guide]
 (https://geopandas.org/en/stable/community/contributing.html#style-guide-linting)
-and uses `Black` and `Flake8` to ensure consistent formatting.
+and uses `Ruff` to ensure consistent formatting.
 
 It is recommended to install `pre-commit` and register its hooks so the formatting is
 automatically verified when you commit code.
@@ -157,13 +157,13 @@ variables because the location of the GDAL binaries and headers cannot be
 automatically determined.
 
 After activating the `pyogrio-dev` environment the `CONDA_PREFIX` environment variable
-will be available. Assuming GDAL 3.6.2 is installed, you will be able to set the
+will be available. Assuming GDAL 3.8.3 is installed, you will be able to set the
 necessary environment variables as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=%CONDA_PREFIX%\Library\include
 set GDAL_LIBRARY_PATH=%CONDA_PREFIX%\Library\lib
-set GDAL_VERSION=3.6.2
+set GDAL_VERSION=3.8.3
 ```
 
 Now you should be able to run `python setup.py develop` to build the extensions in
