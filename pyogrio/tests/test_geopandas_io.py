@@ -889,7 +889,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
 
     assert filename.exists()
     with pytest.raises(
-        Exception, match=".* not recognized as a supported file format."
+        Exception, match=".* not recognized as( being in)? a supported file format."
     ):
         _ = read_dataframe(filename)
 
