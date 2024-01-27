@@ -11,7 +11,6 @@ with GDALEnv():
 
 
 def get_vsi_path(path_or_buffer):
-
     if hasattr(path_or_buffer, "read"):
         path_or_buffer = path_or_buffer.read()
 
