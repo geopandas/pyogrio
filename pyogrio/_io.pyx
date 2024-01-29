@@ -1909,7 +1909,7 @@ def ogr_write(
     if not encoding:
         encoding = locale.getpreferredencoding()
 
-    layer_created = create_dataset_layer(
+    layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
         dataset_kwargs, layer_kwargs, append,
         dataset_metadata, layer_metadata,
