@@ -1679,12 +1679,33 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
-cdef create_dataset_layer(
+cdef create_ogr_dataset_layer(
     str path, str layer, str driver, str crs, str geometry_type, str encoding,
     object dataset_kwargs, object layer_kwargs, bint append,
     dataset_metadata, layer_metadata,
     OGRDataSourceH* ogr_dataset_out, OGRLayerH* ogr_layer_out,
 ):
+    """
+    Construct the OGRDataSource and OGRLayer objects based on input
+    path and layer.
+
+    If the file already exists, will open the existing dataset and overwrite
+    or append the layer (depending on `append`), otherwise will create a new
+    dataset.
+
+    Fills in the `ogr_dataset_out` and `ogr_layer_out` pointers passed as
+    parameter with initialized objects (or raise error is it fails to do so).
+    It is the responsibility of the caller to clean up those objects after use.
+    Returns whether a new layer was created or not (when the layer was created,
+    the caller still needs to set up the layer definition, i.e. create the
+    fields).
+
+    Returns
+    -------
+    bool :
+        Whether a new layer was created, or False if we are appending to an
+        existing layer.
+    """
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
