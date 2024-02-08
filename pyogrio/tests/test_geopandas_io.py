@@ -889,7 +889,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
 
     assert filename.exists()
     with pytest.raises(
-        Exception, match=".* not recognized as a supported file format."
+        Exception, match=".* not recognized as( being in)? a supported file format."
     ):
         _ = read_dataframe(filename)
 
@@ -1262,7 +1262,7 @@ def test_write_read_null(tmp_path):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # NOQA
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
@@ -1304,7 +1304,7 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
             "MultiPolygon Z",
             False,
             [
-                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"
             ],
         ),
         (
@@ -1509,3 +1509,42 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     assert isinstance(result["col"].dtype, pd.ArrowDtype)
     result["col"] = result["col"].astype("float64")
     assert_geodataframe_equal(result, df)
+
+
+@requires_arrow_api
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_roundtrip(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    df = gp.GeoDataFrame(
+        {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
+        crs="EPSG:4326",
+    )
+
+    write_dataframe(df, filename)
+    result = read_dataframe(filename, use_arrow=True)
+    assert_geodataframe_equal(result, df)
+
+
+@requires_arrow_api
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_exception(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    df = gp.GeoDataFrame(
+        {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
+        crs="EPSG:4326",
+    )
+
+    write_dataframe(df, filename)
+
+    with pytest.raises(
+        RuntimeError,
+        match="GDAL < 3.8.3 does not correctly read boolean data values using "
+        "the Arrow API",
+    ):
+        read_dataframe(filename, use_arrow=True)

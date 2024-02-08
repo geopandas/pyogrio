@@ -7,7 +7,6 @@ verify_ssl = true
 cython = "*"
 setuptools = "*"
 pylint = "*"
-black = "==19.3b0"
 wheel = "*"
 pytest = "*"
 pytest-cov = "*"

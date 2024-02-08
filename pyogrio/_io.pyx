@@ -164,7 +164,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         ) from None
 
     except CPLE_BaseError as exc:
-        if str(exc).endswith("not recognized as a supported file format."):
+        if str(exc).endswith("a supported file format."):
             raise DataSourceError(
                 f"{str(exc)} It might help to specify the correct driver explicitly by "
                 "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
@@ -1839,14 +1839,33 @@ cdef create_fields_from_arrow_schema(
             )
 
 
-# TODO: set geometry and field data as memory views?
-def ogr_write(
-    str path, str layer, str driver, geometry, fields, field_data, field_mask,
-    str crs, str geometry_type, str encoding, object dataset_kwargs,
-    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
-    bint append=False, dataset_metadata=None, layer_metadata=None,
-    gdal_tz_offsets=None
+cdef create_ogr_dataset_layer(
+    str path, str layer, str driver, str crs, str geometry_type, str encoding,
+    object dataset_kwargs, object layer_kwargs, bint append,
+    dataset_metadata, layer_metadata,
+    OGRDataSourceH* ogr_dataset_out, OGRLayerH* ogr_layer_out,
 ):
+    """
+    Construct the OGRDataSource and OGRLayer objects based on input
+    path and layer.
+
+    If the file already exists, will open the existing dataset and overwrite
+    or append the layer (depending on `append`), otherwise will create a new
+    dataset.
+
+    Fills in the `ogr_dataset_out` and `ogr_layer_out` pointers passed as
+    parameter with initialized objects (or raise error is it fails to do so).
+    It is the responsibility of the caller to clean up those objects after use.
+    Returns whether a new layer was created or not (when the layer was created,
+    the caller still needs to set up the layer definition, i.e. create the
+    fields).
+
+    Returns
+    -------
+    bool :
+        Whether a new layer was created, or False if we are appending to an
+        existing layer.
+    """
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
@@ -1857,55 +1876,9 @@ def ogr_write(
     cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef OGRFeatureH ogr_feature = NULL
-    cdef OGRGeometryH ogr_geometry = NULL
-    cdef OGRGeometryH ogr_geometry_multi = NULL
-    cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH ogr_fielddef = NULL
-    cdef unsigned char *wkb_buffer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
-    cdef int layer_idx = -1
-    cdef int supports_transactions = 0
     cdef OGRwkbGeometryType geometry_code
-    cdef int err = 0
-    cdef int i = 0
-    cdef int num_records = -1
-    cdef int num_field_data = len(field_data) if field_data is not None else 0
-    cdef int num_fields = len(fields) if fields is not None else 0
-
-    if num_fields != num_field_data:
-        raise ValueError("field_data array needs to be same length as fields array")
-
-    if num_fields == 0 and geometry is None:
-        raise ValueError("You must provide at least a geometry column or a field")
-
-    if num_fields > 0:
-        num_records = len(field_data[0])
-        for i in range(1, len(field_data)):
-            if len(field_data[i]) != num_records:
-                raise ValueError("field_data arrays must be same length")
-
-    if geometry is None:
-        # If no geometry data, we ignore the geometry_type and don't create a geometry
-        # column
-        geometry_type = None
-    else:
-        if num_fields > 0:
-            if len(geometry) != num_records:
-                raise ValueError(
-                    "field_data arrays must be same length as geometry array"
-                )
-        else:
-            num_records = len(geometry)
-
-    if field_mask is not None:
-        if len(field_data) != len(field_mask):
-            raise ValueError("field_data and field_mask must be same length")
-        for i in range(0, len(field_mask)):
-            if field_mask[i] is not None and len(field_mask[i]) != num_records:
-                raise ValueError("field_mask arrays must be same length as geometry array")
-    else:
-        field_mask = [None] * num_fields
+    cdef int layer_idx = -1
 
     path_b = path.encode('UTF-8')
     path_c = path_b
@@ -1915,10 +1888,6 @@ def ogr_write(
 
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
-
-    if gdal_tz_offsets is None:
-        gdal_tz_offsets = {}
-
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
@@ -1978,8 +1947,6 @@ def ogr_write(
                 raise exc
 
         # Setup layer creation options
-        if not encoding:
-            encoding = locale.getpreferredencoding()
 
         if driver == 'ESRI Shapefile':
             # Fiona only sets encoding for shapefiles; other drivers do not support
@@ -2033,13 +2000,89 @@ def ogr_write(
             CSLDestroy(layer_options)
             layer_options = NULL
 
+    ogr_dataset_out[0] = ogr_dataset
+    ogr_layer_out[0] = ogr_layer
+    return create_layer
+
+
+# TODO: set geometry and field data as memory views?
+def ogr_write(
+    str path, str layer, str driver, geometry, fields, field_data, field_mask,
+    str crs, str geometry_type, str encoding, object dataset_kwargs,
+    object layer_kwargs, bint promote_to_multi=False, bint nan_as_null=True,
+    bint append=False, dataset_metadata=None, layer_metadata=None,
+    gdal_tz_offsets=None
+):
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef OGRFeatureH ogr_feature = NULL
+    cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH ogr_geometry_multi = NULL
+    cdef OGRFeatureDefnH ogr_featuredef = NULL
+    cdef OGRFieldDefnH ogr_fielddef = NULL
+    cdef unsigned char *wkb_buffer = NULL
+    cdef int supports_transactions = 0
+    cdef int err = 0
+    cdef int i = 0
+    cdef int num_records = -1
+    cdef int num_field_data = len(field_data) if field_data is not None else 0
+    cdef int num_fields = len(fields) if fields is not None else 0
+
+    if num_fields != num_field_data:
+        raise ValueError("field_data array needs to be same length as fields array")
+
+    if num_fields == 0 and geometry is None:
+        raise ValueError("You must provide at least a geometry column or a field")
+
+    if num_fields > 0:
+        num_records = len(field_data[0])
+        for i in range(1, len(field_data)):
+            if len(field_data[i]) != num_records:
+                raise ValueError("field_data arrays must be same length")
+
+    if geometry is None:
+        # If no geometry data, we ignore the geometry_type and don't create a geometry
+        # column
+        geometry_type = None
+    else:
+        if num_fields > 0:
+            if len(geometry) != num_records:
+                raise ValueError(
+                    "field_data arrays must be same length as geometry array"
+                )
+        else:
+            num_records = len(geometry)
+
+    if field_mask is not None:
+        if len(field_data) != len(field_mask):
+            raise ValueError("field_data and field_mask must be same length")
+        for i in range(0, len(field_mask)):
+            if field_mask[i] is not None and len(field_mask[i]) != num_records:
+                raise ValueError("field_mask arrays must be same length as geometry array")
+    else:
+        field_mask = [None] * num_fields
+
+    if gdal_tz_offsets is None:
+        gdal_tz_offsets = {}
+
+    ### Setup up dataset and layer
+    if not encoding:
+        encoding = locale.getpreferredencoding()
+
+    layer_created = create_ogr_dataset_layer(
+        path, layer, driver, crs, geometry_type, encoding,
+        dataset_kwargs, layer_kwargs, append,
+        dataset_metadata, layer_metadata,
+        &ogr_dataset, &ogr_layer,
+    )
+
     ### Create the fields
     field_types = None
     if num_fields > 0:
         field_types = infer_field_types([field.dtype for field in field_data])
 
     ### Create the fields
-    if create_layer:
+    if layer_created:
         for i in range(num_fields):
             field_type, field_subtype, width, precision = field_types[i]
 

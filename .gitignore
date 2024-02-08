@@ -35,3 +35,5 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+.ruff_cache
