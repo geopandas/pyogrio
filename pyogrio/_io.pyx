@@ -1684,84 +1684,27 @@ def ogr_write_arrow(
     str layer,
     str driver,
     arrow_obj,
+    str crs,
     str geometry_type,
+    str encoding,
     object dataset_kwargs,
     object layer_kwargs,
+    bint append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
 ):
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
-    cdef const char *path_c = NULL
-    cdef const char *layer_c = NULL
-    cdef const char *driver_c = NULL
-    cdef const char *crs_c = NULL
-    cdef const char *encoding_c = NULL
-    cdef char **dataset_options = NULL
-    cdef char **layer_options = NULL
-    cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef OGRFeatureH ogr_feature = NULL
-    cdef OGRGeometryH ogr_geometry = NULL
-    cdef OGRGeometryH ogr_geometry_multi = NULL
-    cdef OGRFeatureDefnH ogr_featuredef = NULL
-    cdef OGRFieldDefnH ogr_fielddef = NULL
-    cdef unsigned char *wkb_buffer = NULL
-    cdef OGRSpatialReferenceH ogr_crs = NULL
-    cdef int layer_idx = -1
-    cdef int supports_transactions = 0
-    cdef OGRwkbGeometryType geometry_code
-    cdef int err = 0
-    cdef int i = 0
-    cdef int num_records = -1
 
-    path_b = path.encode('UTF-8')
-    path_c = path_b
-
-    driver_b = driver.encode('UTF-8')
-    driver_c = driver_b
-
-    if not layer:
-        layer = os.path.splitext(os.path.split(path)[1])[0]
-
-    dataset_options = dict_to_options(dataset_kwargs)
-    ogr_dataset = ogr_create(path_c, driver_c, dataset_options)
-
-    # Setup other layer creation options
-    for k, v in layer_kwargs.items():
-        k = k.encode('UTF-8')
-        v = v.encode('UTF-8')
-        layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
-
-    geometry_code = get_geometry_type_code(geometry_type)
-
-    try:
-
-        layer_b = layer.encode('UTF-8')
-        layer_c = layer_b
-
-        ogr_layer = exc_wrap_pointer(
-                GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
-                        geometry_code, layer_options))
-
-    except Exception as exc:
-        OGRReleaseDataSource(ogr_dataset)
-        ogr_dataset = NULL
-        raise DataLayerError(str(exc))
-
-    finally:
-        if ogr_crs != NULL:
-            OSRRelease(ogr_crs)
-            ogr_crs = NULL
-
-        if dataset_options != NULL:
-            CSLDestroy(dataset_options)
-            dataset_options = NULL
-
-        if layer_options != NULL:
-            CSLDestroy(layer_options)
-            layer_options = NULL
-
+    layer_created = create_ogr_dataset_layer(
+        path, layer, driver, crs, geometry_type, encoding,
+        dataset_kwargs, layer_kwargs, append,
+        dataset_metadata, layer_metadata,
+        &ogr_dataset, &ogr_layer,
+    )
 
     stream_capsule = arrow_obj.__arrow_c_stream__()
     return write_arrow_stream_capsule(ogr_layer, stream_capsule)
