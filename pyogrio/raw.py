@@ -12,7 +12,7 @@ from pyogrio.util import (
 )
 
 with GDALEnv():
-    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
+    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write, ogr_write_arrow
     from pyogrio._ogr import (
         get_gdal_version,
         get_gdal_version_string,
@@ -558,4 +558,112 @@ def write(
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
         gdal_tz_offsets=gdal_tz_offsets,
+    )
+
+
+def write_arrow(
+    path,
+    arrow_obj,
+    layer=None,
+    driver=None,
+    # derived from meta if roundtrip
+    geometry_type=None,
+    crs=None,
+    encoding=None,
+    promote_to_multi=None,
+    nan_as_null=True,
+    append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+    metadata=None,
+    dataset_options=None,
+    layer_options=None,
+    gdal_tz_offsets=None,
+    **kwargs,
+):
+    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # read, and it is convenient to pass meta directly into write for round trip tests)
+    kwargs.pop("dtypes", None)
+    path = vsi_path(str(path))
+
+    if driver is None:
+        driver = detect_write_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
+
+    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
+    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
+        raise RuntimeError(
+            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
+        )
+
+    if metadata is not None:
+        if layer_metadata is not None:
+            raise ValueError("Cannot pass both metadata and layer_metadata")
+        layer_metadata = metadata
+
+    # validate metadata types
+    for metadata in [dataset_metadata, layer_metadata]:
+        if metadata is not None:
+            for k, v in metadata.items():
+                if not isinstance(k, str):
+                    raise ValueError(f"metadata key {k} must be a string")
+
+                if not isinstance(v, str):
+                    raise ValueError(f"metadata value {v} must be a string")
+
+    if arrow_obj is not None and promote_to_multi is None:
+        promote_to_multi = (
+            geometry_type.startswith("Multi")
+            and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
+        )
+
+    # TODO: does GDAL infer CRS automatically from geometry metadata?
+    if arrow_obj is not None and crs is None:
+        warnings.warn(
+            "'crs' was not provided.  The output dataset will not have "
+            "projection information defined and may not be usable in other "
+            "systems."
+        )
+
+    # preprocess kwargs and split in dataset and layer creation options
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
+    if kwargs:
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
+        for k, v in kwargs.items():
+            if k in dataset_option_names:
+                dataset_kwargs[k] = v
+            elif k in layer_option_names:
+                layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+
+    # TODO: pass these as dataset kwargs?
+    # promote_to_multi=promote_to_multi,
+    # nan_as_null=nan_as_null,
+    ogr_write_arrow(
+        path,
+        layer=layer,
+        driver=driver,
+        arrow_obj=arrow_obj,
+        geometry_type=geometry_type,
+        crs=crs,
+        encoding=encoding,
+        append=append,
+        dataset_metadata=dataset_metadata,
+        layer_metadata=layer_metadata,
+        dataset_kwargs=dataset_kwargs,
+        layer_kwargs=layer_kwargs,
     )
