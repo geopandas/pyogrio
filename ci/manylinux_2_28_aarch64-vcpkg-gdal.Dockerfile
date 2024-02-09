@@ -31,7 +31,7 @@ COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
 
 # temporary workaround for https://github.com/microsoft/vcpkg/issues/36094
-COPY vcpkg_linux_crosscompiling.patch opt/vcpkg/
+COPY ci/vcpkg_linux_crosscompiling.patch opt/vcpkg/
 RUN git -C /opt/vcpkg apply opt/vcpkg/vcpkg_linux_crosscompiling.patch && git commit -am "apply patch"
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/arm64-linux-dynamic-release/lib"
