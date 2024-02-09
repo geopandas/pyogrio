@@ -1,4 +1,4 @@
-pytest
+pytest<8
 # dependencies of geopandas (installed separately with --no-deps to avoid fiona)
 pandas
 pyproj ; (python_version < '3.12') or (python_full_version >= '3.12.1')
