@@ -1,24 +1,24 @@
 import warnings
 
+from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API
 from pyogrio._env import GDALEnv
-from pyogrio._compat import HAS_ARROW_API
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import (
+    _mask_to_wkb,
+    _preprocess_options_key_value,
     get_vsi_path,
     vsi_path,
-    _preprocess_options_key_value,
-    _mask_to_wkb,
 )
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write, ogr_write_arrow
     from pyogrio._ogr import (
+        _get_driver_metadata_item,
         get_gdal_version,
         get_gdal_version_string,
         ogr_driver_supports_write,
         remove_virtual_file,
-        _get_driver_metadata_item,
     )
 
 
@@ -581,6 +581,9 @@ def write_arrow(
     gdal_tz_offsets=None,
     **kwargs,
 ):
+    if not HAS_ARROW_WRITE_API:
+        raise RuntimeError("pyarrow and GDAL>=3.8 required to read using arrow")
+
     # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
     kwargs.pop("dtypes", None)
