@@ -1710,76 +1710,80 @@ def ogr_write_arrow(
     return write_arrow_stream_capsule(ogr_layer, stream_capsule)
 
 
-cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
-    cdef ArrowSchema schema
-    cdef ArrowArray array
+IF CTE_GDAL_VERSION >= (3, 8, 0):
 
-    cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
-        capsule, "arrow_array_stream"
-    )
-    if stream == NULL:
-        raise RuntimeError("No valid stream.")
+    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
+        cdef ArrowSchema schema
+        cdef ArrowArray array
 
-    if stream.release == NULL:
-        raise RuntimeError("Arrow Array Stream was already released.")
+        cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+            capsule, "arrow_array_stream"
+        )
+        if stream == NULL:
+            raise RuntimeError("No valid stream.")
 
-    errcode = stream.get_schema(stream, &schema)
-    if errcode != 0:
-        stream.release(stream)
-        raise RuntimeError("Error while accessing schema from stream.")
+        if stream.release == NULL:
+            raise RuntimeError("Arrow Array Stream was already released.")
 
-    try:
-        create_fields_from_arrow_schema(destLayer, &schema, options)
-    except Exception as e:
-       schema.release(&schema)
-       stream.release(stream)
-       raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
-
-    while True:
-        errcode = stream.get_next(stream, &array)
+        errcode = stream.get_schema(stream, &schema)
         if errcode != 0:
-            schema.release(&schema)
             stream.release(stream)
-            raise RuntimeError("Error while accessing batch from stream.")
+            raise RuntimeError("Error while accessing schema from stream.")
 
-        # We've reached the end of the stream
-        if array.release == NULL:
-            break
+        try:
+            create_fields_from_arrow_schema(destLayer, &schema, options)
+        except Exception as e:
+        schema.release(&schema)
+        stream.release(stream)
+        raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
 
-        errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
-        if not errcode:
+        while True:
+            errcode = stream.get_next(stream, &array)
+            if errcode != 0:
+                schema.release(&schema)
+                stream.release(stream)
+                raise RuntimeError("Error while accessing batch from stream.")
+
+            # We've reached the end of the stream
+            if array.release == NULL:
+                break
+
+            errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
+            if not errcode:
+                if array.release != NULL:
+                    array.release(&array)
+
+                schema.release(&schema)
+                stream.release(stream)
+                raise RuntimeError("Error while writing batch to OGR layer.")
+
             if array.release != NULL:
                 array.release(&array)
 
-            schema.release(&schema)
-            stream.release(stream)
-            raise RuntimeError("Error while writing batch to OGR layer.")
-
-        if array.release != NULL:
-            array.release(&array)
-
-    schema.release(&schema)
-    stream.release(stream)
+        schema.release(&schema)
+        stream.release(stream)
 
 
-# Create output fields using CreateFieldFromArrowSchema()
-cdef create_fields_from_arrow_schema(
-    OGRLayerH destLayer,
-    const ArrowSchema* schema,
-    char** options
-):
-    # The schema object is a struct type where each child is a column.
-    cdef ArrowSchema* child
-    for i in range(schema.n_children):
-        child = schema.children[i]
+IF CTE_GDAL_VERSION >= (3, 8, 0):
 
-        errcode = OGR_L_CreateFieldFromArrowSchema(
-            destLayer, child, options)
-        if errcode == 0:
-            raise RuntimeError(
-                f"error while creating field from Arrow for field {i} with name "
-                f"{get_string(child.name)} and type {get_string(child.format)}"
-            )
+    # Create output fields using CreateFieldFromArrowSchema()
+    cdef create_fields_from_arrow_schema(
+        OGRLayerH destLayer,
+        const ArrowSchema* schema,
+        char** options
+    ):
+        # The schema object is a struct type where each child is a column.
+        cdef ArrowSchema* child
+        for i in range(schema.n_children):
+            child = schema.children[i]
+
+            errcode = OGR_L_CreateFieldFromArrowSchema(
+                destLayer, child, options)
+            if errcode == 0:
+                raise RuntimeError(
+                    f"error while creating field from Arrow for field {i} with name "
+                    f"{get_string(child.name)} and type {get_string(child.format)}"
+                )
 
 
 cdef create_ogr_dataset_layer(
