@@ -1733,9 +1733,9 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         try:
             create_fields_from_arrow_schema(destLayer, &schema, options)
         except Exception as e:
-        schema.release(&schema)
-        stream.release(stream)
-        raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
+            schema.release(&schema)
+            stream.release(stream)
+            raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
 
         while True:
             errcode = stream.get_next(stream, &array)
