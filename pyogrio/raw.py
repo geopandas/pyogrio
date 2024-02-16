@@ -568,6 +568,7 @@ def write_arrow(
     driver=None,
     # derived from meta if roundtrip
     geometry_type=None,
+    geometry_name=None,
     crs=None,
     encoding=None,
     promote_to_multi=None,
@@ -662,6 +663,7 @@ def write_arrow(
         driver=driver,
         arrow_obj=arrow_obj,
         geometry_type=geometry_type,
+        geometry_name=geometry_name,
         crs=crs,
         encoding=encoding,
         append=append,

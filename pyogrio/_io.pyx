@@ -1686,6 +1686,7 @@ def ogr_write_arrow(
     arrow_obj,
     str crs,
     str geometry_type,
+    str geometry_name,
     str encoding,
     object dataset_kwargs,
     object layer_kwargs,
@@ -1707,12 +1708,12 @@ def ogr_write_arrow(
     )
 
     stream_capsule = arrow_obj.__arrow_c_stream__()
-    return write_arrow_stream_capsule(ogr_layer, stream_capsule)
+    return write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name)
 
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
-    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, char** options = NULL):
+    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, str geometry_name, char** options = NULL):
         cdef ArrowSchema schema
         cdef ArrowArray array
 
@@ -1731,7 +1732,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             raise RuntimeError("Error while accessing schema from stream.")
 
         try:
-            create_fields_from_arrow_schema(destLayer, &schema, options)
+            create_fields_from_arrow_schema(destLayer, &schema, options, geometry_name)
         except Exception as e:
             schema.release(&schema)
             stream.release(stream)
@@ -1770,12 +1771,19 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
     cdef create_fields_from_arrow_schema(
         OGRLayerH destLayer,
         const ArrowSchema* schema,
-        char** options
+        char** options,
+        str geometry_name
     ):
         # The schema object is a struct type where each child is a column.
         cdef ArrowSchema* child
         for i in range(schema.n_children):
             child = schema.children[i]
+            metadata = child.metadata
+
+            # Don't create property for geometry column
+            field_name = get_string(child.name)
+            if field_name == geometry_name:
+                continue
 
             errcode = OGR_L_CreateFieldFromArrowSchema(
                 destLayer, child, options)

@@ -31,6 +31,7 @@ def test_write(tmpdir, naturalearth_lowres):
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
 
     assert os.path.exists(filename)
@@ -49,6 +50,7 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
 
     assert os.path.exists(filename)
@@ -67,6 +69,7 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
 
     assert os.path.exists(filename)
@@ -81,6 +84,7 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
 
     assert np.array_equal(
@@ -89,12 +93,7 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
 
 
 def test_write_geojson(tmpdir, naturalearth_lowres):
-    # I was thinking we might need to rename the wkb_geometry column to geometry
     meta, table = read_arrow(naturalearth_lowres)
-    names = table.column_names
-    names[-1] = "geometry"
-    table = table.rename_columns(names)
-
     filename = os.path.join(str(tmpdir), "test.json")
     write_arrow(
         filename,
@@ -103,6 +102,7 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
 
     assert os.path.exists(filename)
