@@ -10,6 +10,7 @@ import locale
 import logging
 import math
 import os
+import sys
 import warnings
 
 from libc.stdint cimport uint8_t, uintptr_t
@@ -1706,9 +1707,14 @@ def ogr_write_arrow(
         dataset_metadata, layer_metadata,
         &ogr_dataset, &ogr_layer,
     )
+    if geometry_name:
+        opts = {"GEOMETRY_NAME": geometry_name}
+    else:
+        opts = {}
+    cdef char **options = dict_to_options(opts)
 
     stream_capsule = arrow_obj.__arrow_c_stream__()
-    return write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name)
+    return write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
 
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
@@ -1767,6 +1773,30 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
+    cdef is_geometry_field(const ArrowSchema* schema):
+        cdef const char *metadata = schema.metadata
+
+        if metadata == NULL:
+            return False
+
+        n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
+        pos = 4
+
+        for i in range(n):
+            length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+            pos += 4
+            key = metadata[pos:pos+length_key]
+            pos += length_key
+            length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+            pos += 4
+            value = metadata[pos:pos+length_value]
+            pos += length_value
+
+            if key == b"ARROW:extension:name":
+                if value == b"geoarrow.wkb" or value == b"ogc.wkb":
+                    return True
+        return False
+
     # Create output fields using CreateFieldFromArrowSchema()
     cdef create_fields_from_arrow_schema(
         OGRLayerH destLayer,
@@ -1783,6 +1813,9 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             # Don't create property for geometry column
             field_name = get_string(child.name)
             if field_name == geometry_name:
+                continue
+
+            if is_geometry_field(child):
                 continue
 
             errcode = OGR_L_CreateFieldFromArrowSchema(
