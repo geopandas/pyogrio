@@ -1714,7 +1714,17 @@ def ogr_write_arrow(
     cdef char **options = dict_to_options(opts)
 
     stream_capsule = arrow_obj.__arrow_c_stream__()
-    return write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
+    write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
+
+    ### Final cleanup
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+
+        # GDAL will set an error if there was an error writing the data source
+        # on close
+        exc = exc_check()
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
