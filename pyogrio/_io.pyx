@@ -476,7 +476,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     str or None
     """
 
-    if ogr_layer is not NULL and OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
+    if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
