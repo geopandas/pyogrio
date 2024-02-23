@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Build the Linux aarch64 wheels.
           command: |
-            python3 -m pip install --user cibuildwheel==2.16.2
+            python3 -m pip install --user cibuildwheel==2.16.5
             python3 -m cibuildwheel --output-dir wheelhouse
       - run:
           name: Test the wheels
