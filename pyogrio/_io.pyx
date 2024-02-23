@@ -469,7 +469,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     Parameters
     ----------
     ogr_dataset : pointer to open OGR dataset
-    ogr_layer : NULL or pointer to open OGR layer
+    ogr_layer : pointer to open OGR layer
 
     Returns
     -------
@@ -2040,7 +2040,6 @@ def ogr_write(
                     OGR_F_SetFieldNull(ogr_feature, field_idx)
 
                 elif field_type == OFTString:
-                    # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
                     if (
                         field_value is None
                         or (isinstance(field_value, float) and isnan(field_value))
@@ -2052,7 +2051,7 @@ def ogr_write(
                             field_value = str(field_value)
 
                         try:
-                            value_b = field_value.encode("UTF-8")
+                            value_b = field_value.encode(encoding)
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
                         except AttributeError:
