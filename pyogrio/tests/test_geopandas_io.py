@@ -1,5 +1,6 @@
 import contextlib
 from datetime import datetime
+import filecmp
 import os
 import numpy as np
 import pytest
@@ -62,13 +63,13 @@ def spatialite_available(path):
         return False
 
 
-def test_read_csv(tmp_path):
+def test_read_csv_encoding(tmp_path):
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
     with open(csv_path, "w") as csv:
         csv.write("name,city\n")
-        csv.write("Wilhelm Röntgen,Zürich")
+        csv.write("Wilhelm Röntgen,Zürich\n")
 
     # Read csv. The data should be read with the same default encoding as the csv file
     # was written in, but should have been converted to utf-8 in the dataframe returned.
@@ -799,6 +800,26 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
+
+
+def test_write_csv_encoding(tmp_path):
+    """Test if write_dataframe uses the default encoding correctly."""
+    # Write csv test file. Depending on the os this will be written in a different
+    # encoding: for linux and macos this is utf-8, for windows it is cp1252.
+    csv_path = tmp_path / "test.csv"
+    with open(csv_path, "w") as csv:
+        csv.write("name,city\n")
+        csv.write("Wilhelm Röntgen,Zürich\n")
+
+    # Write csv test file with the same data using write_dataframe. It should use the
+    # same encoding as above.
+    df = pd.DataFrame({"name": ["Wilhelm Röntgen"], "city": ["Zürich"]})
+    csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
+    write_dataframe(df, csv_pyogrio_path)
+
+    # If the files written are binary identical, they were written using the same
+    # encoding.
+    assert filecmp.cmp(csv_path, csv_pyogrio_path, shallow=False)
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
