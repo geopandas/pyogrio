@@ -8,13 +8,6 @@ from pyogrio.core import list_layers
 from pyogrio.raw import read_arrow, write_arrow
 from pyogrio.tests.conftest import requires_arrow_write_api
 
-try:
-    import pandas as pd
-    import pyarrow
-    from geopandas.testing import assert_geodataframe_equal
-    from pandas.testing import assert_frame_equal, assert_index_equal
-except ImportError:
-    pass
 
 # skip all tests in this file if Arrow Write API or GeoPandas are unavailable
 pytestmark = requires_arrow_write_api
