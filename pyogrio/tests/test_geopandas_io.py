@@ -1,6 +1,5 @@
 import contextlib
 from datetime import datetime
-import filecmp
 import os
 import numpy as np
 import pytest
@@ -819,7 +818,11 @@ def test_write_csv_encoding(tmp_path):
 
     # If the files written are binary identical, they were written using the same
     # encoding.
-    assert filecmp.cmp(csv_path, csv_pyogrio_path, shallow=False)
+    with open(csv_path, "r") as csv:
+        csv_str = csv.read()
+    with open(csv_pyogrio_path, "r") as csv_pyogrio:
+        csv_pyogrio_str = csv_pyogrio.read()
+    assert csv_str == csv_pyogrio_str
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
