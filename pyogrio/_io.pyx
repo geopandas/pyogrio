@@ -1906,8 +1906,13 @@ def ogr_write(
         gdal_tz_offsets = {}
 
     ### Setup up dataset and layer
-    if not encoding:
-        encoding = locale.getpreferredencoding()
+    # Encoding is derived from the user, from the dataset capabilities / type,
+    # or from the system locale
+    encoding = (
+        encoding
+        or detect_encoding(ogr_dataset, ogr_layer)
+        or locale.getpreferredencoding()
+    )
 
     layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
@@ -2032,7 +2037,7 @@ def ogr_write(
                             field_value = str(field_value)
 
                         try:
-                            value_b = field_value.encode("UTF-8")
+                            value_b = field_value.encode(encoding)
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
                         except AttributeError:
