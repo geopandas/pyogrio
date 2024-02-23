@@ -62,6 +62,25 @@ def spatialite_available(path):
         return False
 
 
+def test_read_csv(tmp_path):
+    # Write csv test file. Depending on the os this will be written in a different
+    # encoding: for linux and macos this is utf-8, for windows it is cp1252.
+    csv_path = tmp_path / "test.csv"
+    with open(csv_path, "w") as csv:
+        csv.write("name,city\n")
+        csv.write("Wilhelm Röntgen,Zürich")
+
+    # Read csv. The data should be read with the same default encoding as the csv file
+    # was written in, but should have been converted to utf-8 in the dataframe returned.
+    # Hence, the asserts below, with strings in utf-8, be OK.
+    df = read_dataframe(csv_path)
+
+    assert len(df) == 1
+    assert df.columns.tolist() == ["name", "city"]
+    assert df.city.tolist() == ["Zürich"]
+    assert df.name.tolist() == ["Wilhelm Röntgen"]
+
+
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
