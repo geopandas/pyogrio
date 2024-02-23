@@ -462,24 +462,40 @@ cdef get_metadata(GDALMajorObjectH obj):
 
 
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
-    """Attempt to detect the encoding of the layer.
+    """Attempt to detect the encoding of the dataset or layer.
     If it supports UTF-8, use that.
     If it is a shapefile, it must otherwise be ISO-8859-1.
 
     Parameters
     ----------
     ogr_dataset : pointer to open OGR dataset
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : NULL or pointer to open OGR layer
 
     Returns
     -------
     str or None
     """
 
-    if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
+    if ogr_layer is not NULL and OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
+    return get_encoding_for_driver(driver)
+
+
+cdef get_encoding_for_driver(str driver):
+    """Get the typical encoding for the driver, or None.
+
+    Parameters
+    ----------
+    driver : str
+        driver to get the encoding for
+    
+    Returns
+    -------
+    str or None
+        the typical encoding if this is applicable for the driver, or None
+    """
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
 
@@ -1906,11 +1922,10 @@ def ogr_write(
         gdal_tz_offsets = {}
 
     ### Setup up dataset and layer
-    # Encoding is derived from the user, from the dataset capabilities / type,
-    # or from the system locale
+    # Encoding is derived from the user, from the driver or from the system locale
     encoding = (
         encoding
-        or detect_encoding(ogr_dataset, ogr_layer)
+        or get_encoding_for_driver(driver)
         or locale.getpreferredencoding()
     )
 
@@ -2037,7 +2052,7 @@ def ogr_write(
                             field_value = str(field_value)
 
                         try:
-                            value_b = field_value.encode(encoding)
+                            value_b = field_value.encode("UTF-8")
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
                         except AttributeError:
