@@ -2002,15 +2002,15 @@ def ogr_write(
     ### Create the features
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
 
+    supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
+    if supports_transactions:
+        start_transaction(ogr_dataset, 0)
+
     encoding = (
         encoding
         or detect_encoding(ogr_dataset, ogr_layer)
         or locale.getpreferredencoding()
     )
-
-    supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
-    if supports_transactions:
-        start_transaction(ogr_dataset, 0)
 
     for i in range(num_records):
         try:
