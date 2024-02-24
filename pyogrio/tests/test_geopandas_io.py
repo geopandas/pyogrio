@@ -1,6 +1,8 @@
 import contextlib
 from datetime import datetime
+import locale
 import os
+import warnings
 import numpy as np
 import pytest
 
@@ -805,7 +807,8 @@ def test_write_csv_encoding(tmp_path):
     """Test if write_dataframe uses the default encoding correctly."""
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
-    csv_path = tmp_path / "test.csv"
+    csv_path = tmp_path / "testg.csv"
+
     with open(csv_path, "w") as csv:
         csv.write("name,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
@@ -875,6 +878,11 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     # A shapefile without geometry column results in only a .dbf file.
     if ext == ".shp":
         output_path = output_path.with_suffix(".dbf")
+    elif ext == ".xlsx":
+        warnings.warn(
+            f"in test_write_dataframe_no_geom, with {ext=}, "
+            f"locale: {locale.getpreferredencoding()=}"
+        )
 
     # Determine driver
     driver = DRIVERS[ext] if ext != ".xlsx" else "XLSX"

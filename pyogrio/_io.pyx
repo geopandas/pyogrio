@@ -476,10 +476,12 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     str or None
     """
 
+    driver = get_driver(ogr_dataset)
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
+        warnings.warn(f"layer of driver {driver} has OLCStringsAsUTF8 capability")
         return 'UTF-8'
 
-    driver = get_driver(ogr_dataset)
+    warnings.warn(f"layer of driver {driver} has NO OLCStringsAsUTF8 capability")
     return get_encoding_for_driver(driver)
 
 
@@ -1947,6 +1949,7 @@ def ogr_write(
         &ogr_dataset, &ogr_layer,
     )
 
+    warnings.warn(f"in ogr_write: {locale.getpreferredencoding()=}")
     # Now the dataset and layer have been created, we can properly determine the
     # encoding. It is derived from the user, from the dataset capabilities / type,
     # or from the system locale
