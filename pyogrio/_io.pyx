@@ -505,6 +505,11 @@ cdef get_encoding_for_driver(str driver):
         return "UTF-8"
 
     if driver == "XLSX":
+        # OLCStringsAsUTF8 isn't advertised (yet).
+        return "UTF-8"
+
+    if driver == "GeoJSONSeq":
+        # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
         return "UTF-8"
 
     return None
