@@ -1959,7 +1959,7 @@ def ogr_write(
         for i in range(num_fields):
             field_type, field_subtype, width, precision = field_types[i]
 
-            name_b = fields[i].encode(encoding)
+            name_b = fields[i].encode("UTF-8")
             try:
                 ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
 
