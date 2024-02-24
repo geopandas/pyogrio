@@ -504,6 +504,9 @@ cdef get_encoding_for_driver(str driver):
         # per https://help.openstreetmap.org/questions/2172/what-encoding-does-openstreetmap-use
         return "UTF-8"
 
+    if driver == "XLSX":
+        return "UTF-8"
+
     return None
 
 
