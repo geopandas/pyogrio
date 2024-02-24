@@ -78,7 +78,7 @@ def test_read_csv_encoding(tmp_path):
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
     assert df.city.tolist() == ["Zürich"]
-    assert df.name.tolist() == ["Wilhelm Röntgen"]
+    assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
