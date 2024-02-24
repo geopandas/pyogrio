@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## ??? (???)
+
+### Improvements
+
+-   Warn when reading rom a multilayer file without specifying a layer (#)
+
 ## 0.7.3 (???)
 
 ### Bug fixes
