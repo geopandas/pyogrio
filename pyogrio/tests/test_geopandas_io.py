@@ -1,8 +1,6 @@
 import contextlib
 from datetime import datetime
-import locale
 import os
-import warnings
 import numpy as np
 import pytest
 
@@ -878,11 +876,6 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     # A shapefile without geometry column results in only a .dbf file.
     if ext == ".shp":
         output_path = output_path.with_suffix(".dbf")
-    elif ext == ".xlsx":
-        warnings.warn(
-            f"in test_write_dataframe_no_geom, with {ext=}, "
-            f"locale: {locale.getpreferredencoding()=}"
-        )
 
     # Determine driver
     driver = DRIVERS[ext] if ext != ".xlsx" else "XLSX"

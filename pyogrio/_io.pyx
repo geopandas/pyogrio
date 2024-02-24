@@ -476,12 +476,10 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     str or None
     """
 
-    driver = get_driver(ogr_dataset)
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
-        warnings.warn(f"layer of driver {driver} has OLCStringsAsUTF8 capability")
         return 'UTF-8'
 
-    warnings.warn(f"layer of driver {driver} has NO OLCStringsAsUTF8 capability")
+    driver = get_driver(ogr_dataset)
     return get_encoding_for_driver(driver)
 
 
@@ -506,11 +504,11 @@ cdef get_encoding_for_driver(str driver):
         # per https://help.openstreetmap.org/questions/2172/what-encoding-does-openstreetmap-use
         return "UTF-8"
 
-    """
-    if driver == "XLSX":
-        # OLCStringsAsUTF8 isn't advertised (yet).
+    if driver in ("XLSX", "ODS"):
+        # TestCapability for OLCStringsAsUTF8 for XLSX and ODS was False for new files
+        # being created for GDAL < 3.8.5. Once these versions of GDAL are no longer
+        # supported, this can be removed.
         return "UTF-8"
-    """
 
     if driver == "GeoJSONSeq":
         # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
@@ -1949,22 +1947,25 @@ def ogr_write(
         &ogr_dataset, &ogr_layer,
     )
 
-    warnings.warn(f"in ogr_write: {locale.getpreferredencoding()=}")
     # Now the dataset and layer have been created, we can properly determine the
     # encoding. It is derived from the user, from the dataset capabilities / type,
     # or from the system locale
-    
+    encoding = (
+        encoding
+        or detect_encoding(ogr_dataset, ogr_layer)
+        or locale.getpreferredencoding()
+    )
+
     ### Create the fields
     field_types = None
     if num_fields > 0:
         field_types = infer_field_types([field.dtype for field in field_data])
 
-    ### Create the fields
     if layer_created:
         for i in range(num_fields):
             field_type, field_subtype, width, precision = field_types[i]
 
-            name_b = fields[i].encode("UTF-8")
+            name_b = fields[i].encode(encoding)
             try:
                 ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
 
@@ -2005,12 +2006,6 @@ def ogr_write(
     supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
     if supports_transactions:
         start_transaction(ogr_dataset, 0)
-
-    encoding = (
-        encoding
-        or detect_encoding(ogr_dataset, ogr_layer)
-        or locale.getpreferredencoding()
-    )
 
     for i in range(num_records):
         try:
