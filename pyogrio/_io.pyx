@@ -1953,12 +1953,7 @@ def ogr_write(
     # Now the dataset and layer have been created, we can properly determine the
     # encoding. It is derived from the user, from the dataset capabilities / type,
     # or from the system locale
-    encoding = (
-        encoding
-        or detect_encoding(ogr_dataset, ogr_layer)
-        or locale.getpreferredencoding()
-    )
-
+    
     ### Create the fields
     field_types = None
     if num_fields > 0:
@@ -2006,6 +2001,12 @@ def ogr_write(
 
     ### Create the features
     ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+
+    encoding = (
+        encoding
+        or detect_encoding(ogr_dataset, ogr_layer)
+        or locale.getpreferredencoding()
+    )
 
     supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
     if supports_transactions:
