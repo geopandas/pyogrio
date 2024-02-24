@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Warn when reading rom a multilayer file without specifying a layer (#)
+-   Warn when reading from a multilayer file without specifying a layer (#362)
 
 ## 0.7.3 (???)
 
