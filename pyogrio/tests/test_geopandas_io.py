@@ -67,7 +67,7 @@ def test_read_csv_encoding(tmp_path):
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
     with open(csv_path, "w") as csv:
-        csv.write("name,city\n")
+        csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
     # Read csv. The data should be read with the same default encoding as the csv file
@@ -76,7 +76,7 @@ def test_read_csv_encoding(tmp_path):
     df = read_dataframe(csv_path)
 
     assert len(df) == 1
-    assert df.columns.tolist() == ["name", "city"]
+    assert df.columns.tolist() == ["näme", "city"]
     assert df.city.tolist() == ["Zürich"]
     assert df.name.tolist() == ["Wilhelm Röntgen"]
 
@@ -808,12 +808,12 @@ def test_write_csv_encoding(tmp_path):
     csv_path = tmp_path / "testg.csv"
 
     with open(csv_path, "w") as csv:
-        csv.write("name,city\n")
+        csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
     # Write csv test file with the same data using write_dataframe. It should use the
     # same encoding as above.
-    df = pd.DataFrame({"name": ["Wilhelm Röntgen"], "city": ["Zürich"]})
+    df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
     csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
     write_dataframe(df, csv_pyogrio_path)
 
