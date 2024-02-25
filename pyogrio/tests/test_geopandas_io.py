@@ -154,6 +154,7 @@ def test_read_force_2d(test_fgdb_vsi, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
+@pytest.mark.filterwarnings("ignore: More than one layer found in ")
 def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
     kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
@@ -186,9 +187,7 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
         assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
-@pytest.mark.filterwarnings(
-    "ignore: Non-conformant content for record 1 in column dates"
-)
+@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
     # Make the index non-consecutive to test this case as well. Added for issue
@@ -252,8 +251,11 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
     assert_geodataframe_equal(df, result)
 
 
+@pytest.mark.filterwarnings("ignore: Measured")
 def test_read_null_values(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False)
+    df = read_dataframe(
+        test_fgdb_vsi, layer="basetable_2", use_arrow=use_arrow, read_geometry=False
+    )
 
     # make sure that Null values are preserved
     assert df.SEGMENT_NAME.isnull().max()
