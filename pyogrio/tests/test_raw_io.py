@@ -498,6 +498,9 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     assert len(fields) == 0
     assert len(geometry) == 177
 
+    # quick test that WKB is a Polygon type
+    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
+
 
 def test_write_no_geom(tmp_path, naturalearth_lowres):
     """Test writing file with no geometry column."""
