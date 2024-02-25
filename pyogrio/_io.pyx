@@ -1130,8 +1130,9 @@ def ogr_read(
                 if len(layers) > 1:
                     warnings.warn(
                         f"More than one layer found in '{path}', layer {layers[0][0]} "
-                        f"is read, available layers: {layers[:, 0]}. Specify layer "
-                        "to avoid this warning."
+                        f"is read, available layers: {layers[:, 0].tolist()}. Specify "
+                        "layer parameter to avoid this warning.",
+                        stacklevel=2,
                     )
                 layer = 0
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
@@ -1328,8 +1329,9 @@ def ogr_open_arrow(
                 if len(layers) > 1:
                     warnings.warn(
                         f"More than one layer found in '{path}', layer {layers[0][0]} "
-                        f"is read, available layers: {layers[:, 0]}. Specify layer "
-                        "to avoid this warning."
+                        f"is read, available layers: {layers[:, 0].tolist()}. Specify "
+                        "layer parameter to avoid this warning.",
+                        stacklevel=2,
                     )
                 layer = 0
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
@@ -1485,8 +1487,9 @@ def ogr_read_bounds(
         if len(layers) > 1:
             warnings.warn(
                 f"More than one layer found in '{path}', layer {layers[0][0]} is "
-                f"read, available layers: {layers[:, 0]}. Specify layer "
-                "to avoid this warning."
+                f"read, available layers: {layers[:, 0].tolist()}. Specify layer "
+                "parameter to avoid this warning.",
+                stacklevel=2,
             )
         layer = 0
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
@@ -1535,8 +1538,10 @@ def ogr_read_info(
             if len(layers) > 1:
                 warnings.warn(
                     f"More than one layer found in '{path}', info for layer "
-                    f"{layers[0][0]} is read, available layers: {layers[:, 0]}. "
-                    "Specify layer to avoid this warning."
+                    f"{layers[0][0]} is read, available layers: "
+                    f"{layers[:, 0].tolist()}. Specify layer parameter to avoid this "
+                    "warning.",
+                    stacklevel=2,
                 )
             layer = 0
         ogr_layer = get_ogr_layer(ogr_dataset, layer)

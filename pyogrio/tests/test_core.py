@@ -464,7 +464,7 @@ def test_read_info_multilayer(data_dir):
 
 
 def test_read_info_without_geometry(test_fgdb_vsi):
-    assert read_info(test_fgdb_vsi)["total_bounds"] is None
+    assert read_info(test_fgdb_vsi, layer="basetable_2")["total_bounds"] is None
 
 
 @pytest.mark.parametrize(
