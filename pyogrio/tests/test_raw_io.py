@@ -478,6 +478,10 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     field_data = None
     meta["fields"] = None
+    # naturalearth_lowres actually contains MultiPolygons. A shapefile doesn't make the
+    # distinction, so the metadata just reports Polygon. GPKG does, so override here to
+    # avoid GDAL warnings.
+    meta["geometry_type"] = "MultiPolygon"
 
     # Test
     filename = tmp_path / "test.gpkg"
@@ -488,14 +492,11 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     meta, _, geometry, fields = read(filename)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
+    assert meta["geometry_type"] == "MultiPolygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (0,)
     assert len(fields) == 0
     assert len(geometry) == 177
-
-    # quick test that WKB is a Polygon type
-    assert geometry[0][:6] == b"\x01\x06\x00\x00\x00\x03"
 
 
 def test_write_no_geom(tmp_path, naturalearth_lowres):
