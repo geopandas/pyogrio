@@ -116,7 +116,6 @@ def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
     result = read_dataframe(
         test_fgdb_vsi,
-        layer="basetable_2",
         use_arrow=True,
         arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
     )

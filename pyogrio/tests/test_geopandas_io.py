@@ -251,11 +251,8 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
     assert_geodataframe_equal(df, result)
 
 
-@pytest.mark.filterwarnings("ignore: Measured")
 def test_read_null_values(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(
-        test_fgdb_vsi, layer="basetable_2", use_arrow=use_arrow, read_geometry=False
-    )
+    df = read_dataframe(test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
     assert df.SEGMENT_NAME.isnull().max()
