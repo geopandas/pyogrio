@@ -366,7 +366,6 @@ def test_read_info(naturalearth_lowres):
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["capabilities"]["random_read"] is True
-    assert meta["capabilities"]["fast_set_next_by_index"] is True
     assert meta["capabilities"]["fast_spatial_filter"] is False
     assert meta["capabilities"]["fast_feature_count"] is True
     assert meta["capabilities"]["fast_total_bounds"] is True
@@ -383,6 +382,8 @@ def test_read_info(naturalearth_lowres):
         assert meta["geometry_name"] == ""
         assert meta["geometry_type"] == "Polygon"
         assert meta["driver"] == "ESRI Shapefile"
+        # for GPKG, is only set to True since gdal 3.8
+        assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
 
