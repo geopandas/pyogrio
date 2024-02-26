@@ -354,27 +354,37 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
             assert array_equal(fids, [4, 27])  # USA, MEX
 
 
+@pytest.mark.parametrize("naturalearth_lowres", [".shp", ".gpkg"], indirect=True)
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
     assert meta["name"] == "naturalearth_lowres"
     assert meta["crs"] == "EPSG:4326"
-    # geometry_name == "" for formats where geometry column name can be customized
-    assert meta["geometry_name"] == ""
-    assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
-    # fid_column == "" for formats where fid is not physically stored, e.g. shapefiles
-    assert meta["fid_column"] == ""
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
-    assert meta["driver"] == "ESRI Shapefile"
     assert meta["capabilities"]["random_read"] is True
     assert meta["capabilities"]["fast_set_next_by_index"] is True
     assert meta["capabilities"]["fast_spatial_filter"] is False
     assert meta["capabilities"]["fast_feature_count"] is True
     assert meta["capabilities"]["fast_total_bounds"] is True
+
+    if naturalearth_lowres.suffix == ".gpkg":
+        assert meta["fid_column"] == "fid"
+        assert meta["geometry_name"] == "geom"
+        assert meta["geometry_type"] == "MultiPolygon"
+        assert meta["driver"] == "GPKG"
+    elif naturalearth_lowres.suffix == ".shp":
+        # fid_column == "" for formats where fid is not physically stored
+        assert meta["fid_column"] == ""
+        # geometry_name == "" for formats where geometry column name can be customized
+        assert meta["geometry_name"] == ""
+        assert meta["geometry_type"] == "Polygon"
+        assert meta["driver"] == "ESRI Shapefile"
+    else:
+        raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
 
 
 @pytest.mark.parametrize(
