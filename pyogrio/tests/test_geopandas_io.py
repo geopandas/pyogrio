@@ -62,18 +62,19 @@ def spatialite_available(path):
         return False
 
 
-def test_read_csv_encoding(tmp_path):
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
+def test_read_csv_encoding(tmp_path, encoding):
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
-    with open(csv_path, "w") as csv:
+    with open(csv_path, "w", encoding=encoding) as csv:
         csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
     # Read csv. The data should be read with the same default encoding as the csv file
     # was written in, but should have been converted to utf-8 in the dataframe returned.
     # Hence, the asserts below, with strings in utf-8, be OK.
-    df = read_dataframe(csv_path)
+    df = read_dataframe(csv_path, encoding=encoding)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
@@ -801,13 +802,14 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert df.iloc[0].geometry.area > area_canada
 
 
-def test_write_csv_encoding(tmp_path):
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
+def test_write_csv_encoding(tmp_path, encoding):
     """Test if write_dataframe uses the default encoding correctly."""
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
-    csv_path = tmp_path / "testg.csv"
+    csv_path = tmp_path / "test.csv"
 
-    with open(csv_path, "w") as csv:
+    with open(csv_path, "w", encoding=encoding) as csv:
         csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
@@ -815,15 +817,22 @@ def test_write_csv_encoding(tmp_path):
     # same encoding as above.
     df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
     csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
-    write_dataframe(df, csv_pyogrio_path)
+    write_dataframe(df, csv_pyogrio_path, encoding=encoding)
 
-    # If the files written are binary identical, they were written using the same
-    # encoding.
-    with open(csv_path, "r") as csv:
+    # Check if the text files written both ways can be read again and give same result.
+    with open(csv_path, "r", encoding=encoding) as csv:
         csv_str = csv.read()
-    with open(csv_pyogrio_path, "r") as csv_pyogrio:
+    with open(csv_pyogrio_path, "r", encoding=encoding) as csv_pyogrio:
         csv_pyogrio_str = csv_pyogrio.read()
     assert csv_str == csv_pyogrio_str
+
+    # Check if they files are binary identical, to be 100% sure they were written with
+    # the same encoding.
+    with open(csv_path, "rb") as csv:
+        csv_bytes = csv.read()
+    with open(csv_pyogrio_path, "rb") as csv_pyogrio:
+        csv_pyogrio_bytes = csv_pyogrio.read()
+    assert csv_bytes == csv_pyogrio_bytes
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
