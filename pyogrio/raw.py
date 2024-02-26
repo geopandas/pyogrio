@@ -583,7 +583,7 @@ def write_arrow(
     **kwargs,
 ):
     if not HAS_ARROW_WRITE_API:
-        raise RuntimeError("pyarrow and GDAL>=3.8 required to read using arrow")
+        raise RuntimeError("GDAL>=3.8 required to write using arrow")
 
     # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
