@@ -154,7 +154,6 @@ def test_read_force_2d(test_fgdb_vsi, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
-@pytest.mark.filterwarnings("ignore: More than one layer found in ")
 def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
     kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
