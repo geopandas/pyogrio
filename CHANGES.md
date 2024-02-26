@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Add some missing properties to `read_info` (#)
+-   Add some missing properties to `read_info` (#365)
 
 ## 0.7.3 (???)
 
