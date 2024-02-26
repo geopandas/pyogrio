@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## ???
+
+### Improvements
+
+-   Add some missing properties to `read_info` (#)
+
 ## 0.7.3 (???)
 
 ### Bug fixes
