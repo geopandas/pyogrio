@@ -357,11 +357,16 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
+    assert meta["name"] == "naturalearth_lowres"
     assert meta["crs"] == "EPSG:4326"
+    # geometry_name == "" for formats where geometry column name can be customized
+    assert meta["geometry_name"] == ""
     assert meta["geometry_type"] == "Polygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
     assert meta["dtypes"].tolist() == ["int64", "object", "object", "object", "float64"]
+    # fid_column == "" for formats where fid is not physically stored, e.g. shapefiles
+    assert meta["fid_column"] == ""
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["driver"] == "ESRI Shapefile"

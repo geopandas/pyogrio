@@ -217,6 +217,14 @@ def read_info(
     driver or if the data source is nonspatial. You can force it to be calculated using
     the ``force_total_bounds`` parameter.
 
+    ``fid_column`` is the name of the FID field in the data source, if the FID is
+    physically stored (e.g. in GPKG). If the FID is just a sequence, ``fid_column``
+    will be "" (e.g. ESRI Shapefile).
+
+    ``geometry_name`` is the name of the field where the main geometry is stored in the
+    data data source, if the column can by customized (e.g. in GPKG). If no custom name
+    is supported, ``geometry_name`` will be "" (e.g. ESRI Shapefile).
+
     Parameters
     ----------
     path : str or pathlib.Path
@@ -240,10 +248,13 @@ def read_info(
         A dictionary with the following keys::
 
             {
+                "name": "<layer name>",
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
+                "fid_column": "<fid column name or "">",
+                "geometry_name": "<geometry column name or "">",
                 "geometry_type": "<geometry type>",
                 "features": <feature count or -1>,
                 "total_bounds": <tuple with total bounds or None>,
