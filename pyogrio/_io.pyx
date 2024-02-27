@@ -2197,7 +2197,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         except Exception as e:
             schema.release(&schema)
             stream.release(stream)
-            raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
+            raise e
 
         while True:
             errcode = stream.get_next(stream, &array)
@@ -2258,10 +2258,17 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
 
     cdef is_geometry_field(const ArrowSchema* schema):
         name, _ = get_extension_metadata(schema)
-        return (
-            name is not None
-            and (name == b"geoarrow.wkb" or name == b"ogc.wkb")
-        )
+        if name is not None:
+            if name == b"geoarrow.wkb" or name == b"ogc.wkb":
+                return True
+            # raise an error for other geoarrow types
+            if name.startswith(b"geoarrow."):
+                raise NotImplementedError(
+                    f"Writing a geometry column of type {name.decode()} is not yet "
+                    "supported (only WKB is currently supported)."
+                )
+
+        return False
 
 
     # Create output fields using CreateFieldFromArrowSchema()
