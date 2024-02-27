@@ -2226,11 +2226,14 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         stream.release(stream)
 
 
-    cdef is_geometry_field(const ArrowSchema* schema):
+    cdef get_extension_metadata(const ArrowSchema* schema):
         cdef const char *metadata = schema.metadata
 
+        extension_name = None
+        extension_metadata = None
+
         if metadata == NULL:
-            return False
+            return extension_name, extension_metadata
 
         n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
         pos = 4
@@ -2246,9 +2249,19 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             pos += length_value
 
             if key == b"ARROW:extension:name":
-                if value == b"geoarrow.wkb" or value == b"ogc.wkb":
-                    return True
-        return False
+                extension_name = value
+            elif key == b"ARROW:extension:metadata":
+                extension_metadata = value
+
+        return extension_name, extension_metadata
+
+
+    cdef is_geometry_field(const ArrowSchema* schema):
+        name, _ = get_extension_metadata(schema)
+        return (
+            name is not None
+            and (name == b"geoarrow.wkb" or name == b"ogc.wkb")
+        )
 
 
     # Create output fields using CreateFieldFromArrowSchema()
