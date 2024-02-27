@@ -12,6 +12,7 @@ from pyogrio.tests.conftest import requires_arrow_write_api
 # skip all tests in this file if Arrow Write API or GeoPandas are unavailable
 pytestmark = requires_arrow_write_api
 pytest.importorskip("geopandas")
+pytest.importorskip("pyarrow")
 
 
 def test_write(tmpdir, naturalearth_lowres):
@@ -32,6 +33,7 @@ def test_write(tmpdir, naturalearth_lowres):
         assert os.path.exists(filename.replace(".shp", ext))
 
 
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
 def test_write_gpkg(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
@@ -49,6 +51,7 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
     assert os.path.exists(filename)
 
 
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
 def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     meta["geometry_type"] = "MultiPolygon"
