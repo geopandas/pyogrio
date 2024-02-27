@@ -1680,162 +1680,6 @@ cdef infer_field_types(list dtypes):
 
     return field_types
 
-def ogr_write_arrow(
-    str path,
-    str layer,
-    str driver,
-    arrow_obj,
-    str crs,
-    str geometry_type,
-    str geometry_name,
-    str encoding,
-    object dataset_kwargs,
-    object layer_kwargs,
-    bint append=False,
-    dataset_metadata=None,
-    layer_metadata=None,
-):
-    IF CTE_GDAL_VERSION < (3, 8, 0):
-        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
-
-    cdef OGRDataSourceH ogr_dataset = NULL
-    cdef OGRLayerH ogr_layer = NULL
-
-    layer_created = create_ogr_dataset_layer(
-        path, layer, driver, crs, geometry_type, encoding,
-        dataset_kwargs, layer_kwargs, append,
-        dataset_metadata, layer_metadata,
-        &ogr_dataset, &ogr_layer,
-    )
-    if geometry_name:
-        opts = {"GEOMETRY_NAME": geometry_name}
-    else:
-        opts = {}
-    cdef char **options = dict_to_options(opts)
-
-    stream_capsule = arrow_obj.__arrow_c_stream__()
-    write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
-
-    ### Final cleanup
-    if ogr_dataset != NULL:
-        GDALClose(ogr_dataset)
-
-        # GDAL will set an error if there was an error writing the data source
-        # on close
-        exc = exc_check()
-        if exc:
-            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
-
-
-IF CTE_GDAL_VERSION >= (3, 8, 0):
-
-    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, str geometry_name, char** options = NULL):
-        cdef ArrowSchema schema
-        cdef ArrowArray array
-
-        cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
-            capsule, "arrow_array_stream"
-        )
-        if stream == NULL:
-            raise RuntimeError("No valid stream.")
-
-        if stream.release == NULL:
-            raise RuntimeError("Arrow Array Stream was already released.")
-
-        errcode = stream.get_schema(stream, &schema)
-        if errcode != 0:
-            stream.release(stream)
-            raise RuntimeError("Error while accessing schema from stream.")
-
-        try:
-            create_fields_from_arrow_schema(destLayer, &schema, options, geometry_name)
-        except Exception as e:
-            schema.release(&schema)
-            stream.release(stream)
-            raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
-
-        while True:
-            errcode = stream.get_next(stream, &array)
-            if errcode != 0:
-                schema.release(&schema)
-                stream.release(stream)
-                raise RuntimeError("Error while accessing batch from stream.")
-
-            # We've reached the end of the stream
-            if array.release == NULL:
-                break
-
-            errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
-            if not errcode:
-                if array.release != NULL:
-                    array.release(&array)
-
-                schema.release(&schema)
-                stream.release(stream)
-                raise RuntimeError("Error while writing batch to OGR layer.")
-
-            if array.release != NULL:
-                array.release(&array)
-
-        schema.release(&schema)
-        stream.release(stream)
-
-
-IF CTE_GDAL_VERSION >= (3, 8, 0):
-
-    cdef is_geometry_field(const ArrowSchema* schema):
-        cdef const char *metadata = schema.metadata
-
-        if metadata == NULL:
-            return False
-
-        n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
-        pos = 4
-
-        for i in range(n):
-            length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
-            pos += 4
-            key = metadata[pos:pos+length_key]
-            pos += length_key
-            length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
-            pos += 4
-            value = metadata[pos:pos+length_value]
-            pos += length_value
-
-            if key == b"ARROW:extension:name":
-                if value == b"geoarrow.wkb" or value == b"ogc.wkb":
-                    return True
-        return False
-
-    # Create output fields using CreateFieldFromArrowSchema()
-    cdef create_fields_from_arrow_schema(
-        OGRLayerH destLayer,
-        const ArrowSchema* schema,
-        char** options,
-        str geometry_name
-    ):
-        # The schema object is a struct type where each child is a column.
-        cdef ArrowSchema* child
-        for i in range(schema.n_children):
-            child = schema.children[i]
-            metadata = child.metadata
-
-            # Don't create property for geometry column
-            field_name = get_string(child.name)
-            if field_name == geometry_name:
-                continue
-
-            if is_geometry_field(child):
-                continue
-
-            errcode = OGR_L_CreateFieldFromArrowSchema(
-                destLayer, child, options)
-            if errcode == 0:
-                raise RuntimeError(
-                    f"error while creating field from Arrow for field {i} with name "
-                    f"{get_string(child.name)} and type {get_string(child.format)}"
-                )
-
 
 cdef create_ogr_dataset_layer(
     str path, str layer, str driver, str crs, str geometry_type, str encoding,
@@ -2279,3 +2123,159 @@ def ogr_write(
         exc = exc_check()
         if exc:
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+
+def ogr_write_arrow(
+    str path,
+    str layer,
+    str driver,
+    arrow_obj,
+    str crs,
+    str geometry_type,
+    str geometry_name,
+    str encoding,
+    object dataset_kwargs,
+    object layer_kwargs,
+    bint append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+):
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+
+    layer_created = create_ogr_dataset_layer(
+        path, layer, driver, crs, geometry_type, encoding,
+        dataset_kwargs, layer_kwargs, append,
+        dataset_metadata, layer_metadata,
+        &ogr_dataset, &ogr_layer,
+    )
+    if geometry_name:
+        opts = {"GEOMETRY_NAME": geometry_name}
+    else:
+        opts = {}
+    cdef char **options = dict_to_options(opts)
+
+    stream_capsule = arrow_obj.__arrow_c_stream__()
+    write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
+
+    ### Final cleanup
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+
+        # GDAL will set an error if there was an error writing the data source
+        # on close
+        exc = exc_check()
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+
+IF CTE_GDAL_VERSION >= (3, 8, 0):
+
+    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, str geometry_name, char** options = NULL):
+        cdef ArrowSchema schema
+        cdef ArrowArray array
+
+        cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+            capsule, "arrow_array_stream"
+        )
+        if stream == NULL:
+            raise RuntimeError("No valid stream.")
+
+        if stream.release == NULL:
+            raise RuntimeError("Arrow Array Stream was already released.")
+
+        errcode = stream.get_schema(stream, &schema)
+        if errcode != 0:
+            stream.release(stream)
+            raise RuntimeError("Error while accessing schema from stream.")
+
+        try:
+            create_fields_from_arrow_schema(destLayer, &schema, options, geometry_name)
+        except Exception as e:
+            schema.release(&schema)
+            stream.release(stream)
+            raise RuntimeError("Error creating Arrow Schema in OGR layer.") from e
+
+        while True:
+            errcode = stream.get_next(stream, &array)
+            if errcode != 0:
+                schema.release(&schema)
+                stream.release(stream)
+                raise RuntimeError("Error while accessing batch from stream.")
+
+            # We've reached the end of the stream
+            if array.release == NULL:
+                break
+
+            errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
+            if not errcode:
+                if array.release != NULL:
+                    array.release(&array)
+
+                schema.release(&schema)
+                stream.release(stream)
+                raise RuntimeError("Error while writing batch to OGR layer.")
+
+            if array.release != NULL:
+                array.release(&array)
+
+        schema.release(&schema)
+        stream.release(stream)
+
+
+    cdef is_geometry_field(const ArrowSchema* schema):
+        cdef const char *metadata = schema.metadata
+
+        if metadata == NULL:
+            return False
+
+        n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
+        pos = 4
+
+        for i in range(n):
+            length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+            pos += 4
+            key = metadata[pos:pos+length_key]
+            pos += length_key
+            length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+            pos += 4
+            value = metadata[pos:pos+length_value]
+            pos += length_value
+
+            if key == b"ARROW:extension:name":
+                if value == b"geoarrow.wkb" or value == b"ogc.wkb":
+                    return True
+        return False
+
+
+    # Create output fields using CreateFieldFromArrowSchema()
+    cdef create_fields_from_arrow_schema(
+        OGRLayerH destLayer,
+        const ArrowSchema* schema,
+        char** options,
+        str geometry_name
+    ):
+        # The schema object is a struct type where each child is a column.
+        cdef ArrowSchema* child
+        for i in range(schema.n_children):
+            child = schema.children[i]
+            metadata = child.metadata
+
+            # Don't create property for geometry column
+            field_name = get_string(child.name)
+            if field_name == geometry_name:
+                continue
+
+            if is_geometry_field(child):
+                continue
+
+            errcode = OGR_L_CreateFieldFromArrowSchema(
+                destLayer, child, options)
+            if errcode == 0:
+                raise RuntimeError(
+                    f"error while creating field from Arrow for field {i} with name "
+                    f"{get_string(child.name)} and type {get_string(child.format)}"
+                )
