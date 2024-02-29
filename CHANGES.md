@@ -1,6 +1,10 @@
 # CHANGELOG
 
-## 0.7.3 (???)
+## 0.8.0 (???)
+
+### Improvements
+
+- `read_arrow` and `open_arrow` now provide [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html), including the CRS, when using GDAL 3.8 or higher.
 
 ### Bug fixes
 
