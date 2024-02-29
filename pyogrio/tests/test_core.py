@@ -451,7 +451,6 @@ def test_read_info_force_total_bounds(
         assert info["total_bounds"] is None
 
 
-@pytest.mark.filterwarnings("ignore: Measured")
 def test_read_info_without_geometry(test_fgdb_vsi):
     assert read_info(test_fgdb_vsi)["total_bounds"] is None
 
