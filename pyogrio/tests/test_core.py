@@ -14,6 +14,7 @@ from pyogrio import (
     get_gdal_data_path,
 )
 from pyogrio.core import detect_write_driver
+from pyogrio._compat import GDAL_GE_38
 from pyogrio.errors import DataSourceError, DataLayerError
 from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
 
@@ -375,6 +376,9 @@ def test_read_info(naturalearth_lowres):
         assert meta["geometry_name"] == "geom"
         assert meta["geometry_type"] == "MultiPolygon"
         assert meta["driver"] == "GPKG"
+        if GDAL_GE_38:
+            # this capability is only True for GPKG if GDAL >= 3.8
+            assert meta["capabilities"]["fast_set_next_by_index"] is True
     elif naturalearth_lowres.suffix == ".shp":
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
@@ -382,7 +386,6 @@ def test_read_info(naturalearth_lowres):
         assert meta["geometry_name"] == ""
         assert meta["geometry_type"] == "Polygon"
         assert meta["driver"] == "ESRI Shapefile"
-        # for GPKG, is only set to True since gdal 3.8
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
