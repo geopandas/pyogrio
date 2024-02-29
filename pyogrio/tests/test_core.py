@@ -191,7 +191,7 @@ def test_read_bounds_max_features(naturalearth_lowres):
     assert bounds.shape == (4, 2)
 
 
-def test_read_bounds_multilayer(data_dir):
+def test_read_bounds_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
         read_bounds(data_dir / "sample.osm.pbf")
@@ -457,7 +457,7 @@ def test_read_info_force_total_bounds(
         assert info["total_bounds"] is None
 
 
-def test_read_info_multilayer(data_dir):
+def test_read_info_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
         read_info(data_dir / "sample.osm.pbf")

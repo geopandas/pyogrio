@@ -35,7 +35,7 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
 
 
-def test_read_arrow_multilayer(data_dir):
+def test_read_arrow_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
         read_arrow(data_dir / "sample.osm.pbf")
