@@ -248,7 +248,7 @@ def read_info(
         A dictionary with the following keys::
 
             {
-                "name": "<layer name>",
+                "layer_name": "<layer name>",
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,

@@ -1523,7 +1523,7 @@ def ogr_read_info(
         fields = get_fields(ogr_layer, encoding)
 
         meta = {
-            "name": get_string(OGR_L_GetName(ogr_layer)),
+            "layer_name": get_string(OGR_L_GetName(ogr_layer)),
             "crs": get_crs(ogr_layer),
             "encoding": encoding,
             "fields": fields[:,2], # return only names

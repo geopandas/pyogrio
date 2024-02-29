@@ -358,7 +358,7 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
-    assert meta["name"] == "naturalearth_lowres"
+    assert meta["layer_name"] == "naturalearth_lowres"
     assert meta["crs"] == "EPSG:4326"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
