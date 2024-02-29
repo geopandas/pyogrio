@@ -783,7 +783,7 @@ cdef process_fields(
             data[i] = bin_value[:ret_length]
 
         elif field_type == OFTDateTime or field_type == OFTDate:
-            
+
             if datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
                 # Update to OGR_F_GetFieldAsISO8601DateTime when GDAL 3.7+ only
@@ -851,7 +851,7 @@ cdef get_features(
 
     field_data = [
         np.empty(shape=(num_features, ),
-        dtype = ("object" if datetime_as_string and 
+        dtype = ("object" if datetime_as_string and
                     fields[field_index,3].startswith("datetime") else fields[field_index,3])
         ) for field_index in range(n_fields)
     ]
@@ -950,8 +950,8 @@ cdef get_features_by_fid(
     field_ogr_types = fields[:,1]
     field_data = [
         np.empty(shape=(count, ),
-        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime") 
-            else fields[field_index,3])) 
+        dtype=("object" if datetime_as_string and fields[field_index,3].startswith("datetime")
+            else fields[field_index,3]))
         for field_index in range(n_fields)
     ]
 
@@ -1377,6 +1377,14 @@ def ogr_open_arrow(
                 options,
                 "MAX_FEATURES_IN_BATCH",
                 str(batch_size).encode('UTF-8')
+            )
+
+        # Default to geoarrow metadata encoding
+        IF CTE_GDAL_VERSION >= (3, 8, 0):
+            options = CSLSetNameValue(
+                options,
+                "GEOMETRY_METADATA_ENCODING",
+                "GEOARROW".encode('UTF-8')
             )
 
         # make sure layer is read from beginning

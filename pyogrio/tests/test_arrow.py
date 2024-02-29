@@ -1,4 +1,5 @@
 import contextlib
+import json
 import math
 import os
 
@@ -191,6 +192,19 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
             reader,
         ):
             pass
+
+
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 0),
+    reason="returns geoarrow metadata only for GDAL>=3.8.0",
+)
+def test_read_arrow_geoarrow_metadata(naturalearth_lowres):
+    _meta, table = read_arrow(naturalearth_lowres)
+    field = table.schema.field("wkb_geometry")
+    assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+    parsed_meta = json.loads(field.metadata[b"ARROW:extension:metadata"])
+    assert parsed_meta["crs"]["id"]["authority"] == "EPSG"
+    assert parsed_meta["crs"]["id"]["code"] == 4326
 
 
 @contextlib.contextmanager
