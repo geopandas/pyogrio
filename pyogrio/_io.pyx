@@ -1124,17 +1124,8 @@ def ogr_read(
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
         if sql is None:
-            # layer defaults to index 0
             if layer is None:
-                layers = ogr_list_layers_dataset(ogr_dataset)
-                if len(layers) > 1:
-                    warnings.warn(
-                        f"More than one layer found in '{path}', layer {layers[0][0]} "
-                        f"is read, available layers: {layers[:, 0].tolist()}. Specify "
-                        "layer parameter to avoid this warning.",
-                        stacklevel=2,
-                    )
-                layer = 0
+                layer = get_default_layer(ogr_dataset)
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
@@ -1323,17 +1314,8 @@ def ogr_open_arrow(
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
         if sql is None:
-            # layer defaults to index 0
             if layer is None:
-                layers = ogr_list_layers_dataset(ogr_dataset)        
-                if len(layers) > 1:
-                    warnings.warn(
-                        f"More than one layer found in '{path}', layer {layers[0][0]} "
-                        f"is read, available layers: {layers[:, 0].tolist()}. Specify "
-                        "layer parameter to avoid this warning.",
-                        stacklevel=2,
-                    )
-                layer = 0
+                layer = get_default_layer(ogr_dataset)
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
@@ -1481,17 +1463,8 @@ def ogr_read_bounds(
 
     ogr_dataset = ogr_open(path_c, 0, NULL)
 
-    # layer defaults to index 0
     if layer is None:
-        layers = ogr_list_layers_dataset(ogr_dataset)
-        if len(layers) > 1:
-            warnings.warn(
-                f"More than one layer found in '{path}', layer {layers[0][0]} is "
-                f"read, available layers: {layers[:, 0].tolist()}. Specify layer "
-                "parameter to avoid this warning.",
-                stacklevel=2,
-            )
-        layer = 0
+        layer = get_default_layer(ogr_dataset)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     # Apply the attribute filter
@@ -1531,19 +1504,9 @@ def ogr_read_info(
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
-        
-        # layer defaults to index 0
+
         if layer is None:
-            layers = ogr_list_layers_dataset(ogr_dataset)
-            if len(layers) > 1:
-                warnings.warn(
-                    f"More than one layer found in '{path}', info for layer "
-                    f"{layers[0][0]} is read, available layers: "
-                    f"{layers[:, 0].tolist()}. Specify layer parameter to avoid this "
-                    "warning.",
-                    stacklevel=2,
-                )
-            layer = 0
+            layer = get_default_layer(ogr_dataset)
         ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
         # Encoding is derived from the user, from the dataset capabilities / type,
@@ -1597,17 +1560,49 @@ def ogr_list_layers(str path):
 
     ogr_dataset = ogr_open(path_c, 0, NULL)
 
-    data = ogr_list_layers_dataset(ogr_dataset)
+    layers = get_layer_names(ogr_dataset)
 
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
     ogr_dataset = NULL
 
-    return data
+    return layers
 
 
-cdef ogr_list_layers_dataset(OGRDataSourceH ogr_dataset):
-    """ List the layers in the dataset.
+cdef str get_default_layer(OGRDataSourceH ogr_dataset):
+    """ Get the layer in the dataset that is read by default.
+
+    The caller is responsible for closing the dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+
+    Returns
+    -------
+    str
+        the name of the default layer to be read.
+    
+    """
+    layers = get_layer_names(ogr_dataset)
+    first_layer_name = layers[0][0]
+
+    if len(layers) > 1:
+        dataset_name = os.path.basename(get_string(OGR_DS_GetName(ogr_dataset)))
+
+        other_layer_names = ', '.join([f"'{l}'" for l in layers[1:, 0]])
+        warnings.warn(
+            f"More than one layer found in '{dataset_name}': '{first_layer_name}' "
+            f"(default), {other_layer_names}. Specify layer parameter to avoid this "
+            "warning.",
+            stacklevel=2,
+        )
+
+    return first_layer_name
+
+
+cdef get_layer_names(OGRDataSourceH ogr_dataset):
+    """ Get the layers in the dataset.
 
     The caller is responsible for closing the dataset.
 
