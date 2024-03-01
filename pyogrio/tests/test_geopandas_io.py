@@ -910,24 +910,6 @@ def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
     )
 
 
-def test_write_dataframe_gpkg_no_crs(tmp_path, naturalearth_lowres):
-    input_gdf = gp.GeoDataFrame(geometry=[Point(0, 1)], crs=None)
-    output_path = tmp_path / "test.gpkg"
-
-    write_dataframe(input_gdf, output_path)
-
-    assert os.path.exists(output_path)
-    result_gdf = read_dataframe(output_path)
-
-    # None crs is replaced by "Undefined Cartesian SRS" in GPKG.
-    input_gdf.crs = 'LOCAL_CS["Undefined Cartesian SRS"]'
-    assert_geodataframe_equal(
-        result_gdf,
-        input_gdf,
-        # check_index_type=False,
-    )
-
-
 @pytest.mark.parametrize("ext", ALL_EXTS)
 def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
     if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
@@ -946,6 +928,23 @@ def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
 
     write_dataframe(input_gdf, output_path, append=True)
     assert len(read_dataframe(output_path)) == 354
+
+
+@pytest.mark.parametrize("ext", [".gpkg", ".shp"])
+def test_write_dataframe_crs_None(tmp_path, ext):
+    input_gdf = gp.GeoDataFrame(geometry=[Point(0, 1)], crs=None)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path)
+
+    assert os.path.exists(output_path)
+    result_gdf = read_dataframe(output_path)
+
+    # In GPKG, None crs is replaced by "Undefined Cartesian SRS".
+    if ext == ".gpkg":
+        assert result_gdf.crs == 'LOCAL_CS["Undefined Cartesian SRS"]'
+    else:
+        assert result_gdf.crs is None
 
 
 @pytest.mark.parametrize("spatial_index", [False, True])

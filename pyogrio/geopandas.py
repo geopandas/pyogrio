@@ -546,7 +546,9 @@ def write_dataframe(
                 crs = f"EPSG:{epsg}"
             else:
                 crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
-        else:
+        elif driver == "GPKG":
+            # In GPKG, None crs must be replaced by "Undefined Cartesian SRS", otherwise
+            # the default "Undefined geographic SRS" will be used.
             crs = 'LOCAL_CS["Undefined Cartesian SRS"]'
 
     # If there is geometry data, prepare it to be written
