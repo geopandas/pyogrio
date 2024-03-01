@@ -1738,7 +1738,7 @@ cdef create_ogr_dataset_layer(
     ----------
     encoding : str
         Only used if `driver` is "ESRI Shapefile". If not None, it overrules the default
-        shapefile encoding.
+        shapefile encoding, which is "UTF-8" in pyogrio.
 
     Returns
     -------
@@ -1832,7 +1832,7 @@ cdef create_ogr_dataset_layer(
             # Fiona only sets encoding for shapefiles; other drivers do not support
             # encoding as an option.
             if encoding is None:
-                encoding = get_encoding_for_driver(driver)
+                encoding = "UTF-8"
             encoding_b = encoding.upper().encode('UTF-8')
             encoding_c = encoding_b
             layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
