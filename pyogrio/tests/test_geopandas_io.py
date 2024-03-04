@@ -1,6 +1,8 @@
 import contextlib
 from datetime import datetime
 import os
+import sqlite3
+
 import numpy as np
 import pytest
 
@@ -940,9 +942,25 @@ def test_write_dataframe_crs_None(tmp_path, ext):
     assert os.path.exists(output_path)
     result_gdf = read_dataframe(output_path)
 
-    # In GPKG, None crs is replaced by "Undefined Cartesian SRS".
     if ext == ".gpkg":
+        # In GPKG, cartesian data without specified crs needs to get srs_id -1 according
+        # to the specs: https://www.geopackage.org/spec/#r11
+        # Verify the name of the projection in de GeoDataFrame read.
         assert result_gdf.crs == 'LOCAL_CS["Undefined Cartesian SRS"]'
+
+        # Verify that srs_id == -1 in the output GPKG file
+        con = sqlite3.connect(output_path)
+        try:
+            result = con.execute(
+                "SELECT srs_id FROM gpkg_geometry_columns WHERE table_name = 'test'"
+            )
+            result_srs_id = result.fetchone()
+        finally:
+            con.close()
+
+        assert result_srs_id is not None
+        assert result_srs_id[0] == -1
+
     else:
         assert result_gdf.crs is None
 
