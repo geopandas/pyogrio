@@ -463,8 +463,9 @@ cdef get_metadata(GDALMajorObjectH obj):
 
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """Attempt to detect the encoding of the dataset or layer.
-    If it supports UTF-8, use that.
-    If it is a shapefile, it must otherwise be ISO-8859-1.
+    If the dataset supports/is in UTF-8, returns UTF-8.
+    If it is a non-UTF-8 shapefile, returns ISO-8859-1.
+    Otherwise the system locale preferred encoding is returned.
 
     Parameters
     ----------
@@ -480,7 +481,7 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
-    return get_encoding_for_driver(driver)
+    return get_encoding_for_driver(driver) or locale.getpreferredencoding()
 
 
 cdef get_encoding_for_driver(str driver):
@@ -1161,11 +1162,7 @@ def ogr_read(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1352,11 +1349,7 @@ def ogr_open_arrow(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
@@ -1548,11 +1541,7 @@ def ogr_read_info(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1958,11 +1947,7 @@ def ogr_write(
     # Now the dataset and layer have been created, we can properly determine the
     # encoding. It is derived from the user, from the dataset capabilities / type,
     # or from the system locale
-    encoding = (
-        encoding
-        or detect_encoding(ogr_dataset, ogr_layer)
-        or locale.getpreferredencoding()
-    )
+    encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
     ### Create the fields
     field_types = None
