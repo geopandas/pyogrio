@@ -537,14 +537,19 @@ def write_dataframe(
                 geometry_type = f"{geometry_type} Z"
 
     crs = None
-    if geometry_column is not None and geometry.crs:
-        # TODO: this may need to be WKT1, due to issues
-        # if possible use EPSG codes instead
-        epsg = geometry.crs.to_epsg()
-        if epsg:
-            crs = f"EPSG:{epsg}"
-        else:
-            crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
+    if geometry_column is not None:
+        if geometry.crs:
+            # TODO: this may need to be WKT1, due to issues
+            # if possible use EPSG codes instead
+            epsg = geometry.crs.to_epsg()
+            if epsg:
+                crs = f"EPSG:{epsg}"
+            else:
+                crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
+        elif driver == "GPKG":
+            # In GPKG, None crs must be replaced by "Undefined Cartesian SRS", otherwise
+            # the default "Undefined geographic SRS" will be used.
+            crs = 'LOCAL_CS["Undefined Cartesian SRS"]'
 
     # If there is geometry data, prepare it to be written
     if geometry_column is not None:
