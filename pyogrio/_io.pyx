@@ -485,7 +485,8 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         # The encoding used to read/write under the hood depends on the driver used.
         # For layers/drivers where False is returned, the string values are written and
         # read without recoding. Hence, it is up to you to supply the data in the
-        # appropriate encoding.
+        # appropriate encoding. More info:
+        # https://gdal.org/development/rfc/rfc23_ogr_unicode.html#oftstring-oftstringlist-fields
         return "UTF-8"
 
     driver = get_driver(ogr_dataset)
