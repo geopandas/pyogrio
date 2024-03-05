@@ -414,7 +414,7 @@ def test_read_return_only_fids(naturalearth_lowres):
     assert len(field_data) == 0
 
 
-def test_write(tmpdir, naturalearth_lowres):
+def test_write_shp(tmpdir, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
@@ -423,6 +423,9 @@ def test_write(tmpdir, naturalearth_lowres):
     assert os.path.exists(filename)
     for ext in (".dbf", ".prj"):
         assert os.path.exists(filename.replace(".shp", ext))
+
+    # Make sure the file was written in UTF-8
+    assert read_info(filename)["encoding"] == "UTF-8"
 
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
