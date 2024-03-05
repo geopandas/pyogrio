@@ -414,18 +414,23 @@ def test_read_return_only_fids(naturalearth_lowres):
     assert len(field_data) == 0
 
 
-def test_write_shp(tmpdir, naturalearth_lowres):
+@pytest.mark.parametrize("encoding", [None, "ISO-8859-1"])
+def test_write_shp(tmpdir, naturalearth_lowres, encoding):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
+    meta["encoding"] = encoding
     write(filename, geometry, field_data, **meta)
 
     assert os.path.exists(filename)
     for ext in (".dbf", ".prj"):
         assert os.path.exists(filename.replace(".shp", ext))
 
-    # Make sure the file was written in UTF-8
-    assert read_info(filename)["encoding"] == "UTF-8"
+    # We write shapefiles in UTF-8 by default on all platforms
+    expected_encoding = encoding if encoding is not None else "UTF-8"
+    with open(filename.replace(".shp", ".cpg")) as cpg_file:
+        result_encoding = cpg_file.read()
+        assert result_encoding == expected_encoding
 
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
