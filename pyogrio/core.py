@@ -222,8 +222,8 @@ def read_info(
     will be "" (e.g. ESRI Shapefile).
 
     ``geometry_name`` is the name of the field where the main geometry is stored in the
-    data data source, if the column can by customized (e.g. in GPKG). If no custom name
-    is supported, ``geometry_name`` will be "" (e.g. ESRI Shapefile).
+    data data source, if the field name can by customized (e.g. in GPKG). If no custom
+    name is supported, ``geometry_name`` will be "" (e.g. ESRI Shapefile).
 
     Parameters
     ----------

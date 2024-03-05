@@ -382,7 +382,7 @@ def test_read_info(naturalearth_lowres):
     elif naturalearth_lowres.suffix == ".shp":
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
-        # geometry_name == "" for formats where geometry column name can be customized
+        # geometry_name == "" for formats where geometry column name cannot be customized
         assert meta["geometry_name"] == ""
         assert meta["geometry_type"] == "Polygon"
         assert meta["driver"] == "ESRI Shapefile"
