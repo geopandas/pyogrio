@@ -478,16 +478,22 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     str or None
     """
 
-    # Layers/drivers for which string attribute values should be supplied in UTF-8 and
-    # will always be returned in UTF-8, regardless of the encoding used to write the
-    # files, return True. Layers/drivers for which the data will be written and read
-    # as-such without recoding to and from UTF-8 is needed return False.
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
-        return 'UTF-8'
+        # OGR_L_TestCapability returns True for OLCStringsAsUTF8 if GDAL hides encoding
+        # complexities for this layer/driver type. In this case all string attribute
+        # values have to be supplied in UTF-8 and values will be returned in UTF-8.
+        # The encoding used to read/write under the hood depends on the driver used.
+        # For layers/drivers where False is returned, the string values are written and
+        # read without recoding. Hence, it is up to you to supply the data in the
+        # appropriate encoding.
+        return "UTF-8"
 
     driver = get_driver(ogr_dataset)
-    if driver == 'ESRI Shapefile':
-        return 'ISO-8859-1'
+    if driver == "ESRI Shapefile":
+        # Typically, OGR_L_TestCapability returns True for OLCStringsAsUTF8 for ESRI
+        # Shapefile so this won't be reached. However, for old versions of GDAL and/or
+        # if libraries are missing, this fallback could be needed.
+        return "ISO-8859-1"
 
     if driver == "OSM":
         # always set OSM data to UTF-8
