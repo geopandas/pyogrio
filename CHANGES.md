@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Add some missing properties to `read_info`, including layer name, geometryname
+-   Add some missing properties to `read_info`, including layer name, geometry name
     and FID column name (#365).
 -   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
