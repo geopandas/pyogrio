@@ -462,9 +462,10 @@ cdef get_metadata(GDALMajorObjectH obj):
 
 
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
-    """Attempt to detect the encoding of the dataset or layer.
-    If the dataset supports/is in UTF-8, returns UTF-8.
-    If it is a non-UTF-8 shapefile, returns ISO-8859-1.
+    """Attempt to detect the encoding to use to read/write string values.
+
+    If the layer/dataset supports reading/writing data in UTF-8, returns UTF-8.
+    If UTF-8 is not supported and ESRI Shapefile, returns ISO-8859-1
     Otherwise the system locale preferred encoding is returned.
 
     Parameters
@@ -477,26 +478,14 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     str or None
     """
 
+    # Layers/drivers for which string attribute values should be supplied in UTF-8 and
+    # will always be returned in UTF-8, regardless of the encoding used to write the
+    # files, return True. Layers/drivers for which the data will be written and read
+    # as-such without recoding to and from UTF-8 is needed return False.
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         return 'UTF-8'
 
     driver = get_driver(ogr_dataset)
-    return get_encoding_for_driver(driver) or locale.getpreferredencoding()
-
-
-cdef get_encoding_for_driver(str driver):
-    """Get the typical encoding for the driver, or None.
-
-    Parameters
-    ----------
-    driver : str
-        driver to get the encoding for
-    
-    Returns
-    -------
-    str or None
-        the typical encoding if this is applicable for the driver, or None
-    """
     if driver == 'ESRI Shapefile':
         return 'ISO-8859-1'
 
@@ -515,7 +504,7 @@ cdef get_encoding_for_driver(str driver):
         # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
         return "UTF-8"
 
-    return None
+    return locale.getpreferredencoding()
 
 
 cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
