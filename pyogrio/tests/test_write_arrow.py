@@ -44,7 +44,6 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
         filename,
         driver="GPKG",
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type="MultiPolygon",
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
@@ -64,7 +63,6 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
         driver="GPKG",
         layer="first",
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type="MultiPolygon",
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
@@ -79,7 +77,6 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
         driver="GPKG",
         layer="second",
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type="MultiPolygon",
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
@@ -97,7 +94,6 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
         filename,
         driver="GeoJSON",
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
@@ -131,7 +127,6 @@ def test_write_geometry_extension_type(tmpdir, naturalearth_lowres, name):
         new_table,
         filename,
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
     )
     _, table_roundtripped = read_arrow(filename)
@@ -158,7 +153,6 @@ def test_write_unsupported_geoarrow(tmpdir, naturalearth_lowres):
             new_table,
             filename,
             crs=meta["crs"],
-            encoding=meta["encoding"],
             geometry_type=meta["geometry_type"],
         )
 
@@ -173,7 +167,6 @@ def test_write_geometry_type(tmpdir, naturalearth_lowres):
             table,
             filename,
             crs=meta["crs"],
-            encoding=meta["encoding"],
             geometry_name=meta["geometry_name"] or "wkb_geometry",
         )
 
@@ -183,7 +176,6 @@ def test_write_geometry_type(tmpdir, naturalearth_lowres):
         table,
         filename,
         crs=meta["crs"],
-        encoding=meta["encoding"],
         geometry_type="Unknown",
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
@@ -204,7 +196,6 @@ def test_write_raise_prmote_to_multi(tmpdir, naturalearth_lowres):
             table,
             filename,
             crs=meta["crs"],
-            encoding=meta["encoding"],
             geometry_type=meta["geometry_type"],
             geometry_name=meta["geometry_name"] or "wkb_geometry",
             promote_to_multi=True,

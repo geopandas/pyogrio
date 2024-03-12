@@ -611,8 +611,8 @@ def write_arrow(
         using a non-default layer geometry type may result in errors when writing the
         file, may be ignored by the driver, or may result in invalid files.
     encoding : str, optional (default: None)
-        If present, will be used as the encoding for writing string values to
-        the file.
+        Only used for the .dbf file of ESRI Shapefiles. If not specified,
+        uses the default locale.
     append : bool, optional (default: False)
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
