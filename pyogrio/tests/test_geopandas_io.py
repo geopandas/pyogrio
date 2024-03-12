@@ -154,6 +154,7 @@ def test_read_force_2d(test_fgdb_vsi, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
+@pytest.mark.filterwarnings("ignore: More than one layer found in")
 def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
     kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
@@ -186,6 +187,7 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
         assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
 
 
+@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
 def test_read_datetime_tz(test_datetime_tz, tmp_path):
     df = read_dataframe(test_datetime_tz)
     # Make the index non-consecutive to test this case as well. Added for issue
@@ -206,6 +208,9 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     assert_series_equal(df_read.datetime_col, expected)
 
 
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
 def test_write_datetime_mixed_offset(tmp_path):
     # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
     dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
@@ -227,6 +232,9 @@ def test_write_datetime_mixed_offset(tmp_path):
     assert_series_equal(result["dates"], utc_col)
 
 
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
 def test_read_write_datetime_tz_with_nulls(tmp_path):
     dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
     if PANDAS_GE_20:
@@ -244,7 +252,9 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
 
 
 def test_read_null_values(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False)
+    df = read_dataframe(
+        test_fgdb_vsi, layer="basetable_2", use_arrow=use_arrow, read_geometry=False
+    )
 
     # make sure that Null values are preserved
     assert df.SEGMENT_NAME.isnull().max()

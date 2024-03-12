@@ -1,4 +1,5 @@
 import contextlib
+import json
 import math
 import os
 
@@ -32,6 +33,12 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     else:
         check_less_precise = False
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
+
+
+def test_read_arrow_unspecified_layer_warning(data_dir):
+    """Reading a multi-layer file without specifying a layer gives a warning."""
+    with pytest.warns(UserWarning, match="More than one layer found "):
+        read_arrow(data_dir / "sample.osm.pbf")
 
 
 @pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
@@ -116,6 +123,7 @@ def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
     result = read_dataframe(
         test_fgdb_vsi,
+        layer="basetable_2",
         use_arrow=True,
         arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
     )
@@ -184,6 +192,19 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
             reader,
         ):
             pass
+
+
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 0),
+    reason="returns geoarrow metadata only for GDAL>=3.8.0",
+)
+def test_read_arrow_geoarrow_metadata(naturalearth_lowres):
+    _meta, table = read_arrow(naturalearth_lowres)
+    field = table.schema.field("wkb_geometry")
+    assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+    parsed_meta = json.loads(field.metadata[b"ARROW:extension:metadata"])
+    assert parsed_meta["crs"]["id"]["authority"] == "EPSG"
+    assert parsed_meta["crs"]["id"]["code"] == 4326
 
 
 @contextlib.contextmanager

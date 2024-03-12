@@ -610,7 +610,7 @@ cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
     Parameters
     ----------
     ogr_layer : pointer to open OGR layer
-    bbox: list or tuple of xmin, ymin, xmax, ymax
+    bbox : list or tuple of xmin, ymin, xmax, ymax
 
     Raises
     ------
@@ -631,7 +631,7 @@ cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
     Parameters
     ----------
     ogr_layer : pointer to open OGR layer
-    wkb: WKB encoding of geometry
+    wkb : WKB encoding of geometry
     """
 
     cdef OGRGeometryH ogr_geometry = NULL
@@ -1126,9 +1126,8 @@ def ogr_read(
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
         if sql is None:
-            # layer defaults to index 0
             if layer is None:
-                layer = 0
+                layer = get_default_layer(ogr_dataset)
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
@@ -1317,9 +1316,8 @@ def ogr_open_arrow(
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
         if sql is None:
-            # layer defaults to index 0
             if layer is None:
-                layer = 0
+                layer = get_default_layer(ogr_dataset)
             ogr_layer = get_ogr_layer(ogr_dataset, layer)
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
@@ -1381,6 +1379,14 @@ def ogr_open_arrow(
                 options,
                 "MAX_FEATURES_IN_BATCH",
                 str(batch_size).encode('UTF-8')
+            )
+
+        # Default to geoarrow metadata encoding
+        IF CTE_GDAL_VERSION >= (3, 8, 0):
+            options = CSLSetNameValue(
+                options,
+                "GEOMETRY_METADATA_ENCODING",
+                "GEOARROW".encode('UTF-8')
             )
 
         # make sure layer is read from beginning
@@ -1465,11 +1471,10 @@ def ogr_read_bounds(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    # layer defaults to index 0
-    if layer is None:
-        layer = 0
-
     ogr_dataset = ogr_open(path_c, 0, NULL)
+
+    if layer is None:
+        layer = get_default_layer(ogr_dataset)
     ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
     # Apply the attribute filter
@@ -1505,13 +1510,13 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    # layer defaults to index 0
-    if layer is None:
-        layer = 0
-
+    
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
+
+        if layer is None:
+            layer = get_default_layer(ogr_dataset)
         ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
         # Encoding is derived from the user, from the dataset capabilities / type,
@@ -1558,14 +1563,70 @@ def ogr_read_info(
 
 def ogr_list_layers(str path):
     cdef const char *path_c = NULL
-    cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
-    cdef OGRLayerH ogr_layer = NULL
 
     path_b = path.encode('utf-8')
     path_c = path_b
 
     ogr_dataset = ogr_open(path_c, 0, NULL)
+
+    layers = get_layer_names(ogr_dataset)
+
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+    ogr_dataset = NULL
+
+    return layers
+
+
+cdef str get_default_layer(OGRDataSourceH ogr_dataset):
+    """ Get the layer in the dataset that is read by default.
+
+    The caller is responsible for closing the dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+
+    Returns
+    -------
+    str
+        the name of the default layer to be read.
+    
+    """
+    layers = get_layer_names(ogr_dataset)
+    first_layer_name = layers[0][0]
+
+    if len(layers) > 1:
+        dataset_name = os.path.basename(get_string(OGR_DS_GetName(ogr_dataset)))
+
+        other_layer_names = ', '.join([f"'{l}'" for l in layers[1:, 0]])
+        warnings.warn(
+            f"More than one layer found in '{dataset_name}': '{first_layer_name}' "
+            f"(default), {other_layer_names}. Specify layer parameter to avoid this "
+            "warning.",
+            stacklevel=2,
+        )
+
+    return first_layer_name
+
+
+cdef get_layer_names(OGRDataSourceH ogr_dataset):
+    """ Get the layers in the dataset.
+
+    The caller is responsible for closing the dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer to open OGR dataset
+
+    Returns
+    -------
+    ndarray(n)
+        array of layer names
+    
+    """
+    cdef OGRLayerH ogr_layer = NULL
 
     layer_count = GDALDatasetGetLayerCount(ogr_dataset)
 
@@ -1576,10 +1637,6 @@ def ogr_list_layers(str path):
 
         data_view[i, 0] = get_string(OGR_L_GetName(ogr_layer))
         data_view[i, 1] = get_geometry_type(ogr_layer)
-
-    if ogr_dataset != NULL:
-        GDALClose(ogr_dataset)
-    ogr_dataset = NULL
 
     return data
 
