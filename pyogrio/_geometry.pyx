@@ -16,6 +16,7 @@ GEOMETRY_TYPES = {
     wkbMultiLineString: 'MultiLineString',
     wkbMultiPolygon: 'MultiPolygon',
     wkbGeometryCollection: 'GeometryCollection',
+    wkbNone: None,
     wkbLinearRing: 'LinearRing',
     # WARNING: Measured types are not supported in GEOS and downstream uses
     # these are stripped automatically to their corresponding 2D / 3D types

@@ -669,6 +669,9 @@ def write_arrow(
             "The 'promote_to_multi' option is not supported when writing using Arrow"
         )
 
+    if geometry_type is None:
+        raise ValueError("Need to specify 'geometry_type'")
+
     if metadata is not None:
         if layer_metadata is not None:
             raise ValueError("Cannot pass both metadata and layer_metadata")

@@ -6,7 +6,6 @@ import pytest
 
 from pyogrio.core import list_layers
 from pyogrio.raw import read_arrow, write_arrow
-from pyogrio.errors import GeometryError
 from pyogrio.tests.conftest import requires_arrow_write_api
 
 
@@ -162,7 +161,7 @@ def test_write_geometry_type(tmpdir, naturalearth_lowres):
 
     # Not specifying the geometry currently raises an error
     filename = os.path.join(str(tmpdir), "test.shp")
-    with pytest.raises(GeometryError, match="Geometry type is not supported: None"):
+    with pytest.raises(ValueError, match="Need to specify 'geometry_type"):
         write_arrow(
             table,
             filename,
@@ -184,7 +183,7 @@ def test_write_geometry_type(tmpdir, naturalearth_lowres):
     assert meta_written["geometry_type"] == "Unknown"
 
 
-def test_write_raise_prmote_to_multi(tmpdir, naturalearth_lowres):
+def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
