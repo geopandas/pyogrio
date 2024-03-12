@@ -6,6 +6,7 @@ import pytest
 
 from pyogrio.core import list_layers
 from pyogrio.raw import read_arrow, write_arrow
+from pyogrio.errors import GeometryError
 from pyogrio.tests.conftest import requires_arrow_write_api
 
 
@@ -20,8 +21,8 @@ def test_write(tmpdir, naturalearth_lowres):
 
     filename = os.path.join(str(tmpdir), "test.shp")
     write_arrow(
-        filename,
         table,
+        filename,
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
@@ -39,8 +40,8 @@ def test_write_gpkg(tmpdir, naturalearth_lowres):
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
     write_arrow(
-        filename,
         table,
+        filename,
         driver="GPKG",
         crs=meta["crs"],
         encoding=meta["encoding"],
@@ -58,8 +59,8 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
     write_arrow(
-        filename,
         table,
+        filename,
         driver="GPKG",
         layer="first",
         crs=meta["crs"],
@@ -73,8 +74,8 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
     assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
 
     write_arrow(
-        filename,
         table,
+        filename,
         driver="GPKG",
         layer="second",
         crs=meta["crs"],
@@ -92,8 +93,8 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), "test.json")
     write_arrow(
-        filename,
         table,
+        filename,
         driver="GeoJSON",
         crs=meta["crs"],
         encoding=meta["encoding"],
@@ -127,8 +128,8 @@ def test_write_geometry_extension_type(tmpdir, naturalearth_lowres, name):
 
     filename = os.path.join(str(tmpdir), "test_geoarrow.shp")
     write_arrow(
-        filename,
         new_table,
+        filename,
         crs=meta["crs"],
         encoding=meta["encoding"],
         geometry_type=meta["geometry_type"],
@@ -154,9 +155,57 @@ def test_write_unsupported_geoarrow(tmpdir, naturalearth_lowres):
         match="Writing a geometry column of type geoarrow.point is not yet supported",
     ):
         write_arrow(
-            filename,
             new_table,
+            filename,
             crs=meta["crs"],
             encoding=meta["encoding"],
             geometry_type=meta["geometry_type"],
+        )
+
+
+def test_write_geometry_type(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # Not specifying the geometry currently raises an error
+    filename = os.path.join(str(tmpdir), "test.shp")
+    with pytest.raises(GeometryError, match="Geometry type is not supported: None"):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            encoding=meta["encoding"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+    # Specifying "Unknown" works and will create generic layer
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_arrow(
+        table,
+        filename,
+        crs=meta["crs"],
+        encoding=meta["encoding"],
+        geometry_type="Unknown",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert os.path.exists(filename)
+    meta_written, _ = read_arrow(filename)
+    assert meta_written["geometry_type"] == "Unknown"
+
+
+def test_write_raise_prmote_to_multi(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.shp")
+
+    with pytest.raises(
+        ValueError, match="The 'promote_to_multi' option is not supported"
+    ):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            encoding=meta["encoding"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+            promote_to_multi=True,
         )

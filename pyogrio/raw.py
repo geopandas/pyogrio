@@ -562,32 +562,90 @@ def write(
 
 
 def write_arrow(
-    path,
     arrow_obj,
+    path,
     layer=None,
     driver=None,
-    # derived from meta if roundtrip
-    geometry_type=None,
     geometry_name=None,
+    geometry_type=None,
     crs=None,
     encoding=None,
-    promote_to_multi=None,
-    nan_as_null=True,
     append=False,
     dataset_metadata=None,
     layer_metadata=None,
     metadata=None,
     dataset_options=None,
     layer_options=None,
-    gdal_tz_offsets=None,
     **kwargs,
 ):
+    """
+    Write an Arrow compatible data source to an OGR file format.
+
+    Parameters
+    ----------
+    arrow_obj
+        The Arrow data to write. This can be any Arrow-compatible taular data
+        object that implements the Arrow PyCapsule Protocol (i.e. has an
+        ``__arrow_c_stream__`` method), for example a pyarrow Table or
+        RecordBatchReader.
+    path : str
+        Path to file.
+    layer : str, optional (default: None)
+        layer name
+    driver : str, optional (default: None)
+        The OGR format driver used to write the vector file. By default write_dataframe
+        attempts to infer driver from path.
+    geometry_name : str, optional (default: None)
+        The name of the column in the input data that will be written as the
+        geometry field. Will be inferred from the input data if the geometry
+        column is annotated as an "geoarrow.wkb" or "ogc.wkb" extension type.
+        Otherwise needs to be specified explicitly.
+    geometry_type : str, optional (default: None)
+        The geometry type of the written layer. Currently, this needs to be
+        specified explicitly when creating a new layer.
+        Possible values are: "Unknown", "Point", "LineString", "Polygon",
+        "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
+
+        This parameter does not modify the geometry, but it will try to force the layer
+        type of the output file to this value. Use this parameter with caution because
+        using a non-default layer geometry type may result in errors when writing the
+        file, may be ignored by the driver, or may result in invalid files.
+    encoding : str, optional (default: None)
+        If present, will be used as the encoding for writing string values to
+        the file.
+    append : bool, optional (default: False)
+        If True, the data source specified by path already exists, and the
+        driver supports appending to an existing data source, will cause the
+        data to be appended to the existing records in the data source.
+        NOTE: append support is limited to specific drivers and GDAL versions.
+    dataset_metadata : dict, optional (default: None)
+        Metadata to be stored at the dataset level in the output file; limited
+        to drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    layer_metadata : dict, optional (default: None)
+        Metadata to be stored at the layer level in the output file; limited to
+        drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    metadata : dict, optional (default: None)
+        alias of layer_metadata
+    dataset_options : dict, optional
+        Dataset creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    layer_options : dict, optional
+        Layer creation option (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    **kwargs
+        Additional driver-specific dataset or layer creation options passed
+        to OGR. pyogrio will attempt to automatically pass those keywords
+        either as dataset or as layer creation option based on the known
+        options for the specific driver. Alternatively, you can use the
+        explicit `dataset_options` or `layer_options` keywords to manually
+        do this (for example if an option exists as both dataset and layer
+        option).
+    """
     if not HAS_ARROW_WRITE_API:
         raise RuntimeError("GDAL>=3.8 required to write using arrow")
 
-    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
-    # read, and it is convenient to pass meta directly into write for round trip tests)
-    kwargs.pop("dtypes", None)
     path = vsi_path(str(path))
 
     if driver is None:
@@ -606,6 +664,11 @@ def write_arrow(
             "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
         )
 
+    if "promote_to_multi" in kwargs:
+        raise ValueError(
+            "The 'promote_to_multi' option is not supported when writing using Arrow"
+        )
+
     if metadata is not None:
         if layer_metadata is not None:
             raise ValueError("Cannot pass both metadata and layer_metadata")
@@ -621,14 +684,8 @@ def write_arrow(
                 if not isinstance(v, str):
                     raise ValueError(f"metadata value {v} must be a string")
 
-    if arrow_obj is not None and promote_to_multi is None:
-        promote_to_multi = (
-            geometry_type.startswith("Multi")
-            and driver in DRIVERS_NO_MIXED_SINGLE_MULTI
-        )
-
     # TODO: does GDAL infer CRS automatically from geometry metadata?
-    if arrow_obj is not None and crs is None:
+    if crs is None:
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
             "projection information defined and may not be usable in other "
@@ -654,9 +711,6 @@ def write_arrow(
             else:
                 raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
 
-    # TODO: pass these as dataset kwargs?
-    # promote_to_multi=promote_to_multi,
-    # nan_as_null=nan_as_null,
     ogr_write_arrow(
         path,
         layer=layer,
