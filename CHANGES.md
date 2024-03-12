@@ -1,11 +1,26 @@
 # CHANGELOG
 
-## 0.7.3 (???)
+## 0.8.0 (???)
+
+### Improvements
+
+-   `read_arrow` and `open_arrow` now provide
+    [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
+    including the CRS, when using GDAL 3.8 or higher (#366).
+-   Warn when reading from a multilayer file without specifying a layer (#362).
+
 
 ### Bug fixes
 
 -   Fix error in `write_dataframe` if input has a date column and
     non-consecutive index values (#325).
+-   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
+    a boolean column is detected due to error in GDAL reading boolean values (#335)
+    this has been fixed in GDAL >= 3.8.3.
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
 
 ## 0.7.2 (2023-10-30)
 

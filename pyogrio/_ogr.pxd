@@ -206,6 +206,8 @@ cdef extern from "ogr_api.h":
     OGRDataSourceH  OGR_Dr_Open(OGRSFDriverH driver, const char *path, int bupdate)
     const char*     OGR_Dr_GetName(OGRSFDriverH driver)
 
+    const char*     OGR_DS_GetName(OGRDataSourceH)
+
     OGRFeatureH     OGR_F_Create(OGRFeatureDefnH featuredefn)
     void            OGR_F_Destroy(OGRFeatureH feature)
 

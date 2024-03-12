@@ -1,13 +1,10 @@
-FROM quay.io/pypa/manylinux_2_28_aarch64:2023-09-24-36b93e4
+FROM quay.io/pypa/manylinux_2_28_aarch64:2024-01-23-12ffabc
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
 
-# require python >= 3.7 (python 3.6 is default on base image) for meson 
-RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
-
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
-    git -C /opt/vcpkg checkout 62988594de235334bc83609a060773eb2c8a8478
+    git -C /opt/vcpkg checkout 6df4d4f49866212aa00fcd85fde5356503dafed1
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
@@ -29,6 +26,10 @@ RUN bootstrap-vcpkg.sh && \
 COPY ci/custom-triplets/arm64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/arm64-linux-dynamic-release.cmake
 COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
+
+# temporary workaround for https://github.com/microsoft/vcpkg/issues/36094
+COPY ci/vcpkg_linux_crosscompiling.patch opt/vcpkg/
+RUN git -C /opt/vcpkg apply vcpkg_linux_crosscompiling.patch
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/arm64-linux-dynamic-release/lib"
 RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \

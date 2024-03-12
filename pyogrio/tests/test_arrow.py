@@ -1,12 +1,14 @@
 import contextlib
+import json
 import math
 import os
 
 import pytest
+import numpy as np
 
 import pyogrio
 from pyogrio import __gdal_version__, read_dataframe
-from pyogrio.raw import open_arrow, read_arrow
+from pyogrio.raw import open_arrow, read_arrow, write
 from pyogrio.tests.conftest import requires_arrow_api
 
 try:
@@ -32,6 +34,12 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     else:
         check_less_precise = False
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
+
+
+def test_read_arrow_unspecified_layer_warning(data_dir):
+    """Reading a multi-layer file without specifying a layer gives a warning."""
+    with pytest.warns(UserWarning, match="More than one layer found "):
+        read_arrow(data_dir / "sample.osm.pbf")
 
 
 @pytest.mark.parametrize("skip_features, expected", [(10, 167), (200, 0)])
@@ -116,6 +124,7 @@ def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
     result = read_dataframe(
         test_fgdb_vsi,
+        layer="basetable_2",
         use_arrow=True,
         arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
     )
@@ -186,6 +195,19 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
             pass
 
 
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 0),
+    reason="returns geoarrow metadata only for GDAL>=3.8.0",
+)
+def test_read_arrow_geoarrow_metadata(naturalearth_lowres):
+    _meta, table = read_arrow(naturalearth_lowres)
+    field = table.schema.field("wkb_geometry")
+    assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+    parsed_meta = json.loads(field.metadata[b"ARROW:extension:metadata"])
+    assert parsed_meta["crs"]["id"]["authority"] == "EPSG"
+    assert parsed_meta["crs"]["id"]["code"] == 4326
+
+
 def test_open_arrow_capsule_protocol(naturalearth_lowres):
     pytest.importorskip("pyarrow", minversion="14")
 
@@ -219,3 +241,51 @@ def test_enable_with_environment_variable(test_ogr_types_list):
     with use_arrow_context():
         result = read_dataframe(test_ogr_types_list)
     assert "list_int64" in result.columns
+
+
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_roundtrip(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 5, dtype=object
+    )
+    bool_col = np.array([True, False, True, False, True])
+    field_data = [bool_col]
+    fields = ["bool_col"]
+
+    write(
+        filename, geometry, field_data, fields, geometry_type="Point", crs="EPSG:4326"
+    )
+    table = read_arrow(filename)[1]
+
+    assert np.array_equal(table["bool_col"].to_numpy(), bool_col)
+
+
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
+)
+def test_arrow_bool_exception(tmpdir):
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 5, dtype=object
+    )
+    bool_col = np.array([True, False, True, False, True])
+    field_data = [bool_col]
+    fields = ["bool_col"]
+
+    write(
+        filename, geometry, field_data, fields, geometry_type="Point", crs="EPSG:4326"
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="GDAL < 3.8.3 does not correctly read boolean data values using "
+        "the Arrow API",
+    ):
+        read_arrow(filename)

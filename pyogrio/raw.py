@@ -258,6 +258,8 @@ def read_arrow(
     """
     from pyarrow import Table
 
+    gdal_version = get_gdal_version()
+
     if skip_features < 0:
         raise ValueError("'skip_features' must be >= 0")
 
@@ -275,7 +277,7 @@ def read_arrow(
 
     # handle skip_features internally within open_arrow if GDAL >= 3.8.0
     gdal_skip_features = 0
-    if get_gdal_version() >= (3, 8, 0):
+    if gdal_version >= (3, 8, 0):
         gdal_skip_features = skip_features
         skip_features = 0
 
@@ -327,6 +329,16 @@ def read_arrow(
 
         else:
             table = reader.read_all()
+
+    # raise error if schema has bool values and GDAL <3.8.3
+    # due to https://github.com/OSGeo/gdal/issues/8998
+    if gdal_version < (3, 8, 3) and any(
+        [col_type == "bool" for col_type in table.schema.types]
+    ):
+        raise RuntimeError(
+            "GDAL < 3.8.3 does not correctly read boolean data values using the "
+            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
+        )
 
     return meta, table
 
