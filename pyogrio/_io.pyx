@@ -1252,7 +1252,7 @@ cdef void pycapsule_array_stream_deleter(object stream_capsule) noexcept:
     free(stream)
 
 
-cdef object alloc_c_stream(ArrowArrayStream** c_stream) noexcept:
+cdef object alloc_c_stream(ArrowArrayStream** c_stream):
     c_stream[0] = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
     # Ensure the capsule destructor doesn't call a random release pointer
     c_stream[0].release = NULL
