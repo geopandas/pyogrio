@@ -1209,6 +1209,7 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
 
 
 @pytest.mark.skipif(HAS_PYARROW, reason="pyarrow is installed")
+@requires_arrow_api
 def test_open_arrow_error_no_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we run
     # it when pyarrow is not installed
