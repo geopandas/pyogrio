@@ -2,6 +2,7 @@ import contextlib
 import json
 import math
 import os
+import sys
 
 import pytest
 import numpy as np
@@ -9,7 +10,7 @@ import numpy as np
 import pyogrio
 from pyogrio import __gdal_version__, read_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write
-from pyogrio.tests.conftest import requires_arrow_api
+from pyogrio.tests.conftest import requires_pyarrow_api
 
 try:
     import pandas as pd
@@ -21,7 +22,7 @@ except ImportError:
     pass
 
 # skip all tests in this file if Arrow API or GeoPandas are unavailable
-pytestmark = requires_arrow_api
+pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
 
 
@@ -216,6 +217,23 @@ def test_open_arrow_capsule_protocol(naturalearth_lowres):
         assert isinstance(reader, pyogrio._io._ArrowStream)
 
         result = pyarrow.table(reader)
+
+    _, expected = read_arrow(naturalearth_lowres)
+    assert result.equals(expected)
+
+
+def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
+    pyarrow = pytest.importorskip("pyarrow", minversion="14")
+
+    # Make PyArrow temporarily unavailable (importing will fail)
+    sys.modules["pyarrow"] = None
+    try:
+        with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
+            assert isinstance(meta, dict)
+            assert isinstance(reader, pyogrio._io._ArrowStream)
+            result = pyarrow.table(reader)
+    finally:
+        sys.modules["pyarrow"] = pyarrow
 
     _, expected = read_arrow(naturalearth_lowres)
     assert result.equals(expected)
