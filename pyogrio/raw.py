@@ -448,6 +448,51 @@ def _parse_options_names(xml):
     return options
 
 
+def _validate_metadata(dataset_metadata, layer_metadata, metadata):
+    """ """
+    if metadata is not None:
+        if layer_metadata is not None:
+            raise ValueError("Cannot pass both metadata and layer_metadata")
+        layer_metadata = metadata
+
+    # validate metadata types
+    for metadata in [dataset_metadata, layer_metadata]:
+        if metadata is not None:
+            for k, v in metadata.items():
+                if not isinstance(k, str):
+                    raise ValueError(f"metadata key {k} must be a string")
+
+                if not isinstance(v, str):
+                    raise ValueError(f"metadata value {v} must be a string")
+    return dataset_metadata, layer_metadata
+
+
+def _preprocess_options_kwargs(driver, dataset_options, layer_options, kwargs):
+    """
+    Preprocess kwargs and split in dataset and layer creation options.
+    """
+
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
+    if kwargs:
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
+        for k, v in kwargs.items():
+            if k in dataset_option_names:
+                dataset_kwargs[k] = v
+            elif k in layer_option_names:
+                layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+
+    return dataset_kwargs, layer_kwargs
+
+
 def write(
     path,
     geometry,
@@ -492,20 +537,9 @@ def write(
             "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
         )
 
-    if metadata is not None:
-        if layer_metadata is not None:
-            raise ValueError("Cannot pass both metadata and layer_metadata")
-        layer_metadata = metadata
-
-    # validate metadata types
-    for metadata in [dataset_metadata, layer_metadata]:
-        if metadata is not None:
-            for k, v in metadata.items():
-                if not isinstance(k, str):
-                    raise ValueError(f"metadata key {k} must be a string")
-
-                if not isinstance(v, str):
-                    raise ValueError(f"metadata value {v} must be a string")
+    dataset_metadata, layer_metadata = _validate_metadata(
+        dataset_metadata, layer_metadata, metadata
+    )
 
     if geometry is not None and promote_to_multi is None:
         promote_to_multi = (
@@ -521,23 +555,9 @@ def write(
         )
 
     # preprocess kwargs and split in dataset and layer creation options
-    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
-    layer_kwargs = _preprocess_options_key_value(layer_options or {})
-    if kwargs:
-        kwargs = _preprocess_options_key_value(kwargs)
-        dataset_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
-        )
-        layer_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
-        )
-        for k, v in kwargs.items():
-            if k in dataset_option_names:
-                dataset_kwargs[k] = v
-            elif k in layer_option_names:
-                layer_kwargs[k] = v
-            else:
-                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+    dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
+        driver, dataset_options, layer_options, kwargs
+    )
 
     ogr_write(
         path,
@@ -658,12 +678,6 @@ def write_arrow(
             f"{get_gdal_version_string()}"
         )
 
-    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
-    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
-        raise RuntimeError(
-            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
-        )
-
     if "promote_to_multi" in kwargs:
         raise ValueError(
             "The 'promote_to_multi' option is not supported when writing using Arrow"
@@ -672,20 +686,9 @@ def write_arrow(
     if geometry_type is None:
         raise ValueError("Need to specify 'geometry_type'")
 
-    if metadata is not None:
-        if layer_metadata is not None:
-            raise ValueError("Cannot pass both metadata and layer_metadata")
-        layer_metadata = metadata
-
-    # validate metadata types
-    for metadata in [dataset_metadata, layer_metadata]:
-        if metadata is not None:
-            for k, v in metadata.items():
-                if not isinstance(k, str):
-                    raise ValueError(f"metadata key {k} must be a string")
-
-                if not isinstance(v, str):
-                    raise ValueError(f"metadata value {v} must be a string")
+    dataset_metadata, layer_metadata = _validate_metadata(
+        dataset_metadata, layer_metadata, metadata
+    )
 
     # TODO: does GDAL infer CRS automatically from geometry metadata?
     if crs is None:
@@ -696,23 +699,9 @@ def write_arrow(
         )
 
     # preprocess kwargs and split in dataset and layer creation options
-    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
-    layer_kwargs = _preprocess_options_key_value(layer_options or {})
-    if kwargs:
-        kwargs = _preprocess_options_key_value(kwargs)
-        dataset_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
-        )
-        layer_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
-        )
-        for k, v in kwargs.items():
-            if k in dataset_option_names:
-                dataset_kwargs[k] = v
-            elif k in layer_option_names:
-                layer_kwargs[k] = v
-            else:
-                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+    dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
+        driver, dataset_options, layer_options, *kwargs
+    )
 
     ogr_write_arrow(
         path,
