@@ -605,7 +605,7 @@ def write_arrow(
     ----------
     arrow_obj
         The Arrow data to write. This can be any Arrow-compatible tabular data
-        object that implements the Arrow PyCapsule Protocol (i.e. has an
+        object that implements the `Arrow PyCapsule Protocol`_ (i.e. has an
         ``__arrow_c_stream__`` method), for example a pyarrow Table or
         RecordBatchReader.
     path : str
@@ -662,6 +662,9 @@ def write_arrow(
         explicit `dataset_options` or `layer_options` keywords to manually
         do this (for example if an option exists as both dataset and layer
         option).
+
+    .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
+
     """
     if not HAS_ARROW_WRITE_API:
         raise RuntimeError("GDAL>=3.8 required to write using arrow")
