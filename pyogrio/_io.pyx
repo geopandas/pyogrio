@@ -1424,14 +1424,9 @@ def ogr_open_arrow(
         OGR_L_ResetReading(ogr_layer)
 
         # allocate the stream struct and wrap in capsule to ensure clean-up on error
-        if not return_pyarrow:
-            capsule = alloc_c_stream(&stream)
-        else:
-            stream = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
+        capsule = alloc_c_stream(&stream)
 
         if not OGR_L_GetArrowStream(ogr_layer, stream, options):
-            if return_pyarrow:
-                free(stream)
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
@@ -1463,6 +1458,8 @@ def ogr_open_arrow(
             # Mark reader as closed to prevent reading batches
             reader.close()
 
+        # `stream` will be freed through `capsule` destructor
+
         CSLDestroy(options)
         if fields_c != NULL:
             CSLDestroy(fields_c)
@@ -1478,9 +1475,6 @@ def ogr_open_arrow(
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
-
-        if return_pyarrow:
-            free(stream)
 
 
 def ogr_read_bounds(
