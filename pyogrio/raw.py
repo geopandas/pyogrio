@@ -579,12 +579,12 @@ def write_arrow(
     **kwargs,
 ):
     """
-    Write an Arrow compatible data source to an OGR file format.
+    Write an Arrow-compatible data source to an OGR file format.
 
     Parameters
     ----------
     arrow_obj
-        The Arrow data to write. This can be any Arrow-compatible taular data
+        The Arrow data to write. This can be any Arrow-compatible tabular data
         object that implements the Arrow PyCapsule Protocol (i.e. has an
         ``__arrow_c_stream__`` method), for example a pyarrow Table or
         RecordBatchReader.
@@ -593,14 +593,14 @@ def write_arrow(
     layer : str, optional (default: None)
         layer name
     driver : str, optional (default: None)
-        The OGR format driver used to write the vector file. By default write_dataframe
+        The OGR format driver used to write the vector file. By default write_arrow
         attempts to infer driver from path.
     geometry_name : str, optional (default: None)
         The name of the column in the input data that will be written as the
         geometry field. Will be inferred from the input data if the geometry
         column is annotated as an "geoarrow.wkb" or "ogc.wkb" extension type.
         Otherwise needs to be specified explicitly.
-    geometry_type : str, optional (default: None)
+    geometry_type : str
         The geometry type of the written layer. Currently, this needs to be
         specified explicitly when creating a new layer.
         Possible values are: "Unknown", "Point", "LineString", "Polygon",
