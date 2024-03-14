@@ -1,7 +1,7 @@
 import warnings
 
 from pyogrio._env import GDALEnv
-from pyogrio._compat import HAS_ARROW_API
+from pyogrio._compat import HAS_ARROW_API, HAS_PYARROW
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import (
@@ -256,6 +256,12 @@ def read_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
     """
+    if not HAS_PYARROW:
+        raise RuntimeError(
+            "pyarrow required to read using 'read_arrow'. You can use 'open_arrow' "
+            "to read data with an alternative Arrow implementation"
+        )
+
     from pyarrow import Table
 
     gdal_version = get_gdal_version()
@@ -361,16 +367,35 @@ def open_arrow(
     sql_dialect=None,
     return_fids=False,
     batch_size=65_536,
+    return_pyarrow=True,
     **kwargs,
 ):
     """
-    Open OGR data source as a stream of pyarrow record batches.
+    Open OGR data source as a stream of Arrow record batches.
 
     See docstring of `read` for parameters.
 
-    The RecordBatchStreamReader is reading from a stream provided by OGR and must not be
+    The RecordBatchReader is reading from a stream provided by OGR and must not be
     accessed after the OGR dataset has been closed, i.e. after the context manager has
     been closed.
+
+    By default this function returns a `pyarrow.RecordBatchReader`. Optionally,
+    you can use this function without a `pyarrow` dependency by specifying
+    ``return_pyarrow=False``. In that case, the returned reader will be a
+    generic object implementing the `Arrow PyCapsule Protocol`_ (i.e. having
+    an `__arrow_c_stream__` method). This object can then be consumed by
+    your Arrow implementation of choice that supports this protocol.
+
+    .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
+
+    Other Parameters
+    ----------------
+    batch_size : int (default: 65_536)
+        Maximum number of features to retrieve in a batch.
+    return_pyarrow : bool (default: True)
+        If False, return a generic ArrowStream object instead of a pyarrow
+        RecordBatchReader. This object needs to be passed to another library
+        supporting the Arrow PyCapsule Protocol to consume the stream of data.
 
     Examples
     --------
@@ -384,12 +409,22 @@ def open_arrow(
     >>>     for table in reader:
     >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
 
+    Or without directly returning a pyarrow object:
+
+    >>> with open_arrow(path) as source:
+    >>>     meta, stream = source
+    >>>     reader = pa.RecordBatchReader.from_stream(stream)
+    >>>     for table in reader:
+    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
+
     Returns
     -------
-    (dict, pyarrow.RecordBatchStreamReader)
+    (dict, pyarrow.RecordBatchReader or ArrowStream)
 
         Returns a tuple of meta information about the data source in a dict,
-        and a pyarrow RecordBatchStreamReader with data.
+        and a data stream object (a pyarrow RecordBatchReader if
+        `return_pyarrow` is set to True, otherwise a generic ArrowStrem
+        object).
 
         Meta is: {
             "crs": "<crs>",
@@ -400,7 +435,7 @@ def open_arrow(
         }
     """
     if not HAS_ARROW_API:
-        raise RuntimeError("pyarrow and GDAL>= 3.6 required to read using arrow")
+        raise RuntimeError("GDAL>= 3.6 required to read using arrow")
 
     path, buffer = get_vsi_path(path_or_buffer)
 
@@ -425,6 +460,7 @@ def open_arrow(
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
             batch_size=batch_size,
+            return_pyarrow=return_pyarrow,
         )
     finally:
         if buffer is not None:
