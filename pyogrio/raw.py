@@ -703,7 +703,7 @@ def write_arrow(
 
     # preprocess kwargs and split in dataset and layer creation options
     dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
-        driver, dataset_options, layer_options, *kwargs
+        driver, dataset_options, layer_options, kwargs
     )
 
     ogr_write_arrow(
