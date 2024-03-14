@@ -213,11 +213,11 @@ def test_open_arrow_capsule_protocol(naturalearth_lowres):
 
     with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
         assert isinstance(meta, dict)
-        assert isinstance(reader, pyogrio.raw._ArrowStream)
+        assert isinstance(reader, pyogrio._io._ArrowStream)
 
         result = pyarrow.table(reader)
 
-    expected = read_arrow(naturalearth_lowres)
+    _, expected = read_arrow(naturalearth_lowres)
     assert result.equals(expected)
 
 

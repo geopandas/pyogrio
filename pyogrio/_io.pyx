@@ -1259,6 +1259,16 @@ cdef object alloc_c_stream(ArrowArrayStream** c_stream):
     return PyCapsule_New(c_stream[0], 'arrow_array_stream', &pycapsule_array_stream_deleter)
 
 
+class _ArrowStream:
+    def __init__(self, capsule):
+        self._capsule = capsule
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        if requested_schema is not None:
+            raise NotImplementedError("requested_schema is not supported")
+        return self._capsule
+
+
 @contextlib.contextmanager
 def ogr_open_arrow(
     str path,
@@ -1278,7 +1288,7 @@ def ogr_open_arrow(
     str sql_dialect=None,
     int return_fids=False,
     int batch_size=0,
-    return_capsule=False,
+    return_pyarrow=True,
 ):
 
     cdef int err = 0
@@ -1414,13 +1424,14 @@ def ogr_open_arrow(
         OGR_L_ResetReading(ogr_layer)
 
         # allocate the stream struct and wrap in capsule to ensure clean-up on error
-        if return_capsule:
+        if not return_pyarrow:
             capsule = alloc_c_stream(&stream)
         else:
             stream = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
 
         if not OGR_L_GetArrowStream(ogr_layer, stream, options):
-            free(stream)
+            if return_pyarrow:
+                free(stream)
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
@@ -1428,12 +1439,12 @@ def ogr_open_arrow(
             # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        if return_capsule:
-            reader = capsule
-        else:
+        if return_pyarrow:
             import pyarrow as pa
             stream_ptr = <uintptr_t> stream
             reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        else:
+            reader = _ArrowStream(capsule)
 
         meta = {
             'crs': crs,
@@ -1448,7 +1459,7 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
-        if reader is not None:
+        if return_pyarrow and reader is not None:
             # Mark reader as closed to prevent reading batches
             reader.close()
 
@@ -1468,7 +1479,8 @@ def ogr_open_arrow(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        free(stream)
+        if return_pyarrow:
+            free(stream)
 
 
 def ogr_read_bounds(
