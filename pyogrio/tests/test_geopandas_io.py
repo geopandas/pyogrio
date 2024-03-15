@@ -483,12 +483,24 @@ def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
     assert np.array_equal(df.iso_a3, ["CAN"])
 
 
-def test_read_fids(naturalearth_lowres_all_ext):
+@pytest.mark.parametrize("fids", [[1, 5, 10], np.array([1, 5, 10], dtype=np.int64)])
+def test_read_fids(naturalearth_lowres_all_ext, fids, use_arrow):
     # ensure keyword is properly passed through
-    fids = np.array([1, 10, 5], dtype=np.int64)
-    df = read_dataframe(naturalearth_lowres_all_ext, fids=fids, fid_as_index=True)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, fids=fids, fid_as_index=True, use_arrow=use_arrow
+    )
     assert len(df) == 3
     assert np.array_equal(fids, df.index.values)
+
+
+@requires_arrow_api
+def test_read_fids_arrow_many_error(naturalearth_lowres):
+    # Maximum number at time of writing is 4997 for "OGRSQL". For e.g. for SQLite based
+    # formats like Geopackage, there is no limit.
+    nb_fids = 4998
+    fids = range(nb_fids)
+    with pytest.raises(ValueError, match=f"error applying filter for {nb_fids} fids"):
+        _ = read_dataframe(naturalearth_lowres, fids=fids, use_arrow=True)
 
 
 def test_read_fids_force_2d(test_fgdb_vsi):
