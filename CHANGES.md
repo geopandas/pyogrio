@@ -4,10 +4,12 @@
 
 ### Improvements
 
--   `read_arrow` and `open_arrow` now provide 
+-   Write "Unknown cartesian CRS" when saving gdf without a CRS to GPKG (#368).
+-   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
--   Write "Unknown cartesian CRS" when saving gdf without a CRS to GPKG (#368).
+-   Warn when reading from a multilayer file without specifying a layer (#362).
+
 
 ### Bug fixes
 
