@@ -13,15 +13,13 @@ import versioneer
 # import Cython if available
 try:
     from Cython.Build import cythonize
-    from Cython.Distutils import build_ext as _build_ext
+    from Cython.Distutils import build_ext
 except ImportError:
     cythonize = None
 
 
 MIN_PYTHON_VERSION = (3, 8, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
-
-build_ext = None
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
@@ -171,20 +169,6 @@ else:
         compiler_directives={"language_level": "3"},
         compile_time_env=compile_time_env,
     )
-
-    # Get numpy include directory without importing numpy at top level here
-    # from: https://stackoverflow.com/a/42163080
-    class build_ext(_build_ext):
-        def run(self):
-            try:
-                import numpy
-
-                self.include_dirs.append(numpy.get_include())
-                # Call original build_ext command
-                _build_ext.run(self)
-
-            except ImportError:
-                pass
 
     if os.environ.get("PYOGRIO_PACKAGE_DATA"):
         gdal_data = os.environ.get("GDAL_DATA")

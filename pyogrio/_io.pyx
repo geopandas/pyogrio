@@ -19,7 +19,6 @@ from libc.math cimport isnan
 
 cimport cython
 import numpy as np
-cimport numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
