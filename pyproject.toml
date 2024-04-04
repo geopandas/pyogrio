@@ -1,10 +1,8 @@
 [build-system]
-# numpy and Cython are required to execute setup.py to build Cython extensions
 requires = [
     "setuptools",
     "wheel",
     "Cython>=0.29",
-    "oldest-supported-numpy",
     "versioneer[toml]==0.28",
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
