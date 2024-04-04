@@ -1718,7 +1718,7 @@ cdef infer_field_types(list dtypes):
             # width = values.astype(np.str_).dtype.itemsize // 4
             # DO WE NEED WIDTH HERE?
 
-        elif dtype.type is np.str_ or dtype.type is np.string_:
+        elif dtype.type is np.str_ or dtype.type is np.bytes_:
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
