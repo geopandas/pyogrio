@@ -1446,7 +1446,7 @@ def test_write_nullable_dtypes(tmp_path):
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
     expected["col5"] = expected["col5"].astype(object)
-    expected.loc[1, "col5"] = None # pandas 3.0.0+ converts to pd.NA on line above
+    expected.loc[1, "col5"] = None  # pandas 3.0.0+ converts to pd.NA on line above
     assert_geodataframe_equal(output_gdf, expected)
 
 
