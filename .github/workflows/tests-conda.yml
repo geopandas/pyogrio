@@ -43,7 +43,7 @@ jobs:
           # environment with nightly wheels
           - os: "ubuntu-latest"
             python: "3.11"
-            env: "dev"
+            env: "nightly-deps"
 
     steps:
       - name: Checkout repo
