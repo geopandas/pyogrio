@@ -79,6 +79,12 @@ def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     assert len(geometry) == len(fields[0])
 
 
+def test_read_arrow_unspecified_layer_warning(data_dir):
+    """Reading a multi-layer file without specifying a layer gives a warning."""
+    with pytest.warns(UserWarning, match="More than one layer found "):
+        read(data_dir / "sample.osm.pbf")
+
+
 def test_read_invalid_layer(naturalearth_lowres):
     with pytest.raises(DataLayerError, match="Layer 'invalid' could not be opened"):
         read(naturalearth_lowres, layer="invalid")

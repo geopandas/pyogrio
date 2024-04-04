@@ -4,9 +4,11 @@
 
 ### Improvements
 
--   `read_arrow` and `open_arrow` now provide 
+-   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
+-   Warn when reading from a multilayer file without specifying a layer (#362).
+
 
 ### Bug fixes
 
