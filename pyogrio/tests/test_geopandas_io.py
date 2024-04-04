@@ -62,6 +62,26 @@ def spatialite_available(path):
         return False
 
 
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
+def test_read_csv_encoding(tmp_path, encoding):
+    # Write csv test file. Depending on the os this will be written in a different
+    # encoding: for linux and macos this is utf-8, for windows it is cp1252.
+    csv_path = tmp_path / "test.csv"
+    with open(csv_path, "w", encoding=encoding) as csv:
+        csv.write("näme,city\n")
+        csv.write("Wilhelm Röntgen,Zürich\n")
+
+    # Read csv. The data should be read with the same default encoding as the csv file
+    # was written in, but should have been converted to utf-8 in the dataframe returned.
+    # Hence, the asserts below, with strings in utf-8, be OK.
+    df = read_dataframe(csv_path, encoding=encoding)
+
+    assert len(df) == 1
+    assert df.columns.tolist() == ["näme", "city"]
+    assert df.city.tolist() == ["Zürich"]
+    assert df.näme.tolist() == ["Wilhelm Röntgen"]
+
+
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
@@ -154,6 +174,7 @@ def test_read_force_2d(test_fgdb_vsi, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
+@pytest.mark.filterwarnings("ignore: More than one layer found in")
 def test_read_layer(test_fgdb_vsi, use_arrow):
     layers = list_layers(test_fgdb_vsi)
     kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
@@ -251,7 +272,9 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
 
 
 def test_read_null_values(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(test_fgdb_vsi, use_arrow=use_arrow, read_geometry=False)
+    df = read_dataframe(
+        test_fgdb_vsi, layer="basetable_2", use_arrow=use_arrow, read_geometry=False
+    )
 
     # make sure that Null values are preserved
     assert df.SEGMENT_NAME.isnull().max()
@@ -787,6 +810,39 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
+
+
+@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
+def test_write_csv_encoding(tmp_path, encoding):
+    """Test if write_dataframe uses the default encoding correctly."""
+    # Write csv test file. Depending on the os this will be written in a different
+    # encoding: for linux and macos this is utf-8, for windows it is cp1252.
+    csv_path = tmp_path / "test.csv"
+
+    with open(csv_path, "w", encoding=encoding) as csv:
+        csv.write("näme,city\n")
+        csv.write("Wilhelm Röntgen,Zürich\n")
+
+    # Write csv test file with the same data using write_dataframe. It should use the
+    # same encoding as above.
+    df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
+    csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
+    write_dataframe(df, csv_pyogrio_path, encoding=encoding)
+
+    # Check if the text files written both ways can be read again and give same result.
+    with open(csv_path, "r", encoding=encoding) as csv:
+        csv_str = csv.read()
+    with open(csv_pyogrio_path, "r", encoding=encoding) as csv_pyogrio:
+        csv_pyogrio_str = csv_pyogrio.read()
+    assert csv_str == csv_pyogrio_str
+
+    # Check if they files are binary identical, to be 100% sure they were written with
+    # the same encoding.
+    with open(csv_path, "rb") as csv:
+        csv_bytes = csv.read()
+    with open(csv_pyogrio_path, "rb") as csv_pyogrio:
+        csv_pyogrio_bytes = csv_pyogrio.read()
+    assert csv_bytes == csv_pyogrio_bytes
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
