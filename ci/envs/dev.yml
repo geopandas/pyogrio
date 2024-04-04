@@ -1,0 +1,15 @@
+name: test
+channels:
+  - conda-forge
+dependencies:
+  - libgdal
+  - pytest
+  - geopandas-base
+  - pip
+  - pip:
+    - --pre --index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple --extra-index-url https://pypi.fury.io/arrow-nightlies/ --extra-index-url https://pypi.org/simple
+    - numpy>=2.0.0.dev
+    - shapely
+    - pyarrow
+
+
