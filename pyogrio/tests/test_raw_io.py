@@ -79,6 +79,12 @@ def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     assert len(geometry) == len(fields[0])
 
 
+def test_read_arrow_unspecified_layer_warning(data_dir):
+    """Reading a multi-layer file without specifying a layer gives a warning."""
+    with pytest.warns(UserWarning, match="More than one layer found "):
+        read(data_dir / "sample.osm.pbf")
+
+
 def test_read_invalid_layer(naturalearth_lowres):
     with pytest.raises(DataLayerError, match="Layer 'invalid' could not be opened"):
         read(naturalearth_lowres, layer="invalid")
@@ -414,15 +420,23 @@ def test_read_return_only_fids(naturalearth_lowres):
     assert len(field_data) == 0
 
 
-def test_write(tmpdir, naturalearth_lowres):
+@pytest.mark.parametrize("encoding", [None, "ISO-8859-1"])
+def test_write_shp(tmpdir, naturalearth_lowres, encoding):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
+    meta["encoding"] = encoding
     write(filename, geometry, field_data, **meta)
 
     assert os.path.exists(filename)
     for ext in (".dbf", ".prj"):
         assert os.path.exists(filename.replace(".shp", ext))
+
+    # We write shapefiles in UTF-8 by default on all platforms
+    expected_encoding = encoding if encoding is not None else "UTF-8"
+    with open(filename.replace(".shp", ".cpg")) as cpg_file:
+        result_encoding = cpg_file.read()
+        assert result_encoding == expected_encoding
 
 
 def test_write_gpkg(tmpdir, naturalearth_lowres):
@@ -478,6 +492,10 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     field_data = None
     meta["fields"] = None
+    # naturalearth_lowres actually contains MultiPolygons. A shapefile doesn't make the
+    # distinction, so the metadata just reports Polygon. GPKG does, so override here to
+    # avoid GDAL warnings.
+    meta["geometry_type"] = "MultiPolygon"
 
     # Test
     filename = tmp_path / "test.gpkg"
@@ -488,7 +506,7 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     meta, _, geometry, fields = read(filename)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
+    assert meta["geometry_type"] == "MultiPolygon"
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (0,)
     assert len(fields) == 0

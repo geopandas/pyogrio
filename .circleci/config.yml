@@ -4,7 +4,7 @@ jobs:
   linux-aarch64-wheels:
     working_directory: ~/linux-aarch64-wheels
     machine:
-      image: ubuntu-2004:2022.04.1
+      image: default
       docker_layer_caching: true
     # resource_class is what tells CircleCI to use an ARM worker for native arm builds
     # https://circleci.com/product/features/resource-classes/
@@ -20,7 +20,7 @@ jobs:
       - run:
           name: Build the Linux aarch64 wheels.
           command: |
-            python3 -m pip install --user cibuildwheel==2.16.2
+            python3 -m pip install --user cibuildwheel==2.16.5
             python3 -m cibuildwheel --output-dir wheelhouse
       - run:
           name: Test the wheels

@@ -244,7 +244,7 @@ def read_info(
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,
                 "encoding": "<encoding>",
-                "geometry": "<geometry type>",
+                "geometry_type": "<geometry type>",
                 "features": <feature count or -1>,
                 "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
