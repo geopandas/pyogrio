@@ -1948,8 +1948,9 @@ cdef create_ogr_dataset_layer(
         # Setup layer creation options
 
         if driver == 'ESRI Shapefile':
-            # Fiona only sets encoding for shapefiles; other drivers do not support
-            # encoding as an option.
+            # ENCODING option must be set for shapefiles to properly write *.cpg
+            # file containing the encoding; this is not a supported option for
+            # other drivers
             if encoding is None:
                 encoding = "UTF-8"
             encoding_b = encoding.upper().encode('UTF-8')
@@ -2074,10 +2075,17 @@ def ogr_write(
         &ogr_dataset, &ogr_layer,
     )
 
-    # Now the dataset and layer have been created, we can properly determine the
-    # encoding. It is derived from the user, from the dataset capabilities / type,
-    # or from the system locale
-    encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+
+    if driver == 'ESRI Shapefile':
+        # force encoding for remaining operations to be in UTF-8 because
+        # GDAL will automatically convert those to the target encoding
+        encoding = "UTF-8"
+
+    else:
+        # Now the dataset and layer have been created, we can properly determine the
+        # encoding. It is derived from the user, from the dataset capabilities / type,
+        # or from the system locale
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
     ### Create the fields
     field_types = None

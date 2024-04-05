@@ -1168,6 +1168,45 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         )
 
 
+def test_non_utf8_encoding_shapefile(tmp_path):
+    encoding = "CP936"
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+
+    mandarin = "中文"
+    field_data = [np.array([mandarin], dtype=object)]
+
+    fields = [mandarin]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+
+    filename = tmp_path / "test.shp"
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    write(filename, geometry, field_data, fields, **meta)
+
+    actual_meta, _, _, actual_field_data = read(filename)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename)["fields"])
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    os.unlink(str(filename).replace(".shp", ".cpg"))
+
+    bad_meta, _, _, bad_field_data = read(filename)
+    assert not np.array_equal(fields, bad_meta["fields"])
+    assert not np.array_equal(field_data, bad_field_data)
+    assert not np.array_equal(fields, read_info(filename)["fields"])
+
+    actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
+    assert np.array_equal(fields, actual_meta["fields"])
+    assert np.array_equal(field_data, actual_field_data)
+    assert np.array_equal(fields, read_info(filename, encoding=encoding)["fields"])
+
+
 def test_write_with_mask(tmp_path):
     # Point(0, 0), null
     geometry = np.array(
