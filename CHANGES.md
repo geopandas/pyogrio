@@ -4,6 +4,7 @@
 
 ### Improvements
 
+-   Add support for `fids` filter with `use_arrow=True` (#304).
 -   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
@@ -62,7 +63,6 @@
     intersect the bounding box of the mask when using the Arrow interface for
     some drivers; this has been fixed in GDAL 3.8.0.
 -   Removed warning when no features are read from the data source (#299).
--   Add support for `fids` filter with `use_arrow=True` (#304)
 -   Add support for `force_2d=True` with `use_arrow=True` in `read_dataframe` (#300).
 
 ### Other changes
