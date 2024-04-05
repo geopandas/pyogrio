@@ -12,6 +12,7 @@ cdef extern from "cpl_conv.h":
     const char* CPLFindFile(const char *pszClass, const char *filename)
     const char* CPLGetConfigOption(const char* key, const char* value)
     void        CPLSetConfigOption(const char* key, const char* value)
+    char*       CPLStrdup(const char* string)
 
 
 cdef extern from "cpl_error.h" nogil:

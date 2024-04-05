@@ -1111,6 +1111,9 @@ def ogr_read(
     cdef OGRLayerH ogr_layer = NULL
     cdef int feature_count = 0
     cdef double xmin, ymin, xmax, ymax
+    cdef const char* prev_shape_encoding_c = NULL
+    cdef char* prev_shape_encoding = NULL
+    cdef bint override_shape_encoding = False
 
     path_b = path.encode('utf-8')
     path_c = path_b
@@ -1142,6 +1145,25 @@ def ogr_read(
         raise ValueError("'max_features' must be >= 0")
 
     try:
+        if encoding:
+            override_shape_encoding = True
+
+            # for shapefiles, SHAPE_ENCODING must be set before opening the file
+            # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
+            # SHAPE_ENCODING so that it can be restored later
+            # (we do this for all data sources where encoding is set because
+            # we don't know the driver until after it is opened, which is too late)
+            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            if prev_shape_encoding_c != NULL:
+                # strings returned from config options may be replaced via
+                # CPLSetConfigOption() below; GDAL instructs us to save a copy
+                # in a new string
+                prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
+
+            # set empty string to disable auto-decoding by GDAL to UTF-8
+            CPLSetConfigOption("SHAPE_ENCODING", "")
+
+
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
@@ -1156,6 +1178,7 @@ def ogr_read(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
+        # FIXME: it appears we need to set ENCODING sooner
         encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
@@ -1249,6 +1272,13 @@ def ogr_read(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
+        # reset SHAPE_ENCODING config parameter if temporarily set above
+        if override_shape_encoding:
+            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+
+            if prev_shape_encoding != NULL:
+                CPLFree(prev_shape_encoding)
+
     return (
         meta,
         fid_data,
@@ -1285,6 +1315,9 @@ def ogr_open_arrow(
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
+    cdef const char* prev_shape_encoding_c = NULL
+    cdef char* prev_shape_encoding = NULL
+    cdef bint override_shape_encoding = False
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
@@ -1328,6 +1361,25 @@ def ogr_open_arrow(
 
     reader = None
     try:
+        if encoding:
+            override_shape_encoding = True
+
+            # for shapefiles, SHAPE_ENCODING must be set before opening the file
+            # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
+            # SHAPE_ENCODING so that it can be restored later
+            # (we do this for all data sources where encoding is set because
+            # we don't know the driver until after it is opened, which is too late)
+            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            if prev_shape_encoding_c != NULL:
+                # strings returned from config options may be replaced via
+                # CPLSetConfigOption() below; GDAL instructs us to save a copy
+                # in a new string
+                prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
+
+            # set empty string to disable auto-decoding by GDAL to UTF-8
+            CPLSetConfigOption("SHAPE_ENCODING", "")
+
+
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
@@ -1450,6 +1502,13 @@ def ogr_open_arrow(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
+        # reset SHAPE_ENCODING config parameter if temporarily set above
+        if override_shape_encoding:
+            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+
+            if prev_shape_encoding != NULL:
+                CPLFree(prev_shape_encoding)
+
 def ogr_read_bounds(
     str path,
     object layer=None,
@@ -1518,12 +1577,32 @@ def ogr_read_info(
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef const char* prev_shape_encoding = NULL
+    cdef bint override_shape_encoding = False
 
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    
     try:
+        if encoding:
+            override_shape_encoding = True
+
+            # for shapefiles, SHAPE_ENCODING must be set before opening the file
+            # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
+            # SHAPE_ENCODING so that it can be restored later
+            # (we do this for all data sources where encoding is set because
+            # we don't know the driver until after it is opened, which is too late)
+            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            if prev_shape_encoding_c != NULL:
+                # strings returned from config options may be replaced via
+                # CPLSetConfigOption() below; GDAL instructs us to save a copy
+                # in a new string
+                prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
+
+            # set empty string to disable auto-decoding by GDAL to UTF-8
+            CPLSetConfigOption("SHAPE_ENCODING", "")
+
+
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
@@ -1566,6 +1645,13 @@ def ogr_read_info(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
+        # reset SHAPE_ENCODING config parameter if temporarily set above
+        if override_shape_encoding:
+            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+
+            if prev_shape_encoding != NULL:
+                CPLFree(prev_shape_encoding)
+
     return meta
 
 
@@ -1600,7 +1686,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     -------
     str
         the name of the default layer to be read.
-    
+
     """
     layers = get_layer_names(ogr_dataset)
     first_layer_name = layers[0][0]
@@ -1632,7 +1718,7 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     -------
     ndarray(n)
         array of layer names
-    
+
     """
     cdef OGRLayerH ogr_layer = NULL
 
