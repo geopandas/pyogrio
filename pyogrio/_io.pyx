@@ -1549,7 +1549,7 @@ def ogr_open_arrow(
             CPLSetThreadLocalConfigOption("SHAPE_ENCODING", prev_shape_encoding)
 
             if prev_shape_encoding != NULL:
-                CPLFree(prev_shape_encoding)
+                CPLFree(<void*>prev_shape_encoding)
 
 def ogr_read_bounds(
     str path,
@@ -1700,7 +1700,7 @@ def ogr_read_info(
             CPLSetThreadLocalConfigOption("SHAPE_ENCODING", prev_shape_encoding)
 
             if prev_shape_encoding != NULL:
-                CPLFree(prev_shape_encoding)
+                CPLFree(<void*>prev_shape_encoding)
 
     return meta
 

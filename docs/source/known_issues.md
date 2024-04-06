@@ -41,10 +41,21 @@ geometries from the data layer.
 
 ## Character encoding
 
-Pyogrio supports reading / writing data layers with a defined encoding. However,
+Pyogrio supports reading / writing data layers with a defined encoding. Where
+possible and the `encoding` option is not specified, GDAL will attempt to
+automatically decode from the native encoding to `UTF-8`, and pyogrio will report
+that the encoding is `UTF-8` in that case instead of the native encoding. For
+[ESRI Shapefiles](https://gdal.org/drivers/vector/shapefile.html#encoding),
+GDAL will use the associated `.cpg` file or a code page specified in the `.dbf`
+file to infer the native encoding, but may incorrectly assume the native encoding
+is `ISO-8859-1` leading to miscoding errors. Most other drivers are assumed to
+be in `UTF-8`, but it is possible (in theory) to specify the `encoding` parameter
+manually to force conversions to use the specified encoding value.
+
+However,
 DataFrames do not currently allow arbitrary metadata, which means that we are
 currently unable to store encoding information for a data source. Text fields
-are read into Python UTF-8 strings.
+are read into Python `UTF-8` strings.
 
 ## No validation of geometry or field types
 

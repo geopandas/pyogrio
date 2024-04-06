@@ -138,18 +138,24 @@ def test_datetime_tz():
 @pytest.fixture(
     scope="session",
     params=[
-        # Nordic
-        ("CP865", "Å"),
         # Japanese
         ("CP932", "ﾎ"),
         # Chinese
         ("CP936", "中文"),
-        # ANSI
+        # Central European
+        ("CP1250", "Đ"),
+        # Latin 1 / Western European
         ("CP1252", "ÿ"),
         # Greek
         ("CP1253", "Φ"),
+        # Arabic
+        ("CP1256", "ش"),
     ],
 )
 def encoded_text(request):
-    """Return tuple with encoding name and very short sample text in that encoding"""
+    """Return tuple with encoding name and very short sample text in that encoding
+    NOTE: it was determined through testing that code pages for MS-DOS do not
+    consistently work across all Python installations (in particular, fail with conda),
+    but ANSI code pages appear to work properly.
+    """
     return request.param
