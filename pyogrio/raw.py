@@ -260,9 +260,12 @@ def read_arrow(
 
     gdal_version = get_gdal_version()
 
+    # also checking skip_features here because of special handling for GDAL < 3.8.0
+    # otherwise it is properly checked in ogr_open_arrow instead
     if skip_features < 0:
         raise ValueError("'skip_features' must be >= 0")
 
+    # max_features support is shimmed here so it must be validated here
     if max_features is not None and max_features < 0:
         raise ValueError("'max_features' must be >= 0")
 
@@ -401,6 +404,12 @@ def open_arrow(
     """
     if not HAS_ARROW_API:
         raise RuntimeError("pyarrow and GDAL>= 3.6 required to read using arrow")
+
+    gdal_version = get_gdal_version()
+    if skip_features and gdal_version < (3, 8, 0):
+        raise ValueError(
+            "specifying 'skip_features' is not supported for open_arrow for GDAL<3.8.0"
+        )
 
     path, buffer = get_vsi_path(path_or_buffer)
 

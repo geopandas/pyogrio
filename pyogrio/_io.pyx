@@ -1238,6 +1238,10 @@ def ogr_read(
         }
 
     finally:
+        if fields_c != NULL:
+            CSLDestroy(fields_c)
+            fields_c = NULL
+
         if dataset_options != NULL:
             CSLDestroy(dataset_options)
             dataset_options = NULL
@@ -1288,6 +1292,8 @@ def ogr_open_arrow(
     cdef ArrowArrayStream stream
     cdef ArrowSchema schema
 
+    # this block prevents compilation of remaining code in this function, which
+    # fails for GDAL < 3.6.0 because OGR_L_GetArrowStream is undefined
     IF CTE_GDAL_VERSION < (3, 6, 0):
         raise RuntimeError("Need GDAL>=3.6 for Arrow support")
 
@@ -1299,12 +1305,6 @@ def ogr_open_arrow(
 
     if fids is not None:
         raise ValueError("reading by FID is not supported for Arrow")
-
-    IF CTE_GDAL_VERSION < (3, 8, 0):
-        if skip_features:
-            raise ValueError(
-                "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
-            )
 
     if skip_features < 0:
         raise ValueError("'skip_features' must be >= 0")
@@ -1387,19 +1387,20 @@ def ogr_open_arrow(
             options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
 
         if batch_size > 0:
+            batch_size_b = str(batch_size).encode('UTF-8')
+            batch_size_c = batch_size_b
             options = CSLSetNameValue(
                 options,
                 "MAX_FEATURES_IN_BATCH",
-                str(batch_size).encode('UTF-8')
+                <const char*>batch_size_c
             )
 
-        # Default to geoarrow metadata encoding
-        IF CTE_GDAL_VERSION >= (3, 8, 0):
-            options = CSLSetNameValue(
-                options,
-                "GEOMETRY_METADATA_ENCODING",
-                "GEOARROW".encode('UTF-8')
-            )
+        # Default to geoarrow metadata encoding (only used for GDAL >= 3.8.0)
+        options = CSLSetNameValue(
+            options,
+            "GEOMETRY_METADATA_ENCODING",
+            "GEOARROW"
+        )
 
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
@@ -1434,7 +1435,9 @@ def ogr_open_arrow(
             # Mark reader as closed to prevent reading batches
             reader.close()
 
-        CSLDestroy(options)
+        if options != NULL:
+            CSLDestroy(options)
+
         if fields_c != NULL:
             CSLDestroy(fields_c)
             fields_c = NULL
@@ -1522,7 +1525,7 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1600,7 +1603,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     -------
     str
         the name of the default layer to be read.
-    
+
     """
     layers = get_layer_names(ogr_dataset)
     first_layer_name = layers[0][0]
@@ -1632,7 +1635,7 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     -------
     ndarray(n)
         array of layer names
-    
+
     """
     cdef OGRLayerH ogr_layer = NULL
 

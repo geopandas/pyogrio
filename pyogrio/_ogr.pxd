@@ -202,6 +202,8 @@ cdef extern from "ogr_api.h":
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
 
+    bint            OGRGetGEOSVersion(int *pnMajor, int *pnMinor, int *pnPatch)
+
     OGRDataSourceH  OGR_Dr_Open(OGRSFDriverH driver, const char *path, int bupdate)
     const char*     OGR_Dr_GetName(OGRSFDriverH driver)
 

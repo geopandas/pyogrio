@@ -171,7 +171,7 @@ def test_open_arrow_skip_features_unsupported(naturalearth_lowres, skip_features
     GDAL < 3.8.0"""
     with pytest.raises(
         ValueError,
-        match="specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0",
+        match="specifying 'skip_features' is not supported for open_arrow for GDAL<3.8.0",
     ):
         with open_arrow(naturalearth_lowres, skip_features=skip_features) as (
             meta,

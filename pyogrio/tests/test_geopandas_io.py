@@ -317,11 +317,13 @@ def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
     assert len(df.columns) == 0
 
 
-def test_read_where(naturalearth_lowres_all_ext, use_arrow):
+def test_read_where_empty(naturalearth_lowres_all_ext, use_arrow):
     # empty filter should return full set of records
     df = read_dataframe(naturalearth_lowres_all_ext, use_arrow=use_arrow, where="")
     assert len(df) == 177
 
+
+def test_read_where_equals(naturalearth_lowres_all_ext, use_arrow):
     # should return singular item
     df = read_dataframe(
         naturalearth_lowres_all_ext, use_arrow=use_arrow, where="iso_a3 = 'CAN'"
@@ -329,6 +331,8 @@ def test_read_where(naturalearth_lowres_all_ext, use_arrow):
     assert len(df) == 1
     assert df.iloc[0].iso_a3 == "CAN"
 
+
+def test_read_where_in(naturalearth_lowres_all_ext, use_arrow):
     df = read_dataframe(
         naturalearth_lowres_all_ext,
         use_arrow=use_arrow,
@@ -337,6 +341,8 @@ def test_read_where(naturalearth_lowres_all_ext, use_arrow):
     assert len(df) == 3
     assert len(set(df.iso_a3.unique()).difference(["CAN", "USA", "MEX"])) == 0
 
+
+def test_read_where_range(naturalearth_lowres_all_ext, use_arrow):
     # should return items within range
     df = read_dataframe(
         naturalearth_lowres_all_ext,

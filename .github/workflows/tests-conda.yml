@@ -62,7 +62,7 @@ jobs:
           echo "GDAL_VERSION=$(gdalinfo --version | cut -c 6-10)" >> $GITHUB_ENV
 
       - name: Install pyogrio
-        run: pip install -e .
+        run: pip install -e . -v
 
       - name: Test
         run: |
