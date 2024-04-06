@@ -133,3 +133,23 @@ def test_datetime():
 @pytest.fixture(scope="session")
 def test_datetime_tz():
     return _data_dir / "test_datetime_tz.geojson"
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        # Nordic
+        ("CP865", "Å"),
+        # Japanese
+        ("CP932", "ﾎ"),
+        # Chinese
+        ("CP936", "中文"),
+        # ANSI
+        ("CP1252", "ÿ"),
+        # Greek
+        ("CP1253", "Φ"),
+    ],
+)
+def encoded_text(request):
+    """Return tuple with encoding name and very short sample text in that encoding"""
+    return request.param

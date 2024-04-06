@@ -1614,7 +1614,7 @@ def test_arrow_bool_exception(tmpdir):
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
-def test_non_utf8_encoding_io(tmp_path, ext):
+def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
 
     IMPORTANT: this may not be valid for the data source and will likely render
@@ -1623,14 +1623,11 @@ def test_non_utf8_encoding_io(tmp_path, ext):
 
     NOTE: pyarrow cannot handle non-UTF-8 characters in this way
     """
-    encoding = "CP936"
 
+    encoding, text = encoded_text
     output_path = tmp_path / f"test.{ext}"
 
-    mandarin = "中文"
-    df = gp.GeoDataFrame(
-        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
-    )
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
     write_dataframe(df, output_path, encoding=encoding)
 
     # cannot open these files without specifying encoding
@@ -1639,33 +1636,30 @@ def test_non_utf8_encoding_io(tmp_path, ext):
 
     # must provide encoding to read these properly
     actual = read_dataframe(output_path, encoding=encoding)
-    assert actual.columns[0] == mandarin
-    assert actual[mandarin].values[0] == mandarin
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
 
 
-def test_non_utf8_encoding_io_shapefile(tmp_path, use_arrow):
-    encoding = "CP936"
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
+    encoding, text = encoded_text
 
     output_path = tmp_path / "test.shp"
 
-    mandarin = "中文"
-    df = gp.GeoDataFrame(
-        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
-    )
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
     write_dataframe(df, output_path, encoding=encoding)
 
     # NOTE: GDAL automatically creates a cpg file with the encoding name, which
     # means that if we read this without specifying the encoding it uses the
     # correct one
     actual = read_dataframe(output_path, use_arrow=use_arrow)
-    assert actual.columns[0] == mandarin
-    assert actual[mandarin].values[0] == mandarin
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
 
     # verify that if cpg file is not present, that user-provided encoding must be used
     os.unlink(str(output_path).replace(".shp", ".cpg"))
 
     # We will assume ISO-8859-1, which is wrong
-    miscoded = mandarin.encode("CP936").decode("ISO-8859-1")
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
 
     if use_arrow:
         # pyarrow cannot decode column name with incorrect encoding
@@ -1678,8 +1672,8 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, use_arrow):
 
     # If encoding is provided, that should yield correct text
     actual = read_dataframe(output_path, encoding=encoding, use_arrow=use_arrow)
-    assert actual.columns[0] == mandarin
-    assert actual[mandarin].values[0] == mandarin
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
 
 
 def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):

@@ -1169,25 +1169,23 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
-def test_non_utf8_encoding_io(tmp_path, ext):
+def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
 
     IMPORTANT: this may not be valid for the data source and will likely render
     them unusable in other tools, but should successfully roundtrip unless we
     disable writing using other encodings.
     """
-
-    encoding = "CP936"
+    encoding, text = encoded_text
 
     # Point(0, 0)
     geometry = np.array(
         [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
     )
 
-    mandarin = "中文"
-    field_data = [np.array([mandarin], dtype=object)]
+    field_data = [np.array([text], dtype=object)]
 
-    fields = [mandarin]
+    fields = [text]
     meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
 
     filename = tmp_path / f"test.{ext}"
@@ -1202,23 +1200,22 @@ def test_non_utf8_encoding_io(tmp_path, ext):
 
     # must provide encoding to read these properly
     actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
-    assert actual_meta["fields"][0] == mandarin
-    assert actual_field_data[0] == mandarin
-    assert read_info(filename, encoding=encoding)["fields"][0] == mandarin
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
 
 
-def test_non_utf8_encoding_io_shapefile(tmp_path):
-    encoding = "CP936"
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
+    encoding, text = encoded_text
 
     # Point(0, 0)
     geometry = np.array(
         [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
     )
 
-    mandarin = "中文"
-    field_data = [np.array([mandarin], dtype=object)]
+    field_data = [np.array([text], dtype=object)]
 
-    fields = [mandarin]
+    fields = [text]
     meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
 
     filename = tmp_path / "test.shp"
@@ -1228,25 +1225,25 @@ def test_non_utf8_encoding_io_shapefile(tmp_path):
     # means that if we read this without specifying the encoding it uses the
     # correct one
     actual_meta, _, _, actual_field_data = read(filename)
-    assert actual_meta["fields"][0] == mandarin
-    assert actual_field_data[0] == mandarin
-    assert read_info(filename)["fields"][0] == mandarin
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename)["fields"][0] == text
 
     # verify that if cpg file is not present, that user-provided encoding must be used
     os.unlink(str(filename).replace(".shp", ".cpg"))
 
     # We will assume ISO-8859-1, which is wrong
     bad_meta, _, _, bad_field_data = read(filename)
-    miscoded = mandarin.encode("CP936").decode("ISO-8859-1")
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
     assert bad_meta["fields"][0] == miscoded
     assert bad_field_data[0] == miscoded
     assert read_info(filename)["fields"][0] == miscoded
 
     # If encoding is provided, that should yield correct text
     actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
-    assert actual_meta["fields"][0] == mandarin
-    assert actual_field_data[0] == mandarin
-    assert read_info(filename, encoding=encoding)["fields"][0] == mandarin
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
 
 
 def test_write_with_mask(tmp_path):
