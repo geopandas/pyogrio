@@ -106,8 +106,8 @@ def read_dataframe(
         of the layer in the data source.  Defaults to first layer in data source.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for reading string values from
-        the data source, unless encoding can be inferred directly from the data
-        source.
+        the data source.  By default will automatically try to detect the native
+        encoding and decode to ``UTF-8``.
     columns : list-like, optional (default: all columns)
         List of column names to import from the data source.  Column names must
         exactly match the names in the data source, and will be returned in

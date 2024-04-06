@@ -217,6 +217,10 @@ def read_info(
     driver or if the data source is nonspatial. You can force it to be calculated using
     the ``force_total_bounds`` parameter.
 
+    ``encoding`` will be ``UTF-8`` if either the native encoding is likely to be
+    ``UTF-8`` or GDAL can automatically convert from the detected native encoding
+    to ``UTF-8``.
+
     Parameters
     ----------
     path : str or pathlib.Path
