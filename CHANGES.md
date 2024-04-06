@@ -18,9 +18,9 @@
 -   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
     a boolean column is detected due to error in GDAL reading boolean values (#335)
     this has been fixed in GDAL >= 3.8.3.
--   Disable GDAL's auto-decoding of ESRI Shapefiles to `UTF-8` in order to enable
-    user-provided `encoding` option to work properly for `read`, `read_dataframe`, and `open_arrow`, and correctly encode Shapefile field names and text values to the
-    user-provided `encoding` (#384).
+-   Properly handle decoding of ESRI Shapefiles with user-provided `encoding`
+    option for `read`, `read_dataframe`, and `open_arrow`, and correctly encode
+    Shapefile field names and text values to the user-provided `encoding` (#384).
 
 ### Packaging
 

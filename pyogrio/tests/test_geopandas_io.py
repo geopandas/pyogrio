@@ -1611,3 +1611,72 @@ def test_arrow_bool_exception(tmpdir):
         "the Arrow API",
     ):
         read_dataframe(filename, use_arrow=True)
+
+
+@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+def test_non_utf8_encoding_io(tmp_path, ext):
+    """Verify that we write non-UTF data to the data source
+
+    IMPORTANT: this may not be valid for the data source and will likely render
+    them unusable in other tools, but should successfully roundtrip unless we
+    disable writing using other encodings.
+
+    NOTE: pyarrow cannot handle non-UTF-8 characters in this way
+    """
+    encoding = "CP936"
+
+    output_path = tmp_path / f"test.{ext}"
+
+    mandarin = "中文"
+    df = gp.GeoDataFrame(
+        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
+    )
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read_dataframe(output_path)
+
+    # must provide encoding to read these properly
+    actual = read_dataframe(output_path, encoding=encoding)
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin
+
+
+def test_non_utf8_encoding_io_shapefile(tmp_path, use_arrow):
+    encoding = "CP936"
+
+    output_path = tmp_path / "test.shp"
+
+    mandarin = "中文"
+    df = gp.GeoDataFrame(
+        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
+    )
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    actual = read_dataframe(output_path, use_arrow=use_arrow)
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    os.unlink(str(output_path).replace(".shp", ".cpg"))
+
+    # We will assume ISO-8859-1, which is wrong
+    miscoded = mandarin.encode("CP936").decode("ISO-8859-1")
+
+    if use_arrow:
+        # pyarrow cannot decode column name with incorrect encoding
+        with pytest.raises(UnicodeDecodeError):
+            read_dataframe(output_path, use_arrow=True)
+    else:
+        bad = read_dataframe(output_path, use_arrow=False)
+        assert bad.columns[0] == miscoded
+        assert bad[miscoded].values[0] == miscoded
+
+    # If encoding is provided, that should yield correct text
+    actual = read_dataframe(output_path, encoding=encoding, use_arrow=use_arrow)
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin

@@ -1153,15 +1153,17 @@ def ogr_read(
             # SHAPE_ENCODING so that it can be restored later
             # (we do this for all data sources where encoding is set because
             # we don't know the driver until after it is opened, which is too late)
-            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            prev_shape_encoding_c = CPLGetThreadLocalConfigOption("SHAPE_ENCODING", NULL)
             if prev_shape_encoding_c != NULL:
                 # strings returned from config options may be replaced via
                 # CPLSetConfigOption() below; GDAL instructs us to save a copy
                 # in a new string
                 prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
 
-            # set empty string to disable auto-decoding by GDAL to UTF-8
-            CPLSetConfigOption("SHAPE_ENCODING", "")
+            # set encoding used automatically by GDAL
+            encoding_b = encoding.encode('UTF-8')
+            encoding_c = encoding_b
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", <const char*>encoding_c)
 
 
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1178,8 +1180,13 @@ def ogr_read(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        # FIXME: it appears we need to set ENCODING sooner
-        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
+            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+            # to UTF-8
+            encoding = "UTF-8"
+
+        else:
+            encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1274,7 +1281,7 @@ def ogr_read(
 
         # reset SHAPE_ENCODING config parameter if temporarily set above
         if override_shape_encoding:
-            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", prev_shape_encoding)
 
             if prev_shape_encoding != NULL:
                 CPLFree(prev_shape_encoding)
@@ -1369,16 +1376,17 @@ def ogr_open_arrow(
             # SHAPE_ENCODING so that it can be restored later
             # (we do this for all data sources where encoding is set because
             # we don't know the driver until after it is opened, which is too late)
-            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            prev_shape_encoding_c = CPLGetThreadLocalConfigOption("SHAPE_ENCODING", NULL)
             if prev_shape_encoding_c != NULL:
                 # strings returned from config options may be replaced via
                 # CPLSetConfigOption() below; GDAL instructs us to save a copy
                 # in a new string
                 prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
 
-            # set empty string to disable auto-decoding by GDAL to UTF-8
-            CPLSetConfigOption("SHAPE_ENCODING", "")
-
+            # set encoding used automatically by GDAL
+            encoding_b = encoding.encode('UTF-8')
+            encoding_c = encoding_b
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", <const char*>encoding_c)
 
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1394,7 +1402,13 @@ def ogr_open_arrow(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
+            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+            # to UTF-8
+            encoding = "UTF-8"
+
+        else:
+            encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
@@ -1504,7 +1518,7 @@ def ogr_open_arrow(
 
         # reset SHAPE_ENCODING config parameter if temporarily set above
         if override_shape_encoding:
-            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", prev_shape_encoding)
 
             if prev_shape_encoding != NULL:
                 CPLFree(prev_shape_encoding)
@@ -1592,15 +1606,17 @@ def ogr_read_info(
             # SHAPE_ENCODING so that it can be restored later
             # (we do this for all data sources where encoding is set because
             # we don't know the driver until after it is opened, which is too late)
-            prev_shape_encoding_c = CPLGetConfigOption("SHAPE_ENCODING", NULL)
+            prev_shape_encoding_c = CPLGetThreadLocalConfigOption("SHAPE_ENCODING", NULL)
             if prev_shape_encoding_c != NULL:
                 # strings returned from config options may be replaced via
                 # CPLSetConfigOption() below; GDAL instructs us to save a copy
                 # in a new string
                 prev_shape_encoding = CPLStrdup(prev_shape_encoding_c)
 
-            # set empty string to disable auto-decoding by GDAL to UTF-8
-            CPLSetConfigOption("SHAPE_ENCODING", "")
+            # set encoding used automatically by GDAL
+            encoding_b = encoding.encode('UTF-8')
+            encoding_c = encoding_b
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", <const char*>encoding_c)
 
 
         dataset_options = dict_to_options(dataset_kwargs)
@@ -1612,7 +1628,13 @@ def ogr_read_info(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
+            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+            # to UTF-8
+            encoding = "UTF-8"
+
+        else:
+            encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1647,7 +1669,7 @@ def ogr_read_info(
 
         # reset SHAPE_ENCODING config parameter if temporarily set above
         if override_shape_encoding:
-            CPLSetConfigOption("SHAPE_ENCODING", prev_shape_encoding)
+            CPLSetThreadLocalConfigOption("SHAPE_ENCODING", prev_shape_encoding)
 
             if prev_shape_encoding != NULL:
                 CPLFree(prev_shape_encoding)
