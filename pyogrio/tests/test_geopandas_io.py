@@ -1680,3 +1680,32 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, use_arrow):
     actual = read_dataframe(output_path, encoding=encoding, use_arrow=use_arrow)
     assert actual.columns[0] == mandarin
     assert actual[mandarin].values[0] == mandarin
+
+
+def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
+    encoding = "CP936"
+
+    output_path = tmp_path / "test.shp"
+
+    mandarin = "中文"
+    df = gp.GeoDataFrame(
+        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
+    )
+    write_dataframe(df, output_path, encoding=encoding)
+
+    actual = read_dataframe(
+        output_path,
+        sql=f"select * from test where \"{mandarin}\" = '{mandarin}'",
+        use_arrow=use_arrow,
+    )
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin
+
+    actual = read_dataframe(
+        output_path,
+        sql=f"select * from test where \"{mandarin}\" = '{mandarin}'",
+        encoding=encoding,
+        use_arrow=use_arrow,
+    )
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin

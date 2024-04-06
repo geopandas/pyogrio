@@ -486,6 +486,9 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         # read without recoding. Hence, it is up to you to supply the data in the
         # appropriate encoding. More info:
         # https://gdal.org/development/rfc/rfc23_ogr_unicode.html#oftstring-oftstringlist-fields
+        # NOTE: this always returns False for the layer returned by executing SQL,
+        # even when they indeed support UTF-8; the layer underying the SQL must
+        # be passed instead
         return "UTF-8"
 
     driver = get_driver(ogr_dataset)
@@ -1109,6 +1112,7 @@ def ogr_read(
     cdef char **fields_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef OGRLayerH base_layer = NULL
     cdef int feature_count = 0
     cdef double xmin, ymin, xmax, ymax
     cdef const char* prev_shape_encoding_c = NULL
@@ -1169,6 +1173,11 @@ def ogr_read(
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
+        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
+            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+            # to UTF-8
+            encoding = "UTF-8"
+
         if sql is None:
             if layer is None:
                 layer = get_default_layer(ogr_dataset)
@@ -1180,13 +1189,22 @@ def ogr_read(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
-            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
-            # to UTF-8
-            encoding = "UTF-8"
+        if encoding:
+            if get_driver(ogr_dataset) == "ESRI Shapefile":
+                # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+                # to UTF-8; ignore any encoding set by user
+                encoding = "UTF-8"
 
         else:
-            encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+            if sql is not None and get_driver(ogr_dataset) == "ESRI Shapefile":
+                # in order to properly test certain capabilities, we need to have the
+                # underlying layer referenced by the SQL query
+                base_layer = GDALDatasetGetLayer(ogr_dataset, 0)
+
+            else:
+                base_layer = ogr_layer
+
+            encoding = detect_encoding(ogr_dataset, base_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1319,6 +1337,7 @@ def ogr_open_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef OGRLayerH base_layer = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
@@ -1402,13 +1421,22 @@ def ogr_open_arrow(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
-            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
-            # to UTF-8
-            encoding = "UTF-8"
+        if encoding:
+            if get_driver(ogr_dataset) == "ESRI Shapefile":
+                # Because SHAPE_ENCODING is set above, GDAL will automatically decode
+                # to UTF-8; ignore any encoding set by user
+                encoding = "UTF-8"
 
         else:
-            encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+            if sql is not None and get_driver(ogr_dataset) == "ESRI Shapefile":
+                # in order to properly test certain capabilities, we need to have the
+                # underlying layer referenced by the SQL query
+                base_layer = GDALDatasetGetLayer(ogr_dataset, 0)
+
+            else:
+                base_layer = ogr_layer
+
+            encoding = detect_encoding(ogr_dataset, base_layer)
 
         fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
