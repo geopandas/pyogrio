@@ -1112,6 +1112,8 @@ def ogr_read(
     cdef int feature_count = 0
     cdef double xmin, ymin, xmax, ymax
 
+    print(f"ogr_open_arrow: {path}")
+
     path_b = path.encode('utf-8')
     path_c = path_b
 
@@ -1247,7 +1249,7 @@ def ogr_read(
             dataset_options = NULL
 
         if ogr_dataset != NULL:
-            if sql is not None:
+            if sql is not None and ogr_layer != NULL:
                 GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
 
             GDALClose(ogr_dataset)
@@ -1455,7 +1457,7 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
-        print("in ogr_open_arrow block")
+        print("in ogr_open_arrow finally block")
         if reader is not None:
             print("closing reader")
             # Mark reader as closed to prevent reading batches
@@ -1474,13 +1476,13 @@ def ogr_open_arrow(
             dataset_options = NULL
 
         if ogr_dataset != NULL:
-            if sql is not None:
+            if sql is not None and ogr_layer != NULL:
                 GDALDatasetReleaseResultSet(ogr_dataset, ogr_layer)
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        print("done with ogr_open_arrow block")
+        print("done with ogr_open_arrow finally block")
 
 def ogr_read_bounds(
     str path,
