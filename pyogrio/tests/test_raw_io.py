@@ -12,6 +12,7 @@ from pyogrio import (
     list_drivers,
     read_info,
     set_gdal_config_options,
+    get_gdal_config_option,
     __gdal_version__,
 )
 from pyogrio._compat import HAS_SHAPELY
@@ -1244,6 +1245,17 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
     assert actual_meta["fields"][0] == text
     assert actual_field_data[0] == text
     assert read_info(filename, encoding=encoding)["fields"][0] == text
+
+    # verify that setting encoding does not corrupt SHAPE_ENCODING option if set
+    # globally (it is ignored during read when encoding is specified by user)
+    try:
+        set_gdal_config_options({"SHAPE_ENCODING": "CP1254"})
+        _ = read(filename, encoding=encoding)
+        assert get_gdal_config_option("SHAPE_ENCODING") == "CP1254"
+
+    finally:
+        # reset to clear between tests
+        set_gdal_config_options({"SHAPE_ENCODING": None})
 
 
 def test_write_with_mask(tmp_path):
