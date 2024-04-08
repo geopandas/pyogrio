@@ -40,6 +40,10 @@ jobs:
           - os: "windows-2019"
             python: "3.10"
             env: "libgdal3.5.1"
+          # environment with nightly wheels
+          - os: "ubuntu-latest"
+            python: "3.11"
+            env: "nightly-deps"
 
     steps:
       - name: Checkout repo

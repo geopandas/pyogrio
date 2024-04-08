@@ -1522,7 +1522,7 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1600,7 +1600,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     -------
     str
         the name of the default layer to be read.
-    
+
     """
     layers = get_layer_names(ogr_dataset)
     first_layer_name = layers[0][0]
@@ -1632,7 +1632,7 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     -------
     ndarray(n)
         array of layer names
-    
+
     """
     cdef OGRLayerH ogr_layer = NULL
 
@@ -1726,10 +1726,10 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             # Convert to unicode string then take itemsize
             # TODO: better implementation of this
-            # width = values.astype(np.unicode_).dtype.itemsize // 4
+            # width = values.astype(np.str_).dtype.itemsize // 4
             # DO WE NEED WIDTH HERE?
 
-        elif dtype.type is np.unicode_ or dtype.type is np.string_:
+        elif dtype.type is np.str_ or dtype.type is np.bytes_:
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
