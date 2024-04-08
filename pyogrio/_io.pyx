@@ -1201,11 +1201,6 @@ def ogr_read(
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
-        if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
-            # Because SHAPE_ENCODING is set above, GDAL will automatically decode
-            # to UTF-8
-            encoding = "UTF-8"
-
         if sql is None:
             if layer is None:
                 layer = get_default_layer(ogr_dataset)
