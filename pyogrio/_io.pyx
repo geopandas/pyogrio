@@ -1328,9 +1328,12 @@ def ogr_open_arrow(
 
     reader = None
     try:
+        print("set dataset options")
         dataset_options = dict_to_options(dataset_kwargs)
+        print("open ogr dataset")
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
 
+        print("get ogr layer")
         if sql is None:
             if layer is None:
                 layer = get_default_layer(ogr_dataset)
@@ -1338,12 +1341,15 @@ def ogr_open_arrow(
         else:
             ogr_layer = execute_sql(ogr_dataset, sql, sql_dialect)
 
+        print("get crs")
         crs = get_crs(ogr_layer)
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
+        print("detect encoding")
         encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
+        print("get fields")
         fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
         ignored_fields = []
@@ -1353,10 +1359,13 @@ def ogr_open_arrow(
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
 
+        print("get geometry type")
         geometry_type = get_geometry_type(ogr_layer)
 
+        print("get geometry name")
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
+        print("get fid column")
         fid_column = get_string(OGR_L_GetFIDColumn(ogr_layer))
         # OGR_L_GetFIDColumn returns the column name if it is a custom column,
         # or "" if not. For arrow, the default column name is "OGC_FID".
@@ -1365,17 +1374,24 @@ def ogr_open_arrow(
 
         # Apply the attribute filter
         if where is not None and where != "":
+            print("apply where filter")
             apply_where_filter(ogr_layer, where)
+            print("done setting where filter")
 
         # Apply the spatial filter
         if bbox is not None:
+            print("apply bbox filter")
             apply_bbox_filter(ogr_layer, bbox)
+            print("done setting bbox filter")
 
         elif mask is not None:
+            print("apply mask filter")
             apply_geometry_filter(ogr_layer, mask)
+            print("done setting mask filter")
 
         # Limit to specified columns
         if ignored_fields:
+            print("set ignored fields")
             for field in ignored_fields:
                 field_b = field.encode("utf-8")
                 field_c = field_b
@@ -1384,9 +1400,11 @@ def ogr_open_arrow(
             OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         if not return_fids:
+            print("set no return fids")
             options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
 
         if batch_size > 0:
+            print("set batch size")
             batch_size_b = str(batch_size).encode('UTF-8')
             batch_size_c = batch_size_b
             options = CSLSetNameValue(
@@ -1396,6 +1414,7 @@ def ogr_open_arrow(
             )
 
         # Default to geoarrow metadata encoding (only used for GDAL >= 3.8.0)
+        print("set GEOMETRY_METADATA_ENCODING")
         options = CSLSetNameValue(
             options,
             "GEOMETRY_METADATA_ENCODING",
@@ -1403,8 +1422,10 @@ def ogr_open_arrow(
         )
 
         # make sure layer is read from beginning
+        print("reset reading")
         OGR_L_ResetReading(ogr_layer)
 
+        print("get arrow stream")
         if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
@@ -1413,11 +1434,14 @@ def ogr_open_arrow(
         if skip_features:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
+            print("set skip features")
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         # stream has to be consumed before the Dataset is closed
+        print("get reader")
         import pyarrow as pa
         reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        print("got reader")
 
         meta = {
             'crs': crs,
@@ -1431,9 +1455,12 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
+        print("in ogr_open_arrow block")
         if reader is not None:
+            print("closing reader")
             # Mark reader as closed to prevent reading batches
             reader.close()
+            print("closed reader")
 
         if options != NULL:
             CSLDestroy(options)
@@ -1452,6 +1479,8 @@ def ogr_open_arrow(
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
+
+        print("done with ogr_open_arrow block")
 
 def ogr_read_bounds(
     str path,

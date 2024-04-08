@@ -66,4 +66,4 @@ jobs:
 
       - name: Test
         run: |
-          pytest -v --color=yes -r s pyogrio/tests
+          pytest -v -s --color=yes -r s pyogrio/tests/test_geopandas_io.py
