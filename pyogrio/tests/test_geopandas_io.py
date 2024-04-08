@@ -343,9 +343,6 @@ def test_read_where_in(naturalearth_lowres_all_ext, use_arrow):
 
 
 def test_read_where_range(naturalearth_lowres_all_ext, use_arrow):
-    if naturalearth_lowres_all_ext.suffix != ".gpkg":
-        pytest.skip("only test gpkg")
-
     # should return items within range
     df = read_dataframe(
         naturalearth_lowres_all_ext,
