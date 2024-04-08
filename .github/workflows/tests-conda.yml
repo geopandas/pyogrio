@@ -32,15 +32,19 @@ jobs:
             extra: >-
               pandas=1.5
               geopandas=0.12
-          # # minimal environment without optional dependencies
-          # - os: "ubuntu-latest"
-          #   python: "3.9"
-          #   env: "minimal"
-          # # environment for older Windows libgdal to make sure gdal_i.lib is
-          # # properly detected
-          # - os: "windows-2019"
-          #   python: "3.10"
-          #   env: "libgdal3.5.1"
+        #   # minimal environment without optional dependencies
+        #   - os: "ubuntu-latest"
+        #     python: "3.9"
+        #     env: "minimal"
+        #   # environment for older Windows libgdal to make sure gdal_i.lib is
+        #   # properly detected
+        #   - os: "windows-2019"
+        #     python: "3.10"
+        #     env: "libgdal3.5.1"
+        #   # environment with nightly wheels
+        #   - os: "ubuntu-latest"
+        #     python: "3.11"
+        #     env: "nightly-deps"
 
     steps:
       - name: Checkout repo
