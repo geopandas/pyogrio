@@ -1627,6 +1627,7 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
+
     try:
         if encoding:
             override_shape_encoding = True
@@ -1855,10 +1856,10 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             # Convert to unicode string then take itemsize
             # TODO: better implementation of this
-            # width = values.astype(np.unicode_).dtype.itemsize // 4
+            # width = values.astype(np.str_).dtype.itemsize // 4
             # DO WE NEED WIDTH HERE?
 
-        elif dtype.type is np.unicode_ or dtype.type is np.string_:
+        elif dtype.type is np.str_ or dtype.type is np.bytes_:
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
