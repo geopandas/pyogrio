@@ -1538,14 +1538,17 @@ def ogr_read_info(
         fields = get_fields(ogr_layer, encoding)
 
         meta = {
-            'crs': get_crs(ogr_layer),
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'dtypes': fields[:,3],
-            'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer, force_feature_count),
-            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
-            'driver': get_driver(ogr_dataset),
+            "layer_name": get_string(OGR_L_GetName(ogr_layer)),
+            "crs": get_crs(ogr_layer),
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "dtypes": fields[:,3],
+            "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
+            "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
+            "geometry_type": get_geometry_type(ogr_layer),
+            "features": get_feature_count(ogr_layer, force_feature_count),
+            "total_bounds": get_total_bounds(ogr_layer, force_total_bounds),
+            "driver": get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
@@ -1553,8 +1556,8 @@ def ogr_read_info(
                 "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
                 "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
-            'layer_metadata': get_metadata(ogr_layer),
-            'dataset_metadata': get_metadata(ogr_dataset),
+            "layer_metadata": get_metadata(ogr_layer),
+            "dataset_metadata": get_metadata(ogr_dataset),
         }
 
     finally:
