@@ -196,6 +196,7 @@ cdef extern from "arrow_bridge.h":
 
     struct ArrowArrayStream:
         int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out)
+        void (*release)(ArrowArrayStream*) noexcept nogil
 
 
 cdef extern from "ogr_api.h":
