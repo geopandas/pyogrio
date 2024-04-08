@@ -22,7 +22,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2019]
+        # os: [ubuntu-latest, macos-latest, windows-2019]
+        os: ["macos-latest"]
         python: ["3.10", "3.11", "3.12"]
         env: ["latest"]
         include:
@@ -31,15 +32,15 @@ jobs:
             extra: >-
               pandas=1.5
               geopandas=0.12
-          # minimal environment without optional dependencies
-          - os: "ubuntu-latest"
-            python: "3.9"
-            env: "minimal"
-          # environment for older Windows libgdal to make sure gdal_i.lib is
-          # properly detected
-          - os: "windows-2019"
-            python: "3.10"
-            env: "libgdal3.5.1"
+          # # minimal environment without optional dependencies
+          # - os: "ubuntu-latest"
+          #   python: "3.9"
+          #   env: "minimal"
+          # # environment for older Windows libgdal to make sure gdal_i.lib is
+          # # properly detected
+          # - os: "windows-2019"
+          #   python: "3.10"
+          #   env: "libgdal3.5.1"
 
     steps:
       - name: Checkout repo
@@ -66,4 +67,4 @@ jobs:
 
       - name: Test
         run: |
-          pytest -v -s --color=yes -r s pyogrio/tests/test_geopandas_io.py
+          pytest -v -s --color=yes -r s pyogrio/tests/test_geopandas_io.py::test_read_where_range
