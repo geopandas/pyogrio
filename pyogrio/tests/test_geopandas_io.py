@@ -882,14 +882,18 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
 
 @pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")
+@pytest.mark.parametrize("write_geodf", [True, False])
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
-def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
-    """Test writing a dataframe without a geometry column.
+def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, write_geodf, ext):
+    """Test writing a (geo)dataframe without a geometry column.
 
     FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
     """
     # Prepare test data
     input_df = read_dataframe(naturalearth_lowres, read_geometry=False)
+    if write_geodf:
+        input_df = gp.GeoDataFrame(input_df)
+
     output_path = tmp_path / f"test{ext}"
 
     # A shapefile without geometry column results in only a .dbf file.
@@ -912,6 +916,9 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
         assert not isinstance(result_df, gp.GeoDataFrame)
+        if isinstance(input_df, gp.GeoDataFrame):
+            input_df = pd.DataFrame(input_df)
+
         pd.testing.assert_frame_equal(
             result_df, input_df, check_index_type=False, check_dtype=check_dtype
         )
