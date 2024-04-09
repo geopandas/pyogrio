@@ -1282,6 +1282,7 @@ def ogr_open_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
@@ -1352,6 +1353,20 @@ def ogr_open_arrow(
             ignored_fields = list(set(fields[:,2]) - set(columns))
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
+
+        # raise error if schema has bool values for FGB / GPKG and GDAL <3.8.3
+        # due to https://github.com/OSGeo/gdal/issues/8998
+        IF CTE_GDAL_VERSION < (3, 8, 3):
+
+            driver = get_driver(ogr_dataset)
+            if driver in {'FlatGeobuf', 'GPKG'}:
+                ignored = set(ignored_fields)
+                for f in fields:
+                    if f[2] not in ignored and f[3] == 'bool':
+                        raise RuntimeError(
+                            "GDAL < 3.8.3 does not correctly read boolean data values using the "
+                            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
+                        )
 
         geometry_type = get_geometry_type(ogr_layer)
 

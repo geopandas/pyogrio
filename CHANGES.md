@@ -18,8 +18,8 @@
 -   Fix encoding issues on windows for some formats (e.g. ".csv") and always write ESRI
     Shapefiles using UTF-8 by default on all platforms (#361).
 -   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
-    a boolean column is detected due to error in GDAL reading boolean values (#335)
-    this has been fixed in GDAL >= 3.8.3.
+    a boolean column is detected due to error in GDAL reading boolean values for
+    FlatGeobuf / GPKG drivers (#335, #387); this has been fixed in GDAL >= 3.8.3.
 
 ### Packaging
 
