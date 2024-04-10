@@ -2238,6 +2238,7 @@ def ogr_write_arrow(
 
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef char **options = NULL
 
     if not encoding:
         encoding = locale.getpreferredencoding()
@@ -2248,16 +2249,21 @@ def ogr_write_arrow(
         dataset_metadata, layer_metadata,
         &ogr_dataset, &ogr_layer,
     )
+
     if geometry_name:
         opts = {"GEOMETRY_NAME": geometry_name}
     else:
         opts = {}
-    cdef char **options = dict_to_options(opts)
+    options = dict_to_options(opts)
 
     stream_capsule = arrow_obj.__arrow_c_stream__()
     write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
 
     ### Final cleanup
+    if options != NULL:
+        CSLDestroy(options)
+        options = NULL
+
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
 
@@ -2283,8 +2289,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         if stream.release == NULL:
             raise RuntimeError("Arrow array stream was already released.")
 
-        errcode = stream.get_schema(stream, &schema)
-        if errcode != 0:
+        if stream.get_schema(stream, &schema) != 0:
             stream.release(stream)
             raise RuntimeError("Could not get Arrow schema from stream.")
 
@@ -2296,8 +2301,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             raise e
 
         while True:
-            errcode = stream.get_next(stream, &array)
-            if errcode != 0:
+            if stream.get_next(stream, &array) != 0:
                 schema.release(&schema)
                 stream.release(stream)
                 raise RuntimeError("Error while accessing batch from stream.")
@@ -2322,7 +2326,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         stream.release(stream)
 
 
-    cdef get_extension_metadata(const ArrowSchema* schema):
+    cdef get_arrow_extension_metadata(const ArrowSchema* schema):
         cdef const char *metadata = schema.metadata
 
         extension_name = None
@@ -2352,16 +2356,18 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         return extension_name, extension_metadata
 
 
-    cdef is_geometry_field(const ArrowSchema* schema):
-        name, _ = get_extension_metadata(schema)
+    cdef is_arrow_geometry_field(const ArrowSchema* schema):
+        name, _ = get_arrow_extension_metadata(schema)
         if name is not None:
             if name == b"geoarrow.wkb" or name == b"ogc.wkb":
                 return True
+
             # raise an error for other geoarrow types
             if name.startswith(b"geoarrow."):
                 raise NotImplementedError(
                     f"Writing a geometry column of type {name.decode()} is not yet "
-                    "supported (only WKB is currently supported)."
+                    "supported. Only WKB is currently supported ('geoarrow.wkb' or "
+                    "'ogc.wkb' types)."
                 )
 
         return False
@@ -2384,7 +2390,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             if field_name == geometry_name:
                 continue
 
-            if is_geometry_field(child):
+            if is_arrow_geometry_field(child):
                 continue
 
             errcode = OGR_L_CreateFieldFromArrowSchema(
