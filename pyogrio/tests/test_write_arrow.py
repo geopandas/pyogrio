@@ -12,7 +12,7 @@ from pyogrio.tests.conftest import requires_arrow_write_api
 # skip all tests in this file if Arrow Write API or GeoPandas are unavailable
 pytestmark = requires_arrow_write_api
 pytest.importorskip("geopandas")
-pytest.importorskip("pyarrow")
+pa = pytest.importorskip("pyarrow")
 
 
 def test_write(tmpdir, naturalearth_lowres):
@@ -198,4 +198,26 @@ def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
             geometry_type=meta["geometry_type"],
             geometry_name=meta["geometry_name"] or "wkb_geometry",
             promote_to_multi=True,
+        )
+
+
+def test_write_batch_error_message(tmpdir):
+    # raise the correct error and message from GDAL when an error happens
+    # while writing
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+        dtype=object,
+    )
+    table = pa.table({"geometry": geometry, "col": [[0, 1], [2, 3, 4], [4]]})
+
+    with pytest.raises(
+        Exception, match="ICreateFeature: Missing implementation for OGRFieldType 13"
+    ):
+        write_arrow(
+            table,
+            tmpdir / "test_unsupported_list_type.fgb",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
         )

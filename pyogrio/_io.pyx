@@ -2310,13 +2310,16 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             if array.release == NULL:
                 break
 
-            errcode = OGR_L_WriteArrowBatch(destLayer, &schema, &array, options)
-            if not errcode:
+            if not OGR_L_WriteArrowBatch(destLayer, &schema, &array, options):
                 if array.release != NULL:
                     array.release(&array)
 
                 schema.release(&schema)
                 stream.release(stream)
+
+                exc = exc_check()
+                if exc:
+                    raise exc
                 raise RuntimeError("Error while writing batch to OGR layer.")
 
             if array.release != NULL:
