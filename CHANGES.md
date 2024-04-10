@@ -4,7 +4,8 @@
 
 ### Improvements
 
--   Add support for `fids` filter with `use_arrow=True` (#304).
+-   Add support for `fids` filter to `read_arrow` and `open_arrow`, and to
+    `read_dataframe` with `use_arrow=True` (#304).
 -   Add some missing properties to `read_info`, including layer name, geometry name
     and FID column name (#365).
 -   `read_arrow` and `open_arrow` now provide

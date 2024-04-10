@@ -1302,7 +1302,7 @@ def ogr_open_arrow(
         if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
             raise ValueError(
                 "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
-                "'sql', 'skip_features' or 'max_features'"
+                "'sql', 'skip_features', or 'max_features'"
             )
 
     IF CTE_GDAL_VERSION < (3, 8, 0):
