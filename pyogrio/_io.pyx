@@ -2222,7 +2222,7 @@ def ogr_write_arrow(
     str path,
     str layer,
     str driver,
-    arrow_obj,
+    object arrow_obj,
     str crs,
     str geometry_type,
     str geometry_name,
@@ -2278,15 +2278,15 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             capsule, "arrow_array_stream"
         )
         if stream == NULL:
-            raise RuntimeError("No valid stream.")
+            raise RuntimeError("Could not extract valid Arrow array stream.")
 
         if stream.release == NULL:
-            raise RuntimeError("Arrow Array Stream was already released.")
+            raise RuntimeError("Arrow array stream was already released.")
 
         errcode = stream.get_schema(stream, &schema)
         if errcode != 0:
             stream.release(stream)
-            raise RuntimeError("Error while accessing schema from stream.")
+            raise RuntimeError("Could not get Arrow schema from stream.")
 
         try:
             create_fields_from_arrow_schema(destLayer, &schema, options, geometry_name)
@@ -2378,7 +2378,6 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         cdef ArrowSchema* child
         for i in range(schema.n_children):
             child = schema.children[i]
-            metadata = child.metadata
 
             # Don't create property for geometry column
             field_name = get_string(child.name)
