@@ -2256,14 +2256,16 @@ def ogr_write_arrow(
         opts = {}
     options = dict_to_options(opts)
 
-    stream_capsule = arrow_obj.__arrow_c_stream__()
-    write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
+    try:
+        stream_capsule = arrow_obj.__arrow_c_stream__()
+        write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
+
+    finally:
+        if options != NULL:
+            CSLDestroy(options)
+            options = NULL
 
     ### Final cleanup
-    if options != NULL:
-        CSLDestroy(options)
-        options = NULL
-
     if ogr_dataset != NULL:
         GDALClose(ogr_dataset)
 
@@ -2396,10 +2398,11 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             if is_arrow_geometry_field(child):
                 continue
 
-            errcode = OGR_L_CreateFieldFromArrowSchema(
-                destLayer, child, options)
-            if errcode == 0:
-                raise RuntimeError(
-                    f"error while creating field from Arrow for field {i} with name "
-                    f"{get_string(child.name)} and type {get_string(child.format)}"
+            if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
+                exc = exc_check()
+                gdal_msg = f" ({str(exc)})" if exc else ""
+                raise FieldError(
+                    f"Error while creating field from Arrow for field {i} with name "
+                    f"'{get_string(child.name)}' and type {get_string(child.format)}"
+                    f"{gdal_msg}."
                 )

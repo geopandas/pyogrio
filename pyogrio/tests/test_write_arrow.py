@@ -7,12 +7,20 @@ import pytest
 from pyogrio.core import list_layers
 from pyogrio.raw import read_arrow, write_arrow
 from pyogrio.tests.conftest import requires_arrow_write_api
+from pyogrio.errors import FieldError
 
 
 # skip all tests in this file if Arrow Write API or GeoPandas are unavailable
 pytestmark = requires_arrow_write_api
 pytest.importorskip("geopandas")
 pa = pytest.importorskip("pyarrow")
+
+
+# Point(0, 0)
+points = np.array(
+    [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+    dtype=object,
+)
 
 
 def test_write(tmpdir, naturalearth_lowres):
@@ -201,15 +209,11 @@ def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
         )
 
 
+@pytest.mark.filterwarnings("ignore:.*not handled natively:RuntimeWarning")
 def test_write_batch_error_message(tmpdir):
     # raise the correct error and message from GDAL when an error happens
     # while writing
-    # Point(0, 0)
-    geometry = np.array(
-        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
-        dtype=object,
-    )
-    table = pa.table({"geometry": geometry, "col": [[0, 1], [2, 3, 4], [4]]})
+    table = pa.table({"geometry": points, "col": [[0, 1], [2, 3, 4], [4]]})
 
     with pytest.raises(
         Exception, match="ICreateFeature: Missing implementation for OGRFieldType 13"
@@ -217,6 +221,30 @@ def test_write_batch_error_message(tmpdir):
         write_arrow(
             table,
             tmpdir / "test_unsupported_list_type.fgb",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
+def test_write_schema_error_message(tmpdir):
+    # raise the correct error and message from GDAL when an error happens
+    # creating the fields from the schema
+    # (using complex list of map of integer->integer which is not supported by GDAL)
+    table = pa.table(
+        {
+            "geometry": points,
+            "col": pa.array(
+                [[[(1, 2), (3, 4)], None, [(5, 6)]]] * 3,
+                pa.list_(pa.map_(pa.int64(), pa.int64())),
+            ),
+        }
+    )
+
+    with pytest.raises(FieldError, match=".*not supported"):
+        write_arrow(
+            table,
+            tmpdir / "test_unsupported_map_type.shp",
             crs="EPSG:4326",
             geometry_type="Point",
             geometry_name="geometry",
