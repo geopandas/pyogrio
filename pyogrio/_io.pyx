@@ -2355,6 +2355,9 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             elif key == b"ARROW:extension:metadata":
                 extension_metadata = value
 
+            if extension_name is not None and extension_metadata is not None:
+                break
+
         return extension_name, extension_metadata
 
 
@@ -2388,11 +2391,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             child = schema.children[i]
 
             # Don't create property for geometry column
-            field_name = get_string(child.name)
-            if field_name == geometry_name:
-                continue
-
-            if is_arrow_geometry_field(child):
+            if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
                 continue
 
             if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
