@@ -523,6 +523,23 @@ def test_read_fids_arrow_max_exception(naturalearth_lowres):
         _ = read_dataframe(naturalearth_lowres, fids=fids, use_arrow=True)
 
 
+@requires_arrow_api
+@pytest.mark.parametrize("old_gdal", [__gdal_version__ < (3, 8, 0)])
+def test_read_fids_arrow_warning_old_gdal(naturalearth_lowres_all_ext, old_gdal):
+    # A warning should be given for old GDAL versions, except for some file formats.
+    if old_gdal and naturalearth_lowres_all_ext not in [".gpkg", ".geojson"]:
+        handler = pytest.warns(
+            UserWarning,
+            match="Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow",
+        )
+    else:
+        handler = contextlib.nullcontext()
+
+    with handler:
+        df = read_dataframe(naturalearth_lowres_all_ext, fids=[22], use_arrow=True)
+        assert len(df) == 1
+
+
 def test_read_fids_force_2d(test_fgdb_vsi):
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
@@ -534,21 +551,6 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         df = read_dataframe(test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22])
         assert len(df) == 1
         assert not df.iloc[0].geometry.has_z
-
-
-@pytest.mark.parametrize("old_gdal", [__gdal_version__ < (3, 8, 0)])
-def test_read_fids_warning_old_gdal(naturalearth_lowres_all_ext, old_gdal):
-    if old_gdal:
-        handler = pytest.warns(
-            UserWarning,
-            match="Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow",
-        )
-    else:
-        handler = contextlib.nullcontext()
-
-    with handler:
-        df = read_dataframe(naturalearth_lowres_all_ext, fids=[22], use_arrow=True)
-        assert len(df) == 1
 
 
 @pytest.mark.parametrize("skip_features", [10, 200])
