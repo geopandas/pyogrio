@@ -2240,9 +2240,6 @@ def ogr_write_arrow(
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
 
-    if not encoding:
-        encoding = locale.getpreferredencoding()
-
     layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
         dataset_kwargs, layer_kwargs, append,
