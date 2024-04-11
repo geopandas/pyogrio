@@ -7,7 +7,7 @@ import pytest
 from pyogrio.core import list_layers
 from pyogrio.raw import read_arrow, write_arrow
 from pyogrio.tests.conftest import requires_arrow_write_api
-from pyogrio.errors import FieldError
+from pyogrio.errors import FieldError, DataLayerError
 
 
 # skip all tests in this file if Arrow Write API or GeoPandas are unavailable
@@ -216,7 +216,7 @@ def test_write_batch_error_message(tmpdir):
     table = pa.table({"geometry": points, "col": [[0, 1], [2, 3, 4], [4]]})
 
     with pytest.raises(
-        Exception, match="ICreateFeature: Missing implementation for OGRFieldType 13"
+        DataLayerError, match=".*Missing implementation for OGRFieldType 13"
     ):
         write_arrow(
             table,

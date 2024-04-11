@@ -2317,9 +2317,10 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
                 stream.release(stream)
 
                 exc = exc_check()
-                if exc:
-                    raise exc
-                raise RuntimeError("Error while writing batch to OGR layer.")
+                gdal_msg = f": {str(exc)}" if exc else "."
+                raise DataLayerError(
+                    f"Error while writing batch to OGR layer{gdal_msg}"
+                )
 
             if array.release != NULL:
                 array.release(&array)
