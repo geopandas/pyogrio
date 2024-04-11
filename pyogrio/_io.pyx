@@ -1389,6 +1389,16 @@ def ogr_open_arrow(
         # Use fids list to create a where clause, as arrow doesn't support direct fid
         # filtering.
         if fids is not None:
+            IF CTE_GDAL_VERSION < (3, 8, 0):
+                driver = get_driver(ogr_dataset)
+                if driver not in {"GPKG", "GeoJSON"}:
+                    warnings.warn(
+                        "Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow "
+                        "for some drivers. Upgrading GDAL or using 'use_arrow=False' "
+                        "can avoid this.",
+                        stacklevel=2,
+                    )
+
             fids_str = ",".join([str(fid) for fid in fids])
             where = f"{fid_column_where} IN ({fids_str})"
 

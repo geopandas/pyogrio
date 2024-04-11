@@ -536,6 +536,21 @@ def test_read_fids_force_2d(test_fgdb_vsi):
         assert not df.iloc[0].geometry.has_z
 
 
+@pytest.mark.parametrize("old_gdal", [__gdal_version__ < (3, 8, 0)])
+def test_read_fids_warning_old_gdal(naturalearth_lowres_all_ext, old_gdal):
+    if old_gdal:
+        handler = pytest.warns(
+            UserWarning,
+            match="Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow",
+        )
+    else:
+        handler = contextlib.nullcontext()
+
+    with handler:
+        df = read_dataframe(naturalearth_lowres_all_ext, fids=[22], use_arrow=True)
+        assert len(df) == 1
+
+
 @pytest.mark.parametrize("skip_features", [10, 200])
 def test_read_skip_features(naturalearth_lowres_all_ext, use_arrow, skip_features):
     ext = naturalearth_lowres_all_ext.suffix
