@@ -336,16 +336,6 @@ def read_arrow(
         else:
             table = reader.read_all()
 
-    # raise error if schema has bool values and GDAL <3.8.3
-    # due to https://github.com/OSGeo/gdal/issues/8998
-    if gdal_version < (3, 8, 3) and any(
-        [col_type == "bool" for col_type in table.schema.types]
-    ):
-        raise RuntimeError(
-            "GDAL < 3.8.3 does not correctly read boolean data values using the "
-            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
-        )
-
     return meta, table
 
 

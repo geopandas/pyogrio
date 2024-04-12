@@ -4,6 +4,8 @@
 
 ### Improvements
 
+-   Add some missing properties to `read_info`, including layer name, geometry name
+    and FID column name (#365).
 -   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
@@ -14,14 +16,15 @@
     that supports this protocol (#349).
 -   Warn when reading from a multilayer file without specifying a layer (#362).
 
-
 ### Bug fixes
 
 -   Fix error in `write_dataframe` if input has a date column and
     non-consecutive index values (#325).
+-   Fix encoding issues on windows for some formats (e.g. ".csv") and always write ESRI
+    Shapefiles using UTF-8 by default on all platforms (#361).
 -   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
-    a boolean column is detected due to error in GDAL reading boolean values (#335)
-    this has been fixed in GDAL >= 3.8.3.
+    a boolean column is detected due to error in GDAL reading boolean values for
+    FlatGeobuf / GPKG drivers (#335, #387); this has been fixed in GDAL >= 3.8.3.
 
 ### Packaging
 

@@ -10,7 +10,7 @@ import numpy as np
 import pyogrio
 from pyogrio import __gdal_version__, read_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write
-from pyogrio.tests.conftest import requires_pyarrow_api
+from pyogrio.tests.conftest import ALL_EXTS, requires_pyarrow_api
 
 try:
     import pandas as pd
@@ -264,8 +264,9 @@ def test_enable_with_environment_variable(test_ogr_types_list):
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
-def test_arrow_bool_roundtrip(tmpdir):
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_arrow_bool_roundtrip(tmpdir, ext):
+    filename = os.path.join(str(tmpdir), f"test{ext}")
 
     # Point(0, 0)
     geometry = np.array(
@@ -274,6 +275,22 @@ def test_arrow_bool_roundtrip(tmpdir):
     bool_col = np.array([True, False, True, False, True])
     field_data = [bool_col]
     fields = ["bool_col"]
+
+    kwargs = {}
+
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to avoid the rows being reordered
+        kwargs["spatial_index"] = False
+
+    write(
+        filename,
+        geometry,
+        field_data,
+        fields,
+        geometry_type="Point",
+        crs="EPSG:4326",
+        **kwargs,
+    )
 
     write(
         filename, geometry, field_data, fields, geometry_type="Point", crs="EPSG:4326"
@@ -286,8 +303,9 @@ def test_arrow_bool_roundtrip(tmpdir):
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
-def test_arrow_bool_exception(tmpdir):
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_arrow_bool_exception(tmpdir, ext):
+    filename = os.path.join(str(tmpdir), f"test{ext}")
 
     # Point(0, 0)
     geometry = np.array(
@@ -301,9 +319,20 @@ def test_arrow_bool_exception(tmpdir):
         filename, geometry, field_data, fields, geometry_type="Point", crs="EPSG:4326"
     )
 
-    with pytest.raises(
-        RuntimeError,
-        match="GDAL < 3.8.3 does not correctly read boolean data values using "
-        "the Arrow API",
-    ):
-        read_arrow(filename)
+    if ext in {".fgb", ".gpkg"}:
+        # only raise exception for GPKG / FGB
+        with pytest.raises(
+            RuntimeError,
+            match="GDAL < 3.8.3 does not correctly read boolean data values using "
+            "the Arrow API",
+        ):
+            with open_arrow(filename):
+                pass
+
+        # do not raise exception if no bool columns are read
+        with open_arrow(filename, columns=[]):
+            pass
+
+    else:
+        with open_arrow(filename):
+            pass

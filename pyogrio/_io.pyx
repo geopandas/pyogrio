@@ -21,7 +21,6 @@ cimport cython
 from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 
 import numpy as np
-cimport numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
@@ -464,9 +463,11 @@ cdef get_metadata(GDALMajorObjectH obj):
 
 
 cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
-    """Attempt to detect the encoding of the layer.
-    If it supports UTF-8, use that.
-    If it is a shapefile, it must otherwise be ISO-8859-1.
+    """Attempt to detect the encoding to use to read/write string values.
+
+    If the layer/dataset supports reading/writing data in UTF-8, returns UTF-8.
+    If UTF-8 is not supported and ESRI Shapefile, returns ISO-8859-1
+    Otherwise the system locale preferred encoding is returned.
 
     Parameters
     ----------
@@ -479,18 +480,39 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     """
 
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
-        return 'UTF-8'
+        # OGR_L_TestCapability returns True for OLCStringsAsUTF8 if GDAL hides encoding
+        # complexities for this layer/driver type. In this case all string attribute
+        # values have to be supplied in UTF-8 and values will be returned in UTF-8.
+        # The encoding used to read/write under the hood depends on the driver used.
+        # For layers/drivers where False is returned, the string values are written and
+        # read without recoding. Hence, it is up to you to supply the data in the
+        # appropriate encoding. More info:
+        # https://gdal.org/development/rfc/rfc23_ogr_unicode.html#oftstring-oftstringlist-fields
+        return "UTF-8"
 
     driver = get_driver(ogr_dataset)
-    if driver == 'ESRI Shapefile':
-        return 'ISO-8859-1'
+    if driver == "ESRI Shapefile":
+        # Typically, OGR_L_TestCapability returns True for OLCStringsAsUTF8 for ESRI
+        # Shapefile so this won't be reached. However, for old versions of GDAL and/or
+        # if libraries are missing, this fallback could be needed.
+        return "ISO-8859-1"
 
     if driver == "OSM":
         # always set OSM data to UTF-8
         # per https://help.openstreetmap.org/questions/2172/what-encoding-does-openstreetmap-use
         return "UTF-8"
 
-    return None
+    if driver in ("XLSX", "ODS"):
+        # TestCapability for OLCStringsAsUTF8 for XLSX and ODS was False for new files
+        # being created for GDAL < 3.8.5. Once these versions of GDAL are no longer
+        # supported, this can be removed.
+        return "UTF-8"
+
+    if driver == "GeoJSONSeq":
+        # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
+        return "UTF-8"
+
+    return locale.getpreferredencoding()
 
 
 cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
@@ -1136,11 +1158,7 @@ def ogr_read(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
@@ -1297,6 +1315,7 @@ def ogr_open_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
@@ -1357,11 +1376,7 @@ def ogr_open_arrow(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding, use_arrow=True)
 
@@ -1371,6 +1386,20 @@ def ogr_open_arrow(
             ignored_fields = list(set(fields[:,2]) - set(columns))
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
+
+        # raise error if schema has bool values for FGB / GPKG and GDAL <3.8.3
+        # due to https://github.com/OSGeo/gdal/issues/8998
+        IF CTE_GDAL_VERSION < (3, 8, 3):
+
+            driver = get_driver(ogr_dataset)
+            if driver in {'FlatGeobuf', 'GPKG'}:
+                ignored = set(ignored_fields)
+                for f in fields:
+                    if f[2] not in ignored and f[3] == 'bool':
+                        raise RuntimeError(
+                            "GDAL < 3.8.3 does not correctly read boolean data values using the "
+                            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
+                        )
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -1549,7 +1578,7 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1560,23 +1589,22 @@ def ogr_read_info(
 
         # Encoding is derived from the user, from the dataset capabilities / type,
         # or from the system locale
-        encoding = (
-            encoding
-            or detect_encoding(ogr_dataset, ogr_layer)
-            or locale.getpreferredencoding()
-        )
+        encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
 
         meta = {
-            'crs': get_crs(ogr_layer),
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'dtypes': fields[:,3],
-            'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer, force_feature_count),
-            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
-            'driver': get_driver(ogr_dataset),
+            "layer_name": get_string(OGR_L_GetName(ogr_layer)),
+            "crs": get_crs(ogr_layer),
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "dtypes": fields[:,3],
+            "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
+            "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
+            "geometry_type": get_geometry_type(ogr_layer),
+            "features": get_feature_count(ogr_layer, force_feature_count),
+            "total_bounds": get_total_bounds(ogr_layer, force_total_bounds),
+            "driver": get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
@@ -1584,8 +1612,8 @@ def ogr_read_info(
                 "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
                 "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
-            'layer_metadata': get_metadata(ogr_layer),
-            'dataset_metadata': get_metadata(ogr_dataset),
+            "layer_metadata": get_metadata(ogr_layer),
+            "dataset_metadata": get_metadata(ogr_dataset),
         }
 
     finally:
@@ -1631,7 +1659,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     -------
     str
         the name of the default layer to be read.
-    
+
     """
     layers = get_layer_names(ogr_dataset)
     first_layer_name = layers[0][0]
@@ -1663,7 +1691,7 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     -------
     ndarray(n)
         array of layer names
-    
+
     """
     cdef OGRLayerH ogr_layer = NULL
 
@@ -1757,10 +1785,10 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             # Convert to unicode string then take itemsize
             # TODO: better implementation of this
-            # width = values.astype(np.unicode_).dtype.itemsize // 4
+            # width = values.astype(np.str_).dtype.itemsize // 4
             # DO WE NEED WIDTH HERE?
 
-        elif dtype.type is np.unicode_ or dtype.type is np.string_:
+        elif dtype.type is np.str_ or dtype.type is np.bytes_:
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
@@ -1797,6 +1825,12 @@ cdef create_ogr_dataset_layer(
     Returns whether a new layer was created or not (when the layer was created,
     the caller still needs to set up the layer definition, i.e. create the
     fields).
+
+    Parameters
+    ----------
+    encoding : str
+        Only used if `driver` is "ESRI Shapefile". If not None, it overrules the default
+        shapefile encoding, which is "UTF-8" in pyogrio.
 
     Returns
     -------
@@ -1889,6 +1923,8 @@ cdef create_ogr_dataset_layer(
         if driver == 'ESRI Shapefile':
             # Fiona only sets encoding for shapefiles; other drivers do not support
             # encoding as an option.
+            if encoding is None:
+                encoding = "UTF-8"
             encoding_b = encoding.upper().encode('UTF-8')
             encoding_c = encoding_b
             layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
@@ -2004,9 +2040,6 @@ def ogr_write(
         gdal_tz_offsets = {}
 
     ### Setup up dataset and layer
-    if not encoding:
-        encoding = locale.getpreferredencoding()
-
     layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
         dataset_kwargs, layer_kwargs, append,
@@ -2014,12 +2047,16 @@ def ogr_write(
         &ogr_dataset, &ogr_layer,
     )
 
+    # Now the dataset and layer have been created, we can properly determine the
+    # encoding. It is derived from the user, from the dataset capabilities / type,
+    # or from the system locale
+    encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
+
     ### Create the fields
     field_types = None
     if num_fields > 0:
         field_types = infer_field_types([field.dtype for field in field_data])
 
-    ### Create the fields
     if layer_created:
         for i in range(num_fields):
             field_type, field_subtype, width, precision = field_types[i]
@@ -2118,7 +2155,6 @@ def ogr_write(
                     OGR_F_SetFieldNull(ogr_feature, field_idx)
 
                 elif field_type == OFTString:
-                    # TODO: encode string using approach from _get_internal_encoding which checks layer capabilities
                     if (
                         field_value is None
                         or (isinstance(field_value, float) and isnan(field_value))
@@ -2130,7 +2166,7 @@ def ogr_write(
                             field_value = str(field_value)
 
                         try:
-                            value_b = field_value.encode("UTF-8")
+                            value_b = field_value.encode(encoding)
                             OGR_F_SetFieldString(ogr_feature, field_idx, value_b)
 
                         except AttributeError:
