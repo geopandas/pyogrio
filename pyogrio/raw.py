@@ -357,7 +357,7 @@ def open_arrow(
     sql_dialect=None,
     return_fids=False,
     batch_size=65_536,
-    return_pyarrow=True,
+    use_pyarrow=True,
     **kwargs,
 ):
     """
@@ -371,7 +371,7 @@ def open_arrow(
 
     By default this function returns a `pyarrow.RecordBatchReader`. Optionally,
     you can use this function without a `pyarrow` dependency by specifying
-    ``return_pyarrow=False``. In that case, the returned reader will be a
+    ``use_pyarrow=False``. In that case, the returned reader will be a
     generic object implementing the `Arrow PyCapsule Protocol`_ (i.e. having
     an ``__arrow_c_stream__`` method). This object can then be consumed by
     your Arrow implementation of choice that supports this protocol.
@@ -382,7 +382,7 @@ def open_arrow(
     ----------------
     batch_size : int (default: 65_536)
         Maximum number of features to retrieve in a batch.
-    return_pyarrow : bool (default: True)
+    use_pyarrow : bool (default: True)
         If False, return a generic ArrowStream object instead of a pyarrow
         RecordBatchReader. This object needs to be passed to another library
         supporting the Arrow PyCapsule Protocol to consume the stream of data.
@@ -401,7 +401,7 @@ def open_arrow(
 
     Or without directly returning a pyarrow object:
 
-    >>> with open_arrow(path, return_pyarrow=False) as source:
+    >>> with open_arrow(path, use_pyarrow=False) as source:
     >>>     meta, stream = source
     >>>     reader = pa.RecordBatchReader.from_stream(stream)
     >>>     for table in reader:
@@ -413,7 +413,7 @@ def open_arrow(
 
         Returns a tuple of meta information about the data source in a dict,
         and a data stream object (a pyarrow RecordBatchReader if
-        `return_pyarrow` is set to True, otherwise a generic ArrowStrem
+        `use_pyarrow` is set to True, otherwise a generic ArrowStrem
         object).
 
         Meta is: {
@@ -450,7 +450,7 @@ def open_arrow(
             return_fids=return_fids,
             dataset_kwargs=dataset_kwargs,
             batch_size=batch_size,
-            return_pyarrow=return_pyarrow,
+            use_pyarrow=use_pyarrow,
         )
     finally:
         if buffer is not None:

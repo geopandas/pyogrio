@@ -212,7 +212,7 @@ def test_read_arrow_geoarrow_metadata(naturalearth_lowres):
 def test_open_arrow_capsule_protocol(naturalearth_lowres):
     pytest.importorskip("pyarrow", minversion="14")
 
-    with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
+    with open_arrow(naturalearth_lowres, use_pyarrow=False) as (meta, reader):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyogrio._io._ArrowStream)
 
@@ -228,7 +228,7 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
     # Make PyArrow temporarily unavailable (importing will fail)
     sys.modules["pyarrow"] = None
     try:
-        with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
+        with open_arrow(naturalearth_lowres, use_pyarrow=False) as (meta, reader):
             assert isinstance(meta, dict)
             assert isinstance(reader, pyogrio._io._ArrowStream)
             result = pyarrow.table(reader)

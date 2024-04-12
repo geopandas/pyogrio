@@ -1204,7 +1204,7 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we also run
     # it when pyarrow is not installed
 
-    with open_arrow(naturalearth_lowres, return_pyarrow=False) as (meta, reader):
+    with open_arrow(naturalearth_lowres, use_pyarrow=False) as (meta, reader):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyogrio._io._ArrowStream)
         capsule = reader.__arrow_c_stream__()
@@ -1223,5 +1223,5 @@ def test_open_arrow_error_no_pyarrow(naturalearth_lowres):
     # it when pyarrow is not installed
 
     with pytest.raises(ImportError):
-        with open_arrow(naturalearth_lowres, return_pyarrow=True) as _:
+        with open_arrow(naturalearth_lowres, use_pyarrow=True) as _:
             pass

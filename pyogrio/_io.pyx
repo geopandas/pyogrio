@@ -1306,7 +1306,7 @@ def ogr_open_arrow(
     str sql_dialect=None,
     int return_fids=False,
     int batch_size=0,
-    return_pyarrow=True,
+    use_pyarrow=True,
 ):
 
     cdef int err = 0
@@ -1463,7 +1463,7 @@ def ogr_open_arrow(
             # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        if return_pyarrow:
+        if use_pyarrow:
             import pyarrow as pa
 
             reader = pa.RecordBatchStreamReader._import_from_c(<uintptr_t> stream)
@@ -1483,7 +1483,7 @@ def ogr_open_arrow(
         yield meta, reader
 
     finally:
-        if return_pyarrow and reader is not None:
+        if use_pyarrow and reader is not None:
             # Mark reader as closed to prevent reading batches
             reader.close()
 
