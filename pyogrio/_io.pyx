@@ -2239,6 +2239,9 @@ def ogr_write_arrow(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
+    cdef ArrowArrayStream* stream
+    cdef ArrowSchema schema
+    cdef ArrowArray array
 
     layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
@@ -2255,33 +2258,10 @@ def ogr_write_arrow(
 
     try:
         stream_capsule = arrow_obj.__arrow_c_stream__()
-        write_arrow_stream_capsule(ogr_layer, stream_capsule, geometry_name, options)
-
-    finally:
-        if options != NULL:
-            CSLDestroy(options)
-            options = NULL
-
-    ### Final cleanup
-    if ogr_dataset != NULL:
-        GDALClose(ogr_dataset)
-
-        # GDAL will set an error if there was an error writing the data source
-        # on close
-        exc = exc_check()
-        if exc:
-            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
-
-
-IF CTE_GDAL_VERSION >= (3, 8, 0):
-
-    cdef write_arrow_stream_capsule(OGRLayerH destLayer, object capsule, str geometry_name, char** options = NULL):
-        cdef ArrowSchema schema
-        cdef ArrowArray array
-
-        cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
-            capsule, "arrow_array_stream"
+        stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+            stream_capsule, "arrow_array_stream"
         )
+
         if stream == NULL:
             raise RuntimeError("Could not extract valid Arrow array stream.")
 
@@ -2293,7 +2273,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             raise RuntimeError("Could not get Arrow schema from stream.")
 
         try:
-            create_fields_from_arrow_schema(destLayer, &schema, options, geometry_name)
+            create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
         except Exception as e:
             schema.release(&schema)
             stream.release(stream)
@@ -2309,7 +2289,7 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
             if array.release == NULL:
                 break
 
-            if not OGR_L_WriteArrowBatch(destLayer, &schema, &array, options):
+            if not OGR_L_WriteArrowBatch(ogr_layer, &schema, &array, options):
                 if array.release != NULL:
                     array.release(&array)
 
@@ -2328,78 +2308,94 @@ IF CTE_GDAL_VERSION >= (3, 8, 0):
         schema.release(&schema)
         stream.release(stream)
 
+    finally:
+        if options != NULL:
+            CSLDestroy(options)
+            options = NULL
 
-    cdef get_arrow_extension_metadata(const ArrowSchema* schema):
-        cdef const char *metadata = schema.metadata
+    ### Final cleanup
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
 
-        extension_name = None
-        extension_metadata = None
+        # GDAL will set an error if there was an error writing the data source
+        # on close
+        exc = exc_check()
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
-        if metadata == NULL:
-            return extension_name, extension_metadata
 
-        n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
-        pos = 4
+cdef get_arrow_extension_metadata(const ArrowSchema* schema):
+    cdef const char *metadata = schema.metadata
 
-        for i in range(n):
-            length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
-            pos += 4
-            key = metadata[pos:pos+length_key]
-            pos += length_key
-            length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
-            pos += 4
-            value = metadata[pos:pos+length_value]
-            pos += length_value
+    extension_name = None
+    extension_metadata = None
 
-            if key == b"ARROW:extension:name":
-                extension_name = value
-            elif key == b"ARROW:extension:metadata":
-                extension_metadata = value
-
-            if extension_name is not None and extension_metadata is not None:
-                break
-
+    if metadata == NULL:
         return extension_name, extension_metadata
 
+    n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
+    pos = 4
 
-    cdef is_arrow_geometry_field(const ArrowSchema* schema):
-        name, _ = get_arrow_extension_metadata(schema)
-        if name is not None:
-            if name == b"geoarrow.wkb" or name == b"ogc.wkb":
-                return True
+    for i in range(n):
+        length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+        pos += 4
+        key = metadata[pos:pos+length_key]
+        pos += length_key
+        length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+        pos += 4
+        value = metadata[pos:pos+length_value]
+        pos += length_value
 
-            # raise an error for other geoarrow types
-            if name.startswith(b"geoarrow."):
-                raise NotImplementedError(
-                    f"Writing a geometry column of type {name.decode()} is not yet "
-                    "supported. Only WKB is currently supported ('geoarrow.wkb' or "
-                    "'ogc.wkb' types)."
-                )
+        if key == b"ARROW:extension:name":
+            extension_name = value
+        elif key == b"ARROW:extension:metadata":
+            extension_metadata = value
 
-        return False
+        if extension_name is not None and extension_metadata is not None:
+            break
+
+    return extension_name, extension_metadata
 
 
-    # Create output fields using CreateFieldFromArrowSchema()
-    cdef create_fields_from_arrow_schema(
-        OGRLayerH destLayer,
-        const ArrowSchema* schema,
-        char** options,
-        str geometry_name
-    ):
-        # The schema object is a struct type where each child is a column.
-        cdef ArrowSchema* child
-        for i in range(schema.n_children):
-            child = schema.children[i]
+cdef is_arrow_geometry_field(const ArrowSchema* schema):
+    name, _ = get_arrow_extension_metadata(schema)
+    if name is not None:
+        if name == b"geoarrow.wkb" or name == b"ogc.wkb":
+            return True
 
-            # Don't create property for geometry column
-            if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
-                continue
+        # raise an error for other geoarrow types
+        if name.startswith(b"geoarrow."):
+            raise NotImplementedError(
+                f"Writing a geometry column of type {name.decode()} is not yet "
+                "supported. Only WKB is currently supported ('geoarrow.wkb' or "
+                "'ogc.wkb' types)."
+            )
 
-            if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
-                exc = exc_check()
-                gdal_msg = f" ({str(exc)})" if exc else ""
-                raise FieldError(
-                    f"Error while creating field from Arrow for field {i} with name "
-                    f"'{get_string(child.name)}' and type {get_string(child.format)}"
-                    f"{gdal_msg}."
-                )
+    return False
+
+
+cdef create_fields_from_arrow_schema(
+    OGRLayerH destLayer, const ArrowSchema* schema, char** options, str geometry_name
+):
+    """Create output fields using CreateFieldFromArrowSchema()"""
+
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    # The schema object is a struct type where each child is a column.
+    cdef ArrowSchema* child
+    for i in range(schema.n_children):
+        child = schema.children[i]
+
+        # Don't create property for geometry column
+        if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
+            continue
+
+        if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
+            exc = exc_check()
+            gdal_msg = f" ({str(exc)})" if exc else ""
+            raise FieldError(
+                f"Error while creating field from Arrow for field {i} with name "
+                f"'{get_string(child.name)}' and type {get_string(child.format)}"
+                f"{gdal_msg}."
+            )
