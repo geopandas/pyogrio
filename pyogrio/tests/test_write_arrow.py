@@ -227,11 +227,18 @@ def test_write_non_arrow_data(tmpdir):
 def test_write_batch_error_message(tmpdir):
     # raise the correct error and message from GDAL when an error happens
     # while writing
-    table = pa.table({"geometry": points, "col": [[0, 1], [2, 3, 4], [4]]})
 
-    with pytest.raises(
-        DataLayerError, match=".*Missing implementation for OGRFieldType 13"
-    ):
+    # invalid dictionary array that will only error while writing (schema
+    # itself is OK)
+    arr = pa.DictionaryArray.from_buffers(
+        pa.dictionary(pa.int64(), pa.string()),
+        length=3,
+        buffers=pa.array([0, 1, 2]).buffers(),
+        dictionary=pa.array(["a", "b"]),
+    )
+    table = pa.table({"geometry": points, "col": arr})
+
+    with pytest.raises(DataLayerError, match=".*invalid dictionary index"):
         write_arrow(
             table,
             tmpdir / "test_unsupported_list_type.fgb",
