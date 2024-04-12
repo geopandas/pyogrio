@@ -373,7 +373,7 @@ def open_arrow(
     you can use this function without a `pyarrow` dependency by specifying
     ``return_pyarrow=False``. In that case, the returned reader will be a
     generic object implementing the `Arrow PyCapsule Protocol`_ (i.e. having
-    an `__arrow_c_stream__` method). This object can then be consumed by
+    an ``__arrow_c_stream__`` method). This object can then be consumed by
     your Arrow implementation of choice that supports this protocol.
 
     .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html

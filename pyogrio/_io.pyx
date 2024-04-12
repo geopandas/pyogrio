@@ -1465,8 +1465,8 @@ def ogr_open_arrow(
 
         if return_pyarrow:
             import pyarrow as pa
-            stream_ptr = <uintptr_t> stream
-            reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+
+            reader = pa.RecordBatchStreamReader._import_from_c(<uintptr_t> stream)
         else:
             reader = _ArrowStream(capsule)
 
