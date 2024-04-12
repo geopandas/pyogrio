@@ -399,7 +399,9 @@ def open_arrow(
     >>>     for table in reader:
     >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
 
-    Or without directly returning a pyarrow object:
+    Or without directly returning a pyarrow object, allowing you to consume
+    the `stream` with any library that supports the Arrow PyCapsule protocol
+    (in this example still using pyarrow for that):
 
     >>> with open_arrow(path, use_pyarrow=False) as source:
     >>>     meta, stream = source
