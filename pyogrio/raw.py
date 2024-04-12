@@ -303,6 +303,7 @@ def read_arrow(
         return_fids=return_fids,
         skip_features=gdal_skip_features,
         batch_size=batch_size,
+        use_pyarrow=True,
         **kwargs,
     ) as source:
         meta, reader = source
@@ -357,7 +358,7 @@ def open_arrow(
     sql_dialect=None,
     return_fids=False,
     batch_size=65_536,
-    use_pyarrow=True,
+    use_pyarrow=False,
     **kwargs,
 ):
     """
@@ -365,16 +366,16 @@ def open_arrow(
 
     See docstring of `read` for parameters.
 
-    The RecordBatchReader is reading from a stream provided by OGR and must not be
+    The returned object is reading from a stream provided by OGR and must not be
     accessed after the OGR dataset has been closed, i.e. after the context manager has
     been closed.
 
-    By default this function returns a `pyarrow.RecordBatchReader`. Optionally,
-    you can use this function without a `pyarrow` dependency by specifying
-    ``use_pyarrow=False``. In that case, the returned reader will be a
-    generic object implementing the `Arrow PyCapsule Protocol`_ (i.e. having
-    an ``__arrow_c_stream__`` method). This object can then be consumed by
-    your Arrow implementation of choice that supports this protocol.
+    By default this functions returns a generic stream object implementing
+    the `Arrow PyCapsule Protocol`_ (i.e. having an ``__arrow_c_stream__``
+    method). This object can then be consumed by your Arrow implementation
+    of choice that supports this protocol.
+    Optionally, you can specify ``use_pyarrow=True`` to directly get the
+    stream as a `pyarrow.RecordBatchReader`.
 
     .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
 
@@ -382,10 +383,11 @@ def open_arrow(
     ----------------
     batch_size : int (default: 65_536)
         Maximum number of features to retrieve in a batch.
-    use_pyarrow : bool (default: True)
-        If False, return a generic ArrowStream object instead of a pyarrow
-        RecordBatchReader. This object needs to be passed to another library
-        supporting the Arrow PyCapsule Protocol to consume the stream of data.
+    use_pyarrow : bool (default: False)
+        If True, return a pyarrow RecordBatchReader instead of a generic
+        ArrowStream object. In the default case, this stream object needs
+        to be passed to another library supporting the Arrow PyCapsule
+        Protocol to consume the stream of data.
 
     Examples
     --------
@@ -395,28 +397,29 @@ def open_arrow(
     >>> import shapely
     >>>
     >>> with open_arrow(path) as source:
-    >>>     meta, reader = source
-    >>>     for table in reader:
-    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
-
-    Or without directly returning a pyarrow object, allowing you to consume
-    the `stream` with any library that supports the Arrow PyCapsule protocol
-    (in this example still using pyarrow for that):
-
-    >>> with open_arrow(path, use_pyarrow=False) as source:
     >>>     meta, stream = source
+    >>>     # wrap the arrow stream object in a pyarrow RecordBatchReader
     >>>     reader = pa.RecordBatchReader.from_stream(stream)
-    >>>     for table in reader:
-    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"] or "wkb_geometry"])
+    >>>     for batch in reader:
+    >>>         geometries = shapely.from_wkb(batch[meta["geometry_name"] or "wkb_geometry"])
+
+    The returned `stream` object needs to be consumed by a library implementing
+    the Arrow PyCapsule Protocol. In the above example, pyarrow is used through
+    its RecordBatchReader. For this case, you can also specify ``use_pyarrow=True``
+    to directly get this result as a short-cut:
+
+    >>> with open_arrow(path, use_pyarrow=True) as source:
+    >>>     meta, reader = source
+    >>>     for batch in reader:
+    >>>         geometries = shapely.from_wkb(batch[meta["geometry_name"] or "wkb_geometry"])
 
     Returns
     -------
     (dict, pyarrow.RecordBatchReader or ArrowStream)
 
         Returns a tuple of meta information about the data source in a dict,
-        and a data stream object (a pyarrow RecordBatchReader if
-        `use_pyarrow` is set to True, otherwise a generic ArrowStrem
-        object).
+        and a data stream object (a generic ArrowStream object, or a pyarrow
+        RecordBatchReader if `use_pyarrow` is set to True).
 
         Meta is: {
             "crs": "<crs>",

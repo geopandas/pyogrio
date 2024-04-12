@@ -1306,7 +1306,7 @@ def ogr_open_arrow(
     str sql_dialect=None,
     int return_fids=False,
     int batch_size=0,
-    use_pyarrow=True,
+    use_pyarrow=False,
 ):
 
     cdef int err = 0

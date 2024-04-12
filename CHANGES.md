@@ -9,11 +9,13 @@
 -   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
--   The `open_arrow` function can now be used without a `pyarrow` dependency. In
-    that case, specify `use_pyarrow=False` and the returned reader will be a
-    generic object implementing the [Arrow PyCapsule Protocol](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html)
+-   The `open_arrow` function can now be used without a `pyarrow` dependency. By
+    default, it will now return a stream object implementing the
+    [Arrow PyCapsule Protocol](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html)
     (i.e. having an `__arrow_c_stream__`method). This object can then be consumed
-    by your Arrow implementation of choice that supports this protocol (#349).
+    by your Arrow implementation of choice that supports this protocol. To keep
+    the previous behaviour of returning a `pyarrow.RecordBatchReader`, specify
+    `use_pyarrow=True` (#349).
 -   Warn when reading from a multilayer file without specifying a layer (#362).
 
 ### Bug fixes
