@@ -401,11 +401,11 @@ def open_arrow(
 
     Or without directly returning a pyarrow object:
 
-    >>> with open_arrow(path) as source:
+    >>> with open_arrow(path, return_pyarrow=False) as source:
     >>>     meta, stream = source
     >>>     reader = pa.RecordBatchReader.from_stream(stream)
     >>>     for table in reader:
-    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"]])
+    >>>         geometries = shapely.from_wkb(table[meta["geometry_name"] or "wkb_geometry"])
 
     Returns
     -------
