@@ -659,6 +659,13 @@ def write_arrow(
     if not HAS_ARROW_WRITE_API:
         raise RuntimeError("GDAL>=3.8 required to write using arrow")
 
+    if not hasattr(arrow_obj, "__arrow_c_stream__"):
+        raise ValueError(
+            "The provided data is not recognized as Arrow data. The object "
+            "should implement the Arrow PyCapsule Protocol (i.e. have a "
+            "'__arrow_c_stream__' method)."
+        )
+
     path = vsi_path(str(path))
 
     if driver is None:

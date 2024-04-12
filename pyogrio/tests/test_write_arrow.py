@@ -209,6 +209,20 @@ def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
         )
 
 
+def test_write_non_arrow_data(tmpdir):
+    data = np.array([1, 2, 3])
+    with pytest.raises(
+        ValueError, match="The provided data is not recognized as Arrow data"
+    ):
+        write_arrow(
+            data,
+            tmpdir / "test_no_arrow_data.shp",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
 @pytest.mark.filterwarnings("ignore:.*not handled natively:RuntimeWarning")
 def test_write_batch_error_message(tmpdir):
     # raise the correct error and message from GDAL when an error happens
