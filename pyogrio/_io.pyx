@@ -1405,7 +1405,11 @@ def ogr_open_arrow(
         raise ValueError("forcing 2D is not supported for Arrow")
 
     if fids is not None:
-        raise ValueError("reading by FID is not supported for Arrow")
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features', or 'max_features'"
+            )
 
     IF CTE_GDAL_VERSION < (3, 8, 0):
         if skip_features:
@@ -1498,14 +1502,45 @@ def ogr_open_arrow(
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
         fid_column = get_string(OGR_L_GetFIDColumn(ogr_layer))
+        fid_column_where = fid_column
         # OGR_L_GetFIDColumn returns the column name if it is a custom column,
-        # or "" if not. For arrow, the default column name is "OGC_FID".
+        # or "" if not. For arrow, the default column name used to return the FID data
+        # read is "OGC_FID". When accessing the underlying datasource like when using a
+        # where clause, the default column name is "FID".
         if fid_column == "":
             fid_column = "OGC_FID"
+            fid_column_where = "FID"
+
+        # Use fids list to create a where clause, as arrow doesn't support direct fid
+        # filtering.
+        if fids is not None:
+            IF CTE_GDAL_VERSION < (3, 8, 0):
+                driver = get_driver(ogr_dataset)
+                if driver not in {"GPKG", "GeoJSON"}:
+                    warnings.warn(
+                        "Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow "
+                        "for some drivers. Upgrading GDAL or using 'use_arrow=False' "
+                        "can avoid this.",
+                        stacklevel=2,
+                    )
+
+            fids_str = ",".join([str(fid) for fid in fids])
+            where = f"{fid_column_where} IN ({fids_str})"
 
         # Apply the attribute filter
         if where is not None and where != "":
-            apply_where_filter(ogr_layer, where)
+            try:
+                apply_where_filter(ogr_layer, where)
+            except ValueError as ex:
+                if fids is not None and str(ex).startswith("Invalid SQL query"):
+                    # If fids is not None, the where being applied is the one formatted
+                    # above.
+                    raise ValueError(
+                        f"error applying filter for {len(fids)} fids; max. number for "
+                        f"drivers with default SQL dialect 'OGRSQL' is 4997"
+                    ) from ex
+
+                raise
 
         # Apply the spatial filter
         if bbox is not None:
