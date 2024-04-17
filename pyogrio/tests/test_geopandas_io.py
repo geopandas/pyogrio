@@ -1711,6 +1711,33 @@ def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     assert actual[text].values[0] == text
 
 
+@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+def test_non_utf8_encoding_io_arrow_exception(tmp_path, ext, encoded_text):
+    """Verify that we write non-UTF data to the data source
+
+    IMPORTANT: this may not be valid for the data source and will likely render
+    them unusable in other tools, but should successfully roundtrip unless we
+    disable writing using other encodings.
+
+    NOTE: pyarrow cannot handle non-UTF-8 characters in this way
+    """
+
+    encoding, text = encoded_text
+    output_path = tmp_path / f"test.{ext}"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read_dataframe(output_path)
+
+    with pytest.raises(
+        ValueError, match="non-UTF-8 encoding is not supported for Arrow"
+    ):
+        read_dataframe(output_path, encoding=encoding, use_arrow=True)
+
+
 def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
     encoding, text = encoded_text
 
@@ -1745,6 +1772,38 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
     actual = read_dataframe(output_path, encoding=encoding, use_arrow=use_arrow)
     assert actual.columns[0] == text
     assert actual[text].values[0] == text
+
+    # if ENCODING open option, that should yield correct text
+    actual = read_dataframe(output_path, use_arrow=use_arrow, ENCODING=encoding)
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
+
+
+def test_encoding_read_option_collision_shapefile(naturalearth_lowres, use_arrow):
+    """Providing both encoding parameter and ENCODING open option (even if blank) is not allowed"""
+
+    with pytest.raises(
+        ValueError, match='cannot provide both encoding parameter and "ENCODING" option'
+    ):
+        read_dataframe(
+            naturalearth_lowres, encoding="CP936", ENCODING="", use_arrow=use_arrow
+        )
+
+
+def test_encoding_write_layer_option_collision_shapefile(tmp_path, encoded_text):
+    """Providing both encoding parameter and ENCODING layer creation option (even if blank) is not allowed"""
+    encoding, text = encoded_text
+
+    output_path = tmp_path / "test.shp"
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+
+    with pytest.raises(
+        ValueError,
+        match='cannot provide both encoding parameter and "ENCODING" layer creation option',
+    ):
+        write_dataframe(
+            df, output_path, encoding=encoding, layer_options={"ENCODING": ""}
+        )
 
 
 def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):

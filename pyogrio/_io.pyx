@@ -1216,6 +1216,10 @@ def ogr_read(
         # or from the system locale
         if encoding:
             if get_driver(ogr_dataset) == "ESRI Shapefile":
+                # NOTE: SHAPE_ENCODING is a configuration option whereas ENCODING is the dataset open option
+                if "ENCODING" in dataset_kwargs:
+                    raise ValueError('cannot provide both encoding parameter and "ENCODING" option; use encoding parameter to specify correct encoding for data source')
+
                 # Because SHAPE_ENCODING is set above, GDAL will automatically
                 # decode shapefiles to UTF-8; ignore any encoding set by user
                 encoding = "UTF-8"
@@ -1467,9 +1471,16 @@ def ogr_open_arrow(
         # or from the system locale
         if encoding:
             if get_driver(ogr_dataset) == "ESRI Shapefile":
+                # NOTE: SHAPE_ENCODING is a configuration option whereas ENCODING is the dataset open option
+                if "ENCODING" in dataset_kwargs:
+                    raise ValueError('cannot provide both encoding parameter and "ENCODING" option; use encoding parameter to specify correct encoding for data source')
+
                 # Because SHAPE_ENCODING is set above, GDAL will automatically
                 # decode shapefiles to UTF-8; ignore any encoding set by user
                 encoding = "UTF-8"
+
+            elif encoding.replace('-','').upper() != 'UTF8':
+                raise ValueError("non-UTF-8 encoding is not supported for Arrow; use the non-Arrow interface instead")
 
         else:
             encoding = detect_encoding(ogr_dataset, ogr_layer)
@@ -2078,23 +2089,28 @@ cdef create_ogr_dataset_layer(
                     dataset_options = NULL
                 raise exc
 
-        # Setup layer creation options
-
-        if driver == 'ESRI Shapefile':
-            # ENCODING option must be set for shapefiles to properly write *.cpg
-            # file containing the encoding; this is not a supported option for
-            # other drivers
-            if encoding is None:
-                encoding = "UTF-8"
-            encoding_b = encoding.upper().encode('UTF-8')
-            encoding_c = encoding_b
-            layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
-
         # Setup other layer creation options
         for k, v in layer_kwargs.items():
             k = k.encode('UTF-8')
             v = v.encode('UTF-8')
             layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
+
+        if driver == 'ESRI Shapefile':
+            # ENCODING option must be set for shapefiles to properly write *.cpg
+            # file containing the encoding; this is not a supported option for
+            # other drivers.  This is done after setting general options above
+            # to override ENCODING if passed by the user as a layer option.
+            if encoding is None:
+                encoding = "UTF-8"
+
+            else:
+                if "ENCODING" in layer_kwargs:
+                    raise ValueError('cannot provide both encoding parameter and "ENCODING" layer creation option; use the encoding parameter')
+
+            encoding_b = encoding.upper().encode('UTF-8')
+            encoding_c = encoding_b
+            layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
+
 
         ### Get geometry type
         # TODO: this is brittle for 3D / ZM / M types

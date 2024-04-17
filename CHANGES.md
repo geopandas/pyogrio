@@ -33,7 +33,8 @@
     the data source not using the Arrow API (#391).
 -   Properly handle decoding of ESRI Shapefiles with user-provided `encoding`
     option for `read`, `read_dataframe`, and `open_arrow`, and correctly encode
-    Shapefile field names and text values to the user-provided `encoding` (#384).
+    Shapefile field names and text values to the user-provided `encoding` for
+    `write` and `write_dataframe` (#384).
 
 ### Packaging
 
