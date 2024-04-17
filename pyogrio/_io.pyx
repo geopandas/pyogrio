@@ -1164,12 +1164,13 @@ def ogr_read(
 
         ignored_fields = []
         if columns is not None:
+            # identify ignored fields first
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
-
-            ignored_fields = list(set(fields[:,2]) - set(columns))
 
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
