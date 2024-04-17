@@ -528,7 +528,7 @@ def test_read_fids(naturalearth_lowres_all_ext, fids, use_arrow):
     assert np.array_equal(fids, df.index.values)
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 def test_read_fids_arrow_max_exception(naturalearth_lowres):
     # Maximum number at time of writing is 4997 for "OGRSQL". For e.g. for SQLite based
     # formats like Geopackage, there is no limit.
@@ -538,11 +538,13 @@ def test_read_fids_arrow_max_exception(naturalearth_lowres):
         _ = read_dataframe(naturalearth_lowres, fids=fids, use_arrow=True)
 
 
-@requires_arrow_api
-@pytest.mark.parametrize("old_gdal", [__gdal_version__ < (3, 8, 0)])
-def test_read_fids_arrow_warning_old_gdal(naturalearth_lowres_all_ext, old_gdal):
+@requires_pyarrow_api
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 0), reason="GDAL >= 3.8.0 does not need to warn"
+)
+def test_read_fids_arrow_warning_old_gdal(naturalearth_lowres_all_ext):
     # A warning should be given for old GDAL versions, except for some file formats.
-    if old_gdal and naturalearth_lowres_all_ext.suffix not in [".gpkg", ".geojson"]:
+    if naturalearth_lowres_all_ext.suffix not in [".gpkg", ".geojson"]:
         handler = pytest.warns(
             UserWarning,
             match="Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow",
