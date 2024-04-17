@@ -882,14 +882,18 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 
 
 @pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")
+@pytest.mark.parametrize("write_geodf", [True, False])
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
-def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
-    """Test writing a dataframe without a geometry column.
+def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, write_geodf, ext):
+    """Test writing a (geo)dataframe without a geometry column.
 
     FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
     """
     # Prepare test data
     input_df = read_dataframe(naturalearth_lowres, read_geometry=False)
+    if write_geodf:
+        input_df = gp.GeoDataFrame(input_df)
+
     output_path = tmp_path / f"test{ext}"
 
     # A shapefile without geometry column results in only a .dbf file.
@@ -912,6 +916,9 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, ext):
     if ext in [".gpkg", ".shp", ".xlsx"]:
         # These file types return a DataFrame when read.
         assert not isinstance(result_df, gp.GeoDataFrame)
+        if isinstance(input_df, gp.GeoDataFrame):
+            input_df = pd.DataFrame(input_df)
+
         pd.testing.assert_frame_equal(
             result_df, input_df, check_index_type=False, check_dtype=check_dtype
         )
@@ -1499,6 +1506,7 @@ def test_write_nullable_dtypes(tmp_path):
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
     expected["col5"] = expected["col5"].astype(object)
+    expected.loc[1, "col5"] = None  # pandas converts to pd.NA on line above
     assert_geodataframe_equal(output_gdf, expected)
 
 
@@ -1578,25 +1586,34 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
-def test_arrow_bool_roundtrip(tmpdir):
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_arrow_bool_roundtrip(tmpdir, ext):
+    filename = os.path.join(str(tmpdir), f"test{ext}")
+
+    kwargs = {}
+
+    if ext == ".fgb":
+        # For .fgb, spatial_index=False to avoid the rows being reordered
+        kwargs["spatial_index"] = False
 
     df = gp.GeoDataFrame(
         {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
         crs="EPSG:4326",
     )
 
-    write_dataframe(df, filename)
+    write_dataframe(df, filename, **kwargs)
     result = read_dataframe(filename, use_arrow=True)
-    assert_geodataframe_equal(result, df)
+    # Shapefiles do not support bool columns; these are returned as int32
+    assert_geodataframe_equal(result, df, check_dtype=ext != ".shp")
 
 
 @requires_arrow_api
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
-def test_arrow_bool_exception(tmpdir):
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+@pytest.mark.parametrize("ext", ALL_EXTS)
+def test_arrow_bool_exception(tmpdir, ext):
+    filename = os.path.join(str(tmpdir), f"test{ext}")
 
     df = gp.GeoDataFrame(
         {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},
@@ -1605,9 +1622,17 @@ def test_arrow_bool_exception(tmpdir):
 
     write_dataframe(df, filename)
 
-    with pytest.raises(
-        RuntimeError,
-        match="GDAL < 3.8.3 does not correctly read boolean data values using "
-        "the Arrow API",
-    ):
-        read_dataframe(filename, use_arrow=True)
+    if ext in {".fgb", ".gpkg"}:
+        # only raise exception for GPKG / FGB
+        with pytest.raises(
+            RuntimeError,
+            match="GDAL < 3.8.3 does not correctly read boolean data values using "
+            "the Arrow API",
+        ):
+            read_dataframe(filename, use_arrow=True)
+
+        # do not raise exception if no bool columns are read
+        read_dataframe(filename, use_arrow=True, columns=[])
+
+    else:
+        _ = read_dataframe(filename, use_arrow=True)

@@ -1282,6 +1282,7 @@ def ogr_open_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
@@ -1352,6 +1353,20 @@ def ogr_open_arrow(
             ignored_fields = list(set(fields[:,2]) - set(columns))
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
+
+        # raise error if schema has bool values for FGB / GPKG and GDAL <3.8.3
+        # due to https://github.com/OSGeo/gdal/issues/8998
+        IF CTE_GDAL_VERSION < (3, 8, 3):
+
+            driver = get_driver(ogr_dataset)
+            if driver in {'FlatGeobuf', 'GPKG'}:
+                ignored = set(ignored_fields)
+                for f in fields:
+                    if f[2] not in ignored and f[3] == 'bool':
+                        raise RuntimeError(
+                            "GDAL < 3.8.3 does not correctly read boolean data values using the "
+                            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
+                        )
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -1522,7 +1537,7 @@ def ogr_read_info(
     path_b = path.encode('utf-8')
     path_c = path_b
 
-    
+
     try:
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1538,14 +1553,17 @@ def ogr_read_info(
         fields = get_fields(ogr_layer, encoding)
 
         meta = {
-            'crs': get_crs(ogr_layer),
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'dtypes': fields[:,3],
-            'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer, force_feature_count),
-            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
-            'driver': get_driver(ogr_dataset),
+            "layer_name": get_string(OGR_L_GetName(ogr_layer)),
+            "crs": get_crs(ogr_layer),
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "dtypes": fields[:,3],
+            "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
+            "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
+            "geometry_type": get_geometry_type(ogr_layer),
+            "features": get_feature_count(ogr_layer, force_feature_count),
+            "total_bounds": get_total_bounds(ogr_layer, force_total_bounds),
+            "driver": get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
@@ -1553,8 +1571,8 @@ def ogr_read_info(
                 "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
                 "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
-            'layer_metadata': get_metadata(ogr_layer),
-            'dataset_metadata': get_metadata(ogr_dataset),
+            "layer_metadata": get_metadata(ogr_layer),
+            "dataset_metadata": get_metadata(ogr_dataset),
         }
 
     finally:
@@ -1600,7 +1618,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     -------
     str
         the name of the default layer to be read.
-    
+
     """
     layers = get_layer_names(ogr_dataset)
     first_layer_name = layers[0][0]
@@ -1632,7 +1650,7 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     -------
     ndarray(n)
         array of layer names
-    
+
     """
     cdef OGRLayerH ogr_layer = NULL
 
@@ -1726,10 +1744,10 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 0] = OFTString
             # Convert to unicode string then take itemsize
             # TODO: better implementation of this
-            # width = values.astype(np.unicode_).dtype.itemsize // 4
+            # width = values.astype(np.str_).dtype.itemsize // 4
             # DO WE NEED WIDTH HERE?
 
-        elif dtype.type is np.unicode_ or dtype.type is np.string_:
+        elif dtype.type is np.str_ or dtype.type is np.bytes_:
             field_types_view[i, 0] = OFTString
             field_types_view[i, 2] = int(dtype.itemsize // 4)
 
