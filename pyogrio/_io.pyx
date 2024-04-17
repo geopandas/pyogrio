@@ -18,6 +18,8 @@ from libc.string cimport strlen
 from libc.math cimport isnan
 
 cimport cython
+from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
+
 import numpy as np
 
 from pyogrio._ogr cimport *
@@ -1225,12 +1227,13 @@ def ogr_read(
 
         ignored_fields = []
         if columns is not None:
+            # identify ignored fields first
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
-
-            ignored_fields = list(set(fields[:,2]) - set(columns))
 
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
@@ -1326,6 +1329,35 @@ def ogr_read(
         field_data
     )
 
+
+cdef void pycapsule_array_stream_deleter(object stream_capsule) noexcept:
+    cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+        stream_capsule, 'arrow_array_stream'
+    )
+    # Do not invoke the deleter on a used/moved capsule
+    if stream.release != NULL:
+        stream.release(stream)
+
+    free(stream)
+
+
+cdef object alloc_c_stream(ArrowArrayStream** c_stream):
+    c_stream[0] = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
+    # Ensure the capsule destructor doesn't call a random release pointer
+    c_stream[0].release = NULL
+    return PyCapsule_New(c_stream[0], 'arrow_array_stream', &pycapsule_array_stream_deleter)
+
+
+class _ArrowStream:
+    def __init__(self, capsule):
+        self._capsule = capsule
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        if requested_schema is not None:
+            raise NotImplementedError("requested_schema is not supported")
+        return self._capsule
+
+
 @contextlib.contextmanager
 def ogr_open_arrow(
     str path,
@@ -1344,7 +1376,9 @@ def ogr_open_arrow(
     str sql=None,
     str sql_dialect=None,
     int return_fids=False,
-    int batch_size=0):
+    int batch_size=0,
+    use_pyarrow=False,
+):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1352,12 +1386,13 @@ def ogr_open_arrow(
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
+    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
-    cdef ArrowArrayStream stream
+    cdef ArrowArrayStream* stream
     cdef ArrowSchema schema
 
     IF CTE_GDAL_VERSION < (3, 6, 0):
@@ -1444,6 +1479,20 @@ def ogr_open_arrow(
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
 
+        # raise error if schema has bool values for FGB / GPKG and GDAL <3.8.3
+        # due to https://github.com/OSGeo/gdal/issues/8998
+        IF CTE_GDAL_VERSION < (3, 8, 3):
+
+            driver = get_driver(ogr_dataset)
+            if driver in {'FlatGeobuf', 'GPKG'}:
+                ignored = set(ignored_fields)
+                for f in fields:
+                    if f[2] not in ignored and f[3] == 'bool':
+                        raise RuntimeError(
+                            "GDAL < 3.8.3 does not correctly read boolean data values using the "
+                            "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
+                        )
+
         geometry_type = get_geometry_type(ogr_layer)
 
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
@@ -1495,19 +1544,23 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
-            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+        # allocate the stream struct and wrap in capsule to ensure clean-up on error
+        capsule = alloc_c_stream(&stream)
 
-        stream_ptr = <uintptr_t> &stream
+        if not OGR_L_GetArrowStream(ogr_layer, stream, options):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        # stream has to be consumed before the Dataset is closed
-        import pyarrow as pa
-        reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        if use_pyarrow:
+            import pyarrow as pa
+
+            reader = pa.RecordBatchStreamReader._import_from_c(<uintptr_t> stream)
+        else:
+            reader = _ArrowStream(capsule)
 
         meta = {
             'crs': crs,
@@ -1518,12 +1571,15 @@ def ogr_open_arrow(
             'fid_column': fid_column,
         }
 
+        # stream has to be consumed before the Dataset is closed
         yield meta, reader
 
     finally:
-        if reader is not None:
+        if use_pyarrow and reader is not None:
             # Mark reader as closed to prevent reading batches
             reader.close()
+
+        # `stream` will be freed through `capsule` destructor
 
         CSLDestroy(options)
         if fields_c != NULL:
@@ -1656,14 +1712,17 @@ def ogr_read_info(
         fields = get_fields(ogr_layer, encoding)
 
         meta = {
-            'crs': get_crs(ogr_layer),
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'dtypes': fields[:,3],
-            'geometry_type': get_geometry_type(ogr_layer),
-            'features': get_feature_count(ogr_layer, force_feature_count),
-            'total_bounds': get_total_bounds(ogr_layer, force_total_bounds),
-            'driver': get_driver(ogr_dataset),
+            "layer_name": get_string(OGR_L_GetName(ogr_layer)),
+            "crs": get_crs(ogr_layer),
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "dtypes": fields[:,3],
+            "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
+            "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
+            "geometry_type": get_geometry_type(ogr_layer),
+            "features": get_feature_count(ogr_layer, force_feature_count),
+            "total_bounds": get_total_bounds(ogr_layer, force_total_bounds),
+            "driver": get_driver(ogr_dataset),
             "capabilities": {
                 "random_read": OGR_L_TestCapability(ogr_layer, OLCRandomRead) == 1,
                 "fast_set_next_by_index": OGR_L_TestCapability(ogr_layer, OLCFastSetNextByIndex) == 1,
@@ -1671,8 +1730,8 @@ def ogr_read_info(
                 "fast_feature_count": OGR_L_TestCapability(ogr_layer, OLCFastFeatureCount) == 1,
                 "fast_total_bounds": OGR_L_TestCapability(ogr_layer, OLCFastGetExtent) == 1,
             },
-            'layer_metadata': get_metadata(ogr_layer),
-            'dataset_metadata': get_metadata(ogr_dataset),
+            "layer_metadata": get_metadata(ogr_layer),
+            "dataset_metadata": get_metadata(ogr_dataset),
         }
 
     finally:

@@ -193,12 +193,13 @@ cdef extern from "ogr_srs_api.h":
     void                    OSRRelease(OGRSpatialReferenceH srs)
 
 
-cdef extern from "arrow_bridge.h":
+cdef extern from "arrow_bridge.h" nogil:
     struct ArrowSchema:
         int64_t n_children
 
     struct ArrowArrayStream:
-        int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out)
+        int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out) noexcept
+        void (*release)(ArrowArrayStream*) noexcept
 
 
 cdef extern from "ogr_api.h":
