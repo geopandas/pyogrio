@@ -14,7 +14,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    requires_arrow_api,
+    requires_pyarrow_api,
     requires_gdal_geos,
 )
 from pyogrio._compat import PANDAS_GE_15
@@ -45,7 +45,7 @@ pytest.importorskip("geopandas")
     scope="session",
     params=[
         False,
-        pytest.param(True, marks=requires_arrow_api),
+        pytest.param(True, marks=requires_pyarrow_api),
     ],
 )
 def use_arrow(request):
@@ -362,6 +362,21 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
         read_dataframe(
             naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
         )
+
+
+def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
+    # column included in where is not also included in list of columns, which means
+    # GDAL will return no features
+    # NOTE: this behavior is inconsistent across drivers so only shapefiles are
+    # tested for this
+    df = read_dataframe(
+        naturalearth_lowres,
+        where=""" "iso_a3" = 'CAN' """,
+        columns=["name"],
+        use_arrow=use_arrow,
+    )
+
+    assert len(df) == 0
 
 
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
@@ -1611,7 +1626,7 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     assert_geodataframe_equal(result, df)
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
@@ -1636,7 +1651,7 @@ def test_arrow_bool_roundtrip(tmpdir, ext):
     assert_geodataframe_equal(result, df, check_dtype=ext != ".shp")
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )

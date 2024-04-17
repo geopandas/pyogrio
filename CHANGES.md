@@ -11,6 +11,13 @@
 -   `read_arrow` and `open_arrow` now provide
     [GeoArrow-compliant extension metadata](https://geoarrow.org/extension-types.html),
     including the CRS, when using GDAL 3.8 or higher (#366).
+-   The `open_arrow` function can now be used without a `pyarrow` dependency. By
+    default, it will now return a stream object implementing the
+    [Arrow PyCapsule Protocol](https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html)
+    (i.e. having an `__arrow_c_stream__`method). This object can then be consumed
+    by your Arrow implementation of choice that supports this protocol. To keep
+    the previous behaviour of returning a `pyarrow.RecordBatchReader`, specify
+    `use_pyarrow=True` (#349).
 -   Warn when reading from a multilayer file without specifying a layer (#362).
 
 ### Bug fixes
@@ -22,10 +29,22 @@
 -   Raise exception in `read_arrow` or `read_dataframe(..., use_arrow=True)` if
     a boolean column is detected due to error in GDAL reading boolean values for
     FlatGeobuf / GPKG drivers (#335, #387); this has been fixed in GDAL >= 3.8.3.
+-   Properly ignore fields not listed in `columns` parameter when reading from
+    the data source not using the Arrow API (#391).
 
 ### Packaging
 
 -   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
+
+### Potentially breaking changes
+
+-   Using a `where` expression combined with a list of `columns` that does not include
+    the column referenced in the expression is not recommended and will now
+    return results based on driver-dependent behavior, which may include either
+    returning empty results (even if non-empty results are expected from `where` parameter)
+    or raise an exception (#391). Previous versions of pyogrio incorrectly
+    set ignored fields against the data source, allowing it to return non-empty
+    results in these cases.
 
 ## 0.7.2 (2023-10-30)
 
