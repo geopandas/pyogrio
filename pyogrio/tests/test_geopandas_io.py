@@ -14,7 +14,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    requires_arrow_api,
+    requires_pyarrow_api,
     requires_gdal_geos,
 )
 from pyogrio._compat import PANDAS_GE_15
@@ -45,7 +45,7 @@ pytest.importorskip("geopandas")
     scope="session",
     params=[
         False,
-        pytest.param(True, marks=requires_arrow_api),
+        pytest.param(True, marks=requires_pyarrow_api),
     ],
 )
 def use_arrow(request):
@@ -1582,7 +1582,7 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     assert_geodataframe_equal(result, df)
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
@@ -1607,7 +1607,7 @@ def test_arrow_bool_roundtrip(tmpdir, ext):
     assert_geodataframe_equal(result, df, check_dtype=ext != ".shp")
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
