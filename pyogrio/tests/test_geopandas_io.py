@@ -364,6 +364,21 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
         )
 
 
+def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
+    # column included in where is not also included in list of columns, which means
+    # GDAL will return no features
+    # NOTE: this behavior is inconsistent across drivers so only shapefiles are
+    # tested for this
+    df = read_dataframe(
+        naturalearth_lowres,
+        where=""" "iso_a3" = 'CAN' """,
+        columns=["name"],
+        use_arrow=use_arrow,
+    )
+
+    assert len(df) == 0
+
+
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
 def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox, use_arrow):
     with pytest.raises(ValueError, match="Invalid bbox"):

@@ -73,7 +73,10 @@ def read(
         List of column names to import from the data source.  Column names must
         exactly match the names in the data source, and will be returned in
         the order they occur in the data source.  To avoid reading any columns,
-        pass an empty list-like.
+        pass an empty list-like.  If combined with ``where`` parameter, must
+        include columns referenced in the ``where`` expression or the data may
+        not be correctly read; the data source may return empty results or
+        raise an exception (behavior varies by driver).
     read_geometry : bool, optional (default: True)
         If True, will read geometry into WKB.  If False, geometry will be None.
     force_2d : bool, optional (default: False)
