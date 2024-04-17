@@ -85,7 +85,7 @@ def test_read_csv_encoding(tmp_path, encoding):
 
 
 @pytest.mark.skipif(
-    locale.getpreferredencoding().upper() != "UTF-8",
+    locale.getpreferredencoding().upper() == "UTF-8",
     reason="test requires non-UTF-8 default platform",
 )
 def test_read_csv_platform_encoding(tmp_path):
