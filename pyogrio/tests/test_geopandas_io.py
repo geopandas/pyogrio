@@ -1,6 +1,9 @@
 import contextlib
 from datetime import datetime
+import locale
 import os
+import sys
+
 import numpy as np
 import pytest
 
@@ -80,6 +83,19 @@ def test_read_csv_encoding(tmp_path, encoding):
     assert df.columns.tolist() == ["näme", "city"]
     assert df.city.tolist() == ["Zürich"]
     assert df.näme.tolist() == ["Wilhelm Röntgen"]
+
+    # verify that read defaults to platform encoding
+    if (
+        sys.platform == "win32"
+        and encoding == "cp1252"
+        and locale.getpreferredencoding().lower() == encoding
+    ):
+        df = read_dataframe(csv_path)
+
+        assert len(df) == 1
+        assert df.columns.tolist() == ["näme", "city"]
+        assert df.city.tolist() == ["Zürich"]
+        assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
