@@ -1711,6 +1711,7 @@ def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     assert actual[text].values[0] == text
 
 
+@requires_pyarrow_api
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
 def test_non_utf8_encoding_io_arrow_exception(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
