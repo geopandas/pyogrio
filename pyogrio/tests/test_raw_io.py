@@ -1,4 +1,5 @@
 import contextlib
+import ctypes
 import json
 import os
 import sys
@@ -7,6 +8,7 @@ import numpy as np
 from numpy import array_equal
 import pytest
 
+import pyogrio
 from pyogrio import (
     list_layers,
     list_drivers,
@@ -14,13 +16,14 @@ from pyogrio import (
     set_gdal_config_options,
     __gdal_version__,
 )
-from pyogrio._compat import HAS_SHAPELY
-from pyogrio.raw import read, write
+from pyogrio._compat import HAS_SHAPELY, HAS_PYARROW
+from pyogrio.raw import read, write, open_arrow
 from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
 from pyogrio.tests.conftest import (
     DRIVERS,
     DRIVER_EXT,
     prepare_testfile,
+    requires_pyarrow_api,
     requires_arrow_api,
 )
 
@@ -1025,7 +1028,7 @@ def test_write_float_nan_null(tmp_path, dtype):
     assert '{ "col": NaN }' in content
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     "Arrow" not in list_drivers(), reason="Arrow driver is not available"
 )
@@ -1194,3 +1197,31 @@ def test_write_with_mask(tmp_path):
     field_mask = [np.array([False, True, False])] * 2
     with pytest.raises(ValueError):
         write(filename, geometry, field_data, fields, field_mask, **meta)
+
+
+@requires_arrow_api
+def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
+    # this test is included here instead of test_arrow.py to ensure we also run
+    # it when pyarrow is not installed
+
+    with open_arrow(naturalearth_lowres) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyogrio._io._ArrowStream)
+        capsule = reader.__arrow_c_stream__()
+        assert (
+            ctypes.pythonapi.PyCapsule_IsValid(
+                ctypes.py_object(capsule), b"arrow_array_stream"
+            )
+            == 1
+        )
+
+
+@pytest.mark.skipif(HAS_PYARROW, reason="pyarrow is installed")
+@requires_arrow_api
+def test_open_arrow_error_no_pyarrow(naturalearth_lowres):
+    # this test is included here instead of test_arrow.py to ensure we run
+    # it when pyarrow is not installed
+
+    with pytest.raises(ImportError):
+        with open_arrow(naturalearth_lowres, use_pyarrow=True) as _:
+            pass
