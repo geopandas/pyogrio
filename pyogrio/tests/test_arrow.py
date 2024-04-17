@@ -2,13 +2,15 @@ import contextlib
 import json
 import math
 import os
+import sys
 
 import pytest
-
 import numpy as np
+
+import pyogrio
 from pyogrio import __gdal_version__, read_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write
-from pyogrio.tests.conftest import ALL_EXTS, requires_arrow_api
+from pyogrio.tests.conftest import ALL_EXTS, requires_pyarrow_api
 
 try:
     import pandas as pd
@@ -20,7 +22,7 @@ except ImportError:
     pass
 
 # skip all tests in this file if Arrow API or GeoPandas are unavailable
-pytestmark = requires_arrow_api
+pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
 
 
@@ -137,8 +139,8 @@ def test_read_arrow_raw(naturalearth_lowres):
     assert isinstance(table, pyarrow.Table)
 
 
-def test_open_arrow(naturalearth_lowres):
-    with open_arrow(naturalearth_lowres) as (meta, reader):
+def test_open_arrow_pyarrow(naturalearth_lowres):
+    with open_arrow(naturalearth_lowres, use_pyarrow=True) as (meta, reader):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyarrow.RecordBatchReader)
         assert isinstance(reader.read_all(), pyarrow.Table)
@@ -148,7 +150,10 @@ def test_open_arrow_batch_size(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     batch_size = math.ceil(len(table) / 2)
 
-    with open_arrow(naturalearth_lowres, batch_size=batch_size) as (meta, reader):
+    with open_arrow(naturalearth_lowres, batch_size=batch_size, use_pyarrow=True) as (
+        meta,
+        reader,
+    ):
         assert isinstance(meta, dict)
         assert isinstance(reader, pyarrow.RecordBatchReader)
         count = 0
@@ -205,6 +210,36 @@ def test_read_arrow_geoarrow_metadata(naturalearth_lowres):
     parsed_meta = json.loads(field.metadata[b"ARROW:extension:metadata"])
     assert parsed_meta["crs"]["id"]["authority"] == "EPSG"
     assert parsed_meta["crs"]["id"]["code"] == 4326
+
+
+def test_open_arrow_capsule_protocol(naturalearth_lowres):
+    pytest.importorskip("pyarrow", minversion="14")
+
+    with open_arrow(naturalearth_lowres) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyogrio._io._ArrowStream)
+
+        result = pyarrow.table(reader)
+
+    _, expected = read_arrow(naturalearth_lowres)
+    assert result.equals(expected)
+
+
+def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
+    pyarrow = pytest.importorskip("pyarrow", minversion="14")
+
+    # Make PyArrow temporarily unavailable (importing will fail)
+    sys.modules["pyarrow"] = None
+    try:
+        with open_arrow(naturalearth_lowres) as (meta, reader):
+            assert isinstance(meta, dict)
+            assert isinstance(reader, pyogrio._io._ArrowStream)
+            result = pyarrow.table(reader)
+    finally:
+        sys.modules["pyarrow"] = pyarrow
+
+    _, expected = read_arrow(naturalearth_lowres)
+    assert result.equals(expected)
 
 
 @contextlib.contextmanager
