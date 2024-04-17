@@ -2,7 +2,6 @@ import contextlib
 from datetime import datetime
 import locale
 import os
-import sys
 
 import numpy as np
 import pytest
@@ -84,18 +83,24 @@ def test_read_csv_encoding(tmp_path, encoding):
     assert df.city.tolist() == ["Zürich"]
     assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
-    # verify that read defaults to platform encoding
-    if (
-        sys.platform == "win32"
-        and encoding == "cp1252"
-        and locale.getpreferredencoding().lower() == encoding
-    ):
-        df = read_dataframe(csv_path)
 
-        assert len(df) == 1
-        assert df.columns.tolist() == ["näme", "city"]
-        assert df.city.tolist() == ["Zürich"]
-        assert df.näme.tolist() == ["Wilhelm Röntgen"]
+@pytest.mark.skipif(
+    locale.getpreferredencoding().upper() != "UTF-8",
+    reason="test requires non-UTF-8 default platform",
+)
+def test_read_csv_platform_encoding(tmp_path):
+    """verify that read defaults to platform encoding; only works on Windows (CP1252)"""
+    csv_path = tmp_path / "test.csv"
+    with open(csv_path, "w", encoding=locale.getpreferredencoding()) as csv:
+        csv.write("näme,city\n")
+        csv.write("Wilhelm Röntgen,Zürich\n")
+
+    df = read_dataframe(csv_path)
+
+    assert len(df) == 1
+    assert df.columns.tolist() == ["näme", "city"]
+    assert df.city.tolist() == ["Zürich"]
+    assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
