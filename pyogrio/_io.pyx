@@ -2480,6 +2480,9 @@ cdef create_fields_from_arrow_schema(
     for i in range(schema.n_children):
         child = schema.children[i]
 
+        if child == NULL:
+            raise RuntimeError("Received invalid Arrow schema (null child)")
+
         # Don't create property for geometry column
         if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
             continue
