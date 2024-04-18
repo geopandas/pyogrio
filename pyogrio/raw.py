@@ -635,6 +635,8 @@ def write_arrow(
     """
     Write an Arrow-compatible data source to an OGR file format.
 
+    .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
+
     Parameters
     ----------
     arrow_obj
@@ -662,7 +664,7 @@ def write_arrow(
 
         This parameter does not modify the geometry, but it will try to force the layer
         type of the output file to this value. Use this parameter with caution because
-        using a non-default layer geometry type may result in errors when writing the
+        using a wrong layer geometry type may result in errors when writing the
         file, may be ignored by the driver, or may result in invalid files.
     encoding : str, optional (default: None)
         Only used for the .dbf file of ESRI Shapefiles. If not specified,
@@ -683,10 +685,10 @@ def write_arrow(
     metadata : dict, optional (default: None)
         alias of layer_metadata
     dataset_options : dict, optional
-        Dataset creation option (format specific) passed to OGR. Specify as
+        Dataset creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     layer_options : dict, optional
-        Layer creation option (format specific) passed to OGR. Specify as
+        Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
@@ -696,8 +698,6 @@ def write_arrow(
         explicit `dataset_options` or `layer_options` keywords to manually
         do this (for example if an option exists as both dataset and layer
         option).
-
-    .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
 
     """
     if not HAS_ARROW_WRITE_API:
