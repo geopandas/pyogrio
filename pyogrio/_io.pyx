@@ -20,6 +20,8 @@ from libc.math cimport isnan
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
+from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
+
 import numpy as np
 
 from pyogrio._ogr cimport *
@@ -1164,12 +1166,13 @@ def ogr_read(
 
         ignored_fields = []
         if columns is not None:
+            # identify ignored fields first
+            ignored_fields = list(set(fields[:,2]) - set(columns))
+
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
-
-            ignored_fields = list(set(fields[:,2]) - set(columns))
 
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
@@ -1258,6 +1261,35 @@ def ogr_read(
         field_data
     )
 
+
+cdef void pycapsule_array_stream_deleter(object stream_capsule) noexcept:
+    cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+        stream_capsule, 'arrow_array_stream'
+    )
+    # Do not invoke the deleter on a used/moved capsule
+    if stream.release != NULL:
+        stream.release(stream)
+
+    free(stream)
+
+
+cdef object alloc_c_stream(ArrowArrayStream** c_stream):
+    c_stream[0] = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
+    # Ensure the capsule destructor doesn't call a random release pointer
+    c_stream[0].release = NULL
+    return PyCapsule_New(c_stream[0], 'arrow_array_stream', &pycapsule_array_stream_deleter)
+
+
+class _ArrowStream:
+    def __init__(self, capsule):
+        self._capsule = capsule
+
+    def __arrow_c_stream__(self, requested_schema=None):
+        if requested_schema is not None:
+            raise NotImplementedError("requested_schema is not supported")
+        return self._capsule
+
+
 @contextlib.contextmanager
 def ogr_open_arrow(
     str path,
@@ -1276,7 +1308,9 @@ def ogr_open_arrow(
     str sql=None,
     str sql_dialect=None,
     int return_fids=False,
-    int batch_size=0):
+    int batch_size=0,
+    use_pyarrow=False,
+):
 
     cdef int err = 0
     cdef const char *path_c = NULL
@@ -1288,7 +1322,7 @@ def ogr_open_arrow(
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
-    cdef ArrowArrayStream stream
+    cdef ArrowArrayStream* stream
     cdef ArrowSchema schema
 
     IF CTE_GDAL_VERSION < (3, 6, 0):
@@ -1301,7 +1335,11 @@ def ogr_open_arrow(
         raise ValueError("forcing 2D is not supported for Arrow")
 
     if fids is not None:
-        raise ValueError("reading by FID is not supported for Arrow")
+        if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
+            raise ValueError(
+                "cannot set both 'fids' and any of 'where', 'bbox', 'mask', "
+                "'sql', 'skip_features', or 'max_features'"
+            )
 
     IF CTE_GDAL_VERSION < (3, 8, 0):
         if skip_features:
@@ -1375,14 +1413,45 @@ def ogr_open_arrow(
         geometry_name = get_string(OGR_L_GetGeometryColumn(ogr_layer))
 
         fid_column = get_string(OGR_L_GetFIDColumn(ogr_layer))
+        fid_column_where = fid_column
         # OGR_L_GetFIDColumn returns the column name if it is a custom column,
-        # or "" if not. For arrow, the default column name is "OGC_FID".
+        # or "" if not. For arrow, the default column name used to return the FID data
+        # read is "OGC_FID". When accessing the underlying datasource like when using a
+        # where clause, the default column name is "FID".
         if fid_column == "":
             fid_column = "OGC_FID"
+            fid_column_where = "FID"
+
+        # Use fids list to create a where clause, as arrow doesn't support direct fid
+        # filtering.
+        if fids is not None:
+            IF CTE_GDAL_VERSION < (3, 8, 0):
+                driver = get_driver(ogr_dataset)
+                if driver not in {"GPKG", "GeoJSON"}:
+                    warnings.warn(
+                        "Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow "
+                        "for some drivers. Upgrading GDAL or using 'use_arrow=False' "
+                        "can avoid this.",
+                        stacklevel=2,
+                    )
+
+            fids_str = ",".join([str(fid) for fid in fids])
+            where = f"{fid_column_where} IN ({fids_str})"
 
         # Apply the attribute filter
         if where is not None and where != "":
-            apply_where_filter(ogr_layer, where)
+            try:
+                apply_where_filter(ogr_layer, where)
+            except ValueError as ex:
+                if fids is not None and str(ex).startswith("Invalid SQL query"):
+                    # If fids is not None, the where being applied is the one formatted
+                    # above.
+                    raise ValueError(
+                        f"error applying filter for {len(fids)} fids; max. number for "
+                        f"drivers with default SQL dialect 'OGRSQL' is 4997"
+                    ) from ex
+
+                raise
 
         # Apply the spatial filter
         if bbox is not None:
@@ -1421,19 +1490,23 @@ def ogr_open_arrow(
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
-        if not OGR_L_GetArrowStream(ogr_layer, &stream, options):
-            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
+        # allocate the stream struct and wrap in capsule to ensure clean-up on error
+        capsule = alloc_c_stream(&stream)
 
-        stream_ptr = <uintptr_t> &stream
+        if not OGR_L_GetArrowStream(ogr_layer, stream, options):
+            raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
-        # stream has to be consumed before the Dataset is closed
-        import pyarrow as pa
-        reader = pa.RecordBatchStreamReader._import_from_c(stream_ptr)
+        if use_pyarrow:
+            import pyarrow as pa
+
+            reader = pa.RecordBatchStreamReader._import_from_c(<uintptr_t> stream)
+        else:
+            reader = _ArrowStream(capsule)
 
         meta = {
             'crs': crs,
@@ -1444,12 +1517,15 @@ def ogr_open_arrow(
             'fid_column': fid_column,
         }
 
+        # stream has to be consumed before the Dataset is closed
         yield meta, reader
 
     finally:
-        if reader is not None:
+        if use_pyarrow and reader is not None:
             # Mark reader as closed to prevent reading batches
             reader.close()
+
+        # `stream` will be freed through `capsule` destructor
 
         CSLDestroy(options)
         if fields_c != NULL:
@@ -1466,6 +1542,7 @@ def ogr_open_arrow(
 
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
+
 
 def ogr_read_bounds(
     str path,

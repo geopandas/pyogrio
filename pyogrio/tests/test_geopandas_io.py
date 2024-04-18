@@ -14,7 +14,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    requires_arrow_api,
+    requires_pyarrow_api,
     requires_gdal_geos,
 )
 from pyogrio._compat import PANDAS_GE_15
@@ -45,7 +45,7 @@ pytest.importorskip("geopandas")
     scope="session",
     params=[
         False,
-        pytest.param(True, marks=requires_arrow_api),
+        pytest.param(True, marks=requires_pyarrow_api),
     ],
 )
 def use_arrow(request):
@@ -364,6 +364,21 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
         )
 
 
+def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
+    # column included in where is not also included in list of columns, which means
+    # GDAL will return no features
+    # NOTE: this behavior is inconsistent across drivers so only shapefiles are
+    # tested for this
+    df = read_dataframe(
+        naturalearth_lowres,
+        where=""" "iso_a3" = 'CAN' """,
+        columns=["name"],
+        use_arrow=use_arrow,
+    )
+
+    assert len(df) == 0
+
+
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
 def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox, use_arrow):
     with pytest.raises(ValueError, match="Invalid bbox"):
@@ -503,12 +518,43 @@ def test_read_mask_where(naturalearth_lowres_all_ext, use_arrow):
     assert np.array_equal(df.iso_a3, ["CAN"])
 
 
-def test_read_fids(naturalearth_lowres_all_ext):
+@pytest.mark.parametrize("fids", [[1, 5, 10], np.array([1, 5, 10], dtype=np.int64)])
+def test_read_fids(naturalearth_lowres_all_ext, fids, use_arrow):
     # ensure keyword is properly passed through
-    fids = np.array([1, 10, 5], dtype=np.int64)
-    df = read_dataframe(naturalearth_lowres_all_ext, fids=fids, fid_as_index=True)
+    df = read_dataframe(
+        naturalearth_lowres_all_ext, fids=fids, fid_as_index=True, use_arrow=use_arrow
+    )
     assert len(df) == 3
     assert np.array_equal(fids, df.index.values)
+
+
+@requires_pyarrow_api
+def test_read_fids_arrow_max_exception(naturalearth_lowres):
+    # Maximum number at time of writing is 4997 for "OGRSQL". For e.g. for SQLite based
+    # formats like Geopackage, there is no limit.
+    nb_fids = 4998
+    fids = range(nb_fids)
+    with pytest.raises(ValueError, match=f"error applying filter for {nb_fids} fids"):
+        _ = read_dataframe(naturalearth_lowres, fids=fids, use_arrow=True)
+
+
+@requires_pyarrow_api
+@pytest.mark.skipif(
+    __gdal_version__ >= (3, 8, 0), reason="GDAL >= 3.8.0 does not need to warn"
+)
+def test_read_fids_arrow_warning_old_gdal(naturalearth_lowres_all_ext):
+    # A warning should be given for old GDAL versions, except for some file formats.
+    if naturalearth_lowres_all_ext.suffix not in [".gpkg", ".geojson"]:
+        handler = pytest.warns(
+            UserWarning,
+            match="Using 'fids' and 'use_arrow=True' with GDAL < 3.8 can be slow",
+        )
+    else:
+        handler = contextlib.nullcontext()
+
+    with handler:
+        df = read_dataframe(naturalearth_lowres_all_ext, fids=[22], use_arrow=True)
+        assert len(df) == 1
 
 
 def test_read_fids_force_2d(test_fgdb_vsi):
@@ -1582,7 +1628,7 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     assert_geodataframe_equal(result, df)
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
@@ -1607,7 +1653,7 @@ def test_arrow_bool_roundtrip(tmpdir, ext):
     assert_geodataframe_equal(result, df, check_dtype=ext != ".shp")
 
 
-@requires_arrow_api
+@requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )

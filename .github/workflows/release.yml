@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.8.3"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5"
 
     steps:
       - name: Download sdist from artifacts
@@ -113,7 +113,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.17.0
 
       - uses: actions/upload-artifact@v4
         with:
@@ -160,7 +160,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.8.3-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.8.5-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -178,7 +178,7 @@ jobs:
           git reset --hard
           # pull latest version to ensure the required commit with GDAL 3.8 is available
           git pull
-          git checkout 6df4d4f49866212aa00fcd85fde5356503dafed1
+          git checkout 4f4a1821b2e8c7a2863e4df65a4d514f84144049
 
       - name: Install GDAL
         env:
@@ -196,7 +196,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v2.17.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}

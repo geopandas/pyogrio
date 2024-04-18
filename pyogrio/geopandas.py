@@ -112,7 +112,10 @@ def read_dataframe(
         List of column names to import from the data source.  Column names must
         exactly match the names in the data source, and will be returned in
         the order they occur in the data source.  To avoid reading any columns,
-        pass an empty list-like.
+        pass an empty list-like.  If combined with ``where`` parameter, must
+        include columns referenced in the ``where`` expression or the data may
+        not be correctly read; the data source may return empty results or
+        raise an exception (behavior varies by driver).
     read_geometry : bool, optional (default: True)
         If True, will read geometry into a GeoSeries.  If False, a Pandas DataFrame
         will be returned instead.
@@ -157,7 +160,12 @@ def read_dataframe(
         the starting index is driver and file specific (e.g. typically 0 for
         Shapefile and 1 for GeoPackage, but can still depend on the specific
         file). The performance of reading a large number of features usings FIDs
-        is also driver specific.
+        is also driver specific and depends on the value of ``use_arrow``. The order
+        of the rows returned is undefined. If you would like to sort based on FID, use
+        ``fid_as_index=True`` to have the index of the GeoDataFrame returned set to the
+        FIDs of the features read. If ``use_arrow=True``, the number of FIDs is limited
+        to 4997 for drivers with 'OGRSQL' as default SQL dialect. To read a larger
+        number of FIDs, set ``user_arrow=False``.
     sql : str, optional (default: None)
         The SQL statement to execute. Look at the sql_dialect parameter for more
         information on the syntax to use for the query. When combined with other
@@ -342,7 +350,7 @@ def write_dataframe(
         in the output file.
     path : str
         path to file
-    layer :str, optional (default: None)
+    layer : str, optional (default: None)
         layer name
     driver : string, optional (default: None)
         The OGR format driver used to write the vector file. By default write_dataframe
@@ -542,7 +550,7 @@ def write_dataframe(
         # if possible use EPSG codes instead
         epsg = geometry.crs.to_epsg()
         if epsg:
-            crs = f"EPSG:{epsg}"
+            crs = f"EPSG:{epsg}"  # noqa: E231
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 
