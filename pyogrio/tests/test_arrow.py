@@ -8,7 +8,13 @@ import pytest
 import numpy as np
 
 import pyogrio
-from pyogrio import __gdal_version__, read_dataframe, read_info, list_layers
+from pyogrio import (
+    __gdal_version__,
+    read_dataframe,
+    read_info,
+    list_layers,
+    set_gdal_config_options,
+)
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
 from pyogrio.errors import DataSourceError, FieldError, DataLayerError
 from pyogrio.tests.conftest import (
@@ -561,6 +567,30 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
             filename,
             driver="GML",
             append=True,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    # set config options to avoid errors on open due to GDAL S3 configuration
+    set_gdal_config_options(
+        {
+            "AWS_ACCESS_KEY_ID": "invalid",
+            "AWS_SECRET_ACCESS_KEY": "invalid",
+            "AWS_NO_SIGN_REQUEST": True,
+        }
+    )
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write_arrow(
+            table,
+            filename,
             crs=meta["crs"],
             geometry_type=meta["geometry_type"],
             geometry_name=meta["geometry_name"] or "wkb_geometry",
