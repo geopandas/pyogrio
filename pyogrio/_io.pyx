@@ -2402,6 +2402,13 @@ def ogr_write_arrow(
 
 
 cdef get_arrow_extension_metadata(const ArrowSchema* schema):
+    """
+    Parse the metadata of the ArrowSchema and extract extension type
+    metadata (extension name and metadata).
+
+    For the exact layout of the bytes, see
+    https://arrow.apache.org/docs/dev/format/CDataInterface.html#c.ArrowSchema.metadata
+    """
     cdef const char *metadata = schema.metadata
 
     extension_name = None
@@ -2410,18 +2417,27 @@ cdef get_arrow_extension_metadata(const ArrowSchema* schema):
     if metadata == NULL:
         return extension_name, extension_metadata
 
+    # the number of metadata key/value pairs is stored
+    # as an int32 value in the first 4 bytes
     n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
     pos = 4
 
     for i in range(n):
-        length_key = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+        # for each metadata key/value pair, the first 4 bytes is the byte length
+        # of the key as an int32, then follows the key (not null-terminated),
+        # and then the same for the value length and bytes
+        key_length = int.from_bytes(
+            metadata[pos:pos+4], byteorder=sys.byteorder, signed=True
+        )
         pos += 4
-        key = metadata[pos:pos+length_key]
-        pos += length_key
-        length_value = int.from_bytes(metadata[pos:pos+4], byteorder=sys.byteorder)
+        key = metadata[pos:pos+key_length]
+        pos += key_length
+        value_length = int.from_bytes(
+            metadata[pos:pos+4], byteorder=sys.byteorder, signed=True
+        )
         pos += 4
-        value = metadata[pos:pos+length_value]
-        pos += length_value
+        value = metadata[pos:pos+value_length]
+        pos += value_length
 
         if key == b"ARROW:extension:name":
             extension_name = value
