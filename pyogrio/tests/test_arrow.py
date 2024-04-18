@@ -2,6 +2,7 @@ import contextlib
 import json
 import math
 import os
+from packaging.version import Version
 import sys
 
 import pytest
@@ -695,6 +696,24 @@ def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
 
 
 @requires_arrow_write_api
+def test_write_no_crs(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = tmpdir / "test.shp"
+    with pytest.warns(UserWarning, match="'crs' was not provided"):
+        write_arrow(
+            table,
+            filename,
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+    # apart from CRS warning, it did write correctly
+    meta_result, result = read_arrow(str(filename))
+    assert table.equals(result)
+    assert meta_result["crs"] is None
+
+
+@requires_arrow_write_api
 def test_write_non_arrow_data(tmpdir):
     data = np.array([1, 2, 3])
     with pytest.raises(
@@ -703,6 +722,26 @@ def test_write_non_arrow_data(tmpdir):
         write_arrow(
             data,
             tmpdir / "test_no_arrow_data.shp",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
+@pytest.mark.skipif(
+    Version(pa.__version__) < Version("16.0.0.dev0"),
+    reason="PyCapsule protocol only added to pyarrow.ChunkedArray in pyarrow 16",
+)
+@requires_arrow_write_api
+def test_write_non_arrow_tabular_data(tmpdir):
+    data = pa.chunked_array([[1, 2, 3], [4, 5, 6]])
+    with pytest.raises(
+        DataLayerError,
+        match=".*should be called on a schema that is a struct of fields",
+    ):
+        write_arrow(
+            data,
+            tmpdir / "test_no_arrow_tabular_data.shp",
             crs="EPSG:4326",
             geometry_type="Point",
             geometry_name="geometry",
