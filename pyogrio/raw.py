@@ -728,7 +728,7 @@ def write_arrow(
         )
 
     if geometry_type is None:
-        raise ValueError("Need to specify 'geometry_type'")
+        raise ValueError("'geometry_type' keyword is required")
 
     dataset_metadata, layer_metadata = _validate_metadata(
         dataset_metadata, layer_metadata, metadata

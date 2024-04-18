@@ -654,7 +654,7 @@ def test_write_geometry_type(tmpdir, naturalearth_lowres):
 
     # Not specifying the geometry currently raises an error
     filename = os.path.join(str(tmpdir), "test.shp")
-    with pytest.raises(ValueError, match="Need to specify 'geometry_type"):
+    with pytest.raises(ValueError, match="'geometry_type' keyword is required"):
         write_arrow(
             table,
             filename,

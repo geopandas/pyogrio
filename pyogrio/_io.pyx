@@ -2320,6 +2320,9 @@ def ogr_write_arrow(
     cdef ArrowSchema schema
     cdef ArrowArray array
 
+    schema.release = NULL
+    array.release = NULL
+
     layer_created = create_ogr_dataset_layer(
         path, layer, driver, crs, geometry_type, encoding,
         dataset_kwargs, layer_kwargs, append,
@@ -2346,21 +2349,13 @@ def ogr_write_arrow(
             raise RuntimeError("Arrow array stream was already released.")
 
         if stream.get_schema(stream, &schema) != 0:
-            stream.release(stream)
             raise RuntimeError("Could not get Arrow schema from stream.")
 
         if layer_created:
-            try:
-                create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
-            except Exception as e:
-                schema.release(&schema)
-                stream.release(stream)
-                raise e
+            create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
 
         while True:
             if stream.get_next(stream, &array) != 0:
-                schema.release(&schema)
-                stream.release(stream)
                 raise RuntimeError("Error while accessing batch from stream.")
 
             # We've reached the end of the stream
@@ -2368,12 +2363,6 @@ def ogr_write_arrow(
                 break
 
             if not OGR_L_WriteArrowBatch(ogr_layer, &schema, &array, options):
-                if array.release != NULL:
-                    array.release(&array)
-
-                schema.release(&schema)
-                stream.release(stream)
-
                 exc = exc_check()
                 gdal_msg = f": {str(exc)}" if exc else "."
                 raise DataLayerError(
@@ -2383,10 +2372,14 @@ def ogr_write_arrow(
             if array.release != NULL:
                 array.release(&array)
 
-        schema.release(&schema)
-        stream.release(stream)
-
     finally:
+        if stream != NULL and stream.release != NULL:
+            stream.release(stream)
+        if schema.release != NULL:
+            schema.release(&schema)
+        if array.release != NULL:
+            array.release(&array)
+
         if options != NULL:
             CSLDestroy(options)
             options = NULL
