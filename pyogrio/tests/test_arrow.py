@@ -8,11 +8,13 @@ import pytest
 import numpy as np
 
 import pyogrio
-from pyogrio import __gdal_version__, read_dataframe, list_layers
+from pyogrio import __gdal_version__, read_dataframe, read_info, list_layers
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
-from pyogrio.errors import FieldError, DataLayerError
+from pyogrio.errors import DataSourceError, FieldError, DataLayerError
 from pyogrio.tests.conftest import (
     ALL_EXTS,
+    DRIVERS,
+    DRIVER_EXT,
     requires_arrow_write_api,
     requires_pyarrow_api,
 )
@@ -355,7 +357,7 @@ points = np.array(
 
 
 @requires_arrow_write_api
-def test_write(tmpdir, naturalearth_lowres):
+def test_write_shp(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.shp")
@@ -451,6 +453,118 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
     assert not len(
         set(meta["fields"]).difference(data["features"][0]["properties"].keys())
     )
+
+
+@pytest.mark.parametrize(
+    "driver",
+    {
+        driver
+        for driver in DRIVERS.values()
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
+    },
+)
+@requires_arrow_write_api
+def test_write_supported(tmpdir, naturalearth_lowres, driver):
+    """Test drivers known to work that are not specifically tested above"""
+    meta, table = read_arrow(naturalearth_lowres, columns=["iso_a3"])
+
+    # note: naturalearth_lowres contains mixed polygons / multipolygons, which
+    # are not supported in mixed form for all drivers.  To get around this here
+    # we take the first record only.
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = tmpdir / f"test{DRIVER_EXT[driver]}"
+    write_arrow(
+        table.slice(0, 1),
+        filename,
+        driver=driver,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+
+
+@requires_arrow_write_api
+def test_write_unsupported(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gdb")
+
+    with pytest.raises(DataSourceError, match="does not support write functionality"):
+        write_arrow(
+            table,
+            filename,
+            driver="ESRIJSON",
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+@requires_arrow_write_api
+def test_write_append(request, tmpdir, naturalearth_lowres, ext):
+    if ext.startswith(".geojson"):
+        request.node.add_marker(
+            pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
+        )
+
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # coerce output layer to generic Geometry to avoid mixed type errors
+    meta["geometry_type"] = "Unknown"
+
+    filename = tmpdir / f"test{ext}"
+    write_arrow(
+        table,
+        filename,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+    assert read_info(str(filename))["features"] == 177
+
+    # write the same records again
+    write_arrow(
+        table,
+        filename,
+        append=True,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert read_info(str(filename))["features"] == 354
+
+
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # GML does not support append functionality
+    filename = tmpdir / "test.gml"
+    write_arrow(
+        table,
+        filename,
+        driver="GML",
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+    assert read_info(str(filename), force_feature_count=True)["features"] == 177
+
+    with pytest.raises(DataSourceError):
+        write_arrow(
+            table,
+            filename,
+            driver="GML",
+            append=True,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
 
 
 @requires_arrow_write_api

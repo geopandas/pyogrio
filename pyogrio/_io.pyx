@@ -2349,12 +2349,13 @@ def ogr_write_arrow(
             stream.release(stream)
             raise RuntimeError("Could not get Arrow schema from stream.")
 
-        try:
-            create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
-        except Exception as e:
-            schema.release(&schema)
-            stream.release(stream)
-            raise e
+        if layer_created:
+            try:
+                create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
+            except Exception as e:
+                schema.release(&schema)
+                stream.release(stream)
+                raise e
 
         while True:
             if stream.get_next(stream, &array) != 0:
