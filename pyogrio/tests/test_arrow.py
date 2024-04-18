@@ -545,6 +545,7 @@ def test_write_append(request, tmpdir, naturalearth_lowres, ext):
 
 
 @pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@requires_arrow_write_api
 def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
     meta, table = read_arrow(naturalearth_lowres)
 
@@ -573,6 +574,7 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
         )
 
 
+@requires_arrow_write_api
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
