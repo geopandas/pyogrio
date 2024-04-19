@@ -34,7 +34,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
+-   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.5.
 
 ### Potentially breaking changes
 
