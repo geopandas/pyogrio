@@ -496,7 +496,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
 def test_write_unsupported(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.gdb")
+    filename = os.path.join(str(tmpdir), "test.json")
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write_arrow(

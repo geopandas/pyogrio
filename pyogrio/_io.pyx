@@ -2316,7 +2316,7 @@ def ogr_write_arrow(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
-    cdef ArrowArrayStream* stream
+    cdef ArrowArrayStream* stream = NULL
     cdef ArrowSchema schema
     cdef ArrowArray array
 
