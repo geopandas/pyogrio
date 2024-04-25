@@ -18,3 +18,8 @@ Reading as Arrow data
 
 .. autofunction:: pyogrio.raw.read_arrow
 .. autofunction:: pyogrio.raw.open_arrow
+
+Writing from Arrow data
+---------------------
+
+.. autofunction:: pyogrio.raw.write_arrow

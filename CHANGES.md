@@ -4,6 +4,9 @@
 
 ### Improvements
 
+-   Support for writing based on Arrow as the transfer mechanism of the data
+    from Python to GDAL (requires GDAL >= 3.8). This is provided through the
+    new `pyogrio.raw.write_arrow` function (#314, #346).
 -   Add support for `fids` filter to `read_arrow` and `open_arrow`, and to
     `read_dataframe` with `use_arrow=True` (#304).
 -   Add some missing properties to `read_info`, including layer name, geometry name
@@ -38,7 +41,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.3.
+-   The GDAL library included in the wheels is updated from 3.7.2 to GDAL 3.8.5.
 
 ### Potentially breaking changes
 

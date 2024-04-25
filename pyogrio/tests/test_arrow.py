@@ -2,15 +2,29 @@ import contextlib
 import json
 import math
 import os
+from packaging.version import Version
 import sys
 
 import pytest
 import numpy as np
 
 import pyogrio
-from pyogrio import __gdal_version__, read_dataframe
-from pyogrio.raw import open_arrow, read_arrow, write
-from pyogrio.tests.conftest import ALL_EXTS, requires_pyarrow_api
+from pyogrio import (
+    __gdal_version__,
+    read_dataframe,
+    read_info,
+    list_layers,
+    set_gdal_config_options,
+)
+from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
+from pyogrio.errors import DataSourceError, FieldError, DataLayerError
+from pyogrio.tests.conftest import (
+    ALL_EXTS,
+    DRIVERS,
+    DRIVER_EXT,
+    requires_arrow_write_api,
+    requires_pyarrow_api,
+)
 
 try:
     import pandas as pd
@@ -24,6 +38,7 @@ except ImportError:
 # skip all tests in this file if Arrow API or GeoPandas are unavailable
 pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
+pa = pytest.importorskip("pyarrow")
 
 
 def test_read_arrow(naturalearth_lowres_all_ext):
@@ -339,3 +354,446 @@ def test_arrow_bool_exception(tmpdir, ext):
     else:
         with open_arrow(filename):
             pass
+
+
+# Point(0, 0)
+points = np.array(
+    [bytes.fromhex("010100000000000000000000000000000000000000")] * 3,
+    dtype=object,
+)
+
+
+@requires_arrow_write_api
+def test_write_shp(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.shp")
+    write_arrow(
+        table,
+        filename,
+        crs=meta["crs"],
+        encoding=meta["encoding"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    assert os.path.exists(filename)
+    for ext in (".dbf", ".prj"):
+        assert os.path.exists(filename.replace(".shp", ext))
+
+
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
+@requires_arrow_write_api
+def test_write_gpkg(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_arrow(
+        table,
+        filename,
+        driver="GPKG",
+        crs=meta["crs"],
+        geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    assert os.path.exists(filename)
+
+
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
+@requires_arrow_write_api
+def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_arrow(
+        table,
+        filename,
+        driver="GPKG",
+        layer="first",
+        crs=meta["crs"],
+        geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    assert os.path.exists(filename)
+
+    assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
+
+    write_arrow(
+        table,
+        filename,
+        driver="GPKG",
+        layer="second",
+        crs=meta["crs"],
+        geometry_type="MultiPolygon",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    assert np.array_equal(
+        list_layers(filename), [["first", "MultiPolygon"], ["second", "MultiPolygon"]]
+    )
+
+
+@requires_arrow_write_api
+def test_write_geojson(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), "test.json")
+    write_arrow(
+        table,
+        filename,
+        driver="GeoJSON",
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    assert os.path.exists(filename)
+
+    data = json.loads(open(filename).read())
+
+    assert data["type"] == "FeatureCollection"
+    assert data["name"] == "test"
+    assert "crs" in data
+    assert len(data["features"]) == len(table)
+    assert not len(
+        set(meta["fields"]).difference(data["features"][0]["properties"].keys())
+    )
+
+
+@pytest.mark.parametrize(
+    "driver",
+    {
+        driver
+        for driver in DRIVERS.values()
+        if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
+    },
+)
+@requires_arrow_write_api
+def test_write_supported(tmpdir, naturalearth_lowres, driver):
+    """Test drivers known to work that are not specifically tested above"""
+    meta, table = read_arrow(naturalearth_lowres, columns=["iso_a3"])
+
+    # note: naturalearth_lowres contains mixed polygons / multipolygons, which
+    # are not supported in mixed form for all drivers.  To get around this here
+    # we take the first record only.
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = tmpdir / f"test{DRIVER_EXT[driver]}"
+    write_arrow(
+        table.slice(0, 1),
+        filename,
+        driver=driver,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+
+
+@requires_arrow_write_api
+def test_write_unsupported(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.json")
+
+    with pytest.raises(DataSourceError, match="does not support write functionality"):
+        write_arrow(
+            table,
+            filename,
+            driver="ESRIJSON",
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+
+@pytest.mark.parametrize("ext", DRIVERS)
+@requires_arrow_write_api
+def test_write_append(request, tmpdir, naturalearth_lowres, ext):
+    if ext.startswith(".geojson"):
+        request.node.add_marker(
+            pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
+        )
+
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # coerce output layer to generic Geometry to avoid mixed type errors
+    meta["geometry_type"] = "Unknown"
+
+    filename = tmpdir / f"test{ext}"
+    write_arrow(
+        table,
+        filename,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+    assert read_info(str(filename))["features"] == 177
+
+    # write the same records again
+    write_arrow(
+        table,
+        filename,
+        append=True,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert read_info(str(filename))["features"] == 354
+
+
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@requires_arrow_write_api
+def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # GML does not support append functionality
+    filename = tmpdir / "test.gml"
+    write_arrow(
+        table,
+        filename,
+        driver="GML",
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert filename.exists()
+    assert read_info(str(filename), force_feature_count=True)["features"] == 177
+
+    with pytest.raises(DataSourceError):
+        write_arrow(
+            table,
+            filename,
+            driver="GML",
+            append=True,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+
+@requires_arrow_write_api
+def test_write_gdalclose_error(naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = "s3://non-existing-bucket/test.geojson"
+
+    # set config options to avoid errors on open due to GDAL S3 configuration
+    set_gdal_config_options(
+        {
+            "AWS_ACCESS_KEY_ID": "invalid",
+            "AWS_SECRET_ACCESS_KEY": "invalid",
+            "AWS_NO_SIGN_REQUEST": True,
+        }
+    )
+
+    with pytest.raises(DataSourceError, match="Failed to write features to dataset"):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+
+@requires_arrow_write_api
+@pytest.mark.parametrize("name", ["geoarrow.wkb", "ogc.wkb"])
+def test_write_geometry_extension_type(tmpdir, naturalearth_lowres, name):
+    # Infer geometry column based on extension name
+    # instead of passing `geometry_name` explicitly
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # change extension type name
+    idx = table.schema.get_field_index("wkb_geometry")
+    new_field = table.schema.field(idx).with_metadata({"ARROW:extension:name": name})
+    new_table = table.cast(table.schema.set(idx, new_field))
+
+    filename = os.path.join(str(tmpdir), "test_geoarrow.shp")
+    write_arrow(
+        new_table,
+        filename,
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+    )
+    _, table_roundtripped = read_arrow(filename)
+    assert table_roundtripped.equals(table)
+
+
+@requires_arrow_write_api
+def test_write_unsupported_geoarrow(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # change extension type name (the name doesn't match with the column type
+    # for correct geoarrow data, but our writing code checks it based on the name)
+    idx = table.schema.get_field_index("wkb_geometry")
+    new_field = table.schema.field(idx).with_metadata(
+        {"ARROW:extension:name": "geoarrow.point"}
+    )
+    new_table = table.cast(table.schema.set(idx, new_field))
+
+    filename = os.path.join(str(tmpdir), "test_geoarrow.shp")
+    with pytest.raises(
+        NotImplementedError,
+        match="Writing a geometry column of type geoarrow.point is not yet supported",
+    ):
+        write_arrow(
+            new_table,
+            filename,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+        )
+
+
+@requires_arrow_write_api
+def test_write_geometry_type(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    # Not specifying the geometry currently raises an error
+    filename = os.path.join(str(tmpdir), "test.shp")
+    with pytest.raises(ValueError, match="'geometry_type' keyword is required"):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+
+    # Specifying "Unknown" works and will create generic layer
+    filename = os.path.join(str(tmpdir), "test.gpkg")
+    write_arrow(
+        table,
+        filename,
+        crs=meta["crs"],
+        geometry_type="Unknown",
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+    assert os.path.exists(filename)
+    meta_written, _ = read_arrow(filename)
+    assert meta_written["geometry_type"] == "Unknown"
+
+
+@requires_arrow_write_api
+def test_write_raise_promote_to_multi(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = os.path.join(str(tmpdir), "test.shp")
+
+    with pytest.raises(
+        ValueError, match="The 'promote_to_multi' option is not supported"
+    ):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+            promote_to_multi=True,
+        )
+
+
+@requires_arrow_write_api
+def test_write_no_crs(tmpdir, naturalearth_lowres):
+    meta, table = read_arrow(naturalearth_lowres)
+
+    filename = tmpdir / "test.shp"
+    with pytest.warns(UserWarning, match="'crs' was not provided"):
+        write_arrow(
+            table,
+            filename,
+            geometry_type=meta["geometry_type"],
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+        )
+    # apart from CRS warning, it did write correctly
+    meta_result, result = read_arrow(str(filename))
+    assert table.equals(result)
+    assert meta_result["crs"] is None
+
+
+@requires_arrow_write_api
+def test_write_non_arrow_data(tmpdir):
+    data = np.array([1, 2, 3])
+    with pytest.raises(
+        ValueError, match="The provided data is not recognized as Arrow data"
+    ):
+        write_arrow(
+            data,
+            tmpdir / "test_no_arrow_data.shp",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
+@pytest.mark.skipif(
+    Version(pa.__version__) < Version("16.0.0.dev0"),
+    reason="PyCapsule protocol only added to pyarrow.ChunkedArray in pyarrow 16",
+)
+@requires_arrow_write_api
+def test_write_non_arrow_tabular_data(tmpdir):
+    data = pa.chunked_array([[1, 2, 3], [4, 5, 6]])
+    with pytest.raises(
+        DataLayerError,
+        match=".*should be called on a schema that is a struct of fields",
+    ):
+        write_arrow(
+            data,
+            tmpdir / "test_no_arrow_tabular_data.shp",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
+@pytest.mark.filterwarnings("ignore:.*not handled natively:RuntimeWarning")
+@requires_arrow_write_api
+def test_write_batch_error_message(tmpdir):
+    # raise the correct error and message from GDAL when an error happens
+    # while writing
+
+    # invalid dictionary array that will only error while writing (schema
+    # itself is OK)
+    arr = pa.DictionaryArray.from_buffers(
+        pa.dictionary(pa.int64(), pa.string()),
+        length=3,
+        buffers=pa.array([0, 1, 2]).buffers(),
+        dictionary=pa.array(["a", "b"]),
+    )
+    table = pa.table({"geometry": points, "col": arr})
+
+    with pytest.raises(DataLayerError, match=".*invalid dictionary index"):
+        write_arrow(
+            table,
+            tmpdir / "test_unsupported_list_type.fgb",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )
+
+
+@requires_arrow_write_api
+def test_write_schema_error_message(tmpdir):
+    # raise the correct error and message from GDAL when an error happens
+    # creating the fields from the schema
+    # (using complex list of map of integer->integer which is not supported by GDAL)
+    table = pa.table(
+        {
+            "geometry": points,
+            "col": pa.array(
+                [[[(1, 2), (3, 4)], None, [(5, 6)]]] * 3,
+                pa.list_(pa.map_(pa.int64(), pa.int64())),
+            ),
+        }
+    )
+
+    with pytest.raises(FieldError, match=".*not supported"):
+        write_arrow(
+            table,
+            tmpdir / "test_unsupported_map_type.shp",
+            crs="EPSG:4326",
+            geometry_type="Point",
+            geometry_name="geometry",
+        )

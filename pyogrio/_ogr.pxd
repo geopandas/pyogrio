@@ -194,12 +194,35 @@ cdef extern from "ogr_srs_api.h":
 
 
 cdef extern from "arrow_bridge.h" nogil:
-    struct ArrowSchema:
+    struct ArrowArray:
+        int64_t length
+        int64_t null_count
+        int64_t offset
+        int64_t n_buffers
         int64_t n_children
+        const void** buffers
+        ArrowArray** children
+        ArrowArray* dictionary
+        void (*release)(ArrowArray*) noexcept nogil
+        void* private_data
+
+    struct ArrowSchema:
+        const char* format
+        const char* name
+        const char* metadata
+        int64_t flags
+        int64_t n_children
+        ArrowSchema** children
+        ArrowSchema* dictionary
+        void (*release)(ArrowSchema*) noexcept nogil
+        void* private_data
 
     struct ArrowArrayStream:
-        int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out) noexcept
+        int (*get_schema)(ArrowArrayStream*, ArrowSchema* out) noexcept
+        int (*get_next)(ArrowArrayStream*, ArrowArray* out)
+        const char* (*get_last_error)(ArrowArrayStream*)
         void (*release)(ArrowArrayStream*) noexcept
+        void* private_data
 
 
 cdef extern from "ogr_api.h":
@@ -318,8 +341,13 @@ cdef extern from "ogr_api.h":
 IF CTE_GDAL_VERSION >= (3, 6, 0):
 
     cdef extern from "ogr_api.h":
-        int8_t OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
+        bint OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
+IF CTE_GDAL_VERSION >= (3, 8, 0):
+
+    cdef extern from "ogr_api.h":
+        bint OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
+        bint OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:

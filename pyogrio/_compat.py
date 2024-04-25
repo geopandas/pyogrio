@@ -25,6 +25,7 @@ except ImportError:
 
 
 HAS_ARROW_API = __gdal_version__ >= (3, 6, 0)
+HAS_ARROW_WRITE_API = __gdal_version__ >= (3, 8, 0)
 HAS_PYARROW = pyarrow is not None
 
 HAS_GEOPANDAS = geopandas is not None

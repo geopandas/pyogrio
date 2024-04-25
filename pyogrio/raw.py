@@ -1,24 +1,24 @@
 import warnings
 
 from pyogrio._env import GDALEnv
-from pyogrio._compat import HAS_ARROW_API, HAS_PYARROW
+from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import (
+    _mask_to_wkb,
+    _preprocess_options_key_value,
     get_vsi_path,
     vsi_path,
-    _preprocess_options_key_value,
-    _mask_to_wkb,
 )
 
 with GDALEnv():
-    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write
+    from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write, ogr_write_arrow
     from pyogrio._ogr import (
+        _get_driver_metadata_item,
         get_gdal_version,
         get_gdal_version_string,
         ogr_driver_supports_write,
         remove_virtual_file,
-        _get_driver_metadata_item,
     )
 
 
@@ -482,6 +482,51 @@ def _parse_options_names(xml):
     return options
 
 
+def _validate_metadata(dataset_metadata, layer_metadata, metadata):
+    """ """
+    if metadata is not None:
+        if layer_metadata is not None:
+            raise ValueError("Cannot pass both metadata and layer_metadata")
+        layer_metadata = metadata
+
+    # validate metadata types
+    for metadata in [dataset_metadata, layer_metadata]:
+        if metadata is not None:
+            for k, v in metadata.items():
+                if not isinstance(k, str):
+                    raise ValueError(f"metadata key {k} must be a string")
+
+                if not isinstance(v, str):
+                    raise ValueError(f"metadata value {v} must be a string")
+    return dataset_metadata, layer_metadata
+
+
+def _preprocess_options_kwargs(driver, dataset_options, layer_options, kwargs):
+    """
+    Preprocess kwargs and split in dataset and layer creation options.
+    """
+
+    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
+    layer_kwargs = _preprocess_options_key_value(layer_options or {})
+    if kwargs:
+        kwargs = _preprocess_options_key_value(kwargs)
+        dataset_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
+        )
+        layer_option_names = _parse_options_names(
+            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
+        )
+        for k, v in kwargs.items():
+            if k in dataset_option_names:
+                dataset_kwargs[k] = v
+            elif k in layer_option_names:
+                layer_kwargs[k] = v
+            else:
+                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+
+    return dataset_kwargs, layer_kwargs
+
+
 def write(
     path,
     geometry,
@@ -526,20 +571,9 @@ def write(
             "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
         )
 
-    if metadata is not None:
-        if layer_metadata is not None:
-            raise ValueError("Cannot pass both metadata and layer_metadata")
-        layer_metadata = metadata
-
-    # validate metadata types
-    for metadata in [dataset_metadata, layer_metadata]:
-        if metadata is not None:
-            for k, v in metadata.items():
-                if not isinstance(k, str):
-                    raise ValueError(f"metadata key {k} must be a string")
-
-                if not isinstance(v, str):
-                    raise ValueError(f"metadata value {v} must be a string")
+    dataset_metadata, layer_metadata = _validate_metadata(
+        dataset_metadata, layer_metadata, metadata
+    )
 
     if geometry is not None and promote_to_multi is None:
         promote_to_multi = (
@@ -555,23 +589,9 @@ def write(
         )
 
     # preprocess kwargs and split in dataset and layer creation options
-    dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
-    layer_kwargs = _preprocess_options_key_value(layer_options or {})
-    if kwargs:
-        kwargs = _preprocess_options_key_value(kwargs)
-        dataset_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DMD_CREATIONOPTIONLIST")
-        )
-        layer_option_names = _parse_options_names(
-            _get_driver_metadata_item(driver, "DS_LAYER_CREATIONOPTIONLIST")
-        )
-        for k, v in kwargs.items():
-            if k in dataset_option_names:
-                dataset_kwargs[k] = v
-            elif k in layer_option_names:
-                layer_kwargs[k] = v
-            else:
-                raise ValueError(f"unrecognized option '{k}' for driver '{driver}'")
+    dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
+        driver, dataset_options, layer_options, kwargs
+    )
 
     ogr_write(
         path,
@@ -592,4 +612,153 @@ def write(
         dataset_kwargs=dataset_kwargs,
         layer_kwargs=layer_kwargs,
         gdal_tz_offsets=gdal_tz_offsets,
+    )
+
+
+def write_arrow(
+    arrow_obj,
+    path,
+    layer=None,
+    driver=None,
+    geometry_name=None,
+    geometry_type=None,
+    crs=None,
+    encoding=None,
+    append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+    metadata=None,
+    dataset_options=None,
+    layer_options=None,
+    **kwargs,
+):
+    """
+    Write an Arrow-compatible data source to an OGR file format.
+
+    .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
+
+    Parameters
+    ----------
+    arrow_obj
+        The Arrow data to write. This can be any Arrow-compatible tabular data
+        object that implements the `Arrow PyCapsule Protocol`_ (i.e. has an
+        ``__arrow_c_stream__`` method), for example a pyarrow Table or
+        RecordBatchReader.
+    path : str
+        Path to file.
+    layer : str, optional (default: None)
+        layer name
+    driver : str, optional (default: None)
+        The OGR format driver used to write the vector file. By default write_arrow
+        attempts to infer driver from path.
+    geometry_name : str, optional (default: None)
+        The name of the column in the input data that will be written as the
+        geometry field. Will be inferred from the input data if the geometry
+        column is annotated as an "geoarrow.wkb" or "ogc.wkb" extension type.
+        Otherwise needs to be specified explicitly.
+    geometry_type : str
+        The geometry type of the written layer. Currently, this needs to be
+        specified explicitly when creating a new layer.
+        Possible values are: "Unknown", "Point", "LineString", "Polygon",
+        "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
+
+        This parameter does not modify the geometry, but it will try to force the layer
+        type of the output file to this value. Use this parameter with caution because
+        using a wrong layer geometry type may result in errors when writing the
+        file, may be ignored by the driver, or may result in invalid files.
+    encoding : str, optional (default: None)
+        Only used for the .dbf file of ESRI Shapefiles. If not specified,
+        uses the default locale.
+    append : bool, optional (default: False)
+        If True, the data source specified by path already exists, and the
+        driver supports appending to an existing data source, will cause the
+        data to be appended to the existing records in the data source.
+        NOTE: append support is limited to specific drivers and GDAL versions.
+    dataset_metadata : dict, optional (default: None)
+        Metadata to be stored at the dataset level in the output file; limited
+        to drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    layer_metadata : dict, optional (default: None)
+        Metadata to be stored at the layer level in the output file; limited to
+        drivers that support writing metadata, such as GPKG, and silently
+        ignored otherwise. Keys and values must be strings.
+    metadata : dict, optional (default: None)
+        alias of layer_metadata
+    dataset_options : dict, optional
+        Dataset creation options (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    layer_options : dict, optional
+        Layer creation options (format specific) passed to OGR. Specify as
+        a key-value dictionary.
+    **kwargs
+        Additional driver-specific dataset or layer creation options passed
+        to OGR. pyogrio will attempt to automatically pass those keywords
+        either as dataset or as layer creation option based on the known
+        options for the specific driver. Alternatively, you can use the
+        explicit `dataset_options` or `layer_options` keywords to manually
+        do this (for example if an option exists as both dataset and layer
+        option).
+
+    """
+    if not HAS_ARROW_WRITE_API:
+        raise RuntimeError("GDAL>=3.8 required to write using arrow")
+
+    if not hasattr(arrow_obj, "__arrow_c_stream__"):
+        raise ValueError(
+            "The provided data is not recognized as Arrow data. The object "
+            "should implement the Arrow PyCapsule Protocol (i.e. have a "
+            "'__arrow_c_stream__' method)."
+        )
+
+    path = vsi_path(str(path))
+
+    if driver is None:
+        driver = detect_write_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
+
+    if "promote_to_multi" in kwargs:
+        raise ValueError(
+            "The 'promote_to_multi' option is not supported when writing using Arrow"
+        )
+
+    if geometry_type is None:
+        raise ValueError("'geometry_type' keyword is required")
+
+    dataset_metadata, layer_metadata = _validate_metadata(
+        dataset_metadata, layer_metadata, metadata
+    )
+
+    # TODO: does GDAL infer CRS automatically from geometry metadata?
+    if crs is None:
+        warnings.warn(
+            "'crs' was not provided.  The output dataset will not have "
+            "projection information defined and may not be usable in other "
+            "systems."
+        )
+
+    # preprocess kwargs and split in dataset and layer creation options
+    dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
+        driver, dataset_options, layer_options, kwargs
+    )
+
+    ogr_write_arrow(
+        path,
+        layer=layer,
+        driver=driver,
+        arrow_obj=arrow_obj,
+        geometry_type=geometry_type,
+        geometry_name=geometry_name,
+        crs=crs,
+        encoding=encoding,
+        append=append,
+        dataset_metadata=dataset_metadata,
+        layer_metadata=layer_metadata,
+        dataset_kwargs=dataset_kwargs,
+        layer_kwargs=layer_kwargs,
     )
