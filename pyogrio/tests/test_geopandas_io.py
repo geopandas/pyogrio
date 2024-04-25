@@ -1735,15 +1735,6 @@ def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
 @requires_pyarrow_api
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
 def test_non_utf8_encoding_io_arrow_exception(tmp_path, ext, encoded_text):
-    """Verify that we write non-UTF data to the data source
-
-    IMPORTANT: this may not be valid for the data source and will likely render
-    them unusable in other tools, but should successfully roundtrip unless we
-    disable writing using other encodings.
-
-    NOTE: pyarrow cannot handle non-UTF-8 characters in this way
-    """
-
     encoding, text = encoded_text
     output_path = tmp_path / f"test.{ext}"
 

@@ -1237,8 +1237,8 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
     os.unlink(str(filename).replace(".shp", ".cpg"))
 
     # We will assume ISO-8859-1, which is wrong
-    bad_meta, _, _, bad_field_data = read(filename)
     miscoded = text.encode(encoding).decode("ISO-8859-1")
+    bad_meta, _, _, bad_field_data = read(filename)
     assert bad_meta["fields"][0] == miscoded
     assert bad_field_data[0] == miscoded
     assert read_info(filename)["fields"][0] == miscoded

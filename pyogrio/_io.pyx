@@ -138,15 +138,13 @@ cdef char** dict_to_options(object values):
     return options
 
 
-cdef const char* override_threadlocal_config_option(const char* key, const char* value):
+cdef const char* override_threadlocal_config_option(str key, str value):
     """Set the CPLSetThreadLocalConfigOption for key=value
 
     Parameters
     ----------
-    key : const char*
-        python string must decoded to UTF-8 before calling this
-    value : const char*
-        python string must decoded to UTF-8 before calling this
+    key : str
+    value : str
 
     Returns
     -------
@@ -154,14 +152,22 @@ cdef const char* override_threadlocal_config_option(const char* key, const char*
         value previously set for key, so that it can be later restored.  Caller
         is responsible for freeing this via CPLFree() if not NULL.
     """
-    cdef const char *prev_value = CPLGetThreadLocalConfigOption(key, NULL)
+
+    key_b = key.encode("UTF-8")
+    cdef const char* key_c = key_b
+
+    value_b = value.encode("UTF-8")
+    cdef const char* value_c = value_b
+
+
+    cdef const char *prev_value = CPLGetThreadLocalConfigOption(key_c, NULL)
     if prev_value != NULL:
         # strings returned from config options may be replaced via
         # CPLSetConfigOption() below; GDAL instructs us to save a copy
         # in a new string
         prev_value = CPLStrdup(prev_value)
 
-    CPLSetThreadLocalConfigOption(key, value)
+    CPLSetThreadLocalConfigOption(key_c, value_c)
 
     return prev_value
 
@@ -1191,16 +1197,13 @@ def ogr_read(
 
     try:
         if encoding:
-            override_shape_encoding = True
-
             # for shapefiles, SHAPE_ENCODING must be set before opening the file
             # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
             # SHAPE_ENCODING so that it can be restored later
             # (we do this for all data sources where encoding is set because
             # we don't know the driver until after it is opened, which is too late)
-            encoding_b = encoding.encode("UTF-8")
-            encoding_c = encoding_b
-            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding_c)
+            override_shape_encoding = True
+            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1447,15 +1450,7 @@ def ogr_open_arrow(
     try:
         if encoding:
             override_shape_encoding = True
-
-            # for shapefiles, SHAPE_ENCODING must be set before opening the file
-            # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
-            # SHAPE_ENCODING so that it can be restored later
-            # (we do this for all data sources where encoding is set because
-            # we don't know the driver until after it is opened, which is too late)
-            encoding_b = encoding.encode("UTF-8")
-            encoding_c = encoding_b
-            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding_c)
+            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1473,12 +1468,9 @@ def ogr_open_arrow(
         # or from the system locale
         if encoding:
             if get_driver(ogr_dataset) == "ESRI Shapefile":
-                # NOTE: SHAPE_ENCODING is a configuration option whereas ENCODING is the dataset open option
                 if "ENCODING" in dataset_kwargs:
                     raise ValueError('cannot provide both encoding parameter and "ENCODING" option; use encoding parameter to specify correct encoding for data source')
 
-                # Because SHAPE_ENCODING is set above, GDAL will automatically
-                # decode shapefiles to UTF-8; ignore any encoding set by user
                 encoding = "UTF-8"
 
             elif encoding.replace('-','').upper() != 'UTF8':
@@ -1652,6 +1644,7 @@ def ogr_open_arrow(
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
 
+
 def ogr_read_bounds(
     str path,
     object layer=None,
@@ -1730,15 +1723,7 @@ def ogr_read_info(
     try:
         if encoding:
             override_shape_encoding = True
-
-            # for shapefiles, SHAPE_ENCODING must be set before opening the file
-            # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
-            # SHAPE_ENCODING so that it can be restored later
-            # (we do this for all data sources where encoding is set because
-            # we don't know the driver until after it is opened, which is too late)
-            encoding_b = encoding.encode("UTF-8")
-            encoding_c = encoding_b
-            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding_c)
+            prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
         ogr_dataset = ogr_open(path_c, 0, dataset_options)
@@ -1747,13 +1732,8 @@ def ogr_read_info(
             layer = get_default_layer(ogr_dataset)
         ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
-        # Encoding is derived from the user, from the dataset capabilities / type,
-        # or from the system locale
         if encoding and get_driver(ogr_dataset) == "ESRI Shapefile":
-            # Because SHAPE_ENCODING is set above, GDAL will automatically
-            # decode shapefiles to UTF-8; ignore any encoding set by user
             encoding = "UTF-8"
-
         else:
             encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
@@ -2102,13 +2082,11 @@ cdef create_ogr_dataset_layer(
             # file containing the encoding; this is not a supported option for
             # other drivers.  This is done after setting general options above
             # to override ENCODING if passed by the user as a layer option.
-            if encoding is None:
-                encoding = "UTF-8"
+            if encoding and "ENCODING" in layer_kwargs:
+                raise ValueError('cannot provide both encoding parameter and "ENCODING" layer creation option; use the encoding parameter')
 
-            else:
-                if "ENCODING" in layer_kwargs:
-                    raise ValueError('cannot provide both encoding parameter and "ENCODING" layer creation option; use the encoding parameter')
-
+            # always write to UTF-8 if encoding is not set
+            encoding = encoding or "UTF-8"
             encoding_b = encoding.upper().encode('UTF-8')
             encoding_c = encoding_b
             layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
@@ -2225,7 +2203,6 @@ def ogr_write(
         dataset_metadata, layer_metadata,
         &ogr_dataset, &ogr_layer,
     )
-
 
     if driver == 'ESRI Shapefile':
         # force encoding for remaining operations to be in UTF-8 (even if user
@@ -2479,10 +2456,17 @@ def ogr_write_arrow(
         &ogr_dataset, &ogr_layer,
     )
 
+    # only shapefile supports non-UTF encoding because ENCODING option is set
+    # during dataset creation and GDAL auto-translates from UTF-8 values to that
+    # encoding
+    if encoding and encoding.replace('-','').upper() != 'UTF8' and driver != 'ESRI Shapefile':
+        raise ValueError("non-UTF-8 encoding is not supported for Arrow; use the non-Arrow interface instead")
+
     if geometry_name:
         opts = {"GEOMETRY_NAME": geometry_name}
     else:
         opts = {}
+
     options = dict_to_options(opts)
 
     try:
