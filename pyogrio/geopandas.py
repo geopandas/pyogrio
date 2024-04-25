@@ -402,10 +402,10 @@ def write_dataframe(
     metadata : dict, optional (default: None)
         alias of layer_metadata
     dataset_options : dict, optional
-        Dataset creation option (format specific) passed to OGR. Specify as
+        Dataset creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     layer_options : dict, optional
-        Layer creation option (format specific) passed to OGR. Specify as
+        Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     **kwargs
         Additional driver-specific dataset or layer creation options passed

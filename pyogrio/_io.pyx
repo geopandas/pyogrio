@@ -10,12 +10,14 @@ import locale
 import logging
 import math
 import os
+import sys
 import warnings
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
+from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
 from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
@@ -2291,3 +2293,199 @@ def ogr_write(
         exc = exc_check()
         if exc:
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+
+def ogr_write_arrow(
+    str path,
+    str layer,
+    str driver,
+    object arrow_obj,
+    str crs,
+    str geometry_type,
+    str geometry_name,
+    str encoding,
+    object dataset_kwargs,
+    object layer_kwargs,
+    bint append=False,
+    dataset_metadata=None,
+    layer_metadata=None,
+):
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    cdef OGRDataSourceH ogr_dataset = NULL
+    cdef OGRLayerH ogr_layer = NULL
+    cdef char **options = NULL
+    cdef ArrowArrayStream* stream = NULL
+    cdef ArrowSchema schema
+    cdef ArrowArray array
+
+    schema.release = NULL
+    array.release = NULL
+
+    layer_created = create_ogr_dataset_layer(
+        path, layer, driver, crs, geometry_type, encoding,
+        dataset_kwargs, layer_kwargs, append,
+        dataset_metadata, layer_metadata,
+        &ogr_dataset, &ogr_layer,
+    )
+
+    if geometry_name:
+        opts = {"GEOMETRY_NAME": geometry_name}
+    else:
+        opts = {}
+    options = dict_to_options(opts)
+
+    try:
+        stream_capsule = arrow_obj.__arrow_c_stream__()
+        stream = <ArrowArrayStream*>PyCapsule_GetPointer(
+            stream_capsule, "arrow_array_stream"
+        )
+
+        if stream == NULL:
+            raise RuntimeError("Could not extract valid Arrow array stream.")
+
+        if stream.release == NULL:
+            raise RuntimeError("Arrow array stream was already released.")
+
+        if stream.get_schema(stream, &schema) != 0:
+            raise RuntimeError("Could not get Arrow schema from stream.")
+
+        if layer_created:
+            create_fields_from_arrow_schema(ogr_layer, &schema, options, geometry_name)
+
+        while True:
+            if stream.get_next(stream, &array) != 0:
+                raise RuntimeError("Error while accessing batch from stream.")
+
+            # We've reached the end of the stream
+            if array.release == NULL:
+                break
+
+            if not OGR_L_WriteArrowBatch(ogr_layer, &schema, &array, options):
+                exc = exc_check()
+                gdal_msg = f": {str(exc)}" if exc else "."
+                raise DataLayerError(
+                    f"Error while writing batch to OGR layer{gdal_msg}"
+                )
+
+            if array.release != NULL:
+                array.release(&array)
+
+    finally:
+        if stream != NULL and stream.release != NULL:
+            stream.release(stream)
+        if schema.release != NULL:
+            schema.release(&schema)
+        if array.release != NULL:
+            array.release(&array)
+
+        if options != NULL:
+            CSLDestroy(options)
+            options = NULL
+
+    ### Final cleanup
+    if ogr_dataset != NULL:
+        GDALClose(ogr_dataset)
+
+        # GDAL will set an error if there was an error writing the data source
+        # on close
+        exc = exc_check()
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+
+cdef get_arrow_extension_metadata(const ArrowSchema* schema):
+    """
+    Parse the metadata of the ArrowSchema and extract extension type
+    metadata (extension name and metadata).
+
+    For the exact layout of the bytes, see
+    https://arrow.apache.org/docs/dev/format/CDataInterface.html#c.ArrowSchema.metadata
+    """
+    cdef const char *metadata = schema.metadata
+
+    extension_name = None
+    extension_metadata = None
+
+    if metadata == NULL:
+        return extension_name, extension_metadata
+
+    # the number of metadata key/value pairs is stored
+    # as an int32 value in the first 4 bytes
+    n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
+    pos = 4
+
+    for i in range(n):
+        # for each metadata key/value pair, the first 4 bytes is the byte length
+        # of the key as an int32, then follows the key (not null-terminated),
+        # and then the same for the value length and bytes
+        key_length = int.from_bytes(
+            metadata[pos:pos+4], byteorder=sys.byteorder, signed=True
+        )
+        pos += 4
+        key = metadata[pos:pos+key_length]
+        pos += key_length
+        value_length = int.from_bytes(
+            metadata[pos:pos+4], byteorder=sys.byteorder, signed=True
+        )
+        pos += 4
+        value = metadata[pos:pos+value_length]
+        pos += value_length
+
+        if key == b"ARROW:extension:name":
+            extension_name = value
+        elif key == b"ARROW:extension:metadata":
+            extension_metadata = value
+
+        if extension_name is not None and extension_metadata is not None:
+            break
+
+    return extension_name, extension_metadata
+
+
+cdef is_arrow_geometry_field(const ArrowSchema* schema):
+    name, _ = get_arrow_extension_metadata(schema)
+    if name is not None:
+        if name == b"geoarrow.wkb" or name == b"ogc.wkb":
+            return True
+
+        # raise an error for other geoarrow types
+        if name.startswith(b"geoarrow."):
+            raise NotImplementedError(
+                f"Writing a geometry column of type {name.decode()} is not yet "
+                "supported. Only WKB is currently supported ('geoarrow.wkb' or "
+                "'ogc.wkb' types)."
+            )
+
+    return False
+
+
+cdef create_fields_from_arrow_schema(
+    OGRLayerH destLayer, const ArrowSchema* schema, char** options, str geometry_name
+):
+    """Create output fields using CreateFieldFromArrowSchema()"""
+
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    # The schema object is a struct type where each child is a column.
+    cdef ArrowSchema* child
+    for i in range(schema.n_children):
+        child = schema.children[i]
+
+        if child == NULL:
+            raise RuntimeError("Received invalid Arrow schema (null child)")
+
+        # Don't create property for geometry column
+        if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
+            continue
+
+        if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
+            exc = exc_check()
+            gdal_msg = f" ({str(exc)})" if exc else ""
+            raise FieldError(
+                f"Error while creating field from Arrow for field {i} with name "
+                f"'{get_string(child.name)}' and type {get_string(child.format)}"
+                f"{gdal_msg}."
+            )

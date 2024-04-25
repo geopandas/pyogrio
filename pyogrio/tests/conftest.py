@@ -1,5 +1,5 @@
 from pathlib import Path
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
@@ -8,9 +8,14 @@ from pyogrio import (
     __version__,
     list_drivers,
 )
-from pyogrio._compat import HAS_ARROW_API, HAS_GDAL_GEOS, HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import (
+    HAS_ARROW_API,
+    HAS_ARROW_WRITE_API,
+    HAS_GDAL_GEOS,
+    HAS_PYARROW,
+    HAS_SHAPELY,
+)
 from pyogrio.raw import read, write
-
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
@@ -46,6 +51,10 @@ def pytest_report_header(config):
 requires_arrow_api = pytest.mark.skipif(not HAS_ARROW_API, reason="GDAL>=3.6 required")
 requires_pyarrow_api = pytest.mark.skipif(
     not HAS_ARROW_API or not HAS_PYARROW, reason="GDAL>=3.6 and pyarrow required"
+)
+
+requires_arrow_write_api = pytest.mark.skipif(
+    not HAS_ARROW_WRITE_API, reason="GDAL>=3.8 required for Arrow write API"
 )
 
 requires_gdal_geos = pytest.mark.skipif(
