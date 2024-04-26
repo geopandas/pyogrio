@@ -89,6 +89,10 @@ first layer.
 }
 ```
 
+NOTE: pyogrio will report `UTF-8` if either the native encoding is likely to be
+`UTF-8` or GDAL can automatically convert from the detected native encoding to
+`UTF-8`.
+
 To read from a layer using name or index (the following are equivalent):
 
 ```python
@@ -468,9 +472,9 @@ You can also read from a URL with this syntax:
 
 GDAL only supports datetimes at a millisecond resolution. Reading data will thus
 give at most millisecond resolution (`datetime64[ms]` data type). With pandas 2.0
-`pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]` 
-correspondingly. For previous versions of pandas, `datetime64[ns]` is used as 
-ms precision was not supported. When writing, only precision up to 
+`pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]`
+correspondingly. For previous versions of pandas, `datetime64[ns]` is used as
+ms precision was not supported. When writing, only precision up to
 ms is retained.
 
 Not all file formats have dedicated support to store datetime data, like ESRI
@@ -478,11 +482,11 @@ Shapefile. For such formats, or if you require precision > ms, a workaround is t
 convert the datetimes to string.
 
 Timezone information is preserved where possible, however GDAL only represents
-time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or 
-`zoneinfo`). This means that dataframes with columns containing multiple offsets 
+time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or
+`zoneinfo`). This means that dataframes with columns containing multiple offsets
 (e.g. when switching from standard time to summer time) will be written correctly,
-but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime 
-column, as there is no way to reconstruct the original timezone from the individual 
+but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime
+column, as there is no way to reconstruct the original timezone from the individual
 offsets present.
 
 ## Dataset and layer creation options

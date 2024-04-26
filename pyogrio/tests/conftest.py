@@ -143,3 +143,29 @@ def test_datetime():
 @pytest.fixture(scope="session")
 def test_datetime_tz():
     return _data_dir / "test_datetime_tz.geojson"
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        # Japanese
+        ("CP932", "ﾎ"),
+        # Chinese
+        ("CP936", "中文"),
+        # Central European
+        ("CP1250", "Đ"),
+        # Latin 1 / Western European
+        ("CP1252", "ÿ"),
+        # Greek
+        ("CP1253", "Φ"),
+        # Arabic
+        ("CP1256", "ش"),
+    ],
+)
+def encoded_text(request):
+    """Return tuple with encoding name and very short sample text in that encoding
+    NOTE: it was determined through testing that code pages for MS-DOS do not
+    consistently work across all Python installations (in particular, fail with conda),
+    but ANSI code pages appear to work properly.
+    """
+    return request.param

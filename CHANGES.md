@@ -34,6 +34,10 @@
     FlatGeobuf / GPKG drivers (#335, #387); this has been fixed in GDAL >= 3.8.3.
 -   Properly ignore fields not listed in `columns` parameter when reading from
     the data source not using the Arrow API (#391).
+-   Properly handle decoding of ESRI Shapefiles with user-provided `encoding`
+    option for `read`, `read_dataframe`, and `open_arrow`, and correctly encode
+    Shapefile field names and text values to the user-provided `encoding` for
+    `write` and `write_dataframe` (#384).
 
 ### Packaging
 

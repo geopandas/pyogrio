@@ -225,6 +225,10 @@ def read_info(
     data data source, if the field name can by customized (e.g. in GPKG). If no custom
     name is supported, ``geometry_name`` will be "" (e.g. ESRI Shapefile).
 
+    ``encoding`` will be ``UTF-8`` if either the native encoding is likely to be
+    ``UTF-8`` or GDAL can automatically convert from the detected native encoding
+    to ``UTF-8``.
+
     Parameters
     ----------
     path : str or pathlib.Path

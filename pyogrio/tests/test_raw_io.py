@@ -14,6 +14,7 @@ from pyogrio import (
     list_drivers,
     read_info,
     set_gdal_config_options,
+    get_gdal_config_option,
     __gdal_version__,
 )
 from pyogrio._compat import HAS_SHAPELY, HAS_PYARROW
@@ -1169,6 +1170,97 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         assert np.array_equal(
             fields, read_info(filename, encoding=read_encoding)["fields"]
         )
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
+    """Verify that we write non-UTF data to the data source
+
+    IMPORTANT: this may not be valid for the data source and will likely render
+    them unusable in other tools, but should successfully roundtrip unless we
+    disable writing using other encodings.
+
+    NOTE: FlatGeobuff driver cannot handle non-UTF data in GDAL >= 3.9
+    """
+    encoding, text = encoded_text
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+
+    field_data = [np.array([text], dtype=object)]
+
+    fields = [text]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read(filename)
+
+    with pytest.raises(UnicodeDecodeError):
+        read_info(filename)
+
+    # must provide encoding to read these properly
+    actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
+
+
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
+    encoding, text = encoded_text
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+
+    field_data = [np.array([text], dtype=object)]
+
+    fields = [text]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+
+    filename = tmp_path / "test.shp"
+    write(filename, geometry, field_data, fields, **meta)
+
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    actual_meta, _, _, actual_field_data = read(filename)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename)["fields"][0] == text
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    os.unlink(str(filename).replace(".shp", ".cpg"))
+
+    # We will assume ISO-8859-1, which is wrong
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
+    bad_meta, _, _, bad_field_data = read(filename)
+    assert bad_meta["fields"][0] == miscoded
+    assert bad_field_data[0] == miscoded
+    assert read_info(filename)["fields"][0] == miscoded
+
+    # If encoding is provided, that should yield correct text
+    actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
+
+    # verify that setting encoding does not corrupt SHAPE_ENCODING option if set
+    # globally (it is ignored during read when encoding is specified by user)
+    try:
+        set_gdal_config_options({"SHAPE_ENCODING": "CP1254"})
+        _ = read(filename, encoding=encoding)
+        assert get_gdal_config_option("SHAPE_ENCODING") == "CP1254"
+
+    finally:
+        # reset to clear between tests
+        set_gdal_config_options({"SHAPE_ENCODING": None})
 
 
 def test_write_with_mask(tmp_path):

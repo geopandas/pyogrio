@@ -1,6 +1,8 @@
 import contextlib
 from datetime import datetime
+import locale
 import os
+
 import numpy as np
 import pytest
 
@@ -75,6 +77,25 @@ def test_read_csv_encoding(tmp_path, encoding):
     # was written in, but should have been converted to utf-8 in the dataframe returned.
     # Hence, the asserts below, with strings in utf-8, be OK.
     df = read_dataframe(csv_path, encoding=encoding)
+
+    assert len(df) == 1
+    assert df.columns.tolist() == ["näme", "city"]
+    assert df.city.tolist() == ["Zürich"]
+    assert df.näme.tolist() == ["Wilhelm Röntgen"]
+
+
+@pytest.mark.skipif(
+    locale.getpreferredencoding().upper() == "UTF-8",
+    reason="test requires non-UTF-8 default platform",
+)
+def test_read_csv_platform_encoding(tmp_path):
+    """verify that read defaults to platform encoding; only works on Windows (CP1252)"""
+    csv_path = tmp_path / "test.csv"
+    with open(csv_path, "w", encoding=locale.getpreferredencoding()) as csv:
+        csv.write("näme,city\n")
+        csv.write("Wilhelm Röntgen,Zürich\n")
+
+    df = read_dataframe(csv_path)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
@@ -1682,3 +1703,148 @@ def test_arrow_bool_exception(tmpdir, ext):
 
     else:
         _ = read_dataframe(filename, use_arrow=True)
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
+    """Verify that we write non-UTF data to the data source
+
+    IMPORTANT: this may not be valid for the data source and will likely render
+    them unusable in other tools, but should successfully roundtrip unless we
+    disable writing using other encodings.
+
+    NOTE: FlatGeobuff driver cannot handle non-UTF data in GDAL >= 3.9
+
+    NOTE: pyarrow cannot handle non-UTF-8 characters in this way
+    """
+
+    encoding, text = encoded_text
+    output_path = tmp_path / f"test.{ext}"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read_dataframe(output_path)
+
+    # must provide encoding to read these properly
+    actual = read_dataframe(output_path, encoding=encoding)
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
+
+
+@requires_pyarrow_api
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_non_utf8_encoding_io_arrow_exception(tmp_path, ext, encoded_text):
+    encoding, text = encoded_text
+    output_path = tmp_path / f"test.{ext}"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read_dataframe(output_path)
+
+    with pytest.raises(
+        ValueError, match="non-UTF-8 encoding is not supported for Arrow"
+    ):
+        read_dataframe(output_path, encoding=encoding, use_arrow=True)
+
+
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
+    encoding, text = encoded_text
+
+    output_path = tmp_path / "test.shp"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, output_path, encoding=encoding)
+
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    actual = read_dataframe(output_path, use_arrow=use_arrow)
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    os.unlink(str(output_path).replace(".shp", ".cpg"))
+
+    # We will assume ISO-8859-1, which is wrong
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
+
+    if use_arrow:
+        # pyarrow cannot decode column name with incorrect encoding
+        with pytest.raises(UnicodeDecodeError):
+            read_dataframe(output_path, use_arrow=True)
+    else:
+        bad = read_dataframe(output_path, use_arrow=False)
+        assert bad.columns[0] == miscoded
+        assert bad[miscoded].values[0] == miscoded
+
+    # If encoding is provided, that should yield correct text
+    actual = read_dataframe(output_path, encoding=encoding, use_arrow=use_arrow)
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
+
+    # if ENCODING open option, that should yield correct text
+    actual = read_dataframe(output_path, use_arrow=use_arrow, ENCODING=encoding)
+    assert actual.columns[0] == text
+    assert actual[text].values[0] == text
+
+
+def test_encoding_read_option_collision_shapefile(naturalearth_lowres, use_arrow):
+    """Providing both encoding parameter and ENCODING open option (even if blank) is not allowed"""
+
+    with pytest.raises(
+        ValueError, match='cannot provide both encoding parameter and "ENCODING" option'
+    ):
+        read_dataframe(
+            naturalearth_lowres, encoding="CP936", ENCODING="", use_arrow=use_arrow
+        )
+
+
+def test_encoding_write_layer_option_collision_shapefile(tmp_path, encoded_text):
+    """Providing both encoding parameter and ENCODING layer creation option (even if blank) is not allowed"""
+    encoding, text = encoded_text
+
+    output_path = tmp_path / "test.shp"
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+
+    with pytest.raises(
+        ValueError,
+        match='cannot provide both encoding parameter and "ENCODING" layer creation option',
+    ):
+        write_dataframe(
+            df, output_path, encoding=encoding, layer_options={"ENCODING": ""}
+        )
+
+
+def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
+    encoding = "CP936"
+
+    output_path = tmp_path / "test.shp"
+
+    mandarin = "中文"
+    df = gp.GeoDataFrame(
+        {mandarin: mandarin, "geometry": [Point(0, 0)]}, crs="EPSG:4326"
+    )
+    write_dataframe(df, output_path, encoding=encoding)
+
+    actual = read_dataframe(
+        output_path,
+        sql=f"select * from test where \"{mandarin}\" = '{mandarin}'",
+        use_arrow=use_arrow,
+    )
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin
+
+    actual = read_dataframe(
+        output_path,
+        sql=f"select * from test where \"{mandarin}\" = '{mandarin}'",
+        encoding=encoding,
+        use_arrow=use_arrow,
+    )
+    assert actual.columns[0] == mandarin
+    assert actual[mandarin].values[0] == mandarin

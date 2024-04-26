@@ -14,6 +14,7 @@ from pyogrio import (
     read_dataframe,
     read_info,
     list_layers,
+    get_gdal_config_option,
     set_gdal_config_options,
 )
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
@@ -796,4 +797,102 @@ def test_write_schema_error_message(tmpdir):
             crs="EPSG:4326",
             geometry_type="Point",
             geometry_name="geometry",
+        )
+
+
+@requires_arrow_write_api
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
+    encoding, text = encoded_text
+
+    table = pa.table(
+        {
+            # Point(0, 0)
+            "geometry": pa.array(
+                [bytes.fromhex("010100000000000000000000000000000000000000")]
+            ),
+            text: pa.array([text]),
+        }
+    )
+
+    filename = tmp_path / "test.shp"
+    write_arrow(
+        table,
+        filename,
+        geometry_type="Point",
+        geometry_name="geometry",
+        crs="EPSG:4326",
+        encoding=encoding,
+    )
+
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    schema, table = read_arrow(filename)
+    assert schema["fields"][0] == text
+    assert table[text][0].as_py() == text
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    os.unlink(str(filename).replace(".shp", ".cpg"))
+
+    # We will assume ISO-8859-1, which is wrong
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
+    bad_schema = read_arrow(filename)[0]
+    assert bad_schema["fields"][0] == miscoded
+    # table cannot be decoded to UTF-8 without UnicodeDecodeErrors
+
+    # If encoding is provided, that should yield correct text
+    schema, table = read_arrow(filename, encoding=encoding)
+    assert schema["fields"][0] == text
+    assert table[text][0].as_py() == text
+
+    # verify that setting encoding does not corrupt SHAPE_ENCODING option if set
+    # globally (it is ignored during read when encoding is specified by user)
+    try:
+        set_gdal_config_options({"SHAPE_ENCODING": "CP1254"})
+        _ = read_arrow(filename, encoding=encoding)
+        assert get_gdal_config_option("SHAPE_ENCODING") == "CP1254"
+
+    finally:
+        # reset to clear between tests
+        set_gdal_config_options({"SHAPE_ENCODING": None})
+
+
+@requires_arrow_write_api
+def test_encoding_write_layer_option_collision_shapefile(tmpdir, naturalearth_lowres):
+    """Providing both encoding parameter and ENCODING layer creation option (even if blank) is not allowed"""
+
+    meta, table = read_arrow(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), "test.shp")
+
+    with pytest.raises(
+        ValueError,
+        match='cannot provide both encoding parameter and "ENCODING" layer creation option',
+    ):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            geometry_type="MultiPolygon",
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+            encoding="CP936",
+            layer_options={"ENCODING": ""},
+        )
+
+
+@requires_arrow_write_api
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_non_utf8_encoding_io_arrow_exception(tmpdir, naturalearth_lowres, ext):
+    meta, table = read_arrow(naturalearth_lowres)
+    filename = os.path.join(str(tmpdir), f"test.{ext}")
+
+    with pytest.raises(
+        ValueError, match="non-UTF-8 encoding is not supported for Arrow"
+    ):
+        write_arrow(
+            table,
+            filename,
+            crs=meta["crs"],
+            geometry_type="MultiPolygon",
+            geometry_name=meta["geometry_name"] or "wkb_geometry",
+            encoding="CP936",
         )

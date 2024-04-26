@@ -106,8 +106,8 @@ def read_dataframe(
         of the layer in the data source.  Defaults to first layer in data source.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for reading string values from
-        the data source, unless encoding can be inferred directly from the data
-        source.
+        the data source.  By default will automatically try to detect the native
+        encoding and decode to ``UTF-8``.
     columns : list-like, optional (default: all columns)
         List of column names to import from the data source.  Column names must
         exactly match the names in the data source, and will be returned in
@@ -357,7 +357,8 @@ def write_dataframe(
         attempts to infer driver from path.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
-        the file.
+        the file.  Use with caution, only certain drivers support encodings
+        other than UTF-8.
     geometry_type : string, optional (default: None)
         By default, the geometry type of the layer will be inferred from the
         data, after applying the promote_to_multi logic. If the data only contains a
