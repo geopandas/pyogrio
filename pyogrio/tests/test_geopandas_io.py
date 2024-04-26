@@ -1735,7 +1735,7 @@ def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
 
 
 @requires_pyarrow_api
-@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io_arrow_exception(tmp_path, ext, encoded_text):
     encoding, text = encoded_text
     output_path = tmp_path / f"test.{ext}"

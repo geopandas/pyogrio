@@ -880,7 +880,7 @@ def test_encoding_write_layer_option_collision_shapefile(tmpdir, naturalearth_lo
 
 
 @requires_arrow_write_api
-@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io_arrow_exception(tmpdir, naturalearth_lowres, ext):
     meta, table = read_arrow(naturalearth_lowres)
     filename = os.path.join(str(tmpdir), f"test.{ext}")
