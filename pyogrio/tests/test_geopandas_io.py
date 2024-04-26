@@ -1705,13 +1705,15 @@ def test_arrow_bool_exception(tmpdir, ext):
         _ = read_dataframe(filename, use_arrow=True)
 
 
-@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
 
     IMPORTANT: this may not be valid for the data source and will likely render
     them unusable in other tools, but should successfully roundtrip unless we
     disable writing using other encodings.
+
+    NOTE: FlatGeobuff driver cannot handle non-UTF data in GDAL >= 3.9
 
     NOTE: pyarrow cannot handle non-UTF-8 characters in this way
     """

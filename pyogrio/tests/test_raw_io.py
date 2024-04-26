@@ -1172,13 +1172,15 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
         )
 
 
-@pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
 
     IMPORTANT: this may not be valid for the data source and will likely render
     them unusable in other tools, but should successfully roundtrip unless we
     disable writing using other encodings.
+
+    NOTE: FlatGeobuff driver cannot handle non-UTF data in GDAL >= 3.9
     """
     encoding, text = encoded_text
 
