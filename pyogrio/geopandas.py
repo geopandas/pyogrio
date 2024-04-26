@@ -331,7 +331,7 @@ def write_dataframe(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
-    use_arrow=False,
+    use_arrow=None,
     dataset_metadata=None,
     layer_metadata=None,
     metadata=None,
