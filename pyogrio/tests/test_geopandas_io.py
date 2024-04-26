@@ -208,7 +208,7 @@ def test_read_datetime(test_fgdb_vsi, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
-def test_read_datetime_tz(test_datetime_tz, tmp_path):
+def test_read_datetime_tz(test_datetime_tz, tmp_path, use_arrow):
     df = read_dataframe(test_datetime_tz)
     # Make the index non-consecutive to test this case as well. Added for issue
     # https://github.com/geopandas/pyogrio/issues/324
@@ -223,15 +223,17 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path):
     assert_series_equal(df.datetime_col, expected, check_index=False)
     # test write and read round trips
     fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath)
-    df_read = read_dataframe(fpath)
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    df_read = read_dataframe(fpath, use_arrow=use_arrow)
+    if use_arrow:
+        expected = expected.dt.tz_convert("UTC")
     assert_series_equal(df_read.datetime_col, expected)
 
 
 @pytest.mark.filterwarnings(
     "ignore: Non-conformant content for record 1 in column dates"
 )
-def test_write_datetime_mixed_offset(tmp_path):
+def test_write_datetime_mixed_offset(tmp_path, use_arrow):
     # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
     dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
     naive_col = pd.Series(pd.to_datetime(dates), name="dates")
@@ -245,8 +247,8 @@ def test_write_datetime_mixed_offset(tmp_path):
         crs="EPSG:4326",
     )
     fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath)
-    result = read_dataframe(fpath)
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow)
     # GDAL tz only encodes offsets, not timezones
     # check multiple offsets are read as utc datetime instead of string values
     assert_series_equal(result["dates"], utc_col)
@@ -255,7 +257,7 @@ def test_write_datetime_mixed_offset(tmp_path):
 @pytest.mark.filterwarnings(
     "ignore: Non-conformant content for record 1 in column dates"
 )
-def test_read_write_datetime_tz_with_nulls(tmp_path):
+def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
     dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
@@ -266,8 +268,10 @@ def test_read_write_datetime_tz_with_nulls(tmp_path):
         crs="EPSG:4326",
     )
     fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath)
-    result = read_dataframe(fpath)
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow)
+    if use_arrow:
+        df["dates"] = df["dates"].dt.tz_convert("UTC")
     assert_geodataframe_equal(df, result)
 
 
@@ -892,22 +896,24 @@ def test_write_csv_encoding(tmp_path, encoding):
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
-def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
+def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / f"test{ext}"
 
     if ext == ".fgb":
         # For .fgb, spatial_index=False to avoid the rows being reordered
-        write_dataframe(input_gdf, output_path, spatial_index=False)
+        write_dataframe(
+            input_gdf, output_path, use_arrow=use_arrow, spatial_index=False
+        )
     else:
-        write_dataframe(input_gdf, output_path)
+        write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
 
     assert output_path.exists()
     result_gdf = read_dataframe(output_path)
 
     geometry_types = result_gdf.geometry.type.unique()
     if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
-        assert geometry_types == ["MultiPolygon"]
+        assert list(geometry_types) == ["MultiPolygon"]
     else:
         assert set(geometry_types) == set(["MultiPolygon", "Polygon"])
 
@@ -930,11 +936,15 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext):
 @pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")
 @pytest.mark.parametrize("write_geodf", [True, False])
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
-def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, write_geodf, ext):
+def test_write_dataframe_no_geom(
+    tmp_path, naturalearth_lowres, write_geodf, ext, use_arrow
+):
     """Test writing a (geo)dataframe without a geometry column.
 
     FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
     """
+    if use_arrow:
+        pytest.skip("Arrow does not yet support writing dataframes without geometry")
     # Prepare test data
     input_df = read_dataframe(naturalearth_lowres, read_geometry=False)
     if write_geodf:
@@ -949,7 +959,7 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, write_geodf, ext
     # Determine driver
     driver = DRIVERS[ext] if ext != ".xlsx" else "XLSX"
 
-    write_dataframe(input_df, output_path, driver=driver)
+    write_dataframe(input_df, output_path, use_arrow=use_arrow, driver=driver)
 
     assert output_path.exists()
     result_df = read_dataframe(output_path)
@@ -982,11 +992,11 @@ def test_write_dataframe_no_geom(tmp_path, naturalearth_lowres, write_geodf, ext
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
-def test_write_empty_dataframe(tmp_path, ext):
+def test_write_empty_dataframe(tmp_path, ext, use_arrow):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
 
     filename = tmp_path / f"test{ext}"
-    write_dataframe(expected, filename)
+    write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
     df = read_dataframe(filename)
@@ -1010,16 +1020,28 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext):
         _ = read_dataframe(filename)
 
 
-def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
+def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres, use_arrow):
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / "test.gpkg"
 
-    write_dataframe(input_gdf, output_path, layer="first", promote_to_multi=True)
+    write_dataframe(
+        input_gdf,
+        output_path,
+        layer="first",
+        promote_to_multi=True,
+        use_arrow=use_arrow,
+    )
 
     assert os.path.exists(output_path)
     assert np.array_equal(list_layers(output_path), [["first", "MultiPolygon"]])
 
-    write_dataframe(input_gdf, output_path, layer="second", promote_to_multi=True)
+    write_dataframe(
+        input_gdf,
+        output_path,
+        layer="second",
+        promote_to_multi=True,
+        use_arrow=use_arrow,
+    )
     assert np.array_equal(
         list_layers(output_path),
         [["first", "MultiPolygon"], ["second", "MultiPolygon"]],
@@ -1027,50 +1049,67 @@ def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
-def test_write_dataframe_append(tmp_path, naturalearth_lowres, ext):
+def test_write_dataframe_append(request, tmp_path, naturalearth_lowres, ext, use_arrow):
     if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
         pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
 
     if ext in (".geojsonl", ".geojsons") and __gdal_version__ <= (3, 6, 0):
         pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
 
+    if use_arrow and ext.startswith(".geojson"):
+        request.node.add_marker(
+            pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
+        )
+
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / f"test{ext}"
 
-    write_dataframe(input_gdf, output_path)
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
 
     assert os.path.exists(output_path)
     assert len(read_dataframe(output_path)) == 177
 
-    write_dataframe(input_gdf, output_path, append=True)
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow, append=True)
     assert len(read_dataframe(output_path)) == 354
 
 
 @pytest.mark.parametrize("spatial_index", [False, True])
-def test_write_dataframe_gdal_options(tmp_path, naturalearth_lowres, spatial_index):
+def test_write_dataframe_gdal_options(
+    tmp_path, naturalearth_lowres, spatial_index, use_arrow
+):
     df = read_dataframe(naturalearth_lowres)
 
     outfilename1 = tmp_path / "test1.shp"
-    write_dataframe(df, outfilename1, SPATIAL_INDEX="YES" if spatial_index else "NO")
+    write_dataframe(
+        df,
+        outfilename1,
+        use_arrow=use_arrow,
+        SPATIAL_INDEX="YES" if spatial_index else "NO",
+    )
     assert outfilename1.exists() is True
     index_filename1 = tmp_path / "test1.qix"
     assert index_filename1.exists() is spatial_index
 
     # using explicit layer_options instead
     outfilename2 = tmp_path / "test2.shp"
-    write_dataframe(df, outfilename2, layer_options=dict(spatial_index=spatial_index))
+    write_dataframe(
+        df,
+        outfilename2,
+        use_arrow=use_arrow,
+        layer_options=dict(spatial_index=spatial_index),
+    )
     assert outfilename2.exists() is True
     index_filename2 = tmp_path / "test2.qix"
     assert index_filename2.exists() is spatial_index
 
 
-def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres):
+def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres, use_arrow):
     df = read_dataframe(naturalearth_lowres)
 
     # geojson has no spatial index, so passing keyword should raise
     outfilename = tmp_path / "test.geojson"
     with pytest.raises(ValueError, match="unrecognized option 'SPATIAL_INDEX'"):
-        write_dataframe(df, outfilename, spatial_index=True)
+        write_dataframe(df, outfilename, use_arrow=use_arrow, spatial_index=True)
 
 
 def _get_gpkg_table_names(path):
@@ -1083,21 +1122,24 @@ def _get_gpkg_table_names(path):
     return [res[0] for res in result]
 
 
-def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres):
+def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres, use_arrow):
     df = read_dataframe(naturalearth_lowres)
 
     test_default_filename = tmp_path / "test_default.gpkg"
-    write_dataframe(df, test_default_filename)
+    write_dataframe(df, test_default_filename, use_arrow=use_arrow)
     assert "gpkg_ogr_contents" in _get_gpkg_table_names(test_default_filename)
 
     test_no_contents_filename = tmp_path / "test_no_contents.gpkg"
-    write_dataframe(df, test_default_filename, ADD_GPKG_OGR_CONTENTS="NO")
+    write_dataframe(
+        df, test_default_filename, use_arrow=use_arrow, ADD_GPKG_OGR_CONTENTS="NO"
+    )
     assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename)
 
     test_no_contents_filename2 = tmp_path / "test_no_contents2.gpkg"
     write_dataframe(
         df,
         test_no_contents_filename2,
+        use_arrow=use_arrow,
         dataset_options=dict(add_gpkg_ogr_contents=False),
     )
     assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename2)
@@ -1121,11 +1163,14 @@ def test_write_dataframe_promote_to_multi(
     promote_to_multi,
     expected_geometry_types,
     expected_geometry_type,
+    use_arrow,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test_promote{ext}"
-    write_dataframe(input_gdf, output_path, promote_to_multi=promote_to_multi)
+    write_dataframe(
+        input_gdf, output_path, use_arrow=use_arrow, promote_to_multi=promote_to_multi
+    )
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
@@ -1166,6 +1211,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     geometry_type,
     expected_geometry_types,
     expected_geometry_type,
+    use_arrow,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
@@ -1182,6 +1228,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
         write_dataframe(
             input_gdf,
             output_path,
+            use_arrow=use_arrow,
             promote_to_multi=promote_to_multi,
             geometry_type=geometry_type,
         )
@@ -1200,7 +1247,12 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
         (".fgb", False, "Polygon", "Mismatched geometry type"),
         (".fgb", None, "Point", "Mismatched geometry type"),
         (".fgb", None, "Polygon", "Mismatched geometry type"),
-        (".shp", None, "Point", "Could not add feature to layer at index"),
+        (
+            ".shp",
+            None,
+            "Point",
+            "Could not add feature to layer at index|Error while writing batch to OGR layer",
+        ),
     ],
 )
 def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
@@ -1210,31 +1262,35 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     promote_to_multi,
     geometry_type,
     expected_raises_match,
+    use_arrow,
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
     output_path = tmp_path / f"test{ext}"
-    with pytest.raises(FeatureError, match=expected_raises_match):
+    with pytest.raises((FeatureError, DataLayerError), match=expected_raises_match):
         write_dataframe(
             input_gdf,
             output_path,
+            use_arrow=use_arrow,
             promote_to_multi=promote_to_multi,
             geometry_type=geometry_type,
         )
 
 
-def test_write_dataframe_layer_geom_type_invalid(tmp_path, naturalearth_lowres):
+def test_write_dataframe_layer_geom_type_invalid(
+    tmp_path, naturalearth_lowres, use_arrow
+):
     df = read_dataframe(naturalearth_lowres)
 
     filename = tmp_path / "test.geojson"
     with pytest.raises(
         GeometryError, match="Geometry type is not supported: NotSupported"
     ):
-        write_dataframe(df, filename, geometry_type="NotSupported")
+        write_dataframe(df, filename, use_arrow=use_arrow, geometry_type="NotSupported")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".shp"])
-def test_write_dataframe_truly_mixed(tmp_path, ext):
+def test_write_dataframe_truly_mixed(tmp_path, ext, use_arrow):
     geometry = [
         shapely.Point(0, 0),
         shapely.LineString([(0, 0), (1, 1)]),
@@ -1254,9 +1310,9 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
 
     if ext == ".fgb":
         # For .fgb, spatial_index=False to avoid the rows being reordered
-        write_dataframe(df, filename, spatial_index=False)
+        write_dataframe(df, filename, use_arrow=use_arrow, spatial_index=False)
     else:
-        write_dataframe(df, filename)
+        write_dataframe(df, filename, use_arrow=use_arrow)
 
     # Drivers that support mixed geometries will default to "Unknown" geometry type
     assert read_info(filename)["geometry_type"] == "Unknown"
@@ -1264,7 +1320,7 @@ def test_write_dataframe_truly_mixed(tmp_path, ext):
     assert_geodataframe_equal(result, df, check_geom_type=True)
 
 
-def test_write_dataframe_truly_mixed_invalid(tmp_path):
+def test_write_dataframe_truly_mixed_invalid(tmp_path, use_arrow):
     # Shapefile doesn't support generic "Geometry" / "Unknown" type
     # for mixed geometries
 
@@ -1282,9 +1338,12 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path):
     msg = (
         "Could not add feature to layer at index 1: Attempt to "
         r"write non-point \(LINESTRING\) geometry to point shapefile."
+        # DataLayerError when using Arrow
+        "|Error while writing batch to OGR layer: Attempt to "
+        r"write non-point \(LINESTRING\) geometry to point shapefile."
     )
-    with pytest.raises(FeatureError, match=msg):
-        write_dataframe(df, tmp_path / "test.shp")
+    with pytest.raises((FeatureError, DataLayerError), match=msg):
+        write_dataframe(df, tmp_path / "test.shp", use_arrow=use_arrow)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".fgb"])
@@ -1297,11 +1356,17 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path):
         [None, None],
     ],
 )
-def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext):
+def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext, use_arrow):
+    if use_arrow and geoms == [None, None]:
+        # TODO(Arrow)
+        pytest.skip(
+            "Arrow does not yet support writing dataframes with all-null geometries"
+        )
+
     filename = tmp_path / f"test{ext}"
 
     df = gp.GeoDataFrame({"col": [1.0, 2.0]}, geometry=geoms, crs="EPSG:4326")
-    write_dataframe(df, filename)
+    write_dataframe(df, filename, use_arrow=use_arrow)
     result = read_dataframe(filename)
     assert_geodataframe_equal(result, df)
 
@@ -1309,14 +1374,14 @@ def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext):
 @pytest.mark.filterwarnings(
     "ignore: You will likely lose important projection information"
 )
-def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
+def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext, use_arrow):
     df = read_dataframe(naturalearth_lowres_all_ext)
     # project Belgium to a custom Albers Equal Area projection
     expected = df.loc[df.name == "Belgium"].to_crs(
         "+proj=aea +lat_1=49.5 +lat_2=51.5 +lon_0=4.3"
     )
     filename = os.path.join(str(tmpdir), "test.shp")
-    write_dataframe(expected, filename)
+    write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert os.path.exists(filename)
 
@@ -1329,15 +1394,19 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext):
     assert df.crs.equals(expected.crs)
 
 
-def test_write_read_mixed_column_values(tmp_path):
+def test_write_read_mixed_column_values(request, tmp_path, use_arrow):
+    if use_arrow:
+        request.node.add_marker(
+            pytest.mark.xfail(reason="Arrow does not support mixed columns")
+        )
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
     geoms = [shapely.Point(0, 0) for _ in mixed_values]
     test_gdf = gp.GeoDataFrame(
         {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
     )
     output_path = tmp_path / "test_write_mixed_column.gpkg"
-    write_dataframe(test_gdf, output_path)
-    output_gdf = read_dataframe(output_path)
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
+    output_gdf = read_dataframe(output_path, use_arrow=use_arrow)
     assert len(test_gdf) == len(output_gdf)
     for idx, value in enumerate(mixed_values):
         if value in (None, np.nan):
@@ -1346,7 +1415,7 @@ def test_write_read_mixed_column_values(tmp_path):
             assert output_gdf["mixed"][idx] == str(value)
 
 
-def test_write_read_null(tmp_path):
+def test_write_read_null(tmp_path, use_arrow):
     output_path = tmp_path / "test_write_nan.gpkg"
     geom = shapely.Point(0, 0)
     test_data = {
@@ -1355,7 +1424,7 @@ def test_write_read_null(tmp_path):
         "object_str": ["test", None, np.nan],
     }
     test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
-    write_dataframe(test_gdf, output_path)
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
     result_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(result_gdf)
     assert result_gdf["float64"][0] == 1.0
@@ -1387,11 +1456,11 @@ def test_write_read_null(tmp_path):
         ),
     ],
 )
-def test_write_geometry_z_types(tmp_path, wkt, geom_types):
+def test_write_geometry_z_types(tmp_path, wkt, geom_types, use_arrow):
     filename = tmp_path / "test.fgb"
     gdf = gp.GeoDataFrame(geometry=from_wkt([wkt]), crs="EPSG:4326")
     for geom_type in geom_types:
-        write_dataframe(gdf, filename, geometry_type=geom_type)
+        write_dataframe(gdf, filename, use_arrow=use_arrow, geometry_type=geom_type)
         df = read_dataframe(filename)
         assert_geodataframe_equal(df, gdf)
 
@@ -1446,7 +1515,7 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types):
     ],
 )
 def test_write_geometry_z_types_auto(
-    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt
+    tmp_path, ext, test_descr, exp_geometry_type, mixed_dimensions, wkt, use_arrow
 ):
     # Shapefile has some different behaviour that other file types
     if ext == ".shp":
@@ -1473,10 +1542,10 @@ def test_write_geometry_z_types_auto(
             DataSourceError,
             match=("Mixed 2D and 3D coordinates are not supported by"),
         ):
-            write_dataframe(gdf, filename)
+            write_dataframe(gdf, filename, use_arrow=use_arrow)
         return
     else:
-        write_dataframe(gdf, filename)
+        write_dataframe(gdf, filename, use_arrow=use_arrow)
 
     info = read_info(filename)
     assert info["geometry_type"] == exp_geometry_type
@@ -1488,11 +1557,17 @@ def test_write_geometry_z_types_auto(
     assert_geodataframe_equal(gdf, result_gdf)
 
 
-def test_read_multisurface(data_dir):
-    df = read_dataframe(data_dir / "test_multisurface.gpkg")
+def test_read_multisurface(data_dir, use_arrow):
+    if use_arrow:
+        with pytest.raises(shapely.errors.GEOSException):
+            # TODO(Arrow)
+            # shapely fails parsing the WKB
+            read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=use_arrow)
+    else:
+        df = read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=use_arrow)
 
-    # MultiSurface should be converted to MultiPolygon
-    assert df.geometry.type.tolist() == ["MultiPolygon"]
+        # MultiSurface should be converted to MultiPolygon
+        assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
 def test_read_dataset_kwargs(data_dir, use_arrow):
@@ -1531,7 +1606,7 @@ def test_read_invalid_dataset_kwargs(naturalearth_lowres, use_arrow):
         read_dataframe(naturalearth_lowres, use_arrow=use_arrow, INVALID="YES")
 
 
-def test_write_nullable_dtypes(tmp_path):
+def test_write_nullable_dtypes(tmp_path, use_arrow):
     path = tmp_path / "test_nullable_dtypes.gpkg"
     test_data = {
         "col1": pd.Series([1, 2, 3], dtype="int64"),
@@ -1543,7 +1618,7 @@ def test_write_nullable_dtypes(tmp_path):
     input_gdf = gp.GeoDataFrame(
         test_data, geometry=[shapely.Point(0, 0)] * 3, crs="epsg:31370"
     )
-    write_dataframe(input_gdf, path)
+    write_dataframe(input_gdf, path, use_arrow=use_arrow)
     output_gdf = read_dataframe(path)
     # We read it back as default (non-nullable) numpy dtypes, so we cast
     # to those for the expected result
@@ -1559,13 +1634,13 @@ def test_write_nullable_dtypes(tmp_path):
 @pytest.mark.parametrize(
     "metadata_type", ["dataset_metadata", "layer_metadata", "metadata"]
 )
-def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
+def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type, use_arrow):
     metadata = {"level": metadata_type}
 
     df = read_dataframe(naturalearth_lowres)
 
     filename = os.path.join(str(tmpdir), "test.gpkg")
-    write_dataframe(df, filename, **{metadata_type: metadata})
+    write_dataframe(df, filename, use_arrow=use_arrow, **{metadata_type: metadata})
 
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
 
@@ -1581,22 +1656,24 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type):
         {"key": 1},
     ],
 )
-def test_invalid_metadata(tmpdir, naturalearth_lowres, metadata_type, metadata):
+def test_invalid_metadata(
+    tmpdir, naturalearth_lowres, metadata_type, metadata, use_arrow
+):
+    df = read_dataframe(naturalearth_lowres)
     with pytest.raises(ValueError, match="must be a string"):
         filename = os.path.join(str(tmpdir), "test.gpkg")
-        write_dataframe(
-            read_dataframe(naturalearth_lowres), filename, **{metadata_type: metadata}
-        )
+        write_dataframe(df, filename, use_arrow=use_arrow, **{metadata_type: metadata})
 
 
 @pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
-def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type):
+def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type, use_arrow):
     """metadata is silently ignored"""
 
     filename = os.path.join(str(tmpdir), "test.geojson")
     write_dataframe(
         read_dataframe(naturalearth_lowres),
         filename,
+        use_arrow=use_arrow,
         **{metadata_type: {"key": "value"}},
     )
 
