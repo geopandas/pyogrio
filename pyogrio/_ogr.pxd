@@ -327,8 +327,6 @@ cdef extern from "ogr_api.h":
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
-    int             OGRReleaseDataSource(OGRDataSourceH ds)
-
     const char*     OLCStringsAsUTF8
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
