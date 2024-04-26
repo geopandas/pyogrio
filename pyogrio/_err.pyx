@@ -159,7 +159,7 @@ cdef inline object exc_check():
             msg = msg.replace("`", "'")
             msg = msg.replace("\n", " ")
         except UnicodeDecodeError as exc:
-            msg = f"Could not decode error message to UTF-8.  Raw error bytes: {msg}"
+            msg = f"Could not decode error message to UTF-8.  Raw error bytes: {msg_b}"
 
     if err_type == 3:
         CPLErrorReset()
