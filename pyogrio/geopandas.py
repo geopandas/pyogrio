@@ -398,6 +398,9 @@ def write_dataframe(
         installed). When enabled, this provides a further speed-up.
         Defaults to False, but this default can also be globally overridden
         by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
+        Currently, using Arrow does not yet support writing a DataFrame
+        without geometry column, and it does not support writing an
+        object-dtype column with mixed types.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
         to drivers that support writing metadata, such as GPKG, and silently
