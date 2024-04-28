@@ -15,6 +15,7 @@ from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
     requires_pyarrow_api,
+    requires_arrow_write_api,
     requires_gdal_geos,
 )
 from pyogrio._compat import PANDAS_GE_15, HAS_ARROW_WRITE_API
@@ -49,17 +50,13 @@ pytest.importorskip("geopandas")
     ],
 )
 def use_arrow(request):
-    return request.param
-
-
-@pytest.fixture(autouse=True)
-def skip_if_no_arrow_write_api(request, use_arrow):
     if (
-        use_arrow
+        request.param
         and not HAS_ARROW_WRITE_API
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
         pytest.skip("GDAL>=3.8 required for Arrow write API")
+    return request.param
 
 
 def spatialite_available(path):
@@ -237,6 +234,7 @@ def test_read_datetime_tz(test_datetime_tz, tmp_path, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     df_read = read_dataframe(fpath, use_arrow=use_arrow)
     if use_arrow:
+        # with Arrow, the datetimes are always read as UTC
         expected = expected.dt.tz_convert("UTC")
     assert_series_equal(df_read.datetime_col, expected)
 
@@ -284,6 +282,7 @@ def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
     if use_arrow:
+        # with Arrow, the datetimes are always read as UTC
         df["dates"] = df["dates"].dt.tz_convert("UTC")
     assert_geodataframe_equal(df, result)
 
@@ -1082,6 +1081,8 @@ def test_write_dataframe_append(request, tmp_path, naturalearth_lowres, ext, use
         pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
 
     if use_arrow and ext.startswith(".geojson"):
+        # Bug in GDAL when appending int64 to GeoJSON
+        # (https://github.com/OSGeo/gdal/issues/9792)
         request.node.add_marker(
             pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
         )
@@ -1432,26 +1433,35 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext, use_arrow):
     assert df.crs.equals(expected.crs)
 
 
-@pytest.mark.requires_arrow_write_api
-def test_write_read_mixed_column_values(request, tmp_path, use_arrow):
-    if use_arrow:
-        request.node.add_marker(
-            pytest.mark.xfail(reason="Arrow does not support mixed columns")
-        )
+def test_write_read_mixed_column_values(tmp_path):
+    # use_arrow=True is tested separately below
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
     geoms = [shapely.Point(0, 0) for _ in mixed_values]
     test_gdf = gp.GeoDataFrame(
         {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
     )
     output_path = tmp_path / "test_write_mixed_column.gpkg"
-    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
-    output_gdf = read_dataframe(output_path, use_arrow=use_arrow)
+    write_dataframe(test_gdf, output_path)
+    output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
     for idx, value in enumerate(mixed_values):
         if value in (None, np.nan):
             assert output_gdf["mixed"][idx] is None
         else:
             assert output_gdf["mixed"][idx] == str(value)
+
+
+@requires_arrow_write_api
+def test_write_read_mixed_column_values_arrow(tmp_path):
+    # Arrow cannot represent a column of mixed types
+    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
+    geoms = [shapely.Point(0, 0) for _ in mixed_values]
+    test_gdf = gp.GeoDataFrame(
+        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
+    )
+    output_path = tmp_path / "test_write_mixed_column.gpkg"
+    with pytest.raises(TypeError, match=".*Conversion failed for column"):
+        write_dataframe(test_gdf, output_path, use_arrow=True)
 
 
 @pytest.mark.requires_arrow_write_api
@@ -1605,9 +1615,9 @@ def test_read_multisurface(data_dir, use_arrow):
         with pytest.raises(shapely.errors.GEOSException):
             # TODO(Arrow)
             # shapely fails parsing the WKB
-            read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=use_arrow)
+            read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=True)
     else:
-        df = read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=use_arrow)
+        df = read_dataframe(data_dir / "test_multisurface.gpkg")
 
         # MultiSurface should be converted to MultiPolygon
         assert df.geometry.type.tolist() == ["MultiPolygon"]
