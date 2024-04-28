@@ -1404,12 +1404,6 @@ def test_write_dataframe_truly_mixed_invalid(tmp_path, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext, use_arrow):
-    if use_arrow and geoms == [None, None]:
-        # TODO(Arrow)
-        pytest.skip(
-            "Arrow does not yet support writing dataframes with all-null geometries"
-        )
-
     filename = tmp_path / f"test{ext}"
 
     df = gp.GeoDataFrame({"col": [1.0, 2.0]}, geometry=geoms, crs="EPSG:4326")

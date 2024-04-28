@@ -601,6 +601,19 @@ def write_dataframe(
             df[geometry_column] = geometry
         table = pa.Table.from_pandas(df)
 
+        # ensure that the geometry column is binary (for all-null geometries,
+        # this could be a wrong type)
+        geom_field = table.schema.field(geometry_column)
+        if not (
+            pa.types.is_binary(geom_field.type)
+            or pa.types.is_large_binary(geom_field.type)
+        ):
+            table = table.set_column(
+                table.schema.get_field_index(geometry_column),
+                geom_field.with_type(pa.binary()),
+                table[geometry_column].cast(pa.binary()),
+            )
+
         write_arrow(
             table,
             path,
