@@ -50,13 +50,24 @@ pytest.importorskip("geopandas")
     ],
 )
 def use_arrow(request):
+    return request.param
+
+
+@pytest.fixture(autouse=True)
+def skip_if_no_arrow_write_api(request):
+    # automatically skip tests with use_arrow=True and that require Arrow write
+    # API (marked with `@pytest.mark.requires_arrow_write_api`) if it is not available
+    use_arrow = (
+        request.getfixturevalue("use_arrow")
+        if "use_arrow" in request.fixturenames
+        else False
+    )
     if (
-        request.param
+        use_arrow
         and not HAS_ARROW_WRITE_API
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
         pytest.skip("GDAL>=3.8 required for Arrow write API")
-    return request.param
 
 
 def spatialite_available(path):
