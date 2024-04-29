@@ -2435,7 +2435,7 @@ def ogr_write(
             ogr_geometry = NULL
 
         exc = ogr_close(ogr_dataset)
-        if err:
+        if exc:
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
 
