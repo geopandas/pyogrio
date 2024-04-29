@@ -208,6 +208,25 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         raise DataSourceError(str(exc)) from None
 
 
+cdef ogr_close(GDALDatasetH ogr_dataset):
+    """Close the dataset and raise exception if that fails.
+    NOTE: some drivers only raise errors on write when calling GDALClose()
+    """
+    if ogr_dataset != NULL:
+        IF CTE_GDAL_VERSION >= (3, 7, 0):
+            if GDALClose(ogr_dataset) != CE_None:
+                return exc_check()
+
+            return
+
+        ELSE:
+            GDALClose(ogr_dataset)
+
+            # GDAL will set an error if there was an error writing the data source
+            # on close
+            return exc_check()
+
+
 cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
     """Open OGR layer by index or name.
 
@@ -2415,14 +2434,9 @@ def ogr_write(
             OGR_G_DestroyGeometry(ogr_geometry)
             ogr_geometry = NULL
 
-        if ogr_dataset != NULL:
-            GDALClose(ogr_dataset)
-
-            # GDAL will set an error if there was an error writing the data source
-            # on close
-            exc = exc_check()
-            if exc:
-                raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+        exc = ogr_close(ogr_dataset)
+        if err:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
 
 def ogr_write_arrow(
@@ -2523,14 +2537,9 @@ def ogr_write_arrow(
             CSLDestroy(options)
             options = NULL
 
-        if ogr_dataset != NULL:
-            GDALClose(ogr_dataset)
-
-            # GDAL will set an error if there was an error writing the data source
-            # on close
-            exc = exc_check()
-            if exc:
-                raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+        exc = ogr_close(ogr_dataset)
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
 
 cdef get_arrow_extension_metadata(const ArrowSchema* schema):
