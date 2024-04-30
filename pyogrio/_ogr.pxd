@@ -343,8 +343,6 @@ cdef extern from "ogr_api.h":
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
-    int             OGRReleaseDataSource(OGRDataSourceH ds)
-
     const char*     OLCStringsAsUTF8
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
@@ -358,6 +356,7 @@ IF CTE_GDAL_VERSION >= (3, 6, 0):
 
     cdef extern from "ogr_api.h":
         bint OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
+
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
@@ -416,7 +415,6 @@ cdef extern from "gdal.h":
                                const char *const *papszOpenOptions,
                                const char *const *papszSiblingFiles)
 
-    void            GDALClose(GDALDatasetH ds)
     int             GDALDatasetGetLayerCount(GDALDatasetH ds)
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
@@ -433,6 +431,17 @@ cdef extern from "gdal.h":
     const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
     OGRErr          GDALSetMetadata(GDALMajorObjectH obj, char **metadata, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
+
+
+# GDALClose returns error code for >= 3.7.0
+IF CTE_GDAL_VERSION >= (3, 7, 0):
+
+    cdef extern from "ogr_api.h":
+        int GDALClose(GDALDatasetH ds)
+ELSE:
+
+    cdef extern from "ogr_api.h":
+        void GDALClose(GDALDatasetH ds)
 
 
 cdef get_string(const char *c_str, str encoding=*)
