@@ -962,14 +962,19 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS + [".xlsx"] if ext != ".fgb"])
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_no_geom(
-    tmp_path, naturalearth_lowres, write_geodf, ext, use_arrow
+    request, tmp_path, naturalearth_lowres, write_geodf, ext, use_arrow
 ):
     """Test writing a (geo)dataframe without a geometry column.
 
     FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
     """
     if use_arrow:
-        pytest.skip("Arrow does not yet support writing dataframes without geometry")
+        request.node.add_marker(
+            pytest.mark.xfail(
+                raises=NotImplementedError,
+                reason="Arrow does not yet support writing dataframes without geometry",
+            )
+        )
     # Prepare test data
     input_df = read_dataframe(naturalearth_lowres, read_geometry=False)
     if write_geodf:

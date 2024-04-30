@@ -602,6 +602,12 @@ def write_dataframe(
             # writing non-geometries to the geometry column
             df = pd.DataFrame(df, copy=False)
             df[geometry_column] = geometry
+        else:
+            raise NotImplementedError(
+                "Writing a DataFrame without a geometry column is not yet "
+                "supported with `use_arrow=True`."
+            )
+
         table = pa.Table.from_pandas(df)
 
         # ensure that the geometry column is binary (for all-null geometries,
