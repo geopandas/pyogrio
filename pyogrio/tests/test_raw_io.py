@@ -1,5 +1,6 @@
 import contextlib
 import ctypes
+from io import BytesIO
 import json
 import os
 import sys
@@ -1059,6 +1060,93 @@ def test_write_float_nan_null_arrow(tmp_path):
     assert table["col"].is_null().to_pylist() == [False, False]
     pc = pytest.importorskip("pyarrow.compute")
     assert pc.is_nan(table["col"]).to_pylist() == [False, True]
+
+
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory(naturalearth_lowres, driver):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
+
+    buffer = BytesIO()
+    write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+
+    assert len(buffer.getbuffer()) != 0
+    assert list_layers(buffer)[0][0] == "test"
+
+    actual_meta, _, actual_geometry, actual_field_data = read(buffer)
+
+    assert np.array_equal(actual_meta["fields"], meta["fields"])
+    assert np.array_equal(actual_field_data, field_data)
+    assert len(actual_geometry) == len(geometry)
+
+
+# TODO: fix and enable
+# @pytest.mark.parametrize("driver, ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
+# def test_write_memory_invalid_input(tmpdir, naturalearth_lowres, driver, ext):
+#     meta, _, geometry, field_data = read(naturalearth_lowres)
+
+#     with pytest.raises(ValueError, match="unsupported path for write"):
+#         buffer = b""
+#         write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+
+#     with pytest.raises(ValueError, match="unsupported path for write"):
+#         with open(os.path.join(str(tmpdir), f"test.{ext}"), "wb") as buffer:
+#             write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+
+# TODO: fix and enable
+# @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+# def test_write_memory_append(naturalearth_lowres, driver):
+#     meta, _, geometry, field_data = read(naturalearth_lowres)
+#     meta.update({"geometry_type": "MultiPolygon"})
+
+#     buffer = BytesIO()
+#     write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+#     assert read_info(buffer)["features"] == 177
+
+#     write(
+#         buffer, geometry, field_data, driver=driver, layer="test", append=True, **meta
+#     )
+#     assert read_info(buffer)["features"] == 354
+
+
+# TODO: fix and enable
+# @pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+# def test_write_memory_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+#     if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
+#         pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
+
+#     meta, _, geometry, field_data = read(naturalearth_lowres)
+#     meta.update({"geometry_type": "MultiPolygon"})
+
+#     buffer = BytesIO()
+#     write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+#     assert read_info(buffer)["features"] == 177
+
+#     # with pytest.raises(DataSourceError, match="not recognized as a supported file format"):
+#     write(
+#         buffer,
+#         geometry,
+#         field_data,
+#         driver=driver,
+#         layer="test",
+#         append=True,
+#         **meta,
+#     )
+
+
+# TODO: fix and enable
+# @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+# def test_write_memory_add_layer(naturalearth_lowres, driver):
+#     meta, _, geometry, field_data = read(naturalearth_lowres)
+#     meta.update({"geometry_type": "MultiPolygon"})
+
+#     buffer = BytesIO()
+#     write(buffer, geometry, field_data, driver=driver, layer="test1", **meta)
+#     assert np.array_equal(list_layers(buffer)[:, 0], ["test1"])
+
+#     write(buffer, geometry, field_data, driver=driver, layer="test2", **meta)
+#     assert np.array_equal(list_layers(buffer)[:, 0], ["test1", "test2"])
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])

@@ -108,6 +108,14 @@ def ogr_driver_supports_write(driver):
     return False
 
 
+def ogr_driver_supports_vsi(driver):
+    # check metadata for driver to see if it supports write
+    if _get_driver_metadata_item(driver, "DCAP_VIRTUALIO") == 'YES':
+        return True
+
+    return False
+
+
 def ogr_list_drivers():
     cdef OGRSFDriverH driver = NULL
     cdef int i

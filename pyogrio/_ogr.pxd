@@ -45,13 +45,29 @@ cdef extern from "cpl_string.h":
 
 
 cdef extern from "cpl_vsi.h" nogil:
-
+    int VSI_STAT_EXISTS_FLAG
+    ctypedef int vsi_l_offset
     ctypedef FILE VSILFILE
+    ctypedef struct VSIStatBufL:
+        long st_size
+        long st_mode
+        int st_mtime
 
-    VSILFILE *VSIFileFromMemBuffer(const char *path, void *data,
-                                   int data_len, int take_ownership)
-    int VSIFCloseL(VSILFILE *fp)
-    int VSIUnlink(const char *path)
+    int         VSIFCloseL(VSILFILE *fp)
+    int         VSIFFlushL(VSILFILE *fp)
+    VSILFILE*   VSIFOpenL(const char *path, const char *mode)
+    VSILFILE*   VSIFOpenExL(const char *path, const char *mode, int bSetError)
+    size_t      VSIFReadL(void *buffer, size_t nSize, size_t nCount, VSILFILE *fp)
+    int         VSIFSeekL(VSILFILE *fp, vsi_l_offset nOffset, int nWhence)
+    int         VSIStatL(const char *pszFilename, VSIStatBufL *psStatBuf)
+    int         VSIStatExL(const char *pszFilename, VSIStatBufL *psStatBuf, int nFlags)
+    int         VSIUnlink(const char *path)
+
+    VSILFILE        *VSIFileFromMemBuffer(const char *path, void *data, vsi_l_offset data_len, int take_ownership)
+    unsigned char   *VSIGetMemFileBuffer(const char *path, vsi_l_offset *data_len, int take_ownership)
+
+    int     VSIMkdir(const char *path, long mode)
+    int     VSIRmdirRecursive(const char *pszDirname)
 
 
 cdef extern from "ogr_core.h":
