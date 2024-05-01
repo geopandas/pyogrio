@@ -460,15 +460,19 @@ def test_read_info_force_feature_count(data_dir, layer, force, expected):
     assert meta["features"] == expected
 
 
-@pytest.mark.parametrize(
-    "force_total_bounds, expected_total_bounds",
-    [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
-)
-def test_read_info_force_total_bounds(
-    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
-):
-    # Geojson files don't have a fast way to determine total_bounds
+@pytest.mark.parametrize("force_total_bounds", [True, False])
+def test_read_info_force_total_bounds(tmpdir, naturalearth_lowres, force_total_bounds):
+    # Geojson files don't have a fast way to determine total_bounds for GDAL <3.9.0
     geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
+
+    if (
+        force_total_bounds
+        or read_info(geojson_path)["capabilities"]["fast_total_bounds"]
+    ):
+        expected_total_bounds = (-180.0, -90.0, 180.0, 83.64513)
+    else:
+        expected_total_bounds = None
+
     info = read_info(geojson_path, force_total_bounds=force_total_bounds)
     if expected_total_bounds is not None:
         assert allclose(info["total_bounds"], expected_total_bounds)

@@ -833,6 +833,7 @@ def test_write_memory(naturalearth_lowres, driver):
     # assert np.array_equal(actual_meta["fields"], meta["fields"])
 
 
+@requires_arrow_write_api
 def test_write_memory_driver_required(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
@@ -875,6 +876,7 @@ def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
         )
 
 
+@requires_arrow_write_api
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory_append_unsupported(naturalearth_lowres, driver):
     meta, table = read_arrow(naturalearth_lowres)
@@ -896,6 +898,7 @@ def test_write_memory_append_unsupported(naturalearth_lowres, driver):
         )
 
 
+@requires_arrow_write_api
 def test_write_memory_existing_unsupported(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
     meta["geometry_type"] = "MultiPolygon"
