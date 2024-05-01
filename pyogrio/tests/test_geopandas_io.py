@@ -1021,21 +1021,30 @@ def test_write_dataframe_no_geom(
         )
 
 
+@pytest.mark.requires_arrow_write_api
+def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
+    # dataframe writing ignores the index
+    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = input_gdf.set_index("iso_a3")
+
+    output_path = tmp_path / "test.shp"
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    result_gdf = read_dataframe(output_path)
+    assert isinstance(result_gdf.index, pd.RangeIndex)
+    assert_geodataframe_equal(result_gdf, input_gdf.reset_index(drop=True))
+
+
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
 @pytest.mark.requires_arrow_write_api
 def test_write_empty_dataframe(tmp_path, ext, use_arrow):
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
-    # for older pandas versions (< 2.0) that have empty object-dtype Index instead
-    # of RangeIndex (in Arrow mode, that would result in an extra written column)
-    original_index = expected.index
-    expected.index = pd.RangeIndex(0)
 
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
     df = read_dataframe(filename)
-    expected.index = original_index
     assert_geodataframe_equal(df, expected)
 
 
@@ -1046,7 +1055,6 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
     # file, but gdal isn't able to read those again at the time of writing.
     # Issue logged here: https://github.com/geopandas/pyogrio/issues/94
     expected = gp.GeoDataFrame(geometry=[], crs=4326)
-    expected.index = pd.RangeIndex(0)
 
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
@@ -1598,7 +1606,6 @@ def test_write_geometry_z_types_auto(
         # writing empty / null geometries not allowed by FlatGeobuf for
         # GDAL >= 3.6.4 and were simply not written previously
         gdf = gdf.loc[~(gdf.geometry.isna() | gdf.geometry.is_empty)]
-        gdf = gdf.reset_index(drop=True)
 
     if mixed_dimensions and DRIVERS[ext] in DRIVERS_NO_MIXED_DIMENSIONS:
         with pytest.raises(

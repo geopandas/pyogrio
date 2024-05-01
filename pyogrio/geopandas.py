@@ -608,7 +608,7 @@ def write_dataframe(
                 "supported with `use_arrow=True`."
             )
 
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df, preserve_index=False)
 
         # ensure that the geometry column is binary (for all-null geometries,
         # this could be a wrong type)
