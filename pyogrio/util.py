@@ -1,3 +1,4 @@
+from pathlib import Path
 import re
 import sys
 from urllib.parse import urlparse
@@ -11,6 +12,14 @@ with GDALEnv():
 
 
 def get_vsi_path(path_or_buffer):
+    # force path objects to string to specifically ignore their read method
+    if (
+        isinstance(path_or_buffer, Path)
+        # TODO: check for pytest LocalPath can be removed when all instances of tmpdir in fixtures are removed
+        or "_pytest._py.path.LocalPath" in str(type(path_or_buffer))
+    ):
+        path_or_buffer = str(path_or_buffer)
+
     if hasattr(path_or_buffer, "read"):
         bytes_read = path_or_buffer.read()
 
