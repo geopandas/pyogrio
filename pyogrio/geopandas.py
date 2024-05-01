@@ -331,6 +331,7 @@ def write_dataframe(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
+    use_arrow=None,
     dataset_metadata=None,
     layer_metadata=None,
     metadata=None,
@@ -392,6 +393,15 @@ def write_dataframe(
         driver supports appending to an existing data source, will cause the
         data to be appended to the existing records in the data source.
         NOTE: append support is limited to specific drivers and GDAL versions.
+    use_arrow : bool, optional (default: False)
+        Whether to use Arrow as the transfer mechanism of the data to write
+        from Python to GDAL (requires GDAL >= 3.8 and `pyarrow` to be
+        installed). When enabled, this provides a further speed-up.
+        Defaults to False, but this default can also be globally overridden
+        by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
+        Currently, using Arrow does not yet support writing a DataFrame
+        without geometry column, and it does not support writing an
+        object-dtype column with mixed types.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
         to drivers that support writing metadata, such as GPKG, and silently
@@ -430,6 +440,9 @@ def write_dataframe(
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
+
+    if use_arrow is None:
+        use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
 
     if driver is None:
         driver = detect_write_driver(path)
@@ -487,6 +500,9 @@ def write_dataframe(
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
+    if geometry_column is not None:
+        geometry_types_all = geometry.geom_type
+
     if geometry_column is not None and (
         geometry_type is None or promote_to_multi is None
     ):
@@ -505,7 +521,7 @@ def write_dataframe(
                     f"Mixed 2D and 3D coordinates are not supported by {driver}"
                 )
 
-            geometry_types = pd.Series(geometry.type.unique()).dropna().values
+            geometry_types = pd.Series(geometry_types_all.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
                 if promote_to_multi and tmp_geometry_type in (
@@ -552,6 +568,80 @@ def write_dataframe(
             crs = f"EPSG:{epsg}"  # noqa: E231
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
+
+    if use_arrow:
+        import pyarrow as pa
+        from pyogrio.raw import write_arrow
+
+        if geometry_column is not None:
+            # Convert to multi type
+            if promote_to_multi:
+                import shapely
+
+                mask_points = geometry_types_all == "Point"
+                mask_linestrings = geometry_types_all == "LineString"
+                mask_polygons = geometry_types_all == "Polygon"
+
+                if mask_points.any():
+                    geometry[mask_points] = shapely.multipoints(
+                        np.atleast_2d(geometry[mask_points]), axis=0
+                    )
+
+                if mask_linestrings.any():
+                    geometry[mask_linestrings] = shapely.multilinestrings(
+                        np.atleast_2d(geometry[mask_linestrings]), axis=0
+                    )
+
+                if mask_polygons.any():
+                    geometry[mask_polygons] = shapely.multipolygons(
+                        np.atleast_2d(geometry[mask_polygons]), axis=0
+                    )
+
+            geometry = to_wkb(geometry.values)
+            df = df.copy(deep=False)
+            # convert to plain DataFrame to avoid warning from geopandas about
+            # writing non-geometries to the geometry column
+            df = pd.DataFrame(df, copy=False)
+            df[geometry_column] = geometry
+        else:
+            raise NotImplementedError(
+                "Writing a DataFrame without a geometry column is not yet "
+                "supported with `use_arrow=True`."
+            )
+
+        table = pa.Table.from_pandas(df, preserve_index=False)
+
+        # ensure that the geometry column is binary (for all-null geometries,
+        # this could be a wrong type)
+        geom_field = table.schema.field(geometry_column)
+        if not (
+            pa.types.is_binary(geom_field.type)
+            or pa.types.is_large_binary(geom_field.type)
+        ):
+            table = table.set_column(
+                table.schema.get_field_index(geometry_column),
+                geom_field.with_type(pa.binary()),
+                table[geometry_column].cast(pa.binary()),
+            )
+
+        write_arrow(
+            table,
+            path,
+            layer=layer,
+            driver=driver,
+            geometry_name=geometry_column,
+            geometry_type=geometry_type,
+            crs=crs,
+            encoding=encoding,
+            append=append,
+            dataset_metadata=dataset_metadata,
+            layer_metadata=layer_metadata,
+            metadata=metadata,
+            dataset_options=dataset_options,
+            layer_options=layer_options,
+            **kwargs,
+        )
+        return
 
     # If there is geometry data, prepare it to be written
     if geometry_column is not None:
