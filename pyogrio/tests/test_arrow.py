@@ -520,6 +520,8 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 @requires_arrow_write_api
 def test_write_append(request, tmpdir, naturalearth_lowres, ext):
     if ext.startswith(".geojson"):
+        # Bug in GDAL when appending int64 to GeoJSON
+        # (https://github.com/OSGeo/gdal/issues/9792)
         request.node.add_marker(
             pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
         )
