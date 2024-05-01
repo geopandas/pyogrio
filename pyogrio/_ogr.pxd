@@ -56,10 +56,8 @@ cdef extern from "cpl_vsi.h" nogil:
     int         VSIFCloseL(VSILFILE *fp)
     int         VSIFFlushL(VSILFILE *fp)
     VSILFILE*   VSIFOpenL(const char *path, const char *mode)
-    VSILFILE*   VSIFOpenExL(const char *path, const char *mode, int bSetError)
     size_t      VSIFReadL(void *buffer, size_t nSize, size_t nCount, VSILFILE *fp)
     int         VSIFSeekL(VSILFILE *fp, vsi_l_offset nOffset, int nWhence)
-    int         VSIStatL(const char *pszFilename, VSIStatBufL *psStatBuf)
     int         VSIStatExL(const char *pszFilename, VSIStatBufL *psStatBuf, int nFlags)
     int         VSIUnlink(const char *path)
 

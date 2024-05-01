@@ -22,6 +22,7 @@
     the previous behaviour of returning a `pyarrow.RecordBatchReader`, specify
     `use_pyarrow=True` (#349).
 -   Warn when reading from a multilayer file without specifying a layer (#362).
+-   Allow writing to a new in-memory datasource using io.BytesIO object (#397).
 
 ### Bug fixes
 

@@ -467,7 +467,7 @@ def test_read_info_force_feature_count(data_dir, layer, force, expected):
 def test_read_info_force_total_bounds(
     tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
 ):
-    # Geojson files don't hava a fast way to determine total_bounds
+    # Geojson files don't have a fast way to determine total_bounds
     geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
     info = read_info(geojson_path, force_total_bounds=force_total_bounds)
     if expected_total_bounds is not None:

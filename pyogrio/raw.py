@@ -5,12 +5,7 @@ from pyogrio._env import GDALEnv
 from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import (
-    _mask_to_wkb,
-    _preprocess_options_key_value,
-    get_vsi_path,
-    vsi_path,
-)
+from pyogrio.util import _mask_to_wkb, _preprocess_options_key_value, get_vsi_path
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write, ogr_write_arrow
@@ -529,6 +524,67 @@ def _preprocess_options_kwargs(driver, dataset_options, layer_options, kwargs):
     return dataset_kwargs, layer_kwargs
 
 
+def _get_write_path_driver(path, driver, append=False):
+    """Validate and return path and driver
+
+    Parameters
+    ----------
+    path : str or io.BytesIO
+        path to output file on writeable file system or an io.BytesIO object to
+        allow writing to memory
+    driver : str, optional (default: None)
+        The OGR format driver used to write the vector file. By default attempts
+        to infer driver from path.  Must be provided to write to a file-like
+        object.
+    append : bool, optional (default: False)
+        True if path and driver is being tested for append support
+
+    Returns
+    -------
+    (path, driver)
+    """
+
+    if isinstance(path, BytesIO):
+        if driver is None:
+            raise ValueError("driver must be provided to write to in-memory file")
+
+        # blacklist certain drivers known not to work in current memory implementation
+        # because they create multiple files
+        if driver in {"ESRI Shapefile", "OpenFileGDB"}:
+            raise ValueError(f"writing to in-memory file is not supported for {driver}")
+
+        # verify that driver supports VSI methods
+        if not ogr_driver_supports_vsi(driver):
+            raise DataSourceError(
+                f"{driver} does not support ability to write in-memory in GDAL "
+                f"{get_gdal_version_string()}"
+            )
+
+        if append:
+            raise NotImplementedError("append is not supported for in-memory files")
+
+    else:
+        path = str(path)
+
+        if driver is None:
+            driver = detect_write_driver(path)
+
+    # verify that driver supports writing
+    if not ogr_driver_supports_write(driver):
+        raise DataSourceError(
+            f"{driver} does not support write functionality in GDAL "
+            f"{get_gdal_version_string()}"
+        )
+
+    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
+    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
+        raise RuntimeError(
+            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
+        )
+
+    return path, driver
+
+
 def write(
     path,
     geometry,
@@ -559,6 +615,7 @@ def write(
     path : str or io.BytesIO
         path to output file on writeable file system or an io.BytesIO object to
         allow writing to memory
+        NOTE: support for writing to memory is limited to specific drivers.
     geometry : ndarray of WKB encoded geometries or None
         If None, geometries will not be written to output file
     field_data : list-like of shape (num_fields, num_records)
@@ -570,12 +627,11 @@ def write(
         position in the outer list, or None to indicate field does not have
         a mask array
     layer : str, optional (default: None)
-        layer name to create.  If path is a BytesIO object and layer name is not
+        layer name to create.  If writing to memory and layer name is not
         provided, it layer name will be set to a UUID4 value.
     driver : string, optional (default: None)
         The OGR format driver used to write the vector file. By default attempts
-        to infer driver from path.  Must be provided to write to a file-like
-        object.
+        to infer driver from path.  Must be provided to write to memory.
     geometry_type : str, optional (default: None)
         Possible values are: "Unknown", "Point", "LineString", "Polygon",
         "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
@@ -609,7 +665,8 @@ def write(
     append : bool, optional (default: False)
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
-        data to be appended to the existing records in the data source.
+        data to be appended to the existing records in the data source.  Not
+        supported for writing to in-memory files.
         NOTE: append support is limited to specific drivers and GDAL versions.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
@@ -634,38 +691,7 @@ def write(
     # read, and it is convenient to pass meta directly into write for round trip tests)
     kwargs.pop("dtypes", None)
 
-    if isinstance(path, BytesIO):
-        if driver is None:
-            raise ValueError("driver must be provided to write to io.BytesIO object")
-
-        # verify that driver supports VSI methods
-        if not ogr_driver_supports_vsi(driver):
-            raise DataSourceError(
-                f"{driver} does not support ability to write in-memory in GDAL "
-                f"{get_gdal_version_string()}"
-            )
-
-        # TODO: if multi-file output driver (e.g., ESRI Shapefile), raise error?
-        # some writeable drivers don't work properly this way (e.g., OpenFileGDB)
-
-    else:
-        path = str(path)
-
-        if driver is None:
-            driver = detect_write_driver(path)
-
-    # verify that driver supports writing
-    if not ogr_driver_supports_write(driver):
-        raise DataSourceError(
-            f"{driver} does not support write functionality in GDAL "
-            f"{get_gdal_version_string()}"
-        )
-
-    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
-    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
-        raise RuntimeError(
-            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
-        )
+    path, driver = _get_write_path_driver(path, driver, append=append)
 
     dataset_metadata, layer_metadata = _validate_metadata(
         dataset_metadata, layer_metadata, metadata
@@ -740,13 +766,16 @@ def write_arrow(
         object that implements the `Arrow PyCapsule Protocol`_ (i.e. has an
         ``__arrow_c_stream__`` method), for example a pyarrow Table or
         RecordBatchReader.
-    path : str
-        Path to file.
+    path : str or io.BytesIO
+        path to output file on writeable file system or an io.BytesIO object to
+        allow writing to memory
+        NOTE: support for writing to memory is limited to specific drivers.
     layer : str, optional (default: None)
-        layer name
-    driver : str, optional (default: None)
-        The OGR format driver used to write the vector file. By default write_arrow
-        attempts to infer driver from path.
+        layer name to create.  If writing to memory and layer name is not
+        provided, it layer name will be set to a UUID4 value.
+    driver : string, optional (default: None)
+        The OGR format driver used to write the vector file. By default attempts
+        to infer driver from path.  Must be provided to write to memory.
     geometry_name : str, optional (default: None)
         The name of the column in the input data that will be written as the
         geometry field. Will be inferred from the input data if the geometry
@@ -768,7 +797,8 @@ def write_arrow(
     append : bool, optional (default: False)
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
-        data to be appended to the existing records in the data source.
+        data to be appended to the existing records in the data source.  Not
+        supported for writing to in-memory files.
         NOTE: append support is limited to specific drivers and GDAL versions.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
@@ -806,17 +836,7 @@ def write_arrow(
             "'__arrow_c_stream__' method)."
         )
 
-    path = vsi_path(str(path))
-
-    if driver is None:
-        driver = detect_write_driver(path)
-
-    # verify that driver supports writing
-    if not ogr_driver_supports_write(driver):
-        raise DataSourceError(
-            f"{driver} does not support write functionality in GDAL "
-            f"{get_gdal_version_string()}"
-        )
+    path, driver = _get_write_path_driver(path, driver, append=append)
 
     if "promote_to_multi" in kwargs:
         raise ValueError(

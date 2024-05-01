@@ -723,7 +723,7 @@ def test_write_unsupported(tmpdir, naturalearth_lowres):
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = "s3://non-existing-bucket/test.geojson"
+    filename = "/vsis3/non-existing-bucket/test.geojson"
 
     # set config options to avoid errors on open due to GDAL S3 configuration
     set_gdal_config_options(
@@ -1071,7 +1071,7 @@ def test_write_memory(naturalearth_lowres, driver):
     buffer = BytesIO()
     write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
 
-    assert len(buffer.getbuffer()) != 0
+    assert len(buffer.getbuffer()) > 0
     assert list_layers(buffer)[0][0] == "test"
 
     actual_meta, _, actual_geometry, actual_field_data = read(buffer)
@@ -1081,72 +1081,70 @@ def test_write_memory(naturalearth_lowres, driver):
     assert len(actual_geometry) == len(geometry)
 
 
-# TODO: fix and enable
-# @pytest.mark.parametrize("driver, ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
-# def test_write_memory_invalid_input(tmpdir, naturalearth_lowres, driver, ext):
-#     meta, _, geometry, field_data = read(naturalearth_lowres)
+def test_write_memory_driver_required(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
-#     with pytest.raises(ValueError, match="unsupported path for write"):
-#         buffer = b""
-#         write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
-
-#     with pytest.raises(ValueError, match="unsupported path for write"):
-#         with open(os.path.join(str(tmpdir), f"test.{ext}"), "wb") as buffer:
-#             write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
-
-# TODO: fix and enable
-# @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
-# def test_write_memory_append(naturalearth_lowres, driver):
-#     meta, _, geometry, field_data = read(naturalearth_lowres)
-#     meta.update({"geometry_type": "MultiPolygon"})
-
-#     buffer = BytesIO()
-#     write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
-#     assert read_info(buffer)["features"] == 177
-
-#     write(
-#         buffer, geometry, field_data, driver=driver, layer="test", append=True, **meta
-#     )
-#     assert read_info(buffer)["features"] == 354
+    buffer = BytesIO()
+    with pytest.raises(
+        ValueError,
+        match="driver must be provided to write to in-memory file",
+    ):
+        write(buffer, geometry, field_data, driver=None, layer="test", **meta)
 
 
-# TODO: fix and enable
-# @pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
-# def test_write_memory_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
-#     if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
-#         pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
+@pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
+def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
+    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
+        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
 
-#     meta, _, geometry, field_data = read(naturalearth_lowres)
-#     meta.update({"geometry_type": "MultiPolygon"})
+    meta, _, geometry, field_data = read(naturalearth_lowres)
 
-#     buffer = BytesIO()
-#     write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
-#     assert read_info(buffer)["features"] == 177
+    buffer = BytesIO()
 
-#     # with pytest.raises(DataSourceError, match="not recognized as a supported file format"):
-#     write(
-#         buffer,
-#         geometry,
-#         field_data,
-#         driver=driver,
-#         layer="test",
-#         append=True,
-#         **meta,
-#     )
+    with pytest.raises(
+        ValueError, match=f"writing to in-memory file is not supported for {driver}"
+    ):
+        write(
+            buffer,
+            geometry,
+            field_data,
+            driver=driver,
+            layer="test",
+            append=True,
+            **meta,
+        )
 
 
-# TODO: fix and enable
-# @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
-# def test_write_memory_add_layer(naturalearth_lowres, driver):
-#     meta, _, geometry, field_data = read(naturalearth_lowres)
-#     meta.update({"geometry_type": "MultiPolygon"})
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory_append_unsupported(naturalearth_lowres, driver):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
 
-#     buffer = BytesIO()
-#     write(buffer, geometry, field_data, driver=driver, layer="test1", **meta)
-#     assert np.array_equal(list_layers(buffer)[:, 0], ["test1"])
+    buffer = BytesIO()
 
-#     write(buffer, geometry, field_data, driver=driver, layer="test2", **meta)
-#     assert np.array_equal(list_layers(buffer)[:, 0], ["test1", "test2"])
+    with pytest.raises(
+        NotImplementedError, match="append is not supported for in-memory files"
+    ):
+        write(
+            buffer,
+            geometry,
+            field_data,
+            driver=driver,
+            layer="test",
+            append=True,
+            **meta,
+        )
+
+
+def test_write_memory_existing_unsupported(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    buffer = BytesIO(b"0000")
+    with pytest.raises(
+        NotImplementedError,
+        match="writing to existing in-memory object is not supported",
+    ):
+        write(buffer, geometry, field_data, driver="GeoJSON", layer="test", **meta)
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])

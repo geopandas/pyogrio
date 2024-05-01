@@ -13,8 +13,11 @@ with GDALEnv():
 def get_vsi_path(path_or_buffer):
     if hasattr(path_or_buffer, "read"):
         bytes_read = path_or_buffer.read()
-        # rewind buffer
-        path_or_buffer.seek(0)
+
+        # rewind buffer if possible so that subsequent operations do not need to rewind
+        if hasattr(path_or_buffer, "seek"):
+            path_or_buffer.seek(0)
+
         path_or_buffer = bytes_read
 
     buffer = None

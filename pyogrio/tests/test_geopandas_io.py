@@ -1,5 +1,6 @@
 import contextlib
 from datetime import datetime
+from io import BytesIO
 import locale
 import os
 
@@ -1703,6 +1704,80 @@ def test_arrow_bool_exception(tmpdir, ext):
 
     else:
         _ = read_dataframe(filename, use_arrow=True)
+
+
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory(naturalearth_lowres, driver):
+    df = read_dataframe(naturalearth_lowres)
+
+    buffer = BytesIO()
+    write_dataframe(df, buffer, driver=driver, layer="test")
+
+    assert len(buffer.getbuffer()) > 0
+
+    actual = read_dataframe(buffer)
+    assert len(actual) == len(df)
+
+    is_json = driver == "GeoJSON"
+
+    assert_geodataframe_equal(
+        actual,
+        df,
+        check_less_precise=is_json,
+        check_index_type=False,
+        check_dtype=not is_json,
+    )
+
+
+def test_write_memory_driver_required(naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    buffer = BytesIO()
+
+    with pytest.raises(
+        ValueError,
+        match="driver must be provided to write to in-memory file",
+    ):
+        write_dataframe(df.head(1), buffer, driver=None, layer="test")
+
+
+@pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
+def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
+    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
+        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
+
+    df = read_dataframe(naturalearth_lowres)
+
+    buffer = BytesIO()
+
+    with pytest.raises(
+        ValueError, match=f"writing to in-memory file is not supported for {driver}"
+    ):
+        write_dataframe(df, buffer, driver=driver, layer="test")
+
+
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory_append_unsupported(naturalearth_lowres, driver):
+    df = read_dataframe(naturalearth_lowres)
+
+    buffer = BytesIO()
+
+    with pytest.raises(
+        NotImplementedError, match="append is not supported for in-memory files"
+    ):
+        write_dataframe(df.head(1), buffer, driver=driver, layer="test", append=True)
+
+
+def test_write_memory_existing_unsupported(naturalearth_lowres):
+    df = read_dataframe(naturalearth_lowres)
+
+    buffer = BytesIO(b"0000")
+    with pytest.raises(
+        NotImplementedError,
+        match="writing to existing in-memory object is not supported",
+    ):
+        write_dataframe(df.head(1), buffer, driver="GeoJSON", layer="test")
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])

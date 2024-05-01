@@ -1991,6 +1991,53 @@ cdef infer_field_types(list dtypes):
     return field_types
 
 
+cdef str get_ogr_vsimem_path(object path_or_fp, str driver, VSILFILE **vsi_handle):
+    """ Return the original path or a /vsimem/ path, and update vsi_handle if needed
+
+    Parameters
+    ----------
+    path_or_fp : str or io.BytesIO object
+        If io.BytesIO object, this will create a new in-memory file at the returned
+        path and set vsi_handle to it
+    driver : str
+        name out output driver
+    vsi_handle : **VSIFILE
+        pointer to VSI file handle that will be updated to point to in-memory file
+    """
+
+    cdef char *path_c = NULL
+    cdef bytes bytes_buffer
+    cdef unsigned char *bytes_view = NULL
+    cdef unsigned char *vsi_buffer = NULL
+    cdef int num_bytes = 0
+
+    if not isinstance(path_or_fp, BytesIO):
+        return path_or_fp
+
+    # Create in-memory directory to contain auxiliary files
+    memfilename = uuid4().hex
+    VSIMkdir(f"/vsimem/{memfilename}".encode("utf-8"), 0666)
+
+    # file extension is required for some drivers, set it based on driver metadata
+    ext = ''
+    recommended_ext = _get_driver_metadata_item(driver, "DMD_EXTENSIONS")
+    if recommended_ext is not None:
+        ext = "." + recommended_ext.split(' ')[0]
+
+    path = f"/vsimem/{memfilename}/{memfilename}{ext}"
+    path_b = path.encode('UTF-8')
+    path_c = path_b
+
+    num_bytes = path_or_fp.getbuffer().nbytes
+    if num_bytes > 0:
+        raise NotImplementedError("writing to existing in-memory object is not supported")
+
+    # Open new VSI file in write-only mode
+    vsi_handle[0] = VSIFOpenL(path_c, "w")
+
+    return path
+
+
 cdef create_ogr_dataset_layer(
     str path,
     bint is_vsi,
@@ -2234,8 +2281,8 @@ def ogr_write(
     cdef int num_records = -1
     cdef int num_field_data = len(field_data) if field_data is not None else 0
     cdef int num_fields = len(fields) if fields is not None else 0
+    cdef bint is_vsi = False
     cdef VSILFILE *vsi_handle = NULL
-    cdef bytes vsi_bytes_buffer
     cdef unsigned char *vsi_buffer = NULL
     cdef vsi_l_offset vsi_buffer_size = 0
 
@@ -2276,55 +2323,14 @@ def ogr_write(
     if gdal_tz_offsets is None:
         gdal_tz_offsets = {}
 
-
-    ### Setup in-memory handler if needed
-    if isinstance(path_or_fp, BytesIO):
-        # TODO: add try / catch around this and cleanup open handles
-
-        # Create in-memory directory to contain auxiliary files
-        memfilename = uuid4().hex
-        VSIMkdir(f"/vsimem/{memfilename}".encode("utf-8"), 0666)
-
-        # file extension is required for some drivers, set it based on driver metadata
-        ext = ''
-        recommended_ext = _get_driver_metadata_item(driver, "DMD_EXTENSIONS")
-        if recommended_ext is not None:
-            ext = "." + recommended_ext.split(' ')[0]
-
-        path = f"/vsimem/{memfilename}/{memfilename}{ext}"
-
-        # TODO: automatically zip shapefile or raise Exception?
-        # Otherwise no way to get back from memory in useful way
-        # if driver == "ESRI Shapefile":
-        #     path += ".zip"
-
-        # copy existing bytes into VSI file
-        path_or_fp.seek(0)
-        vsi_bytes_buffer = path_or_fp.read()
-        vsi_buffer_size = len(vsi_bytes_buffer)
-
-        if vsi_buffer_size > 0:
-            # copy and transfer memory to GDAL
-            vsi_buffer = <unsigned char *>CPLMalloc(vsi_buffer_size)
-            memcpy(<void *>vsi_bytes_buffer, vsi_buffer, vsi_buffer_size)
-            # vsi_handle = VSIFileFromMemBuffer(path.encode('UTF-8'), <unsigned char *>vsi_bytes_buffer, vsi_buffer_size, 0)
-            vsi_handle = VSIFileFromMemBuffer(path.encode('UTF-8'), <unsigned char *>vsi_buffer, vsi_buffer_size, 1)
-            if vsi_handle == NULL:
-                raise RuntimeError("in-memory file could not be created")
-
-            vsi_buffer = NULL # to prevent cleanup later (GDAL will free)
-
-        else:
-            vsi_handle = VSIFOpenL(path.encode('UTF-8'), "w")
-
-    else:
-        path = path_or_fp
-
-
     try:
-        ### Setup up dataset and layer
+        # Setup in-memory handler if needed
+        path = get_ogr_vsimem_path(path_or_fp, driver, &vsi_handle)
+        is_vsi = vsi_handle != NULL
+
+        # Setup dataset and layer
         layer_created = create_ogr_dataset_layer(
-            path, vsi_handle!=NULL, layer, driver, crs, geometry_type, encoding,
+            path, is_vsi, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
             dataset_metadata, layer_metadata,
             &ogr_dataset, &ogr_layer,
@@ -2522,6 +2528,29 @@ def ogr_write(
 
         log.info(f"Created {num_records:,} records" )
 
+        # close dataset to force driver to flush data
+        exc = ogr_close(ogr_dataset)
+        ogr_dataset = NULL
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+        ### Copy in-memory file back to path_or_fp object
+        if vsi_handle != NULL:
+            # rewind to beginning of file and read bytes back from memory
+            VSIFSeekL(vsi_handle, 0, 0)
+
+            # Take ownership of the buffer to avoid a copy; GDAL will automatically
+            # unlink the memory file
+            vsi_buffer = VSIGetMemFileBuffer(path.encode("UTF-8"), &vsi_buffer_size, 1)
+            if vsi_buffer == NULL:
+                raise RuntimeError("could not read bytes from in-memory file")
+
+            # reset path_or_fp and write bytes to it
+            path_or_fp.seek(0)
+            path_or_fp.write(<bytes>vsi_buffer[:vsi_buffer_size])
+            # rewind to beginning to allow caller to read
+            path_or_fp.seek(0)
+
     finally:
         ### Final cleanup
         # make sure that all objects allocated above are released if exceptions
@@ -2538,45 +2567,23 @@ def ogr_write(
             OGR_G_DestroyGeometry(ogr_geometry)
             ogr_geometry = NULL
 
-        exc = ogr_close(ogr_dataset)
-        if exc:
-            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+        if ogr_dataset != NULL:
+            ogr_close(ogr_dataset)
 
-
-    # TODO: merge this in with updated try / finally blocks from #396
-    if vsi_handle != NULL:
-        try:
-            # rewind to beginning of file and read bytes back from memory
-            VSIFSeekL(vsi_handle, 0, 0)
-
-            # Take ownership of the buffer to avoid a copy; GDAL will automatically
-            # unlink the memory file
-            vsi_buffer = VSIGetMemFileBuffer(path.encode("UTF-8"), &vsi_buffer_size, 1)
-            if vsi_buffer == NULL:
-                # TODO: make sure following cleanup steps are called before final return
-                raise RuntimeError("could not read bytes from in-memory file")
-
-            # reset path_or_fp and write bytes to it
-            path_or_fp.seek(0)
-            path_or_fp.truncate()  # truncate in case bytes were passed in (e.g., append / add layer)
-            path_or_fp.write(<bytes>vsi_buffer[:vsi_buffer_size])
-            # rewind to beginning to allow caller to read
-            path_or_fp.seek(0)
-
-        finally:
-            # TODO: co this in the outer finally block after #396
-            CPLFree(vsi_buffer)
+        if is_vsi:
+            if vsi_buffer != NULL:
+                CPLFree(vsi_buffer)
 
             if vsi_handle != NULL:
                 VSIFCloseL(vsi_handle)
+                vsi_handle = NULL
 
             # remove virtual directory created above and unlink all files
             VSIRmdirRecursive(str(Path(path).parent).encode("UTF-8"))
-            vsi_handle = NULL
 
 
 def ogr_write_arrow(
-    str path,
+    object path_or_fp,
     str layer,
     str driver,
     object arrow_obj,
@@ -2596,7 +2603,10 @@ def ogr_write_arrow(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
+    cdef bint is_vsi = False
     cdef VSILFILE *vsi_handle = NULL
+    cdef unsigned char *vsi_buffer = NULL
+    cdef vsi_l_offset vsi_buffer_size = 0
     cdef ArrowArrayStream* stream = NULL
     cdef ArrowSchema schema
     cdef ArrowArray array
@@ -2605,6 +2615,9 @@ def ogr_write_arrow(
     array.release = NULL
 
     try:
+        path = get_ogr_vsimem_path(path_or_fp, driver, &vsi_handle)
+        is_vsi = vsi_handle != NULL
+
         layer_created = create_ogr_dataset_layer(
             path, vsi_handle!=NULL, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
@@ -2660,6 +2673,29 @@ def ogr_write_arrow(
             if array.release != NULL:
                 array.release(&array)
 
+        # close dataset to force driver to flush data
+        exc = ogr_close(ogr_dataset)
+        ogr_dataset = NULL
+        if exc:
+            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+
+        ### Copy in-memory file back to path_or_fp object
+        if vsi_handle != NULL:
+            # rewind to beginning of file and read bytes back from memory
+            VSIFSeekL(vsi_handle, 0, 0)
+
+            # Take ownership of the buffer to avoid a copy; GDAL will automatically
+            # unlink the memory file
+            vsi_buffer = VSIGetMemFileBuffer(path.encode("UTF-8"), &vsi_buffer_size, 1)
+            if vsi_buffer == NULL:
+                raise RuntimeError("could not read bytes from in-memory file")
+
+            # reset path_or_fp and write bytes to it
+            path_or_fp.seek(0)
+            path_or_fp.write(<bytes>vsi_buffer[:vsi_buffer_size])
+            # rewind to beginning to allow caller to read
+            path_or_fp.seek(0)
+
     finally:
         if stream != NULL and stream.release != NULL:
             stream.release(stream)
@@ -2674,9 +2710,19 @@ def ogr_write_arrow(
             CSLDestroy(options)
             options = NULL
 
-        exc = ogr_close(ogr_dataset)
-        if exc:
-            raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
+        if ogr_dataset != NULL:
+            ogr_close(ogr_dataset)
+
+        if is_vsi:
+            if vsi_buffer != NULL:
+                CPLFree(vsi_buffer)
+
+            if vsi_handle != NULL:
+                VSIFCloseL(vsi_handle)
+                vsi_handle = NULL
+
+            # remove virtual directory created above and unlink all files
+            VSIRmdirRecursive(str(Path(path).parent).encode("UTF-8"))
 
 
 cdef get_arrow_extension_metadata(const ArrowSchema* schema):
