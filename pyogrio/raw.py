@@ -5,7 +5,12 @@ from pyogrio._env import GDALEnv
 from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
-from pyogrio.util import _mask_to_wkb, _preprocess_options_key_value, get_vsi_path
+from pyogrio.util import (
+    _mask_to_wkb,
+    _preprocess_options_key_value,
+    get_vsi_path,
+    vsi_path,
+)
 
 with GDALEnv():
     from pyogrio._io import ogr_open_arrow, ogr_read, ogr_write, ogr_write_arrow
@@ -564,7 +569,7 @@ def _get_write_path_driver(path, driver, append=False):
             raise NotImplementedError("append is not supported for in-memory files")
 
     else:
-        path = str(path)
+        path = vsi_path(str(path))
 
         if driver is None:
             driver = detect_write_driver(path)
