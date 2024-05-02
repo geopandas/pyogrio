@@ -7,12 +7,12 @@ on:
     tags:
       - "v*"
   pull_request: # also build on PRs touching files that affect building sdist / wheels
-    # paths:
-    #   - ".github/workflows/release.yml"
-    #   - "ci/**"
-    #   - "MANIFEST.in"
-    #   - "pyproject.toml"
-    #   - "setup.py"
+    paths:
+      - ".github/workflows/release.yml"
+      - "ci/**"
+      - "MANIFEST.in"
+      - "pyproject.toml"
+      - "setup.py"
   workflow_dispatch:
 
 # cancel running jobs on new commit to PR
@@ -83,7 +83,6 @@ jobs:
 
   build-wheels-linux:
     name: Build wheels on Linux
-    if: false
     runs-on: "ubuntu-20.04"
 
     steps:
@@ -125,7 +124,6 @@ jobs:
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
-    if: false
     strategy:
       fail-fast: false
       matrix:
