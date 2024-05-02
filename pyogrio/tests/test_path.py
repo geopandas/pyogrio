@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import contextlib
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -6,7 +7,7 @@ import pytest
 
 import pyogrio
 import pyogrio.raw
-from pyogrio.util import vsi_path
+from pyogrio.util import vsi_path, get_vsi_path
 
 try:
     import geopandas  # NOQA
@@ -330,3 +331,18 @@ def test_uri_s3(aws_env_setup):
 def test_uri_s3_dataframe(aws_env_setup):
     df = pyogrio.read_dataframe("zip+s3://fiona-testing/coutwildrnp.zip")
     assert len(df) == 67
+
+
+def test_get_vsi_path_obj_to_string():
+    path = Path("/tmp/test.gpkg")
+    assert get_vsi_path(path) == (str(path), None)
+
+
+def test_get_vsi_path_fixtures_to_string(tmpdir, tmp_path):
+    # tmpdir uses a private class LocalPath in pytest so we have to test it using
+    # the fixture instead of making an instance
+    path = tmpdir / "test.gpkg"
+    assert get_vsi_path(path) == (str(path), None)
+
+    path = tmp_path / "test.gpkg"
+    assert get_vsi_path(path) == (str(path), None)

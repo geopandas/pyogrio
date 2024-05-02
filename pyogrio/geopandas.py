@@ -6,10 +6,10 @@ from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
-    detect_write_driver,
     read,
     read_arrow,
     write,
+    _get_write_path_driver,
 )
 from pyogrio.errors import DataSourceError
 import warnings
@@ -349,13 +349,16 @@ def write_dataframe(
         all values will be converted to strings to be written to the
         output file, except None and np.nan, which will be set to NULL
         in the output file.
-    path : str
-        path to file
+    path : str or io.BytesIO
+        path to output file on writeable file system or an io.BytesIO object to
+        allow writing to memory
+        NOTE: support for writing to memory is limited to specific drivers.
     layer : str, optional (default: None)
-        layer name
+        layer name to create.  If writing to memory and layer name is not
+        provided, it layer name will be set to a UUID4 value.
     driver : string, optional (default: None)
-        The OGR format driver used to write the vector file. By default write_dataframe
-        attempts to infer driver from path.
+        The OGR format driver used to write the vector file. By default attempts
+        to infer driver from path.  Must be provided to write to memory.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
         the file.  Use with caution, only certain drivers support encodings
@@ -391,7 +394,8 @@ def write_dataframe(
     append : bool, optional (default: False)
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
-        data to be appended to the existing records in the data source.
+        data to be appended to the existing records in the data source.  Not
+        supported for writing to in-memory files.
         NOTE: append support is limited to specific drivers and GDAL versions.
     use_arrow : bool, optional (default: False)
         Whether to use Arrow as the transfer mechanism of the data to write
@@ -436,16 +440,12 @@ def write_dataframe(
     import pandas as pd
     from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
-    path = str(path)
-
     if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
     if use_arrow is None:
         use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
-
-    if driver is None:
-        driver = detect_write_driver(path)
+    path, driver = _get_write_path_driver(path, driver, append=append)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
