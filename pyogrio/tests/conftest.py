@@ -54,7 +54,8 @@ requires_pyarrow_api = pytest.mark.skipif(
 )
 
 requires_arrow_write_api = pytest.mark.skipif(
-    not HAS_ARROW_WRITE_API, reason="GDAL>=3.8 required for Arrow write API"
+    not HAS_ARROW_WRITE_API or not HAS_PYARROW,
+    reason="GDAL>=3.8 required for Arrow write API",
 )
 
 requires_gdal_geos = pytest.mark.skipif(
