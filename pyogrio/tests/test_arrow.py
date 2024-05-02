@@ -588,7 +588,7 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
 
-    filename = "/vsis3/non-existing-bucket/test.geojson"
+    filename = "s3://non-existing-bucket/test.geojson"
 
     # set config options to avoid errors on open due to GDAL S3 configuration
     set_gdal_config_options(
