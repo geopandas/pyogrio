@@ -467,13 +467,11 @@ def test_read_info_force_feature_count(data_dir, layer, force, expected):
 def test_read_info_force_total_bounds(
     tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
 ):
-    # GDAL >= 3.9.0 supports fast bounds for GeoJSON files on disk, but apparently
-    # not if read into bytes
-    geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
-    with open(geojson_path, "rb") as f:
-        geojson_bytes = f.read()
+    geojson_path = prepare_testfile(
+        naturalearth_lowres, dst_dir=tmpdir, ext=".geojsonl"
+    )
 
-    info = read_info(geojson_bytes, force_total_bounds=force_total_bounds)
+    info = read_info(geojson_path, force_total_bounds=force_total_bounds)
     if expected_total_bounds is not None:
         assert allclose(info["total_bounds"], expected_total_bounds)
     else:
