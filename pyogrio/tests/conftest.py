@@ -146,6 +146,37 @@ def test_datetime_tz():
     return _data_dir / "test_datetime_tz.geojson"
 
 
+@pytest.fixture(scope="function")
+def geojson_bytes(tmp_path):
+    """Extracts first 3 records from naturalearth_lowres and writes to GeoJSON,
+    returning bytes"""
+    meta, _, geometry, field_data = read(
+        _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp"), max_features=3
+    )
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, **meta)
+
+    with open(filename, "rb") as f:
+        bytes_buffer = f.read()
+
+    return bytes_buffer
+
+
+@pytest.fixture(scope="function")
+def geojson_filelike(tmp_path):
+    """Extracts first 3 records from naturalearth_lowres and writes to GeoJSON,
+    returning open file handle"""
+    meta, _, geometry, field_data = read(
+        _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp"), max_features=3
+    )
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, layer="test", **meta)
+
+    return open(filename, "rb")
+
+
 @pytest.fixture(
     scope="session",
     params=[

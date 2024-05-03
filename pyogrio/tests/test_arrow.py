@@ -161,6 +161,34 @@ def test_read_arrow_vsi(naturalearth_lowres_vsi):
     assert len(table) == 177
 
 
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
+@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
+def test_read_from_bytes(tmp_path, naturalearth_lowres, driver, ext):
+    meta, table = read_arrow(naturalearth_lowres)
+    meta["geometry_type"] = "MultiPolygon"
+
+    filename = tmp_path / f"test.{ext}"
+
+    write_arrow(
+        table,
+        filename,
+        driver=driver,
+        layer="test",
+        crs=meta["crs"],
+        geometry_type=meta["geometry_type"],
+        geometry_name=meta["geometry_name"] or "wkb_geometry",
+    )
+
+    with open(filename, "rb") as f:
+        buffer = f.read()
+
+    actual_meta, actual_table = read_arrow(buffer)
+
+    assert np.array_equal(actual_meta["fields"], meta["fields"])
+    assert len(actual_table) == len(table)
+
+
 def test_open_arrow_pyarrow(naturalearth_lowres):
     with open_arrow(naturalearth_lowres, use_pyarrow=True) as (meta, reader):
         assert isinstance(meta, dict)
@@ -809,6 +837,7 @@ def test_write_schema_error_message(tmpdir):
 
 
 @requires_arrow_write_api
+@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory(naturalearth_lowres, driver):
@@ -817,7 +846,7 @@ def test_write_memory(naturalearth_lowres, driver):
 
     buffer = BytesIO()
     write_arrow(
-        table.slice(0, 1),
+        table,
         buffer,
         driver=driver,
         layer="test",
@@ -829,10 +858,9 @@ def test_write_memory(naturalearth_lowres, driver):
     assert len(buffer.getbuffer()) > 0
     assert list_layers(buffer)[0][0] == "test"
 
-    # TODO: enable; not yet working via Arrow
-    # actual_meta, actual_table = read_arrow(buffer)
-    # assert len(actual_table) == len(table)
-    # assert np.array_equal(actual_meta["fields"], meta["fields"])
+    actual_meta, actual_table = read_arrow(buffer)
+    assert len(actual_table) == len(table)
+    assert np.array_equal(actual_meta["fields"], meta["fields"])
 
 
 @requires_arrow_write_api

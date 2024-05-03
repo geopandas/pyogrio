@@ -137,30 +137,6 @@ def ogr_list_drivers():
     return drivers
 
 
-def buffer_to_virtual_file(bytesbuf, ext=''):
-    """Maps a bytes buffer to a virtual file.
-    `ext` is empty or begins with a period and contains at most one period.
-
-    This (and remove_virtual_file) is originally copied from the Fiona project
-    (https://github.com/Toblerity/Fiona/blob/c388e9adcf9d33e3bb04bf92b2ff210bbce452d9/fiona/ogrext.pyx#L1863-L1879)
-    """
-
-    vsi_filename = f"/vsimem/{uuid4().hex + ext}"
-
-    vsi_handle = VSIFileFromMemBuffer(vsi_filename.encode("UTF-8"), <unsigned char *>bytesbuf, len(bytesbuf), 0)
-
-    if vsi_handle == NULL:
-        raise OSError('failed to map buffer to file')
-    if VSIFCloseL(vsi_handle) != 0:
-        raise OSError('failed to close mapped file handle')
-
-    return vsi_filename
-
-
-def remove_virtual_file(vsi_filename):
-    return VSIUnlink(vsi_filename.encode("UTF-8"))
-
-
 cdef void set_proj_search_path(str path):
     """Set PROJ library data file search path for use in GDAL."""
     cdef char **paths = NULL

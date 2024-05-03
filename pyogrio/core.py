@@ -1,5 +1,9 @@
 from pyogrio._env import GDALEnv
-from pyogrio.util import get_vsi_path, _preprocess_options_key_value, _mask_to_wkb
+from pyogrio.util import (
+    get_vsi_path_or_buffer,
+    _preprocess_options_key_value,
+    _mask_to_wkb,
+)
 
 
 with GDALEnv():
@@ -13,7 +17,6 @@ with GDALEnv():
         get_gdal_data_path as _get_gdal_data_path,
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
-        remove_virtual_file,
         _register_drivers,
         _get_drivers_for_path,
     )
@@ -102,7 +105,7 @@ def list_layers(path_or_buffer, /):
 
     Parameters
     ----------
-    path : str or pathlib.Path
+    path_or_buffer : str, pathlib.Path, bytes, or file-like
 
     Returns
     -------
@@ -110,14 +113,8 @@ def list_layers(path_or_buffer, /):
         array of pairs of [<layer name>, <layer geometry type>]
         Note: geometry is `None` for nonspatial layers.
     """
-    path, buffer = get_vsi_path(path_or_buffer)
 
-    try:
-        result = ogr_list_layers(path)
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
-    return result
+    return ogr_list_layers(get_vsi_path_or_buffer(path_or_buffer))
 
 
 def read_bounds(
@@ -138,8 +135,7 @@ def read_bounds(
 
     Parameters
     ----------
-    path : pathlib.Path or str
-        data source path
+    path_or_buffer : str, pathlib.Path, bytes, or file-like
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -177,22 +173,16 @@ def read_bounds(
         bounds are ndarray of shape(4, n) containing ``xmin``, ``ymin``, ``xmax``,
         ``ymax``
     """
-    path, buffer = get_vsi_path(path_or_buffer)
 
-    try:
-        result = ogr_read_bounds(
-            path,
-            layer=layer,
-            skip_features=skip_features,
-            max_features=max_features or 0,
-            where=where,
-            bbox=bbox,
-            mask=_mask_to_wkb(mask),
-        )
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
-    return result
+    return ogr_read_bounds(
+        get_vsi_path_or_buffer(path_or_buffer),
+        layer=layer,
+        skip_features=skip_features,
+        max_features=max_features or 0,
+        where=where,
+        bbox=bbox,
+        mask=_mask_to_wkb(mask),
+    )
 
 
 def read_info(
@@ -231,7 +221,7 @@ def read_info(
 
     Parameters
     ----------
-    path : str or pathlib.Path
+    path_or_buffer : str, pathlib.Path, bytes, or file-like
     layer : [type], optional
         Name or index of layer in data source.  Reads the first layer by default.
     encoding : [type], optional (default: None)
@@ -268,23 +258,17 @@ def read_info(
                 "layer_metadata": "<dict of layer metadata or None>"
             }
     """
-    path, buffer = get_vsi_path(path_or_buffer)
 
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
-    try:
-        result = ogr_read_info(
-            path,
-            layer=layer,
-            encoding=encoding,
-            force_feature_count=force_feature_count,
-            force_total_bounds=force_total_bounds,
-            dataset_kwargs=dataset_kwargs,
-        )
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
-    return result
+    return ogr_read_info(
+        get_vsi_path_or_buffer(path_or_buffer),
+        layer=layer,
+        encoding=encoding,
+        force_feature_count=force_feature_count,
+        force_total_bounds=force_total_bounds,
+        dataset_kwargs=dataset_kwargs,
+    )
 
 
 def set_gdal_config_options(options):
