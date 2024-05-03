@@ -161,33 +161,18 @@ def test_read_arrow_vsi(naturalearth_lowres_vsi):
     assert len(table) == 177
 
 
-@requires_arrow_write_api
-@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
-@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
-@pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
-def test_read_from_bytes(tmp_path, naturalearth_lowres, driver, ext):
-    meta, table = read_arrow(naturalearth_lowres)
-    meta["geometry_type"] = "MultiPolygon"
+def test_read_arrow_bytes(geojson_bytes):
+    meta, table = read_arrow(geojson_bytes)
 
-    filename = tmp_path / f"test.{ext}"
+    assert meta["fields"].shape == (5,)
+    assert len(table) == 3
 
-    write_arrow(
-        table,
-        filename,
-        driver=driver,
-        layer="test",
-        crs=meta["crs"],
-        geometry_type=meta["geometry_type"],
-        geometry_name=meta["geometry_name"] or "wkb_geometry",
-    )
 
-    with open(filename, "rb") as f:
-        buffer = f.read()
+def test_read_arrow_filelike(geojson_filelike):
+    meta, table = read_arrow(geojson_filelike)
 
-    actual_meta, actual_table = read_arrow(buffer)
-
-    assert np.array_equal(actual_meta["fields"], meta["fields"])
-    assert len(actual_table) == len(table)
+    assert meta["fields"].shape == (5,)
+    assert len(table) == 3
 
 
 def test_open_arrow_pyarrow(naturalearth_lowres):
@@ -509,7 +494,7 @@ def test_write_geojson(tmpdir, naturalearth_lowres):
 @requires_arrow_write_api
 def test_write_supported(tmpdir, naturalearth_lowres, driver):
     """Test drivers known to work that are not specifically tested above"""
-    meta, table = read_arrow(naturalearth_lowres, columns=["iso_a3"])
+    meta, table = read_arrow(naturalearth_lowres, columns=["iso_a3"], max_features=1)
 
     # note: naturalearth_lowres contains mixed polygons / multipolygons, which
     # are not supported in mixed form for all drivers.  To get around this here
@@ -518,7 +503,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
 
     filename = tmpdir / f"test{DRIVER_EXT[driver]}"
     write_arrow(
-        table.slice(0, 1),
+        table,
         filename,
         driver=driver,
         crs=meta["crs"],
@@ -838,11 +823,10 @@ def test_write_schema_error_message(tmpdir):
 
 
 @requires_arrow_write_api
-@pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory(naturalearth_lowres, driver):
-    meta, table = read_arrow(naturalearth_lowres)
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
     meta["geometry_type"] = "MultiPolygon"
 
     buffer = BytesIO()
@@ -866,7 +850,7 @@ def test_write_memory(naturalearth_lowres, driver):
 
 @requires_arrow_write_api
 def test_write_memory_driver_required(naturalearth_lowres):
-    meta, table = read_arrow(naturalearth_lowres)
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
 
     buffer = BytesIO()
     with pytest.raises(
@@ -874,7 +858,7 @@ def test_write_memory_driver_required(naturalearth_lowres):
         match="driver must be provided to write to in-memory file",
     ):
         write_arrow(
-            table.slice(0, 1),
+            table,
             buffer,
             driver=None,
             layer="test",
@@ -890,7 +874,7 @@ def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
     if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
         pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
 
-    meta, table = read_arrow(naturalearth_lowres)
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
 
     buffer = BytesIO()
 
@@ -898,7 +882,7 @@ def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
         ValueError, match=f"writing to in-memory file is not supported for {driver}"
     ):
         write_arrow(
-            table.slice(0, 1),
+            table,
             buffer,
             driver=driver,
             layer="test",
@@ -911,7 +895,7 @@ def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
 @requires_arrow_write_api
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory_append_unsupported(naturalearth_lowres, driver):
-    meta, table = read_arrow(naturalearth_lowres)
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
     meta["geometry_type"] = "MultiPolygon"
 
     buffer = BytesIO()
@@ -919,7 +903,7 @@ def test_write_memory_append_unsupported(naturalearth_lowres, driver):
         NotImplementedError, match="append is not supported for in-memory files"
     ):
         write_arrow(
-            table.slice(0, 1),
+            table,
             buffer,
             driver=driver,
             layer="test",
@@ -932,7 +916,7 @@ def test_write_memory_append_unsupported(naturalearth_lowres, driver):
 
 @requires_arrow_write_api
 def test_write_memory_existing_unsupported(naturalearth_lowres):
-    meta, table = read_arrow(naturalearth_lowres)
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
     meta["geometry_type"] = "MultiPolygon"
 
     buffer = BytesIO(b"0000")
@@ -941,7 +925,7 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         match="writing to existing in-memory object is not supported",
     ):
         write_arrow(
-            table.slice(0, 1),
+            table,
             buffer,
             driver="GeoJSON",
             layer="test",

@@ -48,7 +48,7 @@ cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
 
 cdef str read_buffer_to_vsimem(bytes bytes_buffer):
-    """ Read the bytes into an in-memory dataset
+    """ Wrap the bytes (zero-copy) into an in-memory dataset
 
     If the first 4 bytes indicate the bytes are a zip file, the returned path
     will be prefixed with /vsizip/ and suffixed with .zip to enable proper
@@ -71,7 +71,6 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     # NOTE: GDAL does not copy the contents of bytes_buffer; it must remain
     # in scope through the duration of using this file
     vsi_handle = VSIFileFromMemBuffer(path.encode("UTF-8"), <unsigned char *>bytes_buffer, num_bytes, 0)
-    vsi_buffer = NULL
 
     if vsi_handle == NULL:
         raise OSError("failed to read buffer into in-memory file")

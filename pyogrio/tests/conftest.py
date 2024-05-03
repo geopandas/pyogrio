@@ -174,7 +174,8 @@ def geojson_filelike(tmp_path):
     filename = tmp_path / "test.geojson"
     write(filename, geometry, field_data, layer="test", **meta)
 
-    return open(filename, "rb")
+    with open(filename, "rb") as f:
+        yield f
 
 
 @pytest.fixture(
