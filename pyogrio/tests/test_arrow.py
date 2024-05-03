@@ -161,6 +161,7 @@ def test_read_arrow_vsi(naturalearth_lowres_vsi):
     assert len(table) == 177
 
 
+@requires_arrow_write_api
 @pytest.mark.filterwarnings("ignore:A geometry of type POLYGON is inserted")
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])

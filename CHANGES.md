@@ -40,6 +40,8 @@
     option for `read`, `read_dataframe`, and `open_arrow`, and correctly encode
     Shapefile field names and text values to the user-provided `encoding` for
     `write` and `write_dataframe` (#384).
+-   Fixed bug preventing reading from bytes or file-like in `read_arrow` /
+    `open_arrow` (#407).
 
 ### Packaging
 
