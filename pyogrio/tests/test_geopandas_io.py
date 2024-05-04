@@ -2,7 +2,6 @@ import contextlib
 from datetime import datetime
 from io import BytesIO
 import locale
-import os
 
 import numpy as np
 import pytest
@@ -1801,7 +1800,7 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
 )
 @pytest.mark.parametrize("ext", ALL_EXTS)
 def test_arrow_bool_roundtrip(tmp_path, ext):
-    filename = tmp_path / f"test.{ext}"
+    filename = tmp_path / f"test{ext}"
 
     kwargs = {}
 
@@ -1989,7 +1988,7 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
     assert actual[text].values[0] == text
 
     # verify that if cpg file is not present, that user-provided encoding must be used
-    os.unlink(str(output_path).replace(".shp", ".cpg"))
+    output_path.with_suffix(".cpg").unlink()
 
     # We will assume ISO-8859-1, which is wrong
     miscoded = text.encode(encoding).decode("ISO-8859-1")

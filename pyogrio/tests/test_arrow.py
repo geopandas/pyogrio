@@ -552,7 +552,7 @@ def test_write_append(request, tmp_path, naturalearth_lowres, ext):
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
     assert filename.exists()
-    assert read_info(str(filename))["features"] == 177
+    assert read_info(filename)["features"] == 177
 
     # write the same records again
     write_arrow(
@@ -563,7 +563,7 @@ def test_write_append(request, tmp_path, naturalearth_lowres, ext):
         geometry_type=meta["geometry_type"],
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
-    assert read_info(str(filename))["features"] == 354
+    assert read_info(filename)["features"] == 354
 
 
 @pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
@@ -582,7 +582,7 @@ def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
         geometry_name=meta["geometry_name"] or "wkb_geometry",
     )
     assert filename.exists()
-    assert read_info(str(filename), force_feature_count=True)["features"] == 177
+    assert read_info(filename, force_feature_count=True)["features"] == 177
 
     with pytest.raises(DataSourceError):
         write_arrow(
@@ -741,7 +741,7 @@ def test_write_no_crs(tmp_path, naturalearth_lowres):
             geometry_name=meta["geometry_name"] or "wkb_geometry",
         )
     # apart from CRS warning, it did write correctly
-    meta_result, result = read_arrow(str(filename))
+    meta_result, result = read_arrow(filename)
     assert table.equals(result)
     assert meta_result["crs"] is None
 

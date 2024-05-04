@@ -994,11 +994,11 @@ def test_write_float_nan_null(tmp_path, dtype):
     field_data = [np.array([1.5, np.nan], dtype=dtype)]
     fields = ["col"]
     meta = dict(geometry_type="Point", crs="EPSG:4326")
-    fname = tmp_path / "test.geojson"
+    filename = tmp_path / "test.geojson"
 
     # default nan_as_null=True
-    write(fname, geometry, field_data, fields, **meta)
-    with open(str(fname), "r") as f:
+    write(filename, geometry, field_data, fields, **meta)
+    with open(filename, "r") as f:
         content = f.read()
     assert '{ "col": null }' in content
 
@@ -1009,14 +1009,14 @@ def test_write_float_nan_null(tmp_path, dtype):
     else:
         ctx = contextlib.nullcontext()
     with ctx:
-        write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
-    with open(str(fname), "r") as f:
+        write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
+    with open(filename, "r") as f:
         content = f.read()
     assert '"properties": { }' in content
 
     # but can instruct GDAL to write NaN to json
     write(
-        fname,
+        filename,
         geometry,
         field_data,
         fields,
@@ -1024,7 +1024,7 @@ def test_write_float_nan_null(tmp_path, dtype):
         nan_as_null=False,
         WRITE_NON_FINITE_VALUES="YES",
     )
-    with open(str(fname), "r") as f:
+    with open(filename, "r") as f:
         content = f.read()
     assert '{ "col": NaN }' in content
 
