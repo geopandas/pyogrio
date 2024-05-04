@@ -6,19 +6,16 @@
 
 import contextlib
 import datetime
-from io import BytesIO
 import locale
 import logging
 import math
 import os
-from pathlib import Path
 import sys
-from uuid import uuid4
 import warnings
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
-from libc.string cimport memcpy, strlen
+from libc.string cimport strlen
 from libc.math cimport isnan
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
@@ -29,10 +26,10 @@ import numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
+from pyogrio._vsi cimport *
 from pyogrio._err import CPLE_BaseError, CPLE_NotSupportedError, NullPointerError
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
 from pyogrio.errors import CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
-from pyogrio._ogr import _get_driver_metadata_item
 
 log = logging.getLogger(__name__)
 
@@ -1167,7 +1164,7 @@ cdef get_bounds(
 
 
 def ogr_read(
-    str path,
+    object path_or_buffer,
     object dataset_kwargs,
     object layer=None,
     object encoding=None,
@@ -1187,6 +1184,7 @@ def ogr_read(
     ):
 
     cdef int err = 0
+    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1198,9 +1196,6 @@ def ogr_read(
     cdef double xmin, ymin, xmax, ymax
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
-
-    path_b = path.encode('utf-8')
-    path_c = path_b
 
     if fids is not None:
         if where is not None or bbox is not None or mask is not None or sql is not None or skip_features or max_features:
@@ -1229,6 +1224,8 @@ def ogr_read(
         raise ValueError("'max_features' must be >= 0")
 
     try:
+        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+
         if encoding:
             # for shapefiles, SHAPE_ENCODING must be set before opening the file
             # to prevent automatic decoding to UTF-8 by GDAL, so we save previous
@@ -1239,7 +1236,7 @@ def ogr_read(
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path_c, 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
 
         if sql is None:
             if layer is None:
@@ -1363,6 +1360,10 @@ def ogr_read(
 
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
+                prev_shape_encoding = NULL
+
+        if is_vsimem:
+            delete_vsimem_file(path)
 
     return (
         meta,
@@ -1402,7 +1403,7 @@ class _ArrowStream:
 
 @contextlib.contextmanager
 def ogr_open_arrow(
-    str path,
+    object path_or_buffer,
     dataset_kwargs,
     object layer=None,
     object encoding=None,
@@ -1423,6 +1424,7 @@ def ogr_open_arrow(
 ):
 
     cdef int err = 0
+    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1439,9 +1441,6 @@ def ogr_open_arrow(
 
     IF CTE_GDAL_VERSION < (3, 6, 0):
         raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-
-    path_b = path.encode('utf-8')
-    path_c = path_b
 
     if force_2d:
         raise ValueError("forcing 2D is not supported for Arrow")
@@ -1481,12 +1480,14 @@ def ogr_open_arrow(
 
     reader = None
     try:
+        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+
         if encoding:
             override_shape_encoding = True
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path_c, 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
 
         if sql is None:
             if layer is None:
@@ -1676,10 +1677,14 @@ def ogr_open_arrow(
 
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
+                prev_shape_encoding = NULL
+
+        if is_vsimem:
+            delete_vsimem_file(path)
 
 
 def ogr_read_bounds(
-    str path,
+    object path_or_buffer,
     object layer=None,
     object encoding=None,
     int read_geometry=True,
@@ -1692,6 +1697,7 @@ def ogr_read_bounds(
     object mask=None):
 
     cdef int err = 0
+    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1708,40 +1714,51 @@ def ogr_read_bounds(
     if max_features < 0:
         raise ValueError("'max_features' must be >= 0")
 
-    path_b = path.encode('utf-8')
-    path_c = path_b
+    try:
+        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
 
-    ogr_dataset = ogr_open(path_c, 0, NULL)
+        if layer is None:
+            layer = get_default_layer(ogr_dataset)
 
-    if layer is None:
-        layer = get_default_layer(ogr_dataset)
-    ogr_layer = get_ogr_layer(ogr_dataset, layer)
+        ogr_layer = get_ogr_layer(ogr_dataset, layer)
 
-    # Apply the attribute filter
-    if where is not None and where != "":
-        apply_where_filter(ogr_layer, where)
+        # Apply the attribute filter
+        if where is not None and where != "":
+            apply_where_filter(ogr_layer, where)
 
-    # Apply the spatial filter
-    if bbox is not None:
-        apply_bbox_filter(ogr_layer, bbox)
+        # Apply the spatial filter
+        if bbox is not None:
+            apply_bbox_filter(ogr_layer, bbox)
 
-    elif mask is not None:
-        apply_geometry_filter(ogr_layer, mask)
+        elif mask is not None:
+            apply_geometry_filter(ogr_layer, mask)
 
-    # Limit feature range to available range
-    skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)
+        # Limit feature range to available range
+        skip_features, num_features = validate_feature_range(ogr_layer, skip_features, max_features)
 
-    return get_bounds(ogr_layer, skip_features, num_features)
+        bounds = get_bounds(ogr_layer, skip_features, num_features)
+
+    finally:
+        if ogr_dataset != NULL:
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
+
+        if is_vsimem:
+            delete_vsimem_file(path)
+
+    return bounds
 
 
 def ogr_read_info(
-    str path,
+    object path_or_buffer,
     dataset_kwargs,
     object layer=None,
     object encoding=None,
     int force_feature_count=False,
     int force_total_bounds=False):
 
+    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1749,17 +1766,15 @@ def ogr_read_info(
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
 
-    path_b = path.encode('utf-8')
-    path_c = path_b
-
-
     try:
+        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+
         if encoding:
             override_shape_encoding = True
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path_c, 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
 
         if layer is None:
             layer = get_default_layer(ogr_dataset)
@@ -1811,23 +1826,29 @@ def ogr_read_info(
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
 
+        if is_vsimem:
+            delete_vsimem_file(path)
+
     return meta
 
 
-def ogr_list_layers(str path):
+def ogr_list_layers(object path_or_buffer):
+    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
-    path_b = path.encode('utf-8')
-    path_c = path_b
+    try:
+        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
+        layers = get_layer_names(ogr_dataset)
 
-    ogr_dataset = ogr_open(path_c, 0, NULL)
+    finally:
+        if ogr_dataset != NULL:
+            GDALClose(ogr_dataset)
+            ogr_dataset = NULL
 
-    layers = get_layer_names(ogr_dataset)
-
-    if ogr_dataset != NULL:
-        GDALClose(ogr_dataset)
-    ogr_dataset = NULL
+        if is_vsimem:
+            delete_vsimem_file(path)
 
     return layers
 
@@ -1989,89 +2010,6 @@ cdef infer_field_types(list dtypes):
             raise NotImplementedError(f"field type is not supported {dtype.name} (field index: {i})")
 
     return field_types
-
-cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
-    """ Return the original path or a /vsimem/ path
-
-    If passed a io.BytesIO object, this will return a /vsimem/ path that can be
-    used to create a new in-memory file with an extension inferred from the driver
-    if possible.  Path will be contained in an in-memory directory to contain
-    sibling files (though drivers that create sibling files are not supported for
-    in-memory files).
-
-    Caller is responsible for deleting the directory via delete_vsimem_file()
-
-    Parameters
-    ----------
-    path_or_fp : str or io.BytesIO object
-    driver : str
-    """
-
-    if not isinstance(path_or_fp, BytesIO):
-        return path_or_fp
-
-    # Create in-memory directory to contain auxiliary files
-    memfilename = uuid4().hex
-    VSIMkdir(f"/vsimem/{memfilename}".encode("utf-8"), 0666)
-
-    # file extension is required for some drivers, set it based on driver metadata
-    ext = ''
-    recommended_ext = _get_driver_metadata_item(driver, "DMD_EXTENSIONS")
-    if recommended_ext is not None:
-        ext = "." + recommended_ext.split(' ')[0]
-
-    path = f"/vsimem/{memfilename}/{memfilename}{ext}"
-
-    # check for existing bytes
-    if path_or_fp.getbuffer().nbytes > 0:
-        raise NotImplementedError("writing to existing in-memory object is not supported")
-
-    return path
-
-
-cdef read_vsimem_to_buffer(str path, object out_buffer):
-    """Copy bytes from in-memory file to buffer
-
-    This will automatically unlink the in-memory file pointed to by path; caller
-    is still responsible for calling delete_vsimem_file() to cleanup any other
-    files contained in the in-memory directory.
-
-    Parameters:
-    -----------
-    path : str
-        path to in-memory file
-    buffer : BytesIO object
-    """
-
-    cdef unsigned char *vsi_buffer = NULL
-    cdef vsi_l_offset vsi_buffer_size = 0
-
-    try:
-        # Take ownership of the buffer to avoid a copy; GDAL will automatically
-        # unlink the memory file
-        vsi_buffer = VSIGetMemFileBuffer(path.encode("UTF-8"), &vsi_buffer_size, 1)
-        if vsi_buffer == NULL:
-            raise RuntimeError("could not read bytes from in-memory file")
-
-        # write bytes to buffer
-        out_buffer.write(<bytes>vsi_buffer[:vsi_buffer_size])
-        # rewind to beginning to allow caller to read
-        out_buffer.seek(0)
-
-    finally:
-        if vsi_buffer != NULL:
-            CPLFree(vsi_buffer)
-
-
-cdef delete_vsimem_file(str path):
-    """ Delete in-memory directory containing path
-
-    Parameters:
-    -----------
-    path : str
-        path to in-memory file
-    """
-    VSIRmdirRecursive(str(Path(path).parent).encode("UTF-8"))
 
 
 cdef create_ogr_dataset_layer(

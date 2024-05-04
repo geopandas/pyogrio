@@ -5,44 +5,49 @@ from urllib.parse import urlparse
 
 from packaging.version import Version
 
-from pyogrio._env import GDALEnv
 
-with GDALEnv():
-    from pyogrio._ogr import buffer_to_virtual_file
+def get_vsi_path_or_buffer(path_or_buffer):
+    """Get vsi-prefixed path or bytes buffer depending on type of path_or_buffer
 
+    If path_or_buffer is a bytes object, it will be returned directly and will
+    be read into an in-memory dataset when passed to one of the Cython functions.
 
-def get_vsi_path(path_or_buffer):
+    If path_or_buffer is a file-like object with a read method, bytes will be
+    read from the file-like object and returned.
+
+    Otherwise, it will be converted to a string, and parsed to prefix with
+    appropriate GDAL /vsi*/ prefixes.
+
+    Parameters
+    ----------
+    path_or_buffer : str, pathlib.Path, bytes, or file-like
+
+    Returns
+    -------
+    str or bytes
+    """
+
     # force path objects to string to specifically ignore their read method
     if (
         isinstance(path_or_buffer, Path)
         # TODO: check for pytest LocalPath can be removed when all instances of tmpdir in fixtures are removed
         or "_pytest._py.path.LocalPath" in str(type(path_or_buffer))
     ):
-        path_or_buffer = str(path_or_buffer)
+        return vsi_path(str(path_or_buffer))
+
+    if isinstance(path_or_buffer, bytes):
+        return path_or_buffer
 
     if hasattr(path_or_buffer, "read"):
-        bytes_read = path_or_buffer.read()
+        bytes_buffer = path_or_buffer.read()
 
         # rewind buffer if possible so that subsequent operations do not need to rewind
         if hasattr(path_or_buffer, "seek"):
             path_or_buffer.seek(0)
 
-        path_or_buffer = bytes_read
+        return bytes_buffer
 
-    buffer = None
-    if isinstance(path_or_buffer, bytes):
-        buffer = path_or_buffer
-        ext = ""
-        is_zipped = path_or_buffer[:4].startswith(b"PK\x03\x04")
-        if is_zipped:
-            ext = ".zip"
-        path = buffer_to_virtual_file(path_or_buffer, ext=ext)
-        if is_zipped:
-            path = "/vsizip/" + path
-    else:
-        path = vsi_path(str(path_or_buffer))
-
-    return path, buffer
+    return vsi_path(str(path_or_buffer))
 
 
 def vsi_path(path: str) -> str:
@@ -50,6 +55,11 @@ def vsi_path(path: str) -> str:
     Ensure path is a local path or a GDAL-compatible vsi path.
 
     """
+
+    if "/vsimem/" in path:
+        raise ValueError(
+            "path cannot contain /vsimem/ directly; to use an in-memory dataset a bytes object must be passed instead"
+        )
 
     # path is already in GDAL format
     if path.startswith("/vsi"):

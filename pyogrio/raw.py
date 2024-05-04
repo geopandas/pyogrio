@@ -8,7 +8,7 @@ from pyogrio.errors import DataSourceError
 from pyogrio.util import (
     _mask_to_wkb,
     _preprocess_options_key_value,
-    get_vsi_path,
+    get_vsi_path_or_buffer,
     vsi_path,
 )
 
@@ -20,7 +20,6 @@ with GDALEnv():
         get_gdal_version_string,
         ogr_driver_supports_write,
         ogr_driver_supports_vsi,
-        remove_virtual_file,
     )
 
 
@@ -191,35 +190,28 @@ def read(
         https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
     """
-    path, buffer = get_vsi_path(path_or_buffer)
 
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
-    try:
-        result = ogr_read(
-            path,
-            layer=layer,
-            encoding=encoding,
-            columns=columns,
-            read_geometry=read_geometry,
-            force_2d=force_2d,
-            skip_features=skip_features,
-            max_features=max_features or 0,
-            where=where,
-            bbox=bbox,
-            mask=_mask_to_wkb(mask),
-            fids=fids,
-            sql=sql,
-            sql_dialect=sql_dialect,
-            return_fids=return_fids,
-            dataset_kwargs=dataset_kwargs,
-            datetime_as_string=datetime_as_string,
-        )
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
-
-    return result
+    return ogr_read(
+        get_vsi_path_or_buffer(path_or_buffer),
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
+        force_2d=force_2d,
+        skip_features=skip_features,
+        max_features=max_features or 0,
+        where=where,
+        bbox=bbox,
+        mask=_mask_to_wkb(mask),
+        fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
+        return_fids=return_fids,
+        dataset_kwargs=dataset_kwargs,
+        datetime_as_string=datetime_as_string,
+    )
 
 
 def read_arrow(
@@ -437,34 +429,28 @@ def open_arrow(
     if not HAS_ARROW_API:
         raise RuntimeError("GDAL>= 3.6 required to read using arrow")
 
-    path, buffer = get_vsi_path(path_or_buffer)
-
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
-    try:
-        return ogr_open_arrow(
-            path,
-            layer=layer,
-            encoding=encoding,
-            columns=columns,
-            read_geometry=read_geometry,
-            force_2d=force_2d,
-            skip_features=skip_features,
-            max_features=max_features or 0,
-            where=where,
-            bbox=bbox,
-            mask=_mask_to_wkb(mask),
-            fids=fids,
-            sql=sql,
-            sql_dialect=sql_dialect,
-            return_fids=return_fids,
-            dataset_kwargs=dataset_kwargs,
-            batch_size=batch_size,
-            use_pyarrow=use_pyarrow,
-        )
-    finally:
-        if buffer is not None:
-            remove_virtual_file(path)
+    return ogr_open_arrow(
+        get_vsi_path_or_buffer(path_or_buffer),
+        layer=layer,
+        encoding=encoding,
+        columns=columns,
+        read_geometry=read_geometry,
+        force_2d=force_2d,
+        skip_features=skip_features,
+        max_features=max_features or 0,
+        where=where,
+        bbox=bbox,
+        mask=_mask_to_wkb(mask),
+        fids=fids,
+        sql=sql,
+        sql_dialect=sql_dialect,
+        return_fids=return_fids,
+        dataset_kwargs=dataset_kwargs,
+        batch_size=batch_size,
+        use_pyarrow=use_pyarrow,
+    )
 
 
 def _parse_options_names(xml):
