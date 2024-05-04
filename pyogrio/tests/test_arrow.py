@@ -657,6 +657,21 @@ def test_write_unsupported_geoarrow(tmpdir, naturalearth_lowres):
         )
 
 
+def test_write_no_geom(tmpdir, naturalearth_lowres):
+    _, table = read_arrow(naturalearth_lowres)
+    table = table.drop_columns("wkb_geometry")
+
+    # Test
+    filename = str(tmpdir / "test.gpkg")
+    write_arrow(table, filename)
+    # Check result
+    assert os.path.exists(filename)
+    meta, result = read_arrow(filename)
+    assert meta["crs"] is None
+    assert meta["geometry_type"] is None
+    assert table.equals(result)
+
+
 @requires_arrow_write_api
 def test_write_geometry_type(tmpdir, naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)

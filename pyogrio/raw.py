@@ -788,7 +788,7 @@ def write_arrow(
         Otherwise needs to be specified explicitly.
     geometry_type : str
         The geometry type of the written layer. Currently, this needs to be
-        specified explicitly when creating a new layer.
+        specified explicitly when creating a new layer with geometries.
         Possible values are: "Unknown", "Point", "LineString", "Polygon",
         "MultiPoint", "MultiLineString", "MultiPolygon" or "GeometryCollection".
 
@@ -848,20 +848,20 @@ def write_arrow(
             "The 'promote_to_multi' option is not supported when writing using Arrow"
         )
 
-    if geometry_type is None:
-        raise ValueError("'geometry_type' keyword is required")
+    if geometry_name is not None:
+        if geometry_type is None:
+            raise ValueError("'geometry_type' keyword is required")
+        if crs is None:
+            # TODO: does GDAL infer CRS automatically from geometry metadata?
+            warnings.warn(
+                "'crs' was not provided.  The output dataset will not have "
+                "projection information defined and may not be usable in other "
+                "systems."
+            )
 
     dataset_metadata, layer_metadata = _validate_metadata(
         dataset_metadata, layer_metadata, metadata
     )
-
-    # TODO: does GDAL infer CRS automatically from geometry metadata?
-    if crs is None:
-        warnings.warn(
-            "'crs' was not provided.  The output dataset will not have "
-            "projection information defined and may not be usable in other "
-            "systems."
-        )
 
     # preprocess kwargs and split in dataset and layer creation options
     dataset_kwargs, layer_kwargs = _preprocess_options_kwargs(
