@@ -338,12 +338,7 @@ def test_get_vsi_path_or_buffer_obj_to_string():
     assert get_vsi_path_or_buffer(path) == str(path)
 
 
-def test_get_vsi_path_or_buffer_fixtures_to_string(tmpdir, tmp_path):
-    # tmpdir uses a private class LocalPath in pytest so we have to test it using
-    # the fixture instead of making an instance
-    path = tmpdir / "test.gpkg"
-    assert get_vsi_path_or_buffer(path) == str(path)
-
+def test_get_vsi_path_or_buffer_fixtures_to_string(tmp_path):
     path = tmp_path / "test.gpkg"
     assert get_vsi_path_or_buffer(path) == str(path)
 
