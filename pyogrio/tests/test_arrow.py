@@ -657,6 +657,7 @@ def test_write_unsupported_geoarrow(tmpdir, naturalearth_lowres):
         )
 
 
+@requires_arrow_write_api
 def test_write_no_geom(tmpdir, naturalearth_lowres):
     _, table = read_arrow(naturalearth_lowres)
     table = table.drop_columns("wkb_geometry")
