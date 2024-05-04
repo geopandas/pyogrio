@@ -60,121 +60,110 @@ def test_read_dataframe_benchmark_geopandas_nhd_hr(nhd_hr, benchmark):
 
 ### Write lowres Admin 0
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
-def test_write_dataframe_benchmark_lowres_shp(tmpdir, naturalearth_lowres, benchmark):
+def test_write_dataframe_benchmark_lowres_shp(tmp_path, naturalearth_lowres, benchmark):
     df = read_dataframe(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(write_dataframe, df, filename, driver="ESRI Shapefile")
+    benchmark(write_dataframe, df, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
-def test_write_dataframe_benchmark_lowres_gpkg(tmpdir, naturalearth_lowres, benchmark):
+def test_write_dataframe_benchmark_lowres_gpkg(tmp_path, naturalearth_lowres, benchmark):
     df = read_dataframe(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.gpkg")
-    benchmark(write_dataframe, df, filename, driver="GPKG")
+    benchmark(write_dataframe, df, tmp_path / "test.gpkg", driver="GPKG")
 
 
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
 def test_write_dataframe_benchmark_lowres_geojson(
-    tmpdir, naturalearth_lowres, benchmark
+    tmp_path, naturalearth_lowres, benchmark
 ):
     df = read_dataframe(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write_dataframe, df, filename, driver="GeoJSON")
+    benchmark(write_dataframe, df, tmp_path / "test.json", driver="GeoJSON")
 
 
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
 def test_write_dataframe_benchmark_lowres_geojsonseq(
-    tmpdir, naturalearth_lowres, benchmark
+    tmp_path, naturalearth_lowres, benchmark
 ):
     df = read_dataframe(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write_dataframe, df, filename, driver="GeoJSONSeq")
+    benchmark(write_dataframe, df, tmp_path / "test.json", driver="GeoJSONSeq")
 
 
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
 def test_write_dataframe_benchmark_geopandas_lowres_shp(
-    tmpdir, naturalearth_lowres, benchmark
+    tmp_path, naturalearth_lowres, benchmark
 ):
     df = gp.read_file(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(df.to_file, filename, driver="ESRI Shapefile")
+    benchmark(df.to_file, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
 @pytest.mark.benchmark(group="write-geopandas-lowres-admin0")
 def test_write_dataframe_benchmark_geopandas_lowres_gpkg(
-    tmpdir, naturalearth_lowres, benchmark
+    tmp_path, naturalearth_lowres, benchmark
 ):
     df = gp.read_file(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(df.to_file, filename, driver="GPKG")
+    benchmark(df.to_file, tmp_path / "test.gpkg", driver="GPKG")
 
 
 ### Write modres Admin 0
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
-def test_write_dataframe_benchmark_modres_shp(tmpdir, naturalearth_modres, benchmark):
+def test_write_dataframe_benchmark_modres_shp(tmp_path, naturalearth_modres, benchmark):
     df = read_dataframe(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(write_dataframe, df, filename, driver="ESRI Shapefile")
+    benchmark(write_dataframe, df, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
-def test_write_dataframe_benchmark_modres_gpkg(tmpdir, naturalearth_modres, benchmark):
+def test_write_dataframe_benchmark_modres_gpkg(tmp_path, naturalearth_modres, benchmark):
     df = read_dataframe(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.gpkg")
-    benchmark(write_dataframe, df, filename, driver="GPKG")
+    benchmark(write_dataframe, df, tmp_path / "test.gpkg", driver="GPKG")
 
 
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
 def test_write_dataframe_benchmark_modres_geojson(
-    tmpdir, naturalearth_modres, benchmark
+    tmp_path, naturalearth_modres, benchmark
 ):
     df = read_dataframe(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write_dataframe, df, filename, driver="GeoJSON")
+    benchmark(write_dataframe, df, tmp_path / "test.json", driver="GeoJSON")
 
 
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
 def test_write_dataframe_benchmark_modres_geojsonseq(
-    tmpdir, naturalearth_modres, benchmark
+    tmp_path, naturalearth_modres, benchmark
 ):
     df = read_dataframe(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write_dataframe, df, filename, driver="GeoJSONSeq")
+    benchmark(write_dataframe, df, tmp_path / "test.json", driver="GeoJSONSeq")
 
 
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
 def test_write_dataframe_benchmark_geopandas_modres_shp(
-    tmpdir, naturalearth_modres, benchmark
+    tmp_path, naturalearth_modres, benchmark
 ):
     df = gp.read_file(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(df.to_file, filename, driver="ESRI Shapefile")
+    benchmark(df.to_file, tmp_path / "test.shp", driver="ESRI Shapefile")
 
 
 @pytest.mark.benchmark(group="write-geopandas-modres-admin0")
 def test_write_dataframe_benchmark_geopandas_modres_gpkg(
-    tmpdir, naturalearth_modres, benchmark
+    tmp_path, naturalearth_modres, benchmark
 ):
     df = gp.read_file(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(df.to_file, filename, driver="GPKG")
+    benchmark(df.to_file, tmp_path / "test.gpkg", driver="GPKG")
 
 
 ### Write NHD
+@pytest.mark.filterwarnings("ignore: RuntimeWarning")
 @pytest.mark.benchmark(group="write-geopandas-nhd_hr")
-def test_write_dataframe_benchmark_nhd_shp(tmpdir, nhd_hr, benchmark):
+def test_write_dataframe_benchmark_nhd_shp(tmp_path, nhd_hr, benchmark):
     layer = "NHDFlowline"
     df = read_dataframe(nhd_hr, layer=layer)
 
     # Datetime not currently supported
     df = df.drop(columns="FDate")
 
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(write_dataframe, df, filename, layer=layer, driver="ESRI Shapefile")
+    benchmark(write_dataframe, df, tmp_path / "test.shp", layer=layer, driver="ESRI Shapefile")
 
 
+@pytest.mark.filterwarnings("ignore: RuntimeWarning")
 @pytest.mark.benchmark(group="write-geopandas-nhd_hr")
-def test_write_dataframe_benchmark_geopandas_nhd_shp(tmpdir, nhd_hr, benchmark):
+def test_write_dataframe_benchmark_geopandas_nhd_shp(tmp_path, nhd_hr, benchmark):
     layer = "NHDFlowline"
     df = gp.read_file(nhd_hr, layer=layer)
 
@@ -182,5 +171,4 @@ def test_write_dataframe_benchmark_geopandas_nhd_shp(tmpdir, nhd_hr, benchmark):
     # benchmark is fair.
     df = df.drop(columns="FDate")
 
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(df.to_file, filename, layer=layer, driver="ESRI Shapefile")
+    benchmark(df.to_file, tmp_path/"test.shp", layer=layer, driver="ESRI Shapefile")

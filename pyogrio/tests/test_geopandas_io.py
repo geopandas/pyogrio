@@ -446,7 +446,7 @@ def test_read_bbox(naturalearth_lowres_all_ext, use_arrow, bbox, expected):
     if (
         use_arrow
         and __gdal_version__ < (3, 8, 0)
-        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+        and naturalearth_lowres_all_ext.suffix == ".gpkg"
     ):
         pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
@@ -535,7 +535,7 @@ def test_read_mask(
     if (
         use_arrow
         and __gdal_version__ < (3, 8, 0)
-        and os.path.splitext(naturalearth_lowres_all_ext)[1] == ".gpkg"
+        and naturalearth_lowres_all_ext.suffix == ".gpkg"
     ):
         pytest.xfail(reason="GDAL bug: https://github.com/OSGeo/gdal/issues/8347")
 
@@ -1084,28 +1084,28 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres, use_arrow):
     input_gdf = read_dataframe(naturalearth_lowres)
-    output_path = tmp_path / "test.gpkg"
+    filename = tmp_path / "test.gpkg"
 
     write_dataframe(
         input_gdf,
-        output_path,
+        filename,
         layer="first",
         promote_to_multi=True,
         use_arrow=use_arrow,
     )
 
-    assert os.path.exists(output_path)
-    assert np.array_equal(list_layers(output_path), [["first", "MultiPolygon"]])
+    assert filename.exists()
+    assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
 
     write_dataframe(
         input_gdf,
-        output_path,
+        filename,
         layer="second",
         promote_to_multi=True,
         use_arrow=use_arrow,
     )
     assert np.array_equal(
-        list_layers(output_path),
+        list_layers(filename),
         [["first", "MultiPolygon"], ["second", "MultiPolygon"]],
     )
 
@@ -1127,15 +1127,15 @@ def test_write_dataframe_append(request, tmp_path, naturalearth_lowres, ext, use
         )
 
     input_gdf = read_dataframe(naturalearth_lowres)
-    output_path = tmp_path / f"test{ext}"
+    filename = tmp_path / f"test{ext}"
 
-    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+    write_dataframe(input_gdf, filename, use_arrow=use_arrow)
 
-    assert os.path.exists(output_path)
-    assert len(read_dataframe(output_path)) == 177
+    filename.exists()
+    assert len(read_dataframe(filename)) == 177
 
-    write_dataframe(input_gdf, output_path, use_arrow=use_arrow, append=True)
-    assert len(read_dataframe(output_path)) == 354
+    write_dataframe(input_gdf, filename, use_arrow=use_arrow, append=True)
+    assert len(read_dataframe(filename)) == 354
 
 
 @pytest.mark.parametrize("spatial_index", [False, True])
@@ -1444,7 +1444,7 @@ def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext, use_arr
     "ignore: You will likely lose important projection information"
 )
 @pytest.mark.requires_arrow_write_api
-def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext, use_arrow):
+def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     df = read_dataframe(naturalearth_lowres_all_ext)
     # project Belgium to a custom Albers Equal Area projection
     expected = (
@@ -1452,10 +1452,10 @@ def test_custom_crs_io(tmpdir, naturalearth_lowres_all_ext, use_arrow):
         .reset_index(drop=True)
         .to_crs("+proj=aea +lat_1=49.5 +lat_2=51.5 +lon_0=4.3")
     )
-    filename = os.path.join(str(tmpdir), "test.shp")
+    filename = tmp_path / "test.shp"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     df = read_dataframe(filename)
 
@@ -1721,12 +1721,12 @@ def test_write_nullable_dtypes(tmp_path, use_arrow):
     "metadata_type", ["dataset_metadata", "layer_metadata", "metadata"]
 )
 @pytest.mark.requires_arrow_write_api
-def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type, use_arrow):
+def test_metadata_io(tmp_path, naturalearth_lowres, metadata_type, use_arrow):
     metadata = {"level": metadata_type}
 
     df = read_dataframe(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+    filename = tmp_path / "test.gpkg"
     write_dataframe(df, filename, use_arrow=use_arrow, **{metadata_type: metadata})
 
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
@@ -1745,20 +1745,21 @@ def test_metadata_io(tmpdir, naturalearth_lowres, metadata_type, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_invalid_metadata(
-    tmpdir, naturalearth_lowres, metadata_type, metadata, use_arrow
+    tmp_path, naturalearth_lowres, metadata_type, metadata, use_arrow
 ):
     df = read_dataframe(naturalearth_lowres)
     with pytest.raises(ValueError, match="must be a string"):
-        filename = os.path.join(str(tmpdir), "test.gpkg")
-        write_dataframe(df, filename, use_arrow=use_arrow, **{metadata_type: metadata})
+        write_dataframe(
+            df, tmp_path / "test.gpkg", use_arrow=use_arrow, **{metadata_type: metadata}
+        )
 
 
 @pytest.mark.parametrize("metadata_type", ["dataset_metadata", "layer_metadata"])
 @pytest.mark.requires_arrow_write_api
-def test_metadata_unsupported(tmpdir, naturalearth_lowres, metadata_type, use_arrow):
+def test_metadata_unsupported(tmp_path, naturalearth_lowres, metadata_type, use_arrow):
     """metadata is silently ignored"""
 
-    filename = os.path.join(str(tmpdir), "test.geojson")
+    filename = tmp_path / "test.geojson"
     write_dataframe(
         read_dataframe(naturalearth_lowres),
         filename,
@@ -1799,8 +1800,8 @@ def test_read_dataframe_arrow_dtypes(tmp_path):
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
 @pytest.mark.parametrize("ext", ALL_EXTS)
-def test_arrow_bool_roundtrip(tmpdir, ext):
-    filename = os.path.join(str(tmpdir), f"test{ext}")
+def test_arrow_bool_roundtrip(tmp_path, ext):
+    filename = tmp_path / f"test.{ext}"
 
     kwargs = {}
 
@@ -1824,8 +1825,8 @@ def test_arrow_bool_roundtrip(tmpdir, ext):
     __gdal_version__ >= (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
 )
 @pytest.mark.parametrize("ext", ALL_EXTS)
-def test_arrow_bool_exception(tmpdir, ext):
-    filename = os.path.join(str(tmpdir), f"test{ext}")
+def test_arrow_bool_exception(tmp_path, ext):
+    filename = tmp_path / f"test{ext}"
 
     df = gp.GeoDataFrame(
         {"bool_col": [True, False, True, False, True], "geometry": [Point(0, 0)] * 5},

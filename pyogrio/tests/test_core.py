@@ -524,10 +524,10 @@ def test_read_info_force_feature_count(data_dir, layer, force, expected):
     [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
 )
 def test_read_info_force_total_bounds(
-    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
+    tmp_path, naturalearth_lowres, force_total_bounds, expected_total_bounds
 ):
     geojson_path = prepare_testfile(
-        naturalearth_lowres, dst_dir=tmpdir, ext=".geojsonl"
+        naturalearth_lowres, dst_dir=tmp_path, ext=".geojsonl"
     )
 
     info = read_info(geojson_path, force_total_bounds=force_total_bounds)
