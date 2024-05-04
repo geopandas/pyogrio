@@ -403,9 +403,8 @@ def write_dataframe(
         installed). When enabled, this provides a further speed-up.
         Defaults to False, but this default can also be globally overridden
         by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
-        Currently, using Arrow does not yet support writing a DataFrame
-        without geometry column, and it does not support writing an
-        object-dtype column with mixed types.
+        Using Arrow does not support writing an object-dtype column with
+        mixed types.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
         to drivers that support writing metadata, such as GPKG, and silently
@@ -603,26 +602,22 @@ def write_dataframe(
             # writing non-geometries to the geometry column
             df = pd.DataFrame(df, copy=False)
             df[geometry_column] = geometry
-        else:
-            raise NotImplementedError(
-                "Writing a DataFrame without a geometry column is not yet "
-                "supported with `use_arrow=True`."
-            )
 
         table = pa.Table.from_pandas(df, preserve_index=False)
 
-        # ensure that the geometry column is binary (for all-null geometries,
-        # this could be a wrong type)
-        geom_field = table.schema.field(geometry_column)
-        if not (
-            pa.types.is_binary(geom_field.type)
-            or pa.types.is_large_binary(geom_field.type)
-        ):
-            table = table.set_column(
-                table.schema.get_field_index(geometry_column),
-                geom_field.with_type(pa.binary()),
-                table[geometry_column].cast(pa.binary()),
-            )
+        if geometry_column is not None:
+            # ensure that the geometry column is binary (for all-null geometries,
+            # this could be a wrong type)
+            geom_field = table.schema.field(geometry_column)
+            if not (
+                pa.types.is_binary(geom_field.type)
+                or pa.types.is_large_binary(geom_field.type)
+            ):
+                table = table.set_column(
+                    table.schema.get_field_index(geometry_column),
+                    geom_field.with_type(pa.binary()),
+                    table[geometry_column].cast(pa.binary()),
+                )
 
         write_arrow(
             table,

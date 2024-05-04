@@ -990,13 +990,6 @@ def test_write_dataframe_no_geom(
 
     FlatGeobuf (.fgb) doesn't seem to support this, and just writes an empty file.
     """
-    if use_arrow:
-        request.node.add_marker(
-            pytest.mark.xfail(
-                raises=NotImplementedError,
-                reason="Arrow does not yet support writing dataframes without geometry",
-            )
-        )
     # Prepare test data
     input_df = read_dataframe(naturalearth_lowres, read_geometry=False)
     if write_geodf:
