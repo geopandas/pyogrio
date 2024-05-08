@@ -35,6 +35,7 @@ def change_cwd(path):
         ("/home/user/data.gpkg", "/home/user/data.gpkg"),
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
+        ("/home/folder # with hash/data.gpkg", "/home/folder # with hash/data.gpkg"),
         # cloud URIs
         ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
         ("s3://testing/data.gpkg", "/vsis3/testing/data.gpkg"),
