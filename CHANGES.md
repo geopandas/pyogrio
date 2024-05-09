@@ -2,6 +2,8 @@
 
 ## 0.8.1 (yyyy-mm-dd)
 
+### Bug fixes
+
 - Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
 
 ## 0.8.0 (2024-05-06)
