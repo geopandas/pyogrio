@@ -743,7 +743,7 @@ def assert_equal_result(result1, result2):
 
     assert np.array_equal(meta1["fields"], meta2["fields"])
     assert np.array_equal(index1, index2)
-    assert all([np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2)])
+    assert all(np.array_equal(f1, f2) for f1, f2 in zip(field_data1, field_data2))
 
     if HAS_SHAPELY:
         # a plain `assert np.array_equal(geometry1, geometry2)` doesn't work
@@ -809,13 +809,13 @@ def test_read_write_data_types_numeric(tmp_path, ext):
         np.array([1, 2, 3], dtype="float64"),
     ]
     fields = ["bool", "int16", "int32", "int64", "float32", "float64"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "spatial_index": False}
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
     result = read(filename)[3]
-    assert all([np.array_equal(f1, f2) for f1, f2 in zip(result, field_data)])
-    assert all([f1.dtype == f2.dtype for f1, f2 in zip(result, field_data)])
+    assert all(np.array_equal(f1, f2) for f1, f2 in zip(result, field_data))
+    assert all(f1.dtype == f2.dtype for f1, f2 in zip(result, field_data))
 
     # other integer data types that don't roundtrip exactly
     # these are generally promoted to a larger integer type except for uint64
@@ -866,7 +866,7 @@ def test_read_write_datetime(tmp_path):
     geometry = np.array(
         [bytes.fromhex("010100000000000000000000000000000000000000")] * 2, dtype=object
     )
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "spatial_index": False}
 
     filename = tmp_path / "test.gpkg"
     write(filename, geometry, field_data, fields, **meta)
@@ -889,7 +889,7 @@ def test_read_write_int64_large(tmp_path, ext):
     )
     field_data = [np.array([1, 2192502720, -5], dtype="int64")]
     fields = ["overflow_int64"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", spatial_index=False)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "spatial_index": False}
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
@@ -973,7 +973,7 @@ def test_read_write_null_geometry(tmp_path, ext):
     )
     field_data = [np.array([1, 2], dtype="int32")]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326"}
     if ext == "gpkg":
         meta["spatial_index"] = False
 
@@ -993,12 +993,12 @@ def test_write_float_nan_null(tmp_path, dtype):
     )
     field_data = [np.array([1.5, np.nan], dtype=dtype)]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326"}
     filename = tmp_path / "test.geojson"
 
     # default nan_as_null=True
     write(filename, geometry, field_data, fields, **meta)
-    with open(filename, "r") as f:
+    with open(filename) as f:
         content = f.read()
     assert '{ "col": null }' in content
 
@@ -1010,7 +1010,7 @@ def test_write_float_nan_null(tmp_path, dtype):
         ctx = contextlib.nullcontext()
     with ctx:
         write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
-    with open(filename, "r") as f:
+    with open(filename) as f:
         content = f.read()
     assert '"properties": { }' in content
 
@@ -1024,7 +1024,7 @@ def test_write_float_nan_null(tmp_path, dtype):
         nan_as_null=False,
         WRITE_NON_FINITE_VALUES="YES",
     )
-    with open(filename, "r") as f:
+    with open(filename) as f:
         content = f.read()
     assert '{ "col": NaN }' in content
 
@@ -1043,7 +1043,7 @@ def test_write_float_nan_null_arrow(tmp_path):
     )
     field_data = [np.array([1.5, np.nan], dtype="float64")]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326"}
     fname = tmp_path / "test.arrow"
 
     # default nan_as_null=True
@@ -1182,7 +1182,7 @@ def test_encoding_io(tmp_path, ext, read_encoding, write_encoding):
         np.array([mandarin], dtype=object),
     ]
     fields = [arabic, cree, mandarin]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=write_encoding)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "encoding": write_encoding}
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
@@ -1232,7 +1232,7 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
     # character level)  by GDAL when output to shapefile, so we have to truncate
     # before writing
     fields = [arabic[:5], cree[:3], mandarin]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding="UTF-8")
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "encoding": "UTF-8"}
 
     filename = tmp_path / "test.shp"
     # NOTE: GDAL automatically creates a cpg file with the encoding name, which
@@ -1277,7 +1277,7 @@ def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     field_data = [np.array([text], dtype=object)]
 
     fields = [text]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "encoding": encoding}
 
     filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, fields, **meta)
@@ -1307,7 +1307,7 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
     field_data = [np.array([text], dtype=object)]
 
     fields = [text]
-    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326", "encoding": encoding}
 
     filename = tmp_path / "test.shp"
     write(filename, geometry, field_data, fields, **meta)
@@ -1357,7 +1357,7 @@ def test_write_with_mask(tmp_path):
     field_data = [np.array([1, 2, 3], dtype="int32")]
     field_mask = [np.array([False, True, False])]
     fields = ["col"]
-    meta = dict(geometry_type="Point", crs="EPSG:4326")
+    meta = {"geometry_type": "Point", "crs": "EPSG:4326"}
 
     filename = tmp_path / "test.geojson"
     write(filename, geometry, field_data, fields, field_mask, **meta)

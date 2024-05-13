@@ -32,7 +32,7 @@ gdal_dll_dir = None
 if platform.system() == "Windows" and sys.version_info >= (3, 8):
     # if loading of extension modules fails, search for gdal dll directory
     try:
-        import pyogrio._io  # NOQA
+        import pyogrio._io  # noqa: F401
 
     except ImportError:
         for path in os.getenv("PATH", "").split(os.pathsep):

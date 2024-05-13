@@ -1,3 +1,4 @@
+"""Functions for reading and writing GeoPandas dataframes."""
 import os
 
 import numpy as np
@@ -16,9 +17,7 @@ import warnings
 
 
 def _stringify_path(path):
-    """
-    Convert path-like to a string if possible, pass-through other objects
-    """
+    """Convert path-like to a string if possible, pass-through other objects."""
     if isinstance(path, str):
         return path
 
@@ -34,11 +33,11 @@ def _try_parse_datetime(ser):
     import pandas as pd  # only called when pandas is known to be installed
 
     if PANDAS_GE_22:
-        datetime_kwargs = dict(format="ISO8601")
+        datetime_kwargs = {"format": "ISO8601"}
     elif PANDAS_GE_20:
-        datetime_kwargs = dict(format="ISO8601", errors="ignore")
+        datetime_kwargs = {"format": "ISO8601", "errors": "ignore"}
     else:
-        datetime_kwargs = dict(yearfirst=True)
+        datetime_kwargs = {"yearfirst": True}
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -91,6 +90,7 @@ def read_dataframe(
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
+
     If the data source does not have a geometry column or ``read_geometry`` is False,
     a DataFrame will be returned.
 
@@ -99,7 +99,7 @@ def read_dataframe(
     Parameters
     ----------
     path_or_buffer : pathlib.Path or str, or bytes buffer
-         A dataset path or URI, or raw buffer.
+        A dataset path or URI, or raw buffer.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -228,7 +228,7 @@ def read_dataframe(
 
         https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
 
-    """  # noqa: E501
+    """
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
@@ -339,8 +339,7 @@ def write_dataframe(
     layer_options=None,
     **kwargs,
 ):
-    """
-    Write GeoPandas GeoDataFrame to an OGR file format.
+    """Write GeoPandas GeoDataFrame to an OGR file format.
 
     Parameters
     ----------
@@ -429,6 +428,7 @@ def write_dataframe(
         explicit `dataset_options` or `layer_options` keywords to manually
         do this (for example if an option exists as both dataset and layer
         option).
+
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 
@@ -564,7 +564,7 @@ def write_dataframe(
         # if possible use EPSG codes instead
         epsg = geometry.crs.to_epsg()
         if epsg:
-            crs = f"EPSG:{epsg}"  # noqa: E231
+            crs = f"EPSG:{epsg}"
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
 

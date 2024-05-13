@@ -10,7 +10,7 @@ import pyogrio.raw
 from pyogrio.util import vsi_path, get_vsi_path_or_buffer
 
 try:
-    import geopandas  # NOQA
+    import geopandas  # noqa: F401
 
     has_geopandas = True
 except ImportError:

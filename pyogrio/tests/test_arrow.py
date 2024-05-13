@@ -1004,13 +1004,17 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
 
 @requires_arrow_write_api
 def test_encoding_write_layer_option_collision_shapefile(tmp_path, naturalearth_lowres):
-    """Providing both encoding parameter and ENCODING layer creation option (even if blank) is not allowed"""
+    """Providing both encoding parameter and ENCODING layer creation option
+    (even if blank) is not allowed."""
 
     meta, table = read_arrow(naturalearth_lowres)
 
     with pytest.raises(
         ValueError,
-        match='cannot provide both encoding parameter and "ENCODING" layer creation option',
+        match=(
+            'cannot provide both encoding parameter and "ENCODING" layer creation '
+            "option"
+        ),
     ):
         write_arrow(
             table,

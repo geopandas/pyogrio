@@ -1,3 +1,4 @@
+"""Low level functions to read and write OGR data sources."""
 from io import BytesIO
 import warnings
 
@@ -190,7 +191,6 @@ def read(
         https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
     """
-
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_read(
@@ -233,8 +233,7 @@ def read_arrow(
     return_fids=False,
     **kwargs,
 ):
-    """
-    Read OGR data source into a pyarrow Table.
+    """Read OGR data source into a pyarrow Table.
 
     See docstring of `read` for parameters.
 
@@ -358,8 +357,7 @@ def open_arrow(
     use_pyarrow=False,
     **kwargs,
 ):
-    """
-    Open OGR data source as a stream of Arrow record batches.
+    """Open OGR data source as a stream of Arrow record batches.
 
     See docstring of `read` for parameters.
 
@@ -388,7 +386,6 @@ def open_arrow(
 
     Examples
     --------
-
     >>> from pyogrio.raw import open_arrow
     >>> import pyarrow as pa
     >>> import shapely
@@ -425,7 +422,8 @@ def open_arrow(
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
         }
-    """
+
+    """  # noqa: E501
     if not HAS_ARROW_API:
         raise RuntimeError("GDAL>= 3.6 required to read using arrow")
 
@@ -454,7 +452,7 @@ def open_arrow(
 
 
 def _parse_options_names(xml):
-    """Convert metadata xml to list of names"""
+    """Convert metadata xml to list of names."""
     # Based on Fiona's meta.py
     # (https://github.com/Toblerity/Fiona/blob/91c13ad8424641557a4e5f038f255f9b657b1bc5/fiona/meta.py)
     import xml.etree.ElementTree as ET
@@ -471,7 +469,7 @@ def _parse_options_names(xml):
 
 
 def _validate_metadata(dataset_metadata, layer_metadata, metadata):
-    """ """
+    """Validate the metadata."""
     if metadata is not None:
         if layer_metadata is not None:
             raise ValueError("Cannot pass both metadata and layer_metadata")
@@ -490,10 +488,7 @@ def _validate_metadata(dataset_metadata, layer_metadata, metadata):
 
 
 def _preprocess_options_kwargs(driver, dataset_options, layer_options, kwargs):
-    """
-    Preprocess kwargs and split in dataset and layer creation options.
-    """
-
+    """Preprocess kwargs and split in dataset and layer creation options."""
     dataset_kwargs = _preprocess_options_key_value(dataset_options or {})
     layer_kwargs = _preprocess_options_key_value(layer_options or {})
     if kwargs:
@@ -516,7 +511,7 @@ def _preprocess_options_kwargs(driver, dataset_options, layer_options, kwargs):
 
 
 def _get_write_path_driver(path, driver, append=False):
-    """Validate and return path and driver
+    """Validate and return path and driver.
 
     Parameters
     ----------
@@ -533,8 +528,8 @@ def _get_write_path_driver(path, driver, append=False):
     Returns
     -------
     (path, driver)
-    """
 
+    """
     if isinstance(path, BytesIO):
         if driver is None:
             raise ValueError("driver must be provided to write to in-memory file")
@@ -677,6 +672,10 @@ def write(
         a key-value dictionary.
     gdal_tz_offsets : dict, optional (default: None)
         Used to handle GDAL timezone offsets for each field contained in dict.
+    **kwargs
+        Additional driver-specific dataset creation options passed to OGR. Invalid
+        options will trigger a warning.
+
     """
     # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
@@ -698,7 +697,8 @@ def write(
         warnings.warn(
             "'crs' was not provided.  The output dataset will not have "
             "projection information defined and may not be usable in other "
-            "systems."
+            "systems.",
+            stacklevel=2,
         )
 
     # preprocess kwargs and split in dataset and layer creation options
@@ -745,8 +745,7 @@ def write_arrow(
     layer_options=None,
     **kwargs,
 ):
-    """
-    Write an Arrow-compatible data source to an OGR file format.
+    """Write an Arrow-compatible data source to an OGR file format.
 
     .. _Arrow PyCapsule Protocol: https://arrow.apache.org/docs/format/CDataInterface/PyCapsuleInterface.html
 
@@ -782,6 +781,8 @@ def write_arrow(
         type of the output file to this value. Use this parameter with caution because
         using a wrong layer geometry type may result in errors when writing the
         file, may be ignored by the driver, or may result in invalid files.
+    crs : str, optional (default: None)
+        WKT-encoded CRS of the geometries to be written.
     encoding : str, optional (default: None)
         Only used for the .dbf file of ESRI Shapefiles. If not specified,
         uses the default locale.
@@ -842,7 +843,8 @@ def write_arrow(
             warnings.warn(
                 "'crs' was not provided.  The output dataset will not have "
                 "projection information defined and may not be usable in other "
-                "systems."
+                "systems.",
+                stacklevel=2,
             )
 
     dataset_metadata, layer_metadata = _validate_metadata(
