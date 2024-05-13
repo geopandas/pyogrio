@@ -1,9 +1,19 @@
 # CHANGELOG
 
-## 0.8.0 (???)
+## 0.8.1 (yyyy-mm-dd)
+
+### Bug fixes
+
+- Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+
+## 0.8.0 (2024-05-06)
 
 ### Improvements
 
+-   Support for writing based on Arrow as the transfer mechanism of the data
+    from Python to GDAL (requires GDAL >= 3.8). This is provided through the
+    new `pyogrio.raw.write_arrow` function, or by using the `use_arrow=True`
+    option in `pyogrio.write_dataframe` (#314, #346).
 -   Add support for `fids` filter to `read_arrow` and `open_arrow`, and to
     `read_dataframe` with `use_arrow=True` (#304).
 -   Add some missing properties to `read_info`, including layer name, geometry name
@@ -19,6 +29,7 @@
     the previous behaviour of returning a `pyarrow.RecordBatchReader`, specify
     `use_pyarrow=True` (#349).
 -   Warn when reading from a multilayer file without specifying a layer (#362).
+-   Allow writing to a new in-memory datasource using io.BytesIO object (#397).
 
 ### Bug fixes
 
@@ -31,6 +42,12 @@
     FlatGeobuf / GPKG drivers (#335, #387); this has been fixed in GDAL >= 3.8.3.
 -   Properly ignore fields not listed in `columns` parameter when reading from
     the data source not using the Arrow API (#391).
+-   Properly handle decoding of ESRI Shapefiles with user-provided `encoding`
+    option for `read`, `read_dataframe`, and `open_arrow`, and correctly encode
+    Shapefile field names and text values to the user-provided `encoding` for
+    `write` and `write_dataframe` (#384).
+-   Fixed bug preventing reading from bytes or file-like in `read_arrow` /
+    `open_arrow` (#407).
 
 ### Packaging
 

@@ -177,6 +177,20 @@ def test_list_layers(naturalearth_lowres, naturalearth_lowres_vsi, test_fgdb_vsi
         assert array_equal(fgdb_layers[6], ["test_areas", "MultiPolygon Z"])
 
 
+def test_list_layers_bytes(geojson_bytes):
+    layers = list_layers(geojson_bytes)
+
+    assert layers.shape == (1, 2)
+    assert layers[0, 0] == "test"
+
+
+def test_list_layers_filelike(geojson_filelike):
+    layers = list_layers(geojson_filelike)
+
+    assert layers.shape == (1, 2)
+    assert layers[0, 0] == "test"
+
+
 def test_read_bounds(naturalearth_lowres):
     fids, bounds = read_bounds(naturalearth_lowres)
     assert fids.shape == (177,)
@@ -184,6 +198,30 @@ def test_read_bounds(naturalearth_lowres):
 
     assert fids[0] == 0
     # Fiji; wraps antimeridian
+    assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_vsi(naturalearth_lowres_vsi):
+    fids, bounds = read_bounds(naturalearth_lowres_vsi[1])
+    assert fids.shape == (177,)
+    assert bounds.shape == (4, 177)
+
+    assert fids[0] == 0
+    # Fiji; wraps antimeridian
+    assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_bytes(geojson_bytes):
+    fids, bounds = read_bounds(geojson_bytes)
+    assert fids.shape == (3,)
+    assert bounds.shape == (4, 3)
+    assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_filelike(geojson_filelike):
+    fids, bounds = read_bounds(geojson_filelike)
+    assert fids.shape == (3,)
+    assert bounds.shape == (4, 3)
     assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
 
 
@@ -397,6 +435,27 @@ def test_read_info(naturalearth_lowres):
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
 
 
+def test_read_info_vsi(naturalearth_lowres_vsi):
+    meta = read_info(naturalearth_lowres_vsi[1])
+
+    assert meta["fields"].shape == (5,)
+    assert meta["features"] == 177
+
+
+def test_read_info_bytes(geojson_bytes):
+    meta = read_info(geojson_bytes)
+
+    assert meta["fields"].shape == (5,)
+    assert meta["features"] == 3
+
+
+def test_read_info_filelike(geojson_filelike):
+    meta = read_info(geojson_filelike)
+
+    assert meta["fields"].shape == (5,)
+    assert meta["features"] == 3
+
+
 @pytest.mark.parametrize(
     "dataset_kwargs,fields",
     [
@@ -465,10 +524,12 @@ def test_read_info_force_feature_count(data_dir, layer, force, expected):
     [(True, (-180.0, -90.0, 180.0, 83.64513)), (False, None)],
 )
 def test_read_info_force_total_bounds(
-    tmpdir, naturalearth_lowres, force_total_bounds, expected_total_bounds
+    tmp_path, naturalearth_lowres, force_total_bounds, expected_total_bounds
 ):
-    # Geojson files don't hava a fast way to determine total_bounds
-    geojson_path = prepare_testfile(naturalearth_lowres, dst_dir=tmpdir, ext=".geojson")
+    geojson_path = prepare_testfile(
+        naturalearth_lowres, dst_dir=tmp_path, ext=".geojsonl"
+    )
+
     info = read_info(geojson_path, force_total_bounds=force_total_bounds)
     if expected_total_bounds is not None:
         assert allclose(info["total_bounds"], expected_total_bounds)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
@@ -8,9 +8,14 @@ from pyogrio import (
     __version__,
     list_drivers,
 )
-from pyogrio._compat import HAS_ARROW_API, HAS_GDAL_GEOS, HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import (
+    HAS_ARROW_API,
+    HAS_ARROW_WRITE_API,
+    HAS_GDAL_GEOS,
+    HAS_PYARROW,
+    HAS_SHAPELY,
+)
 from pyogrio.raw import read, write
-
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
@@ -46,6 +51,11 @@ def pytest_report_header(config):
 requires_arrow_api = pytest.mark.skipif(not HAS_ARROW_API, reason="GDAL>=3.6 required")
 requires_pyarrow_api = pytest.mark.skipif(
     not HAS_ARROW_API or not HAS_PYARROW, reason="GDAL>=3.6 and pyarrow required"
+)
+
+requires_arrow_write_api = pytest.mark.skipif(
+    not HAS_ARROW_WRITE_API or not HAS_PYARROW,
+    reason="GDAL>=3.8 required for Arrow write API",
 )
 
 requires_gdal_geos = pytest.mark.skipif(
@@ -104,7 +114,7 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 
     path = tmp_path / f"{naturalearth_lowres.name}.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
-        for ext in ["dbf", "prj", "shp", "shx"]:
+        for ext in ["dbf", "prj", "shp", "shx", "cpg"]:
             filename = f"{naturalearth_lowres.stem}.{ext}"
             out.write(naturalearth_lowres.parent / filename, filename)
 
@@ -134,3 +144,61 @@ def test_datetime():
 @pytest.fixture(scope="session")
 def test_datetime_tz():
     return _data_dir / "test_datetime_tz.geojson"
+
+
+@pytest.fixture(scope="function")
+def geojson_bytes(tmp_path):
+    """Extracts first 3 records from naturalearth_lowres and writes to GeoJSON,
+    returning bytes"""
+    meta, _, geometry, field_data = read(
+        _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp"), max_features=3
+    )
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, **meta)
+
+    with open(filename, "rb") as f:
+        bytes_buffer = f.read()
+
+    return bytes_buffer
+
+
+@pytest.fixture(scope="function")
+def geojson_filelike(tmp_path):
+    """Extracts first 3 records from naturalearth_lowres and writes to GeoJSON,
+    returning open file handle"""
+    meta, _, geometry, field_data = read(
+        _data_dir / Path("naturalearth_lowres/naturalearth_lowres.shp"), max_features=3
+    )
+
+    filename = tmp_path / "test.geojson"
+    write(filename, geometry, field_data, layer="test", **meta)
+
+    with open(filename, "rb") as f:
+        yield f
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        # Japanese
+        ("CP932", "ﾎ"),
+        # Chinese
+        ("CP936", "中文"),
+        # Central European
+        ("CP1250", "Đ"),
+        # Latin 1 / Western European
+        ("CP1252", "ÿ"),
+        # Greek
+        ("CP1253", "Φ"),
+        # Arabic
+        ("CP1256", "ش"),
+    ],
+)
+def encoded_text(request):
+    """Return tuple with encoding name and very short sample text in that encoding
+    NOTE: it was determined through testing that code pages for MS-DOS do not
+    consistently work across all Python installations (in particular, fail with conda),
+    but ANSI code pages appear to work properly.
+    """
+    return request.param

@@ -6,10 +6,10 @@ from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
-    detect_write_driver,
     read,
     read_arrow,
     write,
+    _get_write_path_driver,
 )
 from pyogrio.errors import DataSourceError
 import warnings
@@ -106,8 +106,8 @@ def read_dataframe(
         of the layer in the data source.  Defaults to first layer in data source.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for reading string values from
-        the data source, unless encoding can be inferred directly from the data
-        source.
+        the data source.  By default will automatically try to detect the native
+        encoding and decode to ``UTF-8``.
     columns : list-like, optional (default: all columns)
         List of column names to import from the data source.  Column names must
         exactly match the names in the data source, and will be returned in
@@ -331,6 +331,7 @@ def write_dataframe(
     promote_to_multi=None,
     nan_as_null=True,
     append=False,
+    use_arrow=None,
     dataset_metadata=None,
     layer_metadata=None,
     metadata=None,
@@ -348,16 +349,20 @@ def write_dataframe(
         all values will be converted to strings to be written to the
         output file, except None and np.nan, which will be set to NULL
         in the output file.
-    path : str
-        path to file
+    path : str or io.BytesIO
+        path to output file on writeable file system or an io.BytesIO object to
+        allow writing to memory
+        NOTE: support for writing to memory is limited to specific drivers.
     layer : str, optional (default: None)
-        layer name
+        layer name to create.  If writing to memory and layer name is not
+        provided, it layer name will be set to a UUID4 value.
     driver : string, optional (default: None)
-        The OGR format driver used to write the vector file. By default write_dataframe
-        attempts to infer driver from path.
+        The OGR format driver used to write the vector file. By default attempts
+        to infer driver from path.  Must be provided to write to memory.
     encoding : str, optional (default: None)
         If present, will be used as the encoding for writing string values to
-        the file.
+        the file.  Use with caution, only certain drivers support encodings
+        other than UTF-8.
     geometry_type : string, optional (default: None)
         By default, the geometry type of the layer will be inferred from the
         data, after applying the promote_to_multi logic. If the data only contains a
@@ -389,8 +394,17 @@ def write_dataframe(
     append : bool, optional (default: False)
         If True, the data source specified by path already exists, and the
         driver supports appending to an existing data source, will cause the
-        data to be appended to the existing records in the data source.
+        data to be appended to the existing records in the data source.  Not
+        supported for writing to in-memory files.
         NOTE: append support is limited to specific drivers and GDAL versions.
+    use_arrow : bool, optional (default: False)
+        Whether to use Arrow as the transfer mechanism of the data to write
+        from Python to GDAL (requires GDAL >= 3.8 and `pyarrow` to be
+        installed). When enabled, this provides a further speed-up.
+        Defaults to False, but this default can also be globally overridden
+        by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
+        Using Arrow does not support writing an object-dtype column with
+        mixed types.
     dataset_metadata : dict, optional (default: None)
         Metadata to be stored at the dataset level in the output file; limited
         to drivers that support writing metadata, such as GPKG, and silently
@@ -402,10 +416,10 @@ def write_dataframe(
     metadata : dict, optional (default: None)
         alias of layer_metadata
     dataset_options : dict, optional
-        Dataset creation option (format specific) passed to OGR. Specify as
+        Dataset creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     layer_options : dict, optional
-        Layer creation option (format specific) passed to OGR. Specify as
+        Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
@@ -425,13 +439,12 @@ def write_dataframe(
     import pandas as pd
     from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
-    path = str(path)
-
     if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
 
-    if driver is None:
-        driver = detect_write_driver(path)
+    if use_arrow is None:
+        use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
+    path, driver = _get_write_path_driver(path, driver, append=append)
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
@@ -486,6 +499,9 @@ def write_dataframe(
             field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
+    if geometry_column is not None:
+        geometry_types_all = geometry.geom_type
+
     if geometry_column is not None and (
         geometry_type is None or promote_to_multi is None
     ):
@@ -504,7 +520,7 @@ def write_dataframe(
                     f"Mixed 2D and 3D coordinates are not supported by {driver}"
                 )
 
-            geometry_types = pd.Series(geometry.type.unique()).dropna().values
+            geometry_types = pd.Series(geometry_types_all.unique()).dropna().values
             if len(geometry_types) == 1:
                 tmp_geometry_type = geometry_types[0]
                 if promote_to_multi and tmp_geometry_type in (
@@ -551,6 +567,76 @@ def write_dataframe(
             crs = f"EPSG:{epsg}"  # noqa: E231
         else:
             crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
+
+    if use_arrow:
+        import pyarrow as pa
+        from pyogrio.raw import write_arrow
+
+        if geometry_column is not None:
+            # Convert to multi type
+            if promote_to_multi:
+                import shapely
+
+                mask_points = geometry_types_all == "Point"
+                mask_linestrings = geometry_types_all == "LineString"
+                mask_polygons = geometry_types_all == "Polygon"
+
+                if mask_points.any():
+                    geometry[mask_points] = shapely.multipoints(
+                        np.atleast_2d(geometry[mask_points]), axis=0
+                    )
+
+                if mask_linestrings.any():
+                    geometry[mask_linestrings] = shapely.multilinestrings(
+                        np.atleast_2d(geometry[mask_linestrings]), axis=0
+                    )
+
+                if mask_polygons.any():
+                    geometry[mask_polygons] = shapely.multipolygons(
+                        np.atleast_2d(geometry[mask_polygons]), axis=0
+                    )
+
+            geometry = to_wkb(geometry.values)
+            df = df.copy(deep=False)
+            # convert to plain DataFrame to avoid warning from geopandas about
+            # writing non-geometries to the geometry column
+            df = pd.DataFrame(df, copy=False)
+            df[geometry_column] = geometry
+
+        table = pa.Table.from_pandas(df, preserve_index=False)
+
+        if geometry_column is not None:
+            # ensure that the geometry column is binary (for all-null geometries,
+            # this could be a wrong type)
+            geom_field = table.schema.field(geometry_column)
+            if not (
+                pa.types.is_binary(geom_field.type)
+                or pa.types.is_large_binary(geom_field.type)
+            ):
+                table = table.set_column(
+                    table.schema.get_field_index(geometry_column),
+                    geom_field.with_type(pa.binary()),
+                    table[geometry_column].cast(pa.binary()),
+                )
+
+        write_arrow(
+            table,
+            path,
+            layer=layer,
+            driver=driver,
+            geometry_name=geometry_column,
+            geometry_type=geometry_type,
+            crs=crs,
+            encoding=encoding,
+            append=append,
+            dataset_metadata=dataset_metadata,
+            layer_metadata=layer_metadata,
+            metadata=metadata,
+            dataset_options=dataset_options,
+            layer_options=layer_options,
+            **kwargs,
+        )
+        return
 
     # If there is geometry data, prepare it to be written
     if geometry_column is not None:

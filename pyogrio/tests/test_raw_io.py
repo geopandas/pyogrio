@@ -1,7 +1,7 @@
 import contextlib
 import ctypes
+from io import BytesIO
 import json
-import os
 import sys
 
 import numpy as np
@@ -14,6 +14,7 @@ from pyogrio import (
     list_drivers,
     read_info,
     set_gdal_config_options,
+    get_gdal_config_option,
     __gdal_version__,
 )
 from pyogrio._compat import HAS_SHAPELY, HAS_PYARROW
@@ -424,42 +425,42 @@ def test_read_return_only_fids(naturalearth_lowres):
 
 
 @pytest.mark.parametrize("encoding", [None, "ISO-8859-1"])
-def test_write_shp(tmpdir, naturalearth_lowres, encoding):
+def test_write_shp(tmp_path, naturalearth_lowres, encoding):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.shp")
+    filename = tmp_path / "test.shp"
     meta["encoding"] = encoding
     write(filename, geometry, field_data, **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
     for ext in (".dbf", ".prj"):
-        assert os.path.exists(filename.replace(".shp", ext))
+        assert filename.with_suffix(ext).exists()
 
     # We write shapefiles in UTF-8 by default on all platforms
     expected_encoding = encoding if encoding is not None else "UTF-8"
-    with open(filename.replace(".shp", ".cpg")) as cpg_file:
+    with open(filename.with_suffix(".cpg")) as cpg_file:
         result_encoding = cpg_file.read()
         assert result_encoding == expected_encoding
 
 
-def test_write_gpkg(tmpdir, naturalearth_lowres):
+def test_write_gpkg(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "MultiPolygon"})
 
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+    filename = tmp_path / "test.gpkg"
     write(filename, geometry, field_data, driver="GPKG", **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
 
-def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
+def test_write_gpkg_multiple_layers(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = os.path.join(str(tmpdir), "test.gpkg")
+    filename = tmp_path / "test.gpkg"
     write(filename, geometry, field_data, driver="GPKG", layer="first", **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     assert np.array_equal(list_layers(filename), [["first", "MultiPolygon"]])
 
@@ -470,13 +471,13 @@ def test_write_gpkg_multiple_layers(tmpdir, naturalearth_lowres):
     )
 
 
-def test_write_geojson(tmpdir, naturalearth_lowres):
+def test_write_geojson(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.json")
+    filename = tmp_path / "test.json"
     write(filename, geometry, field_data, driver="GeoJSON", **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     data = json.loads(open(filename).read())
 
@@ -505,7 +506,7 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     write(filename, geometry, field_data, driver="GPKG", **meta)
 
     # Check result
-    assert os.path.exists(filename)
+    assert filename.exists()
     meta, _, geometry, fields = read(filename)
 
     assert meta["crs"] == "EPSG:4326"
@@ -531,7 +532,7 @@ def test_write_no_geom(tmp_path, naturalearth_lowres):
     write(filename, geometry, field_data, driver="GPKG", **meta)
 
     # Check result
-    assert os.path.exists(filename)
+    assert filename.exists()
     meta, _, geometry, fields = read(filename)
 
     assert meta["crs"] is None
@@ -568,7 +569,7 @@ def test_write_no_geom_data(tmp_path, naturalearth_lowres):
     write(filename, geometry, field_data, driver="GPKG", **meta)
 
     # Check result
-    assert os.path.exists(filename)
+    assert filename.exists()
     result_meta, _, result_geometry, result_field_data = read(filename)
 
     assert result_meta["crs"] is None
@@ -602,17 +603,17 @@ def test_write_no_geom_no_fields():
     __gdal_version__ < (3, 6, 0),
     reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
 )
-def test_write_openfilegdb(tmpdir, naturalearth_lowres):
+def test_write_openfilegdb(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.gdb")
+    filename = tmp_path / "test.gdb"
     write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
 
 @pytest.mark.parametrize("ext", DRIVERS)
-def test_write_append(tmpdir, naturalearth_lowres, ext):
+def test_write_append(tmp_path, naturalearth_lowres, ext):
     if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
         pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
 
@@ -624,10 +625,10 @@ def test_write_append(tmpdir, naturalearth_lowres, ext):
     # coerce output layer to MultiPolygon to avoid mixed type errors
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = os.path.join(str(tmpdir), f"test{ext}")
+    filename = tmp_path / f"test{ext}"
     write(filename, geometry, field_data, **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     assert read_info(filename)["features"] == 177
 
@@ -638,17 +639,17 @@ def test_write_append(tmpdir, naturalearth_lowres, ext):
 
 
 @pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
-def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
+def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
     if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
         pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     # GML does not support append functionality
-    filename = os.path.join(str(tmpdir), f"test{ext}")
+    filename = tmp_path / f"test{ext}"
     write(filename, geometry, field_data, driver=driver, **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     assert read_info(filename, force_feature_count=True)["features"] == 177
 
@@ -660,16 +661,16 @@ def test_write_append_unsupported(tmpdir, naturalearth_lowres, driver, ext):
     __gdal_version__ > (3, 5, 0),
     reason="segfaults on FlatGeobuf limited to GDAL <= 3.5.0",
 )
-def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
+def test_write_append_prevent_gdal_segfault(tmp_path, naturalearth_lowres):
     """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
     verifies that we catch that before segfault"""
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = os.path.join(str(tmpdir), "test.fgb")
+    filename = tmp_path / "test.fgb"
     write(filename, geometry, field_data, **meta)
 
-    assert os.path.exists(filename)
+    assert filename.exists()
 
     with pytest.raises(
         RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
@@ -685,7 +686,7 @@ def test_write_append_prevent_gdal_segfault(tmpdir, naturalearth_lowres):
         if driver not in ("ESRI Shapefile", "GPKG", "GeoJSON")
     },
 )
-def test_write_supported(tmpdir, naturalearth_lowres, driver):
+def test_write_supported(tmp_path, naturalearth_lowres, driver):
     """Test drivers known to work that are not specifically tested above"""
     meta, _, geometry, field_data = read(naturalearth_lowres, columns=["iso_a3"])
 
@@ -694,7 +695,7 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
     # we take the first record only.
     meta["geometry_type"] = "MultiPolygon"
 
-    filename = tmpdir / f"test{DRIVER_EXT[driver]}"
+    filename = tmp_path / f"test{DRIVER_EXT[driver]}"
     write(
         filename,
         geometry[:1],
@@ -709,10 +710,10 @@ def test_write_supported(tmpdir, naturalearth_lowres, driver):
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
 )
-def test_write_unsupported(tmpdir, naturalearth_lowres):
+def test_write_unsupported(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = os.path.join(str(tmpdir), "test.gdb")
+    filename = tmp_path / "test.gdb"
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
         write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
@@ -755,10 +756,10 @@ def assert_equal_result(result1, result2):
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
-def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
+def test_read_from_bytes(tmp_path, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, driver=driver, **meta)
 
     with open(filename, "rb") as f:
@@ -768,7 +769,7 @@ def test_read_from_bytes(tmpdir, naturalearth_lowres, driver, ext):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
-def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
+def test_read_from_bytes_zipped(naturalearth_lowres_vsi):
     path, vsi_path = naturalearth_lowres_vsi
     meta, index, geometry, field_data = read(vsi_path)
 
@@ -781,10 +782,10 @@ def test_read_from_bytes_zipped(tmpdir, naturalearth_lowres_vsi):
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")  # TODO
 @pytest.mark.parametrize("driver,ext", [("GeoJSON", "geojson"), ("GPKG", "gpkg")])
-def test_read_from_file_like(tmpdir, naturalearth_lowres, driver, ext):
+def test_read_from_file_like(tmp_path, naturalearth_lowres, driver, ext):
     meta, index, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "Unknown"})
-    filename = os.path.join(str(tmpdir), f"test.{ext}")
+    filename = tmp_path / f"test.{ext}"
     write(filename, geometry, field_data, driver=driver, **meta)
 
     with open(filename, "rb") as f:
@@ -993,11 +994,11 @@ def test_write_float_nan_null(tmp_path, dtype):
     field_data = [np.array([1.5, np.nan], dtype=dtype)]
     fields = ["col"]
     meta = dict(geometry_type="Point", crs="EPSG:4326")
-    fname = tmp_path / "test.geojson"
+    filename = tmp_path / "test.geojson"
 
     # default nan_as_null=True
-    write(fname, geometry, field_data, fields, **meta)
-    with open(str(fname), "r") as f:
+    write(filename, geometry, field_data, fields, **meta)
+    with open(filename, "r") as f:
         content = f.read()
     assert '{ "col": null }' in content
 
@@ -1008,14 +1009,14 @@ def test_write_float_nan_null(tmp_path, dtype):
     else:
         ctx = contextlib.nullcontext()
     with ctx:
-        write(fname, geometry, field_data, fields, **meta, nan_as_null=False)
-    with open(str(fname), "r") as f:
+        write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
+    with open(filename, "r") as f:
         content = f.read()
     assert '"properties": { }' in content
 
     # but can instruct GDAL to write NaN to json
     write(
-        fname,
+        filename,
         geometry,
         field_data,
         fields,
@@ -1023,7 +1024,7 @@ def test_write_float_nan_null(tmp_path, dtype):
         nan_as_null=False,
         WRITE_NON_FINITE_VALUES="YES",
     )
-    with open(str(fname), "r") as f:
+    with open(filename, "r") as f:
         content = f.read()
     assert '{ "col": NaN }' in content
 
@@ -1058,6 +1059,91 @@ def test_write_float_nan_null_arrow(tmp_path):
     assert table["col"].is_null().to_pylist() == [False, False]
     pc = pytest.importorskip("pyarrow.compute")
     assert pc.is_nan(table["col"]).to_pylist() == [False, True]
+
+
+@pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory(naturalearth_lowres, driver):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
+
+    buffer = BytesIO()
+    write(buffer, geometry, field_data, driver=driver, layer="test", **meta)
+
+    assert len(buffer.getbuffer()) > 0
+    assert list_layers(buffer)[0][0] == "test"
+
+    actual_meta, _, actual_geometry, actual_field_data = read(buffer)
+
+    assert np.array_equal(actual_meta["fields"], meta["fields"])
+    assert np.array_equal(actual_field_data, field_data)
+    assert len(actual_geometry) == len(geometry)
+
+
+def test_write_memory_driver_required(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    buffer = BytesIO()
+    with pytest.raises(
+        ValueError,
+        match="driver must be provided to write to in-memory file",
+    ):
+        write(buffer, geometry, field_data, driver=None, layer="test", **meta)
+
+
+@pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
+def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
+    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
+        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    buffer = BytesIO()
+
+    with pytest.raises(
+        ValueError, match=f"writing to in-memory file is not supported for {driver}"
+    ):
+        write(
+            buffer,
+            geometry,
+            field_data,
+            driver=driver,
+            layer="test",
+            append=True,
+            **meta,
+        )
+
+
+@pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
+def test_write_memory_append_unsupported(naturalearth_lowres, driver):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta.update({"geometry_type": "MultiPolygon"})
+
+    buffer = BytesIO()
+
+    with pytest.raises(
+        NotImplementedError, match="append is not supported for in-memory files"
+    ):
+        write(
+            buffer,
+            geometry,
+            field_data,
+            driver=driver,
+            layer="test",
+            append=True,
+            **meta,
+        )
+
+
+def test_write_memory_existing_unsupported(naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    buffer = BytesIO(b"0000")
+    with pytest.raises(
+        NotImplementedError,
+        match="writing to existing in-memory object is not supported",
+    ):
+        write(buffer, geometry, field_data, driver="GeoJSON", layer="test", **meta)
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
@@ -1162,13 +1248,104 @@ def test_encoding_io_shapefile(tmp_path, read_encoding, write_encoding):
     # verify that if cpg file is not present, that user-provided encoding is used,
     # otherwise it defaults to ISO-8859-1
     if read_encoding is not None:
-        os.unlink(str(filename).replace(".shp", ".cpg"))
+        filename.with_suffix(".cpg").unlink()
         actual_meta, _, _, actual_field_data = read(filename, encoding=read_encoding)
         assert np.array_equal(fields, actual_meta["fields"])
         assert np.array_equal(field_data, actual_field_data)
         assert np.array_equal(
             fields, read_info(filename, encoding=read_encoding)["fields"]
         )
+
+
+@pytest.mark.parametrize("ext", ["gpkg", "geojson"])
+def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
+    """Verify that we write non-UTF data to the data source
+
+    IMPORTANT: this may not be valid for the data source and will likely render
+    them unusable in other tools, but should successfully roundtrip unless we
+    disable writing using other encodings.
+
+    NOTE: FlatGeobuff driver cannot handle non-UTF data in GDAL >= 3.9
+    """
+    encoding, text = encoded_text
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+
+    field_data = [np.array([text], dtype=object)]
+
+    fields = [text]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+
+    filename = tmp_path / f"test.{ext}"
+    write(filename, geometry, field_data, fields, **meta)
+
+    # cannot open these files without specifying encoding
+    with pytest.raises(UnicodeDecodeError):
+        read(filename)
+
+    with pytest.raises(UnicodeDecodeError):
+        read_info(filename)
+
+    # must provide encoding to read these properly
+    actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
+
+
+def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text):
+    encoding, text = encoded_text
+
+    # Point(0, 0)
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+    )
+
+    field_data = [np.array([text], dtype=object)]
+
+    fields = [text]
+    meta = dict(geometry_type="Point", crs="EPSG:4326", encoding=encoding)
+
+    filename = tmp_path / "test.shp"
+    write(filename, geometry, field_data, fields, **meta)
+
+    # NOTE: GDAL automatically creates a cpg file with the encoding name, which
+    # means that if we read this without specifying the encoding it uses the
+    # correct one
+    actual_meta, _, _, actual_field_data = read(filename)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename)["fields"][0] == text
+
+    # verify that if cpg file is not present, that user-provided encoding must be used
+    filename.with_suffix(".cpg").unlink()
+
+    # We will assume ISO-8859-1, which is wrong
+    miscoded = text.encode(encoding).decode("ISO-8859-1")
+    bad_meta, _, _, bad_field_data = read(filename)
+    assert bad_meta["fields"][0] == miscoded
+    assert bad_field_data[0] == miscoded
+    assert read_info(filename)["fields"][0] == miscoded
+
+    # If encoding is provided, that should yield correct text
+    actual_meta, _, _, actual_field_data = read(filename, encoding=encoding)
+    assert actual_meta["fields"][0] == text
+    assert actual_field_data[0] == text
+    assert read_info(filename, encoding=encoding)["fields"][0] == text
+
+    # verify that setting encoding does not corrupt SHAPE_ENCODING option if set
+    # globally (it is ignored during read when encoding is specified by user)
+    try:
+        set_gdal_config_options({"SHAPE_ENCODING": "CP1254"})
+        _ = read(filename, encoding=encoding)
+        assert get_gdal_config_option("SHAPE_ENCODING") == "CP1254"
+
+    finally:
+        # reset to clear between tests
+        set_gdal_config_options({"SHAPE_ENCODING": None})
 
 
 def test_write_with_mask(tmp_path):

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import contextlib
 from zipfile import ZipFile, ZIP_DEFLATED
 
@@ -6,7 +7,7 @@ import pytest
 
 import pyogrio
 import pyogrio.raw
-from pyogrio.util import vsi_path
+from pyogrio.util import vsi_path, get_vsi_path_or_buffer
 
 try:
     import geopandas  # NOQA
@@ -34,6 +35,7 @@ def change_cwd(path):
         ("/home/user/data.gpkg", "/home/user/data.gpkg"),
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
+        ("/home/folder # with hash/data.gpkg", "/home/folder # with hash/data.gpkg"),
         # cloud URIs
         ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
         ("s3://testing/data.gpkg", "/vsis3/testing/data.gpkg"),
@@ -330,3 +332,21 @@ def test_uri_s3(aws_env_setup):
 def test_uri_s3_dataframe(aws_env_setup):
     df = pyogrio.read_dataframe("zip+s3://fiona-testing/coutwildrnp.zip")
     assert len(df) == 67
+
+
+def test_get_vsi_path_or_buffer_obj_to_string():
+    path = Path("/tmp/test.gpkg")
+    assert get_vsi_path_or_buffer(path) == str(path)
+
+
+def test_get_vsi_path_or_buffer_fixtures_to_string(tmp_path):
+    path = tmp_path / "test.gpkg"
+    assert get_vsi_path_or_buffer(path) == str(path)
+
+
+@pytest.mark.parametrize(
+    "raw_path", ["/vsimem/test.shp.zip", "/vsizip//vsimem/test.shp.zip"]
+)
+def test_vsimem_path_exception(raw_path):
+    with pytest.raises(ValueError, match=""):
+        vsi_path(raw_path)

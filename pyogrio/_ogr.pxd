@@ -12,6 +12,9 @@ cdef extern from "cpl_conv.h":
     const char* CPLFindFile(const char *pszClass, const char *filename)
     const char* CPLGetConfigOption(const char* key, const char* value)
     void        CPLSetConfigOption(const char* key, const char* value)
+    const char* CPLGetThreadLocalConfigOption(const char* key, const char* value)
+    void        CPLSetThreadLocalConfigOption(const char* key, const char* value)
+    char*       CPLStrdup(const char* string)
 
 
 cdef extern from "cpl_error.h" nogil:
@@ -42,13 +45,23 @@ cdef extern from "cpl_string.h":
 
 
 cdef extern from "cpl_vsi.h" nogil:
-
+    int VSI_STAT_EXISTS_FLAG
+    ctypedef int vsi_l_offset
     ctypedef FILE VSILFILE
+    ctypedef struct VSIStatBufL:
+        long st_size
+        long st_mode
+        int st_mtime
 
-    VSILFILE *VSIFileFromMemBuffer(const char *path, void *data,
-                                   int data_len, int take_ownership)
-    int VSIFCloseL(VSILFILE *fp)
-    int VSIUnlink(const char *path)
+    int         VSIFCloseL(VSILFILE *fp)
+    int         VSIFFlushL(VSILFILE *fp)
+    int         VSIUnlink(const char *path)
+
+    VSILFILE        *VSIFileFromMemBuffer(const char *path, void *data, vsi_l_offset data_len, int take_ownership)
+    unsigned char   *VSIGetMemFileBuffer(const char *path, vsi_l_offset *data_len, int take_ownership)
+
+    int     VSIMkdir(const char *path, long mode)
+    int     VSIRmdirRecursive(const char *pszDirname)
 
 
 cdef extern from "ogr_core.h":
@@ -191,12 +204,35 @@ cdef extern from "ogr_srs_api.h":
 
 
 cdef extern from "arrow_bridge.h" nogil:
-    struct ArrowSchema:
+    struct ArrowArray:
+        int64_t length
+        int64_t null_count
+        int64_t offset
+        int64_t n_buffers
         int64_t n_children
+        const void** buffers
+        ArrowArray** children
+        ArrowArray* dictionary
+        void (*release)(ArrowArray*) noexcept nogil
+        void* private_data
+
+    struct ArrowSchema:
+        const char* format
+        const char* name
+        const char* metadata
+        int64_t flags
+        int64_t n_children
+        ArrowSchema** children
+        ArrowSchema* dictionary
+        void (*release)(ArrowSchema*) noexcept nogil
+        void* private_data
 
     struct ArrowArrayStream:
-        int (*get_schema)(ArrowArrayStream* stream, ArrowSchema* out) noexcept
+        int (*get_schema)(ArrowArrayStream*, ArrowSchema* out) noexcept
+        int (*get_next)(ArrowArrayStream*, ArrowArray* out)
+        const char* (*get_last_error)(ArrowArrayStream*)
         void (*release)(ArrowArrayStream*) noexcept
+        void* private_data
 
 
 cdef extern from "ogr_api.h":
@@ -301,8 +337,6 @@ cdef extern from "ogr_api.h":
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
 
-    int             OGRReleaseDataSource(OGRDataSourceH ds)
-
     const char*     OLCStringsAsUTF8
     const char*     OLCRandomRead
     const char*     OLCFastSetNextByIndex
@@ -315,8 +349,14 @@ cdef extern from "ogr_api.h":
 IF CTE_GDAL_VERSION >= (3, 6, 0):
 
     cdef extern from "ogr_api.h":
-        int8_t OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
+        bint OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
 
+
+IF CTE_GDAL_VERSION >= (3, 8, 0):
+
+    cdef extern from "ogr_api.h":
+        bint OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
+        bint OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:
@@ -369,7 +409,6 @@ cdef extern from "gdal.h":
                                const char *const *papszOpenOptions,
                                const char *const *papszSiblingFiles)
 
-    void            GDALClose(GDALDatasetH ds)
     int             GDALDatasetGetLayerCount(GDALDatasetH ds)
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
@@ -386,6 +425,17 @@ cdef extern from "gdal.h":
     const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
     OGRErr          GDALSetMetadata(GDALMajorObjectH obj, char **metadata, const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
+
+
+# GDALClose returns error code for >= 3.7.0
+IF CTE_GDAL_VERSION >= (3, 7, 0):
+
+    cdef extern from "ogr_api.h":
+        int GDALClose(GDALDatasetH ds)
+ELSE:
+
+    cdef extern from "ogr_api.h":
+        void GDALClose(GDALDatasetH ds)
 
 
 cdef get_string(const char *c_str, str encoding=*)

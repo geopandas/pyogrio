@@ -94,83 +94,74 @@ def test_read_only_meta_modres1(naturalearth_modres1, benchmark):
 
 
 @pytest.mark.benchmark(group="write-lowres")
-def test_write_lowres_shp(tmpdir, naturalearth_lowres, benchmark):
+def test_write_lowres_shp(tmp_path, naturalearth_lowres, benchmark):
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(write, filename, geometry, field_data, driver="ESRI Shapefile", **meta)
+    benchmark(write, tmp_path / "test.shp", geometry, field_data, driver="ESRI Shapefile", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
-def test_write_lowres_gpkg(tmpdir, naturalearth_lowres, benchmark):
+def test_write_lowres_gpkg(tmp_path, naturalearth_lowres, benchmark):
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.gpkg")
-    benchmark(write, filename, geometry, field_data, driver="GPKG", **meta)
+    benchmark(write, tmp_path / "test.gpkg", geometry, field_data, driver="GPKG", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
-def test_write_lowres_geojson(tmpdir, naturalearth_lowres, benchmark):
+def test_write_lowres_geojson(tmp_path, naturalearth_lowres, benchmark):
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write, filename, geometry, field_data, driver="GeoJSON", **meta)
+    benchmark(write, tmp_path / "test.json", geometry, field_data, driver="GeoJSON", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
-def test_write_lowres_geojsonseq(tmpdir, naturalearth_lowres, benchmark):
+def test_write_lowres_geojsonseq(tmp_path, naturalearth_lowres, benchmark):
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    filename = os.path.join(str(tmpdir), "test.json")
-    benchmark(write, filename, geometry, field_data, driver="GeoJSONSeq", **meta)
+    benchmark(write, tmp_path / "test.json", geometry, field_data, driver="GeoJSONSeq", **meta)
 
 
 @pytest.mark.benchmark(group="write-lowres")
-def test_write_fiona_lowres_shp(tmpdir, naturalearth_lowres, benchmark):
+def test_write_fiona_lowres_shp(tmp_path, naturalearth_lowres, benchmark):
     with fiona.open(naturalearth_lowres) as source:
         crs = source.crs
         schema = source.schema
         records = list(source)
 
-    filename = os.path.join(str(tmpdir), "test.shp")
     benchmark(
-        fiona_write, filename, records, driver="ESRI Shapefile", crs=crs, schema=schema
+        fiona_write, tmp_path / "test.shp", records, driver="ESRI Shapefile", crs=crs, schema=schema
     )
 
 
 # @pytest.mark.benchmark(group="write-lowres")
-# def test_write_fiona_lowres_gpkg(tmpdir, naturalearth_lowres, benchmark):
+# def test_write_fiona_lowres_gpkg(tmp_path, naturalearth_lowres, benchmark):
 #     with fiona.open(naturalearth_lowres) as source:
 #         crs = source.crs
 #         schema = source.schema
 #         records = list(source)
 
-#     filename = os.path.join(str(tmpdir), "test.gpkg")
-#     benchmark(fiona_write, filename, records, driver="GPKG", crs=crs, schema=schema)
+#     benchmark(fiona_write, tmp_path / "test.gpkg", records, driver="GPKG", crs=crs, schema=schema)
 
 
 # @pytest.mark.benchmark(group="write-lowres")
-# def test_write_fiona_lowres_geojson(tmpdir, naturalearth_lowres, benchmark):
+# def test_write_fiona_lowres_geojson(tmp_path, naturalearth_lowres, benchmark):
 #     with fiona.open(naturalearth_lowres) as source:
 #         crs = source.crs
 #         schema = source.schema
 #         records = list(source)
 
-#     filename = os.path.join(str(tmpdir), "test.json")
-#     benchmark(fiona_write, filename, records, driver="GeoJSON", crs=crs, schema=schema)
+#     benchmark(fiona_write, tmp_path / "test.json", records, driver="GeoJSON", crs=crs, schema=schema)
 
 
 @pytest.mark.benchmark(group="write-modres")
-def test_write_modres_shp(tmpdir, naturalearth_modres, benchmark):
+def test_write_modres_shp(tmp_path, naturalearth_modres, benchmark):
     meta, _, geometry, field_data = read(naturalearth_modres)
-    filename = os.path.join(str(tmpdir), "test.shp")
-    benchmark(write, filename, geometry, field_data, **meta)
+    benchmark(write, tmp_path / "test.shp", geometry, field_data, **meta)
 
 
 @pytest.mark.benchmark(group="write-modres")
-def test_write_fiona_modres_shp(tmpdir, naturalearth_modres, benchmark):
+def test_write_fiona_modres_shp(tmp_path, naturalearth_modres, benchmark):
     with fiona.open(naturalearth_modres) as source:
         crs = source.crs
         schema = source.schema
         records = list(source)
 
-    filename = os.path.join(str(tmpdir), "test.shp")
     benchmark(
-        fiona_write, filename, records, driver="ESRI Shapefile", crs=crs, schema=schema
+        fiona_write, tmp_path / "test.shp", records, driver="ESRI Shapefile", crs=crs, schema=schema
     )
