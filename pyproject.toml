@@ -190,4 +190,5 @@ ignore = [ # space before : (needed for how black formats slicing)
 exclude = ["docs/*", "benchmarks/*", "pyogrio/_version.py"]
 
 [tool.ruff.per-file-ignores]
+# ignore pydocstyle errors in tests
 "**/tests/*" = ["D"]
