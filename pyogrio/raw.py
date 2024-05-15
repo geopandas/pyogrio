@@ -394,8 +394,9 @@ def open_arrow(
     >>>     meta, stream = source
     >>>     # wrap the arrow stream object in a pyarrow RecordBatchReader
     >>>     reader = pa.RecordBatchReader.from_stream(stream)
+    >>>     geom_col = meta["geometry_name"] or "wkb_geometry"
     >>>     for batch in reader:
-    >>>         geometries = shapely.from_wkb(batch[meta["geometry_name"] or "wkb_geometry"])
+    >>>         geometries = shapely.from_wkb(batch[geom_col])
 
     The returned `stream` object needs to be consumed by a library implementing
     the Arrow PyCapsule Protocol. In the above example, pyarrow is used through
@@ -404,8 +405,9 @@ def open_arrow(
 
     >>> with open_arrow(path, use_pyarrow=True) as source:
     >>>     meta, reader = source
+    >>>     geom_col = meta["geometry_name"] or "wkb_geometry"
     >>>     for batch in reader:
-    >>>         geometries = shapely.from_wkb(batch[meta["geometry_name"] or "wkb_geometry"])
+    >>>         geometries = shapely.from_wkb(batch[geom_col])
 
     Returns
     -------
@@ -423,7 +425,7 @@ def open_arrow(
             "geometry_name": "<name of geometry column in arrow table>",
         }
 
-    """  # noqa: E501
+    """
     if not HAS_ARROW_API:
         raise RuntimeError("GDAL>= 3.6 required to read using arrow")
 
