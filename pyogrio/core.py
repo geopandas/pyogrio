@@ -109,7 +109,7 @@ def list_layers(path_or_buffer, /):
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
-        A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
 
     Returns
     -------
@@ -140,7 +140,7 @@ def read_bounds(
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
-        A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -227,7 +227,7 @@ def read_info(
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
-        A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : [type], optional
         Name or index of layer in data source.  Reads the first layer by default.
     encoding : [type], optional (default: None)

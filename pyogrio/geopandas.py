@@ -99,7 +99,7 @@ def read_dataframe(
     Parameters
     ----------
     path_or_buffer : pathlib.Path or str, or bytes buffer
-        A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name

@@ -22,7 +22,7 @@ def get_vsi_path_or_buffer(path_or_buffer):
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
-        A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
 
     Returns
     -------
@@ -162,7 +162,7 @@ def _construct_vsi_path(path, archive, scheme) -> str:
 def _preprocess_options_key_value(options):
     """Preprocess options.
 
-    Eg. `spatial_index=True` gets converted to `SPATIAL_INDEX="YES"`.
+    For example, `spatial_index=True` gets converted to `SPATIAL_INDEX="YES"`.
     """
     if not isinstance(options, dict):
         raise TypeError(f"Expected options to be a dict, got {type(options)}")
