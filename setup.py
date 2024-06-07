@@ -73,7 +73,7 @@ def get_gdal_config():
         }, gdal_version_str
 
     if include_dir or library_dir or gdal_version_str:
-        logger.warn(
+        logger.warning(
             "If specifying the GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH, or GDAL_VERSION "
             "environment variables, you need to specify all of them."
         )
