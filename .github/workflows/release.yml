@@ -160,7 +160,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.8.5-cache3
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.8.5-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -183,14 +183,13 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_OSX_DEPLOYMENT_TARGET: "11.0"
         shell: bash
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
 
       - name: Upload vcpkg build logs
-        # if: ${{ failure() }}
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
