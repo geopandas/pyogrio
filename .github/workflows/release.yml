@@ -215,14 +215,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
+        os: ["ubuntu-20.04", "windows-latest", "macos-12", "macos-latest"]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           - os: "ubuntu-20.04"
             artifact: pyogrio-wheel-linux
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
-          - os: "macos-11"
+          - os: "macos-12"
             artifact: pyogrio-wheel-x64-osx-dynamic
           - os: "macos-latest"
             artifact: pyogrio-wheel-x64-osx-dynamic
