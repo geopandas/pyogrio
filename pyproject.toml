@@ -38,7 +38,7 @@ GDAL_VERSION = "3.8.5"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
-MACOSX_DEPLOYMENT_TARGET = "12.0"
+MACOSX_DEPLOYMENT_TARGET = "11.0"
 
 [tool.cibuildwheel.windows]
 before-build = "pip install delvewheel"
