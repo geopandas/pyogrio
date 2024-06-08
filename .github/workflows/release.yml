@@ -183,14 +183,14 @@ jobs:
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          MACOSX_DEPLOYMENT_TARGET: "11.0"
+          VCPKG_OSX_DEPLOYMENT_TARGET: "11.0"
         shell: bash
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
 
       - name: Upload vcpkg build logs
-        if: ${{ failure() }}
+        # if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
