@@ -2134,6 +2134,8 @@ cdef create_ogr_dataset_layer(
         if crs is not None:
             try:
                 ogr_crs = create_crs(crs)
+                osr_set_traditional_axis_mapping_strategy(ogr_crs)
+
 
             except Exception as exc:
                 if dataset_options != NULL:
@@ -2736,3 +2738,6 @@ cdef create_fields_from_arrow_schema(
                 f"'{get_string(child.name)}' and type {get_string(child.format)}"
                 f"{gdal_msg}."
             )
+
+cdef void osr_set_traditional_axis_mapping_strategy(OGRSpatialReferenceH srs):
+    OSRSetAxisMappingStrategy(srs, OAMS_TRADITIONAL_GIS_ORDER)
