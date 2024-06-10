@@ -11,6 +11,10 @@
 -   MacOS wheels are now only available for macOS 12+. For older unsupported macOS
     versions, pyogrio can still be built from source (requires GDAL to be installed) (#417).
 
+### Packaging
+
+-   Remove usage of deprecated `distutils` in `setup.py` (#416).
+
 ## 0.8.0 (2024-05-06)
 
 ### Improvements
