@@ -2068,6 +2068,7 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     assert actual.columns[0] == mandarin
     assert actual[mandarin].values[0] == mandarin
 
+
 def test_write_kml_file_coordinates(tmp_path):
     # confirm reading with kml stores as lon/lat convention
     gdf = gp.GeoDataFrame(
@@ -2078,7 +2079,7 @@ def test_write_kml_file_coordinates(tmp_path):
     )
     gdf = gdf.set_crs(4326)
     output_path = tmp_path / "test.kml"
-    write_dataframe(gdf, output_path, layer='tmp_layer', driver="KML")
+    write_dataframe(gdf, output_path, layer="tmp_layer", driver="KML")
 
     gdf_in = read_dataframe(output_path)
 
