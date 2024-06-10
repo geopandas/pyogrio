@@ -6,6 +6,10 @@
 
 - Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
 
+### Packaging
+
+-   Remove usage of deprecated `distutils` in `setup.py` (#416).
+
 ## 0.8.0 (2024-05-06)
 
 ### Improvements
