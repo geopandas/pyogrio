@@ -4,7 +4,12 @@
 
 ### Bug fixes
 
-- Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+-   Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+
+### Packaging
+
+-   MacOS wheels are now only available for macOS 12+. For older unsupported macOS
+    versions, pyogrio can still be built from source (requires GDAL to be installed) (#417).
 
 ## 0.8.0 (2024-05-06)
 
