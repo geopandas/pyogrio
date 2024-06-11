@@ -2069,21 +2069,33 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     assert actual[mandarin].values[0] == mandarin
 
 
-def test_write_kml_file_coordinates(tmp_path, use_arrow):
+def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
     # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
-        data={
-            "label": ["A", "B", "C"],
-            "geometry": [Point(10, 20), Point(30, 40), Point(50, 60)],
-        }
-    )
-    gdf = gdf.set_crs(4326)
     output_path = tmp_path / "test.kml"
-    write_dataframe(gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow)
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
 
     gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
 
     assert np.array_equal(gdf_in.geometry.values, points)
-        gdf_in.geometry.values == [Point(10, 20), Point(30, 40), Point(50, 60)]
-    ).all()
+
+
+def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow=use_arrow):
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.geojson"
+    write_dataframe(
+        gdf,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
