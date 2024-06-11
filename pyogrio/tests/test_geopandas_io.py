@@ -2079,7 +2079,7 @@ def test_write_kml_file_coordinates(tmp_path, use_arrow):
     )
     gdf = gdf.set_crs(4326)
     output_path = tmp_path / "test.kml"
-    write_dataframe(gdf, output_path, layer="tmp_layer", driver="KML")
+    write_dataframe(gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow)
 
     gdf_in = read_dataframe(output_path)
 
