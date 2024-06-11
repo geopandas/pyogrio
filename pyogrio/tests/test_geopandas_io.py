@@ -2069,7 +2069,7 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     assert actual[mandarin].values[0] == mandarin
 
 
-def test_write_kml_file_coordinates(tmp_path):
+def test_write_kml_file_coordinates(tmp_path, use_arrow):
     # confirm reading with kml stores as lon/lat convention
     gdf = gp.GeoDataFrame(
         data={
