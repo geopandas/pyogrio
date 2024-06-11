@@ -2084,6 +2084,6 @@ def test_write_kml_file_coordinates(tmp_path, use_arrow):
 
     gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
 
-    assert (
+    assert np.array_equal(gdf_in.geometry.values, points)
         gdf_in.geometry.values == [Point(10, 20), Point(30, 40), Point(50, 60)]
     ).all()
