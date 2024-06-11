@@ -2071,7 +2071,8 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
 
 def test_write_kml_file_coordinates(tmp_path, use_arrow):
     # confirm reading with kml stores as lon/lat convention
-    gdf = gp.GeoDataFrame(
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
         data={
             "label": ["A", "B", "C"],
             "geometry": [Point(10, 20), Point(30, 40), Point(50, 60)],
