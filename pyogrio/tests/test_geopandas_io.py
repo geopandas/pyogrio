@@ -2070,7 +2070,7 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
 
 
 def test_write_kml_file_coordinates(tmp_path, use_arrow):
-    # confirm reading with kml stores as lon/lat convention
+    # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
         data={
