@@ -2081,7 +2081,7 @@ def test_write_kml_file_coordinates(tmp_path, use_arrow):
     output_path = tmp_path / "test.kml"
     write_dataframe(gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow)
 
-    gdf_in = read_dataframe(output_path)
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
 
     assert (
         gdf_in.geometry.values == [Point(10, 20), Point(30, 40), Point(50, 60)]
