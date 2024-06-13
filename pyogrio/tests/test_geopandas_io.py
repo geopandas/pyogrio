@@ -2103,7 +2103,7 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
 
 @pytest.mark.requires_arrow_write_api
-def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow=use_arrow):
+def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
     output_path = tmp_path / "test.geojson"
