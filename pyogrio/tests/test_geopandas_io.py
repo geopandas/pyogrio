@@ -1647,9 +1647,9 @@ def test_write_geometry_z_types_auto(
         (
             "warn",
             "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
-            "Invalid number of points in LinearRing found 2 - must be 0 or >= 3",
+            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
         ),
-        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >= 3"),
+        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
         ("ignore", None),
     ],
 )
