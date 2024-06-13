@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Add on_invalid parameter to read_dataframe (#422).
+-   Add `on_invalid` parameter to `read_dataframe` (#422).
 
 ## 0.8.1 (yyyy-mm-dd)
 
