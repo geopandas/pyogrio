@@ -87,6 +87,7 @@ def read_dataframe(
     sql_dialect=None,
     fid_as_index=False,
     use_arrow=None,
+    on_invalid="raise",
     arrow_to_pandas_kwargs=None,
     **kwargs,
 ):
@@ -197,6 +198,15 @@ def read_dataframe(
         installed). When enabled, this provides a further speed-up.
         Defaults to False, but this default can also be globally overridden
         by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
+    on_invalid : str, optional (default: "raise")
+
+        - **raise**: an exception will be raised if a WKB input geometry is
+          invalid.
+        - **warn**: a warning will be raised and invalid WKB geometries will be
+          returned as ``None``.
+        - **ignore**: invalid WKB geometries will be returned as ``None``
+          without a warning.
+
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
@@ -234,7 +244,6 @@ def read_dataframe(
 
     import pandas as pd
     import geopandas as gp
-    from geopandas.array import from_wkb
     import shapely  # if geopandas is present, shapely is expected to be present
 
     path_or_buffer = _stringify_path(path_or_buffer)
@@ -292,10 +301,10 @@ def read_dataframe(
             if PANDAS_GE_15 and wkb_values.dtype != object:
                 # for example ArrowDtype will otherwise create numpy array with pd.NA
                 wkb_values = wkb_values.to_numpy(na_value=None)
-            df["geometry"] = from_wkb(wkb_values, crs=meta["crs"])
+            df["geometry"] = shapely.from_wkb(wkb_values, on_invalid=on_invalid)
             if force_2d:
                 df["geometry"] = shapely.force_2d(df["geometry"])
-            return gp.GeoDataFrame(df, geometry="geometry")
+            return gp.GeoDataFrame(df, geometry="geometry", crs=meta["crs"])
         else:
             return df
 
@@ -315,9 +324,9 @@ def read_dataframe(
     if geometry is None or not read_geometry:
         return df
 
-    geometry = from_wkb(geometry, crs=meta["crs"])
+    geometry = shapely.from_wkb(geometry, on_invalid=on_invalid)
 
-    return gp.GeoDataFrame(df, geometry=geometry)
+    return gp.GeoDataFrame(df, geometry=geometry, crs=meta["crs"])
 
 
 # TODO: handle index properly
