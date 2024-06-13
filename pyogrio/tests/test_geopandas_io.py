@@ -2069,6 +2069,7 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     assert actual[mandarin].values[0] == mandarin
 
 
+@pytest.mark.requires_arrow_write_api
 def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
     # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
