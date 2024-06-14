@@ -57,6 +57,8 @@
     `write` and `write_dataframe` (#384).
 -   Fixed bug preventing reading from bytes or file-like in `read_arrow` /
     `open_arrow` (#407).
+-   Fixed bug transposing longitude and latitude when writing files with
+    coordinate transformation from EPSG:4326 (#421).
 
 ### Packaging
 

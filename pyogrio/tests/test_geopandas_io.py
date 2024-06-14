@@ -6,7 +6,7 @@ import locale
 import numpy as np
 import pytest
 
-from pyogrio import list_layers, read_info, __gdal_version__
+from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
 from pyogrio.raw import (
@@ -2067,3 +2067,77 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     )
     assert actual.columns[0] == mandarin
     assert actual[mandarin].values[0] == mandarin
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
+    # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.kml"
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
+
+    if "LIBKML" in list_drivers():
+        # test appending to the existing file only if LIBKML is available
+        # as it appears to fall back on LIBKML driver when appending.
+        points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+        gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+        write_dataframe(
+            gdf_append,
+            output_path,
+            layer="tmp_layer",
+            driver="KML",
+            use_arrow=use_arrow,
+            append=True,
+        )
+        # force_2d used to only compare xy geometry as z-dimension is undesirably
+        # introduced when the kml file is over-written.
+        gdf_in_appended = read_dataframe(
+            output_path, use_arrow=use_arrow, force_2d=True
+        )
+
+        assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.geojson"
+    write_dataframe(
+        gdf,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
+
+    # test appending to the existing file
+
+    points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+        append=True,
+    )
+
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
