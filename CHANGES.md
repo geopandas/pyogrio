@@ -1,10 +1,16 @@
 # CHANGELOG
 
+## 0.9.0 (yyyy-mm-dd)
+
+### Improvements
+
+-   Add `on_invalid` parameter to `read_dataframe` (#422).
+
 ## 0.8.1 (yyyy-mm-dd)
 
 ### Bug fixes
 
--   Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+-   Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412).
 
 ### Packaging
 

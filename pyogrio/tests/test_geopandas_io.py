@@ -1641,6 +1641,37 @@ def test_write_geometry_z_types_auto(
     assert_geodataframe_equal(gdf, result_gdf)
 
 
+@pytest.mark.parametrize(
+    "on_invalid, message",
+    [
+        (
+            "warn",
+            "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
+            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+        ),
+        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
+        ("ignore", None),
+    ],
+)
+def test_read_invalid_shp(data_dir, use_arrow, on_invalid, message):
+    if on_invalid == "raise":
+        handler = pytest.raises(shapely.errors.GEOSException, match=message)
+    elif on_invalid == "warn":
+        handler = pytest.warns(match=message)
+    elif on_invalid == "ignore":
+        handler = contextlib.nullcontext()
+    else:
+        raise ValueError(f"unknown value for on_invalid: {on_invalid}")
+
+    with handler:
+        df = read_dataframe(
+            data_dir / "poly_not_enough_points.shp.zip",
+            use_arrow=use_arrow,
+            on_invalid=on_invalid,
+        )
+        df.geometry.isnull().all()
+
+
 def test_read_multisurface(data_dir, use_arrow):
     if use_arrow:
         with pytest.raises(shapely.errors.GEOSException):
