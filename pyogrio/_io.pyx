@@ -2134,6 +2134,10 @@ cdef create_ogr_dataset_layer(
         if crs is not None:
             try:
                 ogr_crs = create_crs(crs)
+                # force geographic CRS to use lon, lat order and ignore axis order specified by CRS, in order
+                # to correctly write KML and GeoJSON coordinates in correct order
+                OSRSetAxisMappingStrategy(ogr_crs, OAMS_TRADITIONAL_GIS_ORDER)
+
 
             except Exception as exc:
                 if dataset_options != NULL:

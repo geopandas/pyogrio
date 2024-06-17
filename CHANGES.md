@@ -1,10 +1,25 @@
 # CHANGELOG
 
+## 0.9.0 (yyyy-mm-dd)
+
+### Improvements
+
+-   Add `on_invalid` parameter to `read_dataframe` (#422).
+
 ## 0.8.1 (yyyy-mm-dd)
 
 ### Bug fixes
 
-- Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+-   Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412).
+
+### Packaging
+
+-   MacOS wheels are now only available for macOS 12+. For older unsupported macOS
+    versions, pyogrio can still be built from source (requires GDAL to be installed) (#417).
+
+### Packaging
+
+-   Remove usage of deprecated `distutils` in `setup.py` (#416).
 
 ## 0.8.0 (2024-05-06)
 
@@ -48,6 +63,8 @@
     `write` and `write_dataframe` (#384).
 -   Fixed bug preventing reading from bytes or file-like in `read_arrow` /
     `open_arrow` (#407).
+-   Fixed bug transposing longitude and latitude when writing files with
+    coordinate transformation from EPSG:4326 (#421).
 
 ### Packaging
 

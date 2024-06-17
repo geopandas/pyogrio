@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 import platform
@@ -5,9 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from distutils import log
-from setuptools import setup, find_packages
-from setuptools.extension import Extension
+from setuptools import Extension, setup, find_packages
 import versioneer
 
 # import Cython if available
@@ -16,6 +15,9 @@ try:
     from Cython.Distutils import build_ext
 except ImportError:
     cythonize = None
+
+
+logger = logging.getLogger(__name__)
 
 
 MIN_PYTHON_VERSION = (3, 8, 0)
@@ -71,7 +73,7 @@ def get_gdal_config():
         }, gdal_version_str
 
     if include_dir or library_dir or gdal_version_str:
-        log.warn(
+        logger.warning(
             "If specifying the GDAL_INCLUDE_PATH, GDAL_LIBRARY_PATH, or GDAL_VERSION "
             "environment variables, you need to specify all of them."
         )
@@ -117,7 +119,7 @@ def get_gdal_config():
                 )
                 sys.exit(1)
 
-            log.info(
+            logger.info(
                 "Building on Windows requires extra options to setup.py to locate "
                 "GDAL files. See the installation documentation."
             )
@@ -174,7 +176,7 @@ else:
     if os.environ.get("PYOGRIO_PACKAGE_DATA"):
         gdal_data = os.environ.get("GDAL_DATA")
         if gdal_data and os.path.exists(gdal_data):
-            log.info(f"Copying gdal data from {gdal_data}")
+            logger.info(f"Copying gdal data from {gdal_data}")
             copy_data_tree(gdal_data, "pyogrio/gdal_data")
         else:
             raise Exception(
@@ -184,7 +186,7 @@ else:
 
         proj_data = os.environ.get("PROJ_LIB")
         if proj_data and os.path.exists(proj_data):
-            log.info(f"Copying proj data from {proj_data}")
+            logger.info(f"Copying proj data from {proj_data}")
             copy_data_tree(proj_data, "pyogrio/proj_data")
         else:
             raise Exception(
