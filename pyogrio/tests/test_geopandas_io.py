@@ -2,6 +2,7 @@ import contextlib
 from datetime import datetime
 from io import BytesIO
 import locale
+import warnings
 
 import numpy as np
 import pytest
@@ -1060,6 +1061,21 @@ def test_write_empty_dataframe(tmp_path, ext, use_arrow):
     assert filename.exists()
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+def test_write_empty_geometry(tmp_path):
+    expected = gp.GeoDataFrame({"x": [0]}, geometry=from_wkt(["POINT EMPTY"]), crs=4326)
+    filename = tmp_path / "test.shp"
+
+    # Check that no warning is raised with GeoSeries.notna()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        write_dataframe(expected, filename)
+    assert filename.exists()
+
+    # TODO: fix reading POINT EMPTY
+    # df = read_dataframe(filename)
+    # assert_geodataframe_equal(df, expected)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])

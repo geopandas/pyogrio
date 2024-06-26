@@ -520,7 +520,10 @@ def write_dataframe(
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
             # None/Empty geometries sometimes report as Z incorrectly, so ignore them
-            has_z_arr = geometry[geometry.notna() & (~geometry.is_empty)].has_z
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", r"GeoSeries\.notna", UserWarning)
+                geometry_notna = geometry.notna()
+            has_z_arr = geometry[geometry_notna & (~geometry.is_empty)].has_z
             has_z = has_z_arr.any()
             all_z = has_z_arr.all()
 
