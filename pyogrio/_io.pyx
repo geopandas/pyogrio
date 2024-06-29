@@ -1206,7 +1206,7 @@ def ogr_read(
         fids = np.asarray(fids, dtype=np.intc)
 
     if sql is not None and layer is not None:
-        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+        raise ValueError("'sql' parameter cannot be combined with 'layer'")
 
     if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(
@@ -1467,7 +1467,7 @@ def ogr_open_arrow(
         )
 
     if sql is not None and layer is not None:
-        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+        raise ValueError("'sql' parameter cannot be combined with 'layer'")
 
     if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(

@@ -769,7 +769,7 @@ def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
             )
 
     with pytest.raises(
-        ValueError, match="'sql' paramater cannot be combined with 'layer'"
+        ValueError, match="'sql' parameter cannot be combined with 'layer'"
     ):
         read_dataframe(
             naturalearth_lowres_all_ext,
