@@ -41,7 +41,7 @@ jobs:
         run: |
           # use uv for much faster pip installs
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          source $HOME/.cargo/env
+          . $HOME/.cargo/env
           uv venv
           uv pip install pip wheel
           uv pip install -e .[dev,test,geopandas]
