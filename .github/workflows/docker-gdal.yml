@@ -37,12 +37,16 @@ jobs:
 
       - uses: actions/checkout@v4
 
-      - name: Install Python Dependencies
+      - name: Create virtual environment
         run: |
-          # use uv for much faster pip installs
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
-          uv venv
+          uv venv .venv
+          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+      - name: Install Python Dependencies
+        run: |
           uv pip install pip wheel
           uv pip install -e .[dev,test,geopandas]
 
