@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.9.1 (yyyy-mm-dd)
+
+### Bug fixes
+
+-   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
+
 ## 0.9.0 (2024-06-17)
 
 ### Improvements
