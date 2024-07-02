@@ -117,6 +117,31 @@ def test_read_no_geometry(naturalearth_lowres):
     assert geometry is None
 
 
+@pytest.mark.skipif(
+    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
+)
+def test_read_no_geometry__mask(naturalearth_lowres):
+    geometry, fields = read(
+        naturalearth_lowres,
+        read_geometry=False,
+        mask=shapely.Point(-105, 55),
+    )[2:]
+
+    assert np.array_equal(fields[3], ["CAN"])
+    assert geometry is None
+
+
+def test_read_no_geometry__bbox(naturalearth_lowres):
+    geometry, fields = read(
+        naturalearth_lowres,
+        read_geometry=False,
+        bbox=(-109.0, 55.0, -109.0, 55.0),
+    )[2:]
+
+    assert np.array_equal(fields[3], ["CAN"])
+    assert geometry is None
+
+
 def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
     with pytest.raises(
         ValueError,

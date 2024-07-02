@@ -1274,7 +1274,7 @@ def ogr_read(
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
 
-        if not read_geometry:
+        if not read_geometry and bbox is None and mask is None:
             ignored_fields.append("OGR_GEOMETRY")
 
         # Instruct GDAL to ignore reading fields not
