@@ -1065,7 +1065,7 @@ def test_write_empty_dataframe(tmp_path, ext, use_arrow):
 
 def test_write_empty_geometry(tmp_path):
     expected = gp.GeoDataFrame({"x": [0]}, geometry=from_wkt(["POINT EMPTY"]), crs=4326)
-    filename = tmp_path / "test.shp"
+    filename = tmp_path / "test.gpkg"
 
     # Check that no warning is raised with GeoSeries.notna()
     with warnings.catch_warnings():
@@ -1073,9 +1073,9 @@ def test_write_empty_geometry(tmp_path):
         write_dataframe(expected, filename)
     assert filename.exists()
 
-    # TODO: fix reading POINT EMPTY
-    # df = read_dataframe(filename)
-    # assert_geodataframe_equal(df, expected)
+    # Xref GH-436: round-tripping possible with GPKG but not others
+    df = read_dataframe(filename)
+    assert_geodataframe_equal(df, expected)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
