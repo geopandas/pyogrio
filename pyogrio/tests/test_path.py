@@ -279,6 +279,7 @@ def test_url():
     assert len(result[0]) == 177
 
 
+@pytest.mark.network
 @pytest.mark.skipif(not has_geopandas, reason="GeoPandas not available")
 def test_url_dataframe():
     url = "https://raw.githubusercontent.com/geopandas/pyogrio/main/pyogrio/tests/fixtures/naturalearth_lowres/naturalearth_lowres.shp"
