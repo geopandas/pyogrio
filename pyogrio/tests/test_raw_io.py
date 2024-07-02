@@ -117,9 +117,7 @@ def test_read_no_geometry(naturalearth_lowres):
     assert geometry is None
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_no_geometry__mask(naturalearth_lowres):
     geometry, fields = read(
         naturalearth_lowres,
