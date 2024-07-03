@@ -1669,7 +1669,7 @@ def test_write_geometry_z_types_auto(
         ("ignore", None),
     ],
 )
-def test_read_invalid_shp(data_dir, use_arrow, on_invalid, message):
+def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
     elif on_invalid == "warn":
@@ -1679,9 +1679,28 @@ def test_read_invalid_shp(data_dir, use_arrow, on_invalid, message):
     else:
         raise ValueError(f"unknown value for on_invalid: {on_invalid}")
 
+    # create a GeoJSON file with an invalid exterior ring
+    invalid_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": {},
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [ [ [0, 0], [0, 0] ] ]
+                }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test.geojson"
+    with open(filename, "w") as out:
+        _ = out.write(invalid_geojson)
+
     with handler:
         df = read_dataframe(
-            data_dir / "poly_not_enough_points.shp.zip",
+            filename,
             use_arrow=use_arrow,
             on_invalid=on_invalid,
         )

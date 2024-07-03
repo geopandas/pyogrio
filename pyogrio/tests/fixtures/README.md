@@ -4,6 +4,8 @@
 
 `naturalearth_lowres.shp` was copied from GeoPandas.
 
+License: public domain
+
 ## FGDB test dataset
 
 `test_fgdb.gdb.zip`
@@ -75,6 +77,8 @@ NOTE: Reading boolean values into GeoPandas using Fiona backend treats those
 values as `None` and column dtype as `object`; Pyogrio treats those values as
 `np.nan` and column dtype as `float64`.
 
+License: same as pyogrio
+
 ### GPKG test with MultiSurface
 
 This was extracted from https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHDPlusHR/Beta/GDB/NHDPLUS_H_0308_HU4_GDB.zip
@@ -84,6 +88,10 @@ This was extracted from https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrogra
 ogr2ogr test_mixed_surface.gpkg NHDPLUS_H_0308_HU4_GDB.gdb NHDWaterbody -where '"NHDPlusID" = 15000300070477' -select "NHDPlusID"
 ```
 
+License: public domain
+
 ### OSM PBF test
 
 This was downloaded from https://github.com/openstreetmap/OSM-binary/blob/master/resources/sample.pbf
+
+License: [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/)
