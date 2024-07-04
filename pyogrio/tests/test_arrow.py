@@ -946,6 +946,7 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         )
 
 
+@requires_arrow_write_api
 def test_write_open_file_handle(tmp_path, naturalearth_lowres):
     """Verify that writing to an open file handle is not currently supported"""
 
