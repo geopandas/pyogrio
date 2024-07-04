@@ -6,7 +6,7 @@
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
 -   Enable mask & bbox filter when geometry column not read (#431).
--   Raise NotImplmentedError when user attempts to write to an open file handle.
+-   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
 
 ## 0.9.0 (2024-06-17)
 

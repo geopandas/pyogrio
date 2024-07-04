@@ -537,8 +537,6 @@ def _get_write_path_driver(path, driver, append=False):
     (path, driver)
     """
 
-    print("type", type(path), hasattr(path, "write"), isinstance(path, Path))
-
     if isinstance(path, BytesIO):
         if driver is None:
             raise ValueError("driver must be provided to write to in-memory file")
