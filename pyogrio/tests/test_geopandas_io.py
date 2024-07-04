@@ -26,7 +26,6 @@ from pyogrio._compat import PANDAS_GE_15, HAS_ARROW_WRITE_API
 try:
     import pandas as pd
     from pandas.testing import (
-        assert_frame_equal,
         assert_index_equal,
         assert_series_equal,
     )
@@ -143,14 +142,13 @@ def test_read_dataframe_vsi(naturalearth_lowres_vsi, use_arrow):
 
 
 @pytest.mark.parametrize(
-    "columns, fid_as_index, exp_len", [(None, False, 2), ([], True, 2), ([], False, 0)]
+    "columns, fid_as_index, exp_len", [(None, False, 3), ([], True, 3), ([], False, 0)]
 )
 def test_read_layer_without_geometry(
-    test_fgdb_vsi, columns, fid_as_index, use_arrow, exp_len
+    no_geometry_file, columns, fid_as_index, use_arrow, exp_len
 ):
     result = read_dataframe(
-        test_fgdb_vsi,
-        layer="basetable",
+        no_geometry_file,
         columns=columns,
         fid_as_index=fid_as_index,
         use_arrow=use_arrow,
@@ -196,16 +194,15 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
         )
 
 
-def test_read_force_2d(test_fgdb_vsi, use_arrow):
+def test_read_force_2d(line_zm_file, use_arrow):
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
     ):
-        df = read_dataframe(test_fgdb_vsi, layer="test_lines", max_features=1)
+        df = read_dataframe(line_zm_file)
         assert df.iloc[0].geometry.has_z
 
         df = read_dataframe(
-            test_fgdb_vsi,
-            layer="test_lines",
+            line_zm_file,
             force_2d=True,
             max_features=1,
             use_arrow=use_arrow,
@@ -213,21 +210,41 @@ def test_read_force_2d(test_fgdb_vsi, use_arrow):
         assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.filterwarnings("ignore: Measured")
-@pytest.mark.filterwarnings("ignore: More than one layer found in")
-def test_read_layer(test_fgdb_vsi, use_arrow):
-    layers = list_layers(test_fgdb_vsi)
-    kwargs = {"use_arrow": use_arrow, "read_geometry": False, "max_features": 1}
+def test_read_layer(tmp_path, use_arrow):
+    filename = tmp_path / "test.gpkg"
 
-    # The first layer is read by default (NOTE: first layer has no features)
-    df = read_dataframe(test_fgdb_vsi, **kwargs)
-    df2 = read_dataframe(test_fgdb_vsi, layer=layers[0][0], **kwargs)
-    assert_frame_equal(df, df2)
+    # create a multilayer GPKG
+    expected1 = gp.GeoDataFrame(geometry=[Point(0, 0)], crs="EPSG:4326")
+    write_dataframe(
+        expected1,
+        filename,
+        layer="layer1",
+    )
 
-    # Reading a specific layer should return that layer.
+    expected2 = gp.GeoDataFrame(geometry=[Point(1, 1)], crs="EPSG:4326")
+    write_dataframe(expected2, filename, layer="layer2", append=True)
+
+    assert np.array_equal(
+        list_layers(filename), [["layer1", "Point"], ["layer2", "Point"]]
+    )
+
+    kwargs = {"use_arrow": use_arrow, "max_features": 1}
+
+    # The first layer is read by default, which will warn when there are multiple
+    # layers
+    with pytest.warns(UserWarning, match="More than one layer found"):
+        df = read_dataframe(filename, **kwargs)
+
+    assert_geodataframe_equal(df, expected1)
+
+    # Reading a specific layer by name should return that layer.
     # Detected here by a known column.
-    df = read_dataframe(test_fgdb_vsi, layer="test_lines", **kwargs)
-    assert "RIVER_MILE" in df.columns
+    df = read_dataframe(filename, layer="layer2", **kwargs)
+    assert_geodataframe_equal(df, expected2)
+
+    # Reading a specific layer by index should return that layer
+    df = read_dataframe(filename, layer=1, **kwargs)
+    assert_geodataframe_equal(df, expected2)
 
 
 def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
@@ -236,21 +253,19 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
 
 
 @pytest.mark.filterwarnings("ignore: Measured")
-def test_read_datetime(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(
-        test_fgdb_vsi, layer="test_lines", use_arrow=use_arrow, max_features=1
-    )
+def test_read_datetime(datetime_file, use_arrow):
+    df = read_dataframe(datetime_file, use_arrow=use_arrow)
     if PANDAS_GE_20:
         # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.SURVEY_DAT.dtype.name == "datetime64[ms]"
+        assert df.col.dtype.name == "datetime64[ms]"
     else:
-        assert df.SURVEY_DAT.dtype.name == "datetime64[ns]"
+        assert df.col.dtype.name == "datetime64[ns]"
 
 
 @pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
 @pytest.mark.requires_arrow_write_api
-def test_read_datetime_tz(test_datetime_tz, tmp_path, use_arrow):
-    df = read_dataframe(test_datetime_tz)
+def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
+    df = read_dataframe(datetime_tz_file)
     # Make the index non-consecutive to test this case as well. Added for issue
     # https://github.com/geopandas/pyogrio/issues/324
     df = df.set_index(np.array([0, 2]))
@@ -320,14 +335,17 @@ def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
     assert_geodataframe_equal(df, result)
 
 
-def test_read_null_values(test_fgdb_vsi, use_arrow):
-    df = read_dataframe(
-        test_fgdb_vsi, layer="basetable_2", use_arrow=use_arrow, read_geometry=False
-    )
+def test_read_null_values(tmp_path, use_arrow):
+    filename = tmp_path / "test_null_values_no_geometry.gpkg"
+
+    # create a GPKG with no geometries and only null values
+    expected = pd.DataFrame({"col": [None, None]})
+    write_dataframe(expected, filename)
+
+    df = read_dataframe(filename, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert df.SEGMENT_NAME.isnull().max()
-    assert df.loc[df.SEGMENT_NAME.isnull()].SEGMENT_NAME.iloc[0] is None
+    assert np.array_equal(df.col.values, expected.col.values)
 
 
 def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
@@ -606,17 +624,20 @@ def test_read_fids_arrow_warning_old_gdal(naturalearth_lowres_all_ext):
         assert len(df) == 1
 
 
-def test_read_fids_force_2d(test_fgdb_vsi):
-    with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
-    ):
-        df = read_dataframe(test_fgdb_vsi, layer="test_lines", fids=[22])
-        assert len(df) == 1
-        assert df.iloc[0].geometry.has_z
+def test_read_fids_force_2d(tmp_path):
+    filename = tmp_path / "test.gpkg"
 
-        df = read_dataframe(test_fgdb_vsi, layer="test_lines", force_2d=True, fids=[22])
-        assert len(df) == 1
-        assert not df.iloc[0].geometry.has_z
+    # create a GPKG with 3D point values
+    src = gp.GeoDataFrame(geometry=[Point(0, 0, 0), Point(1, 1, 0)], crs="EPSG:4326")
+    write_dataframe(src, filename)
+
+    df = read_dataframe(filename, fids=[1])
+    assert_geodataframe_equal(df, src.iloc[:1])
+
+    df = read_dataframe(filename, force_2d=True, fids=[1])
+    assert np.array_equal(
+        df.geometry.values, shapely.force_2d(src.iloc[:1].geometry.values)
+    )
 
 
 @pytest.mark.parametrize("skip_features", [10, 200])
@@ -1695,8 +1716,8 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
     }"""
 
     filename = tmp_path / "test.geojson"
-    with open(filename, "w") as out:
-        _ = out.write(invalid_geojson)
+    with open(filename, "w") as f:
+        _ = f.write(invalid_geojson)
 
     with handler:
         df = read_dataframe(
@@ -1707,24 +1728,22 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
         df.geometry.isnull().all()
 
 
-def test_read_multisurface(data_dir, use_arrow):
+def test_read_multisurface(multisurface_file, use_arrow):
     if use_arrow:
         with pytest.raises(shapely.errors.GEOSException):
             # TODO(Arrow)
             # shapely fails parsing the WKB
-            read_dataframe(data_dir / "test_multisurface.gpkg", use_arrow=True)
+            read_dataframe(multisurface_file, use_arrow=True)
     else:
-        df = read_dataframe(data_dir / "test_multisurface.gpkg")
+        df = read_dataframe(multisurface_file)
 
         # MultiSurface should be converted to MultiPolygon
         assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
-def test_read_dataset_kwargs(data_dir, use_arrow):
-    filename = data_dir / "test_nested.geojson"
-
+def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     # by default, nested data are not flattened
-    df = read_dataframe(filename, use_arrow=use_arrow)
+    df = read_dataframe(nested_geojson_file, use_arrow=use_arrow)
 
     expected = gp.GeoDataFrame(
         {
@@ -1737,7 +1756,9 @@ def test_read_dataset_kwargs(data_dir, use_arrow):
 
     assert_geodataframe_equal(df, expected)
 
-    df = read_dataframe(filename, use_arrow=use_arrow, FLATTEN_NESTED_ATTRIBUTES="YES")
+    df = read_dataframe(
+        nested_geojson_file, use_arrow=use_arrow, FLATTEN_NESTED_ATTRIBUTES="YES"
+    )
 
     expected = gp.GeoDataFrame(
         {

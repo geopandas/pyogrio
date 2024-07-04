@@ -937,17 +937,17 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float64"
 
 
-def test_read_unsupported_types(test_ogr_types_list):
-    fields = read(test_ogr_types_list)[3]
+def test_read_unsupported_types(list_field_values_file):
+    fields = read(list_field_values_file)[3]
     # list field gets skipped, only integer field is read
     assert len(fields) == 1
 
-    fields = read(test_ogr_types_list, columns=["int64"])[3]
+    fields = read(list_field_values_file, columns=["int64"])[3]
     assert len(fields) == 1
 
 
-def test_read_datetime_millisecond(test_datetime):
-    field = read(test_datetime)[3][0]
+def test_read_datetime_millisecond(datetime_file):
+    field = read(datetime_file)[3][0]
     assert field.dtype == "datetime64[ms]"
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
@@ -976,13 +976,14 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
     assert field_data[0] == "data1"
 
 
-def test_read_datetime_as_string(test_datetime_tz):
-    field = read(test_datetime_tz)[3][0]
+def test_read_datetime_as_string(datetime_tz_file):
+    field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
     # timezone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
-    field = read(test_datetime_tz, datetime_as_string=True)[3][0]
+
+    field = read(datetime_tz_file, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
     # GDAL doesn't return strings in ISO format (yet)
     assert field[0] == "2020/01/01 09:00:00.123-05"

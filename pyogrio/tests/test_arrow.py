@@ -130,24 +130,24 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
     assert_frame_equal(result, expected)
 
 
-def test_read_arrow_nested_types(test_ogr_types_list):
+def test_read_arrow_nested_types(list_field_values_file):
     # with arrow, list types are supported
-    result = read_dataframe(test_ogr_types_list, use_arrow=True)
+    result = read_dataframe(list_field_values_file, use_arrow=True)
     assert "list_int64" in result.columns
     assert result["list_int64"][0].tolist() == [0, 1]
 
 
-def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
+def test_read_arrow_to_pandas_kwargs(no_geometry_file):
     # with arrow, list types are supported
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
-    result = read_dataframe(
-        test_fgdb_vsi,
-        layer="basetable_2",
+    df = read_dataframe(
+        no_geometry_file,
+        read_geometry=False,
         use_arrow=True,
         arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
     )
-    assert "SEGMENT_NAME" in result.columns
-    assert result["SEGMENT_NAME"].dtype.name == "category"
+    assert df.col.dtype.name == "category"
+    assert np.array_equal(df.col.values.categories, ["a", "b", "c"])
 
 
 def test_read_arrow_raw(naturalearth_lowres):
@@ -289,14 +289,15 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def test_enable_with_environment_variable(test_ogr_types_list):
+def test_enable_with_environment_variable(list_field_values_file):
     # list types are only supported with arrow, so don't work by default and work
     # when arrow is enabled through env variable
-    result = read_dataframe(test_ogr_types_list)
+    result = read_dataframe(list_field_values_file)
     assert "list_int64" not in result.columns
 
     with use_arrow_context():
-        result = read_dataframe(test_ogr_types_list)
+        result = read_dataframe(list_field_values_file)
+
     assert "list_int64" in result.columns
 
 
