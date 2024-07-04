@@ -194,20 +194,25 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres, use_arrow):
         )
 
 
-def test_read_force_2d(line_zm_file, use_arrow):
-    with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
-    ):
-        df = read_dataframe(line_zm_file)
-        assert df.iloc[0].geometry.has_z
+def test_read_force_2d(tmp_path, use_arrow):
+    filename = tmp_path / "test.gpkg"
 
-        df = read_dataframe(
-            line_zm_file,
-            force_2d=True,
-            max_features=1,
-            use_arrow=use_arrow,
-        )
-        assert not df.iloc[0].geometry.has_z
+    # create a GPKG with 3D point values
+    expected = gp.GeoDataFrame(
+        geometry=[Point(0, 0, 0), Point(1, 1, 0)], crs="EPSG:4326"
+    )
+    write_dataframe(expected, filename)
+
+    df = read_dataframe(filename)
+    assert df.iloc[0].geometry.has_z
+
+    df = read_dataframe(
+        filename,
+        force_2d=True,
+        max_features=1,
+        use_arrow=use_arrow,
+    )
+    assert not df.iloc[0].geometry.has_z
 
 
 def test_read_layer(tmp_path, use_arrow):
@@ -252,7 +257,6 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
         read_dataframe(naturalearth_lowres_all_ext, layer="wrong", use_arrow=use_arrow)
 
 
-@pytest.mark.filterwarnings("ignore: Measured")
 def test_read_datetime(datetime_file, use_arrow):
     df = read_dataframe(datetime_file, use_arrow=use_arrow)
     if PANDAS_GE_20:
@@ -628,15 +632,17 @@ def test_read_fids_force_2d(tmp_path):
     filename = tmp_path / "test.gpkg"
 
     # create a GPKG with 3D point values
-    src = gp.GeoDataFrame(geometry=[Point(0, 0, 0), Point(1, 1, 0)], crs="EPSG:4326")
-    write_dataframe(src, filename)
+    expected = gp.GeoDataFrame(
+        geometry=[Point(0, 0, 0), Point(1, 1, 0)], crs="EPSG:4326"
+    )
+    write_dataframe(expected, filename)
 
     df = read_dataframe(filename, fids=[1])
-    assert_geodataframe_equal(df, src.iloc[:1])
+    assert_geodataframe_equal(df, expected.iloc[:1])
 
     df = read_dataframe(filename, force_2d=True, fids=[1])
     assert np.array_equal(
-        df.geometry.values, shapely.force_2d(src.iloc[:1].geometry.values)
+        df.geometry.values, shapely.force_2d(expected.iloc[:1].geometry.values)
     )
 
 
