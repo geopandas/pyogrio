@@ -33,20 +33,28 @@ jobs:
     steps:
       - name: Install packages
         run: |
-          apt-get update && apt-get install -y git python3-pip
+          apt-get update && apt-get install -y build-essential git python3-dev
 
       - uses: actions/checkout@v4
 
+      - name: Create virtual environment
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          . $HOME/.cargo/env
+          uv venv .venv
+          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
       - name: Install Python Dependencies
         run: |
-          python3 -m pip install --no-cache-dir -U pip wheel
-          python3 -m pip install --no-cache-dir -e .[dev,test,geopandas]
+          uv pip install pip wheel
+          uv pip install -e .[dev,test,geopandas]
 
       - name: Install pyarrow
         # GDAL>=3.6 required to use Arrow API
         if: matrix.container != 'osgeo/gdal:ubuntu-small-3.5.3' && matrix.container != 'osgeo/gdal:ubuntu-small-3.4.3'
         run: |
-          python3 -m pip install pyarrow
+          uv pip install pyarrow
 
       - name: Test with pytest
         run: |
