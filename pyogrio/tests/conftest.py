@@ -1,3 +1,4 @@
+from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -176,6 +177,31 @@ def geojson_filelike(tmp_path):
 
     with open(filename, "rb") as f:
         yield f
+
+
+@pytest.fixture(scope="function")
+def nonseekable_bytes(tmp_path):
+    # mock a non-seekable byte stream, such as a zstandard handle
+    class NonSeekableBytesIO(BytesIO):
+        def seekable(self):
+            return False
+
+        def seek(self, *args, **kwargs):
+            raise OSError("cannot seek")
+
+    # wrap GeoJSON into a non-seekable BytesIO
+    geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { },
+                "geometry": { "type": "Point", "coordinates": [1, 1] }
+            }
+        ]
+    }"""
+
+    return NonSeekableBytesIO(geojson.encode("UTF-8"))
 
 
 @pytest.fixture(

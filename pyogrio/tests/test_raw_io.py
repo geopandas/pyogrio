@@ -820,6 +820,12 @@ def test_read_from_file_like(tmp_path, naturalearth_lowres, driver, ext):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
+def test_read_from_nonseekable_bytes(nonseekable_bytes):
+    meta, _, geometry, _ = read(nonseekable_bytes)
+    assert meta["fields"].shape == (0,)
+    assert len(geometry) == 1
+
+
 @pytest.mark.parametrize("ext", ["gpkg", "fgb"])
 def test_read_write_data_types_numeric(tmp_path, ext):
     # Point(0, 0)
