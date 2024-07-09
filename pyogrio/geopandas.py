@@ -360,7 +360,8 @@ def write_dataframe(
         in the output file.
     path : str or io.BytesIO
         path to output file on writeable file system or an io.BytesIO object to
-        allow writing to memory
+        allow writing to memory.  Will raise NotImplementedError if an open file
+        handle is passed; use BytesIO instead.
         NOTE: support for writing to memory is limited to specific drivers.
     layer : str, optional (default: None)
         layer name to create.  If writing to memory and layer name is not

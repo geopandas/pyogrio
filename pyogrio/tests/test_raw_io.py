@@ -3,6 +3,7 @@ import ctypes
 from io import BytesIO
 import json
 import sys
+from zipfile import ZipFile
 
 import numpy as np
 from numpy import array_equal
@@ -1175,6 +1176,27 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         match="writing to existing in-memory object is not supported",
     ):
         write(buffer, geometry, field_data, driver="GeoJSON", layer="test", **meta)
+
+
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write(f, geometry, field_data, driver="GeoJSON", layer="test", **meta)
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write(f, geometry, field_data, driver="GeoJSON", layer="test", **meta)
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])
