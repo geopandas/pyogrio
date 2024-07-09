@@ -193,6 +193,13 @@ def test_list_layers_bytes(geojson_bytes):
     assert layers[0, 0] == "test"
 
 
+def test_list_layers_nonseekable_bytes(nonseekable_bytes):
+    layers = list_layers(nonseekable_bytes)
+
+    assert layers.shape == (1, 2)
+    assert layers[0, 1] == "Point"
+
+
 def test_list_layers_filelike(geojson_filelike):
     layers = list_layers(geojson_filelike)
 
@@ -225,6 +232,13 @@ def test_read_bounds_bytes(geojson_bytes):
     assert fids.shape == (3,)
     assert bounds.shape == (4, 3)
     assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_nonseekable_bytes(nonseekable_bytes):
+    fids, bounds = read_bounds(nonseekable_bytes)
+    assert fids.shape == (1,)
+    assert bounds.shape == (4, 1)
+    assert allclose(bounds[:, 0], [1, 1, 1, 1])
 
 
 def test_read_bounds_filelike(geojson_filelike):
@@ -456,6 +470,13 @@ def test_read_info_bytes(geojson_bytes):
 
     assert meta["fields"].shape == (5,)
     assert meta["features"] == 3
+
+
+def test_read_info_nonseekable_bytes(nonseekable_bytes):
+    meta = read_info(nonseekable_bytes)
+
+    assert meta["fields"].shape == (0,)
+    assert meta["features"] == 1
 
 
 def test_read_info_filelike(geojson_filelike):

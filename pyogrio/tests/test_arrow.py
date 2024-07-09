@@ -168,6 +168,12 @@ def test_read_arrow_bytes(geojson_bytes):
     assert len(table) == 3
 
 
+def test_read_arrow_nonseekable_bytes(nonseekable_bytes):
+    meta, table = read_arrow(nonseekable_bytes)
+    assert meta["fields"].shape == (0,)
+    assert len(table) == 1
+
+
 def test_read_arrow_filelike(geojson_filelike):
     meta, table = read_arrow(geojson_filelike)
 
