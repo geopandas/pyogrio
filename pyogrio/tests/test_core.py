@@ -16,7 +16,7 @@ from pyogrio import (
 from pyogrio.core import detect_write_driver
 from pyogrio._compat import GDAL_GE_38
 from pyogrio.errors import DataSourceError, DataLayerError
-from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
+from pyogrio.tests.conftest import prepare_testfile, requires_shapely
 
 from pyogrio._env import GDALEnv
 
@@ -316,9 +316,7 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask",
     [
@@ -332,9 +330,7 @@ def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
         read_bounds(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read_bounds(
@@ -342,9 +338,7 @@ def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
         )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask,expected",
     [

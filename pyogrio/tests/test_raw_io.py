@@ -27,6 +27,7 @@ from pyogrio.tests.conftest import (
     prepare_testfile,
     requires_pyarrow_api,
     requires_arrow_api,
+    requires_shapely,
 )
 
 try:
@@ -117,9 +118,7 @@ def test_read_no_geometry(naturalearth_lowres):
     assert geometry is None
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_no_geometry__mask(naturalearth_lowres):
     geometry, fields = read(
         naturalearth_lowres,
@@ -281,9 +280,7 @@ def test_read_bbox_where(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["CAN"])
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask",
     [
@@ -297,17 +294,13 @@ def test_read_mask_invalid(naturalearth_lowres, mask):
         read(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read(naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55))
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask,expected",
     [
@@ -342,9 +335,7 @@ def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
     assert len(geometry) == len(expected)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_mask_sql(naturalearth_lowres_all_ext):
     fields = read(
         naturalearth_lowres_all_ext,
@@ -355,9 +346,7 @@ def test_read_mask_sql(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["CAN"])
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_mask_where(naturalearth_lowres_all_ext):
     fields = read(
         naturalearth_lowres_all_ext,
