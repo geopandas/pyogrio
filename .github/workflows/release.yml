@@ -78,9 +78,9 @@ jobs:
       - name: Build from sdist and install test dependencies
         shell: bash
         run: |
-          uv pip install wheelhouse/*.tar.gz
-          uv pip install pytest pandas pyproj shapely>=2
-          uv pip install --no-deps geopandas
+          uv pip install --no-cache wheelhouse/*.tar.gz
+          uv pip install --no-cache pytest pandas pyproj shapely>=2
+          uv pip install --no-cache --no-deps geopandas
           uv pip list
 
       - name: Run tests
@@ -253,10 +253,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
-          cache: "pip"
-          cache-dependency-path: "ci/requirements-wheel-test.txt"
 
       - name: Create virtual environment
+        shell: bash
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
@@ -273,11 +272,11 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          uv pip install -r ci/requirements-wheel-test.txt
+          uv pip install --no-cache -r ci/requirements-wheel-test.txt
           if [ ${{ matrix.python-version }} != "3.12" ]; then
-            uv pip install --no-deps geopandas
+            uv pip install --no-cache --no-deps geopandas
           fi
-          uv pip install --pre --find-links wheelhouse pyogrio
+          uv pip install --no-cache --pre --find-links wheelhouse pyogrio
           uv pip list
 
       - name: Run tests

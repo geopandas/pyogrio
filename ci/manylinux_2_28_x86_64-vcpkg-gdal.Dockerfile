@@ -19,7 +19,6 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate bash
 
 COPY ci/custom-triplets/x64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/x64-linux-dynamic-release.cmake
-# COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic-release/lib"
