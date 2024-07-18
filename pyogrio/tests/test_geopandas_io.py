@@ -2,6 +2,8 @@ import contextlib
 from datetime import datetime
 from io import BytesIO
 import locale
+import warnings
+from zipfile import ZipFile
 
 import numpy as np
 import pytest
@@ -769,7 +771,7 @@ def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
             )
 
     with pytest.raises(
-        ValueError, match="'sql' paramater cannot be combined with 'layer'"
+        ValueError, match="'sql' parameter cannot be combined with 'layer'"
     ):
         read_dataframe(
             naturalearth_lowres_all_ext,
@@ -1058,6 +1060,21 @@ def test_write_empty_dataframe(tmp_path, ext, use_arrow):
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
+    df = read_dataframe(filename)
+    assert_geodataframe_equal(df, expected)
+
+
+def test_write_empty_geometry(tmp_path):
+    expected = gp.GeoDataFrame({"x": [0]}, geometry=from_wkt(["POINT EMPTY"]), crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    # Check that no warning is raised with GeoSeries.notna()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        write_dataframe(expected, filename)
+    assert filename.exists()
+
+    # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
 
@@ -1953,6 +1970,27 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         match="writing to existing in-memory object is not supported",
     ):
         write_dataframe(df.head(1), buffer, driver="GeoJSON", layer="test")
+
+
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    df = read_dataframe(naturalearth_lowres)
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write_dataframe(df.head(1), f)
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write_dataframe(df.head(1), f)
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])

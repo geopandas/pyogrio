@@ -16,7 +16,7 @@ from pyogrio import (
 from pyogrio.core import detect_write_driver
 from pyogrio._compat import GDAL_GE_38
 from pyogrio.errors import DataSourceError, DataLayerError
-from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
+from pyogrio.tests.conftest import prepare_testfile, requires_shapely
 
 from pyogrio._env import GDALEnv
 
@@ -184,6 +184,13 @@ def test_list_layers_bytes(geojson_bytes):
     assert layers[0, 0] == "test"
 
 
+def test_list_layers_nonseekable_bytes(nonseekable_bytes):
+    layers = list_layers(nonseekable_bytes)
+
+    assert layers.shape == (1, 2)
+    assert layers[0, 1] == "Point"
+
+
 def test_list_layers_filelike(geojson_filelike):
     layers = list_layers(geojson_filelike)
 
@@ -216,6 +223,13 @@ def test_read_bounds_bytes(geojson_bytes):
     assert fids.shape == (3,)
     assert bounds.shape == (4, 3)
     assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
+
+
+def test_read_bounds_nonseekable_bytes(nonseekable_bytes):
+    fids, bounds = read_bounds(nonseekable_bytes)
+    assert fids.shape == (1,)
+    assert bounds.shape == (4, 1)
+    assert allclose(bounds[:, 0], [1, 1, 1, 1])
 
 
 def test_read_bounds_filelike(geojson_filelike):
@@ -302,9 +316,7 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask",
     [
@@ -318,9 +330,7 @@ def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
         read_bounds(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read_bounds(
@@ -328,9 +338,7 @@ def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
         )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask,expected",
     [
@@ -447,6 +455,13 @@ def test_read_info_bytes(geojson_bytes):
 
     assert meta["fields"].shape == (5,)
     assert meta["features"] == 3
+
+
+def test_read_info_nonseekable_bytes(nonseekable_bytes):
+    meta = read_info(nonseekable_bytes)
+
+    assert meta["fields"].shape == (0,)
+    assert meta["features"] == 1
 
 
 def test_read_info_filelike(geojson_filelike):

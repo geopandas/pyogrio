@@ -1,4 +1,5 @@
 from io import BytesIO
+from pathlib import Path
 import warnings
 
 from pyogrio._env import GDALEnv
@@ -522,7 +523,8 @@ def _get_write_path_driver(path, driver, append=False):
     ----------
     path : str or io.BytesIO
         path to output file on writeable file system or an io.BytesIO object to
-        allow writing to memory
+        allow writing to memory.  Will raise NotImplementedError if an open file
+        handle is passed.
     driver : str, optional (default: None)
         The OGR format driver used to write the vector file. By default attempts
         to infer driver from path.  Must be provided to write to a file-like
@@ -553,6 +555,11 @@ def _get_write_path_driver(path, driver, append=False):
 
         if append:
             raise NotImplementedError("append is not supported for in-memory files")
+
+    elif hasattr(path, "write") and not isinstance(path, Path):
+        raise NotImplementedError(
+            "writing to an open file handle is not yet supported; instead, write to a BytesIO instance and then read bytes from that to write to the file handle"
+        )
 
     else:
         path = vsi_path(str(path))
@@ -605,7 +612,8 @@ def write(
     ----------
     path : str or io.BytesIO
         path to output file on writeable file system or an io.BytesIO object to
-        allow writing to memory
+        allow writing to memory.  Will raise NotImplementedError if an open file
+        handle is passed; use BytesIO instead.
         NOTE: support for writing to memory is limited to specific drivers.
     geometry : ndarray of WKB encoded geometries or None
         If None, geometries will not be written to output file

@@ -360,7 +360,8 @@ def write_dataframe(
         in the output file.
     path : str or io.BytesIO
         path to output file on writeable file system or an io.BytesIO object to
-        allow writing to memory
+        allow writing to memory.  Will raise NotImplementedError if an open file
+        handle is passed; use BytesIO instead.
         NOTE: support for writing to memory is limited to specific drivers.
     layer : str, optional (default: None)
         layer name to create.  If writing to memory and layer name is not
@@ -520,7 +521,10 @@ def write_dataframe(
         # If there is data, infer layer geometry type + promote_to_multi
         if not df.empty:
             # None/Empty geometries sometimes report as Z incorrectly, so ignore them
-            has_z_arr = geometry[geometry.notna() & (~geometry.is_empty)].has_z
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", r"GeoSeries\.notna", UserWarning)
+                geometry_notna = geometry.notna()
+            has_z_arr = geometry[geometry_notna & (~geometry.is_empty)].has_z
             has_z = has_z_arr.any()
             all_z = has_z_arr.all()
 
