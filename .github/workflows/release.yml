@@ -57,11 +57,9 @@ jobs:
       image: "ghcr.io/osgeo/gdal:ubuntu-small-3.9.1"
 
     steps:
-      - name: Download sdist from artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: pyogrio-sdist
-          path: wheelhouse
+      - name: Install packages
+        run: |
+          apt-get update && apt-get install -y build-essential python3-dev
 
       - name: Create virtual environment
         run: |
@@ -70,6 +68,12 @@ jobs:
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+      - name: Download sdist from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pyogrio-sdist
+          path: wheelhouse
 
       - name: Build from sdist and install test dependencies
         shell: bash
@@ -87,7 +91,7 @@ jobs:
 
   build-wheels-linux:
     name: Build wheels on Linux
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-latest"
 
     steps:
       - name: Checkout
@@ -107,7 +111,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+          file: ci/manylinux_2_28_x86_64-vcpkg-gdal.Dockerfile
           tags: manylinux-vcpkg-gdal:latest
           push: false
           load: true
@@ -133,7 +137,7 @@ jobs:
       matrix:
         include:
           - os: "macos-12"
-            triplet: "x64-osx-dynamic"
+            triplet: "x64-osx-dynamic-release"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
@@ -219,17 +223,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-12", "macos-latest"]
+        os:
+          [
+            "ubuntu-latest",
+            "ubuntu-20.04",
+            "windows-latest",
+            "macos-12",
+            "macos-latest",
+          ]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
+          - os: "ubuntu-latest"
+            artifact: pyogrio-wheel-linux
           - os: "ubuntu-20.04"
             artifact: pyogrio-wheel-linux
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
           - os: "macos-12"
-            artifact: pyogrio-wheel-x64-osx-dynamic
+            artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"
-            artifact: pyogrio-wheel-x64-osx-dynamic
+            artifact: pyogrio-wheel-x64-osx-dynamic-release
 
     steps:
       - name: Checkout
