@@ -63,17 +63,21 @@ jobs:
           name: pyogrio-sdist
           path: wheelhouse
 
-      - name: Install pip
+      - name: Create virtual environment
         run: |
-          apt-get update && apt-get install -y python3-pip
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          . $HOME/.cargo/env
+          uv venv .venv
+          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Build from sdist and install test dependencies
         shell: bash
         run: |
-          python3 -m pip install --no-cache-dir wheelhouse/*.tar.gz
-          python3 -m pip install --no-cache-dir pytest pandas pyproj shapely>=2
-          python3 -m pip install --no-cache-dir --no-deps geopandas
-          python3 -m pip list
+          uv pip install wheelhouse/*.tar.gz
+          uv pip install pytest pandas pyproj shapely>=2
+          uv pip install --no-deps geopandas
+          uv pip list
 
       - name: Run tests
         shell: bash
@@ -239,6 +243,14 @@ jobs:
           cache: "pip"
           cache-dependency-path: "ci/requirements-wheel-test.txt"
 
+      - name: Create virtual environment
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          . $HOME/.cargo/env
+          uv venv .venv
+          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
         with:
@@ -248,12 +260,12 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          python -m pip install -r ci/requirements-wheel-test.txt
+          uv pip install -r ci/requirements-wheel-test.txt
           if [ ${{ matrix.python-version }} != "3.12" ]; then
-            python -m pip install --no-deps geopandas
+            uv pip install --no-deps geopandas
           fi
-          python -m pip install --pre --find-links wheelhouse pyogrio
-          python -m pip list
+          uv pip install --pre --find-links wheelhouse pyogrio
+          uv pip list
 
       - name: Run tests
         shell: bash
