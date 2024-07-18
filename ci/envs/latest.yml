@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - numpy
-  - libgdal
+  - libgdal-core
   - pytest
   - shapely>=2
   - geopandas-base
