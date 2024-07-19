@@ -24,7 +24,6 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate bash
 
 COPY ci/custom-triplets/arm64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/arm64-linux-dynamic-release.cmake
-COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg.json opt/vcpkg/
 
 # temporary workaround for https://github.com/microsoft/vcpkg/issues/36094
@@ -33,7 +32,6 @@ RUN git -C /opt/vcpkg apply vcpkg_linux_crosscompiling.patch
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/arm64-linux-dynamic-release/lib"
 RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
-    --overlay-ports=opt/vcpkg/custom-ports \
     --feature-flags="versions,manifests" \
     --x-manifest-root=opt/vcpkg \
     --x-install-root=opt/vcpkg/installed && \
