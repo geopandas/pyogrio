@@ -1,16 +1,16 @@
 import contextlib
-from datetime import datetime
-from io import BytesIO
 import locale
 import warnings
+from datetime import datetime
+from io import BytesIO
 from zipfile import ZipFile
 
 import numpy as np
-import pytest
 
-from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
+from pyogrio import __gdal_version__, list_drivers, list_layers, read_info
+from pyogrio._compat import HAS_ARROW_WRITE_API, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
-from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
+from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
@@ -18,26 +18,27 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    requires_pyarrow_api,
     requires_arrow_write_api,
     requires_gdal_geos,
+    requires_pyarrow_api,
 )
-from pyogrio._compat import PANDAS_GE_15, HAS_ARROW_WRITE_API
+
+import pytest
 
 try:
+    import geopandas as gp
     import pandas as pd
+    from geopandas.array import from_wkt
+
+    import shapely  # if geopandas is present, shapely is expected to be present
+    from shapely.geometry import Point
+
+    from geopandas.testing import assert_geodataframe_equal
     from pandas.testing import (
         assert_frame_equal,
         assert_index_equal,
         assert_series_equal,
     )
-
-    import geopandas as gp
-    from geopandas.array import from_wkt
-    from geopandas.testing import assert_geodataframe_equal
-
-    import shapely  # if geopandas is present, shapely is expected to be present
-    from shapely.geometry import Point
 
 except ImportError:
     pass
@@ -2146,7 +2147,8 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
 
 @pytest.mark.requires_arrow_write_api
 def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
-    # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
+    # confirm KML coordinates are written in lon, lat order even if CRS axis
+    # specifies otherwise
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
     output_path = tmp_path / "test.kml"

@@ -1,10 +1,10 @@
 """Utility functions."""
-from pathlib import Path
+
 import re
 import sys
-from urllib.parse import urlparse
-
 from packaging.version import Version
+from pathlib import Path
+from urllib.parse import urlparse
 
 
 def get_vsi_path_or_buffer(path_or_buffer):

@@ -2,28 +2,37 @@
 
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
-    get_vsi_path_or_buffer,
-    _preprocess_options_key_value,
     _mask_to_wkb,
+    _preprocess_options_key_value,
+    get_vsi_path_or_buffer,
 )
 
-
 with GDALEnv():
-    from pyogrio._ogr import (
-        get_gdal_version,
-        get_gdal_version_string,
-        get_gdal_geos_version,
-        ogr_list_drivers,
-        set_gdal_config_options as _set_gdal_config_options,
-        get_gdal_config_option as _get_gdal_config_option,
-        get_gdal_data_path as _get_gdal_data_path,
-        init_gdal_data as _init_gdal_data,
-        init_proj_data as _init_proj_data,
-        _register_drivers,
-        _get_drivers_for_path,
-    )
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
+    from pyogrio._ogr import (
+        _get_drivers_for_path,
+        _register_drivers,
+        get_gdal_geos_version,
+        get_gdal_version,
+        get_gdal_version_string,
+        ogr_list_drivers,
+    )
+    from pyogrio._ogr import (
+        get_gdal_config_option as _get_gdal_config_option,
+    )
+    from pyogrio._ogr import (
+        get_gdal_data_path as _get_gdal_data_path,
+    )
+    from pyogrio._ogr import (
+        init_gdal_data as _init_gdal_data,
+    )
+    from pyogrio._ogr import (
+        init_proj_data as _init_proj_data,
+    )
+    from pyogrio._ogr import (
+        set_gdal_config_options as _set_gdal_config_options,
+    )
 
     _init_gdal_data()
     _init_proj_data()
@@ -50,6 +59,7 @@ def list_drivers(read=False, write=False):
     dict
         Mapping of driver name to file mode capabilities: ``"r"``: read, ``"w"``: write.
         Drivers that are available but with unknown support are marked with ``"?"``
+
     """
     drivers = ogr_list_drivers()
 
@@ -79,6 +89,7 @@ def detect_write_driver(path):
     -------
     str
         name of the driver, if detected
+
     """
     # try to infer driver from path
     drivers = _get_drivers_for_path(path)
@@ -294,6 +305,7 @@ def set_gdal_config_options(options):
         configuration options.  ``True`` / ``False`` are normalized to ``'ON'``
         / ``'OFF'``. A value of ``None`` for a config option can be used to clear out a
         previously set value.
+
     """
     _set_gdal_config_options(options)
 
@@ -310,6 +322,7 @@ def get_gdal_config_option(name):
     -------
     value of the option or None if not set
         ``'ON'`` / ``'OFF'`` are normalized to ``True`` / ``False``.
+
     """
     return _get_gdal_config_option(name)
 
@@ -320,5 +333,6 @@ def get_gdal_data_path():
     Returns
     -------
     str, or None if data directory was not found
+
     """
     return _get_gdal_data_path()

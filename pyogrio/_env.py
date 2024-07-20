@@ -4,13 +4,12 @@
 # adapted from Fiona: https://github.com/Toblerity/Fiona/pull/875
 
 
-from contextlib import contextmanager
 import logging
 import os
-from pathlib import Path
 import platform
 import sys
-
+from contextlib import contextmanager
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())

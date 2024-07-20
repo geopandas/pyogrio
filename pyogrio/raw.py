@@ -1,10 +1,11 @@
 """Low level functions to read and write OGR data sources."""
+
+import warnings
 from io import BytesIO
 from pathlib import Path
-import warnings
 
-from pyogrio._env import GDALEnv
 from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
+from pyogrio._env import GDALEnv
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
 from pyogrio.util import (
@@ -20,8 +21,8 @@ with GDALEnv():
         _get_driver_metadata_item,
         get_gdal_version,
         get_gdal_version_string,
-        ogr_driver_supports_write,
         ogr_driver_supports_vsi,
+        ogr_driver_supports_write,
     )
 
 
@@ -252,6 +253,7 @@ def read_arrow(
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
         }
+
     """
     if not HAS_PYARROW:
         raise RuntimeError(
@@ -555,7 +557,8 @@ def _get_write_path_driver(path, driver, append=False):
 
     elif hasattr(path, "write") and not isinstance(path, Path):
         raise NotImplementedError(
-            "writing to an open file handle is not yet supported; instead, write to a BytesIO instance and then read bytes from that to write to the file handle"
+            "writing to an open file handle is not yet supported; instead, write to a "
+            "BytesIO instance and then read bytes from that to write to the file handle"
         )
 
     else:

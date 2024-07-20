@@ -1,19 +1,20 @@
 """Functions for reading and writing GeoPandas dataframes."""
+
 import os
+import warnings
 
 import numpy as np
 
 from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE_22
+from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
-    DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+    _get_write_path_driver,
     read,
     read_arrow,
     write,
-    _get_write_path_driver,
 )
-from pyogrio.errors import DataSourceError
-import warnings
 
 
 def _stringify_path(path):
@@ -199,11 +200,13 @@ def read_dataframe(
         Defaults to False, but this default can also be globally overridden
         by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
     on_invalid : str, optional (default: "raise")
+        The action to take when an invalid geometry is encountered. Possible
+        values:
 
         - **raise**: an exception will be raised if a WKB input geometry is
           invalid.
-        - **warn**: a warning will be raised and invalid WKB geometries will be
-          returned as ``None``.
+        - **warn**: invalid WKB geometries will be returned as ``None`` and a
+          warning will be raised.
         - **ignore**: invalid WKB geometries will be returned as ``None``
           without a warning.
 
@@ -242,8 +245,9 @@ def read_dataframe(
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
-    import pandas as pd
     import geopandas as gp
+    import pandas as pd
+
     import shapely  # if geopandas is present, shapely is expected to be present
 
     path_or_buffer = _stringify_path(path_or_buffer)
@@ -445,8 +449,9 @@ def write_dataframe(
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.write_dataframe()")
 
-    from geopandas.array import to_wkb
     import pandas as pd
+    from geopandas.array import to_wkb
+
     from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
     if not isinstance(df, pd.DataFrame):
@@ -496,7 +501,7 @@ def write_dataframe(
         else:
             values = col.values
         if isinstance(values, pd.api.extensions.ExtensionArray):
-            from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
+            from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
 
             if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
                 field_data.append(values._data)
@@ -583,6 +588,7 @@ def write_dataframe(
 
     if use_arrow:
         import pyarrow as pa
+
         from pyogrio.raw import write_arrow
 
         if geometry_column is not None:

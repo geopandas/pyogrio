@@ -1,34 +1,35 @@
 import contextlib
 import ctypes
-from io import BytesIO
 import json
 import sys
+from io import BytesIO
 from zipfile import ZipFile
 
 import numpy as np
 from numpy import array_equal
-import pytest
 
 import pyogrio
 from pyogrio import (
-    list_layers,
+    __gdal_version__,
+    get_gdal_config_option,
     list_drivers,
+    list_layers,
     read_info,
     set_gdal_config_options,
-    get_gdal_config_option,
-    __gdal_version__,
 )
-from pyogrio._compat import HAS_SHAPELY, HAS_PYARROW
-from pyogrio.raw import read, write, open_arrow
-from pyogrio.errors import DataSourceError, DataLayerError, FeatureError
+from pyogrio._compat import HAS_PYARROW, HAS_SHAPELY
+from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
+from pyogrio.raw import open_arrow, read, write
 from pyogrio.tests.conftest import (
-    DRIVERS,
     DRIVER_EXT,
+    DRIVERS,
     prepare_testfile,
-    requires_pyarrow_api,
     requires_arrow_api,
+    requires_pyarrow_api,
     requires_shapely,
 )
+
+import pytest
 
 try:
     import shapely

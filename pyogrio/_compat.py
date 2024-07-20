@@ -1,6 +1,6 @@
 from packaging.version import Version
 
-from pyogrio.core import __gdal_version__, __gdal_geos_version__
+from pyogrio.core import __gdal_geos_version__, __gdal_version__
 
 # detect optional dependencies
 try:
