@@ -12,7 +12,7 @@
 ### Packaging
 
 -   The GDAL library included in the wheels is updated from 3.8.5 to GDAL 3.9.1
-    and includes the LIBKML and spatialite drivers (#589).
+    and includes the LIBKML driver (#589).
 -   Updates to manylinux_2_28 for building Linux x64 wheels; these will require
     Linux versions with glibc >= 2.28 (#589).
 
