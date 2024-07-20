@@ -4,13 +4,12 @@
 # adapted from Fiona: https://github.com/Toblerity/Fiona/pull/875
 
 
-from contextlib import contextmanager
 import logging
 import os
-from pathlib import Path
 import platform
 import sys
-
+from contextlib import contextmanager
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
@@ -32,7 +31,7 @@ gdal_dll_dir = None
 if platform.system() == "Windows" and sys.version_info >= (3, 8):
     # if loading of extension modules fails, search for gdal dll directory
     try:
-        import pyogrio._io  # NOQA
+        import pyogrio._io  # noqa: F401
 
     except ImportError:
         for path in os.getenv("PATH", "").split(os.pathsep):

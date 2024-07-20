@@ -1,16 +1,16 @@
+import contextlib
 import os
 from pathlib import Path
-import contextlib
-from zipfile import ZipFile, ZIP_DEFLATED
-
-import pytest
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyogrio
 import pyogrio.raw
-from pyogrio.util import vsi_path, get_vsi_path_or_buffer
+from pyogrio.util import get_vsi_path_or_buffer, vsi_path
+
+import pytest
 
 try:
-    import geopandas  # NOQA
+    import geopandas  # noqa: F401
 
     has_geopandas = True
 except ImportError:
