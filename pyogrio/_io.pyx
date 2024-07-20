@@ -1206,7 +1206,7 @@ def ogr_read(
         fids = np.asarray(fids, dtype=np.intc)
 
     if sql is not None and layer is not None:
-        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+        raise ValueError("'sql' parameter cannot be combined with 'layer'")
 
     if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(
@@ -1274,7 +1274,7 @@ def ogr_read(
             idx = np.intersect1d(fields[:,2], columns, return_indices=True)[1]
             fields = fields[idx, :]
 
-        if not read_geometry:
+        if not read_geometry and bbox is None and mask is None:
             ignored_fields.append("OGR_GEOMETRY")
 
         # Instruct GDAL to ignore reading fields not
@@ -1467,7 +1467,7 @@ def ogr_open_arrow(
         )
 
     if sql is not None and layer is not None:
-        raise ValueError("'sql' paramater cannot be combined with 'layer'")
+        raise ValueError("'sql' parameter cannot be combined with 'layer'")
 
     if not (read_geometry or return_fids or columns is None or len(columns) > 0):
         raise ValueError(
@@ -2134,6 +2134,10 @@ cdef create_ogr_dataset_layer(
         if crs is not None:
             try:
                 ogr_crs = create_crs(crs)
+                # force geographic CRS to use lon, lat order and ignore axis order specified by CRS, in order
+                # to correctly write KML and GeoJSON coordinates in correct order
+                OSRSetAxisMappingStrategy(ogr_crs, OAMS_TRADITIONAL_GIS_ORDER)
+
 
             except Exception as exc:
                 if dataset_options != NULL:

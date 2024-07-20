@@ -196,7 +196,10 @@ cdef extern from "ogr_srs_api.h":
     const char*             OSRGetAuthorityName(OGRSpatialReferenceH srs, const char *key)
     const char*             OSRGetAuthorityCode(OGRSpatialReferenceH srs, const char *key)
     OGRErr                  OSRImportFromEPSG(OGRSpatialReferenceH srs, int code)
-
+    ctypedef enum OSRAxisMappingStrategy:
+        OAMS_TRADITIONAL_GIS_ORDER
+        
+    void                    OSRSetAxisMappingStrategy(OGRSpatialReferenceH hSRS, OSRAxisMappingStrategy)
     int                     OSRSetFromUserInput(OGRSpatialReferenceH srs, const char *pszDef)
     void                    OSRSetPROJSearchPaths(const char *const *paths)
     OGRSpatialReferenceH    OSRNewSpatialReference(const char *wkt)

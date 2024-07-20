@@ -1,10 +1,31 @@
 # CHANGELOG
 
-## 0.8.1 (yyyy-mm-dd)
+## 0.9.1 (yyyy-mm-dd)
 
 ### Bug fixes
 
-- Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412)
+-   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
+-   Enable mask & bbox filter when geometry column not read (#431).
+-   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
+-   Prevent seek on read from compressed inputs (#443).
+
+## 0.9.0 (2024-06-17)
+
+### Improvements
+
+-   Add `on_invalid` parameter to `read_dataframe` (#422).
+
+### Bug fixes
+
+-   Fixed bug transposing longitude and latitude when writing files with
+    coordinate transformation from EPSG:4326 (#421).
+-   Fix bug preventing reading from file paths containing hashes in `read_dataframe` (#412).
+
+### Packaging
+
+-   MacOS wheels are now only available for macOS 12+. For older unsupported macOS
+    versions, pyogrio can still be built from source (requires GDAL to be installed) (#417).
+-   Remove usage of deprecated `distutils` in `setup.py` (#416).
 
 ## 0.8.0 (2024-05-06)
 

@@ -2,11 +2,13 @@ import contextlib
 from datetime import datetime
 from io import BytesIO
 import locale
+import warnings
+from zipfile import ZipFile
 
 import numpy as np
 import pytest
 
-from pyogrio import list_layers, read_info, __gdal_version__
+from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
 from pyogrio.raw import (
@@ -769,7 +771,7 @@ def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
             )
 
     with pytest.raises(
-        ValueError, match="'sql' paramater cannot be combined with 'layer'"
+        ValueError, match="'sql' parameter cannot be combined with 'layer'"
     ):
         read_dataframe(
             naturalearth_lowres_all_ext,
@@ -1058,6 +1060,21 @@ def test_write_empty_dataframe(tmp_path, ext, use_arrow):
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
+    df = read_dataframe(filename)
+    assert_geodataframe_equal(df, expected)
+
+
+def test_write_empty_geometry(tmp_path):
+    expected = gp.GeoDataFrame({"x": [0]}, geometry=from_wkt(["POINT EMPTY"]), crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    # Check that no warning is raised with GeoSeries.notna()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        write_dataframe(expected, filename)
+    assert filename.exists()
+
+    # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
 
@@ -1642,6 +1659,37 @@ def test_write_geometry_z_types_auto(
     assert_geodataframe_equal(gdf, result_gdf)
 
 
+@pytest.mark.parametrize(
+    "on_invalid, message",
+    [
+        (
+            "warn",
+            "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
+            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+        ),
+        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
+        ("ignore", None),
+    ],
+)
+def test_read_invalid_shp(data_dir, use_arrow, on_invalid, message):
+    if on_invalid == "raise":
+        handler = pytest.raises(shapely.errors.GEOSException, match=message)
+    elif on_invalid == "warn":
+        handler = pytest.warns(match=message)
+    elif on_invalid == "ignore":
+        handler = contextlib.nullcontext()
+    else:
+        raise ValueError(f"unknown value for on_invalid: {on_invalid}")
+
+    with handler:
+        df = read_dataframe(
+            data_dir / "poly_not_enough_points.shp.zip",
+            use_arrow=use_arrow,
+            on_invalid=on_invalid,
+        )
+        df.geometry.isnull().all()
+
+
 def test_read_multisurface(data_dir, use_arrow):
     if use_arrow:
         with pytest.raises(shapely.errors.GEOSException):
@@ -1925,6 +1973,27 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         write_dataframe(df.head(1), buffer, driver="GeoJSON", layer="test")
 
 
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    df = read_dataframe(naturalearth_lowres)
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write_dataframe(df.head(1), f)
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write_dataframe(df.head(1), f)
+
+
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
@@ -2073,3 +2142,77 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
     )
     assert actual.columns[0] == mandarin
     assert actual[mandarin].values[0] == mandarin
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
+    # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.kml"
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
+
+    if "LIBKML" in list_drivers():
+        # test appending to the existing file only if LIBKML is available
+        # as it appears to fall back on LIBKML driver when appending.
+        points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+        gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+        write_dataframe(
+            gdf_append,
+            output_path,
+            layer="tmp_layer",
+            driver="KML",
+            use_arrow=use_arrow,
+            append=True,
+        )
+        # force_2d used to only compare xy geometry as z-dimension is undesirably
+        # introduced when the kml file is over-written.
+        gdf_in_appended = read_dataframe(
+            output_path, use_arrow=use_arrow, force_2d=True
+        )
+
+        assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.geojson"
+    write_dataframe(
+        gdf,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
+
+    # test appending to the existing file
+
+    points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+        append=True,
+    )
+
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)

@@ -40,7 +40,7 @@ def get_vsi_path_or_buffer(path_or_buffer):
         bytes_buffer = path_or_buffer.read()
 
         # rewind buffer if possible so that subsequent operations do not need to rewind
-        if hasattr(path_or_buffer, "seek"):
+        if hasattr(path_or_buffer, "seekable") and path_or_buffer.seekable():
             path_or_buffer.seek(0)
 
         return bytes_buffer

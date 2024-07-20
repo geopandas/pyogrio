@@ -3,6 +3,7 @@ import ctypes
 from io import BytesIO
 import json
 import sys
+from zipfile import ZipFile
 
 import numpy as np
 from numpy import array_equal
@@ -26,6 +27,7 @@ from pyogrio.tests.conftest import (
     prepare_testfile,
     requires_pyarrow_api,
     requires_arrow_api,
+    requires_shapely,
 )
 
 try:
@@ -113,6 +115,29 @@ def test_vsi_read_layers(naturalearth_lowres_vsi):
 def test_read_no_geometry(naturalearth_lowres):
     geometry = read(naturalearth_lowres, read_geometry=False)[2]
 
+    assert geometry is None
+
+
+@requires_shapely
+def test_read_no_geometry__mask(naturalearth_lowres):
+    geometry, fields = read(
+        naturalearth_lowres,
+        read_geometry=False,
+        mask=shapely.Point(-105, 55),
+    )[2:]
+
+    assert np.array_equal(fields[3], ["CAN"])
+    assert geometry is None
+
+
+def test_read_no_geometry__bbox(naturalearth_lowres):
+    geometry, fields = read(
+        naturalearth_lowres,
+        read_geometry=False,
+        bbox=(-109.0, 55.0, -109.0, 55.0),
+    )[2:]
+
+    assert np.array_equal(fields[3], ["CAN"])
     assert geometry is None
 
 
@@ -255,9 +280,7 @@ def test_read_bbox_where(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["CAN"])
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask",
     [
@@ -271,17 +294,13 @@ def test_read_mask_invalid(naturalearth_lowres, mask):
         read(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read(naturalearth_lowres, bbox=(-85, 8, -80, 10), mask=shapely.Point(-105, 55))
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask,expected",
     [
@@ -316,9 +335,7 @@ def test_read_mask(naturalearth_lowres_all_ext, mask, expected):
     assert len(geometry) == len(expected)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_mask_sql(naturalearth_lowres_all_ext):
     fields = read(
         naturalearth_lowres_all_ext,
@@ -329,9 +346,7 @@ def test_read_mask_sql(naturalearth_lowres_all_ext):
     assert np.array_equal(fields[3], ["CAN"])
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_mask_where(naturalearth_lowres_all_ext):
     fields = read(
         naturalearth_lowres_all_ext,
@@ -794,6 +809,12 @@ def test_read_from_file_like(tmp_path, naturalearth_lowres, driver, ext):
     assert_equal_result((meta, index, geometry, field_data), result2)
 
 
+def test_read_from_nonseekable_bytes(nonseekable_bytes):
+    meta, _, geometry, _ = read(nonseekable_bytes)
+    assert meta["fields"].shape == (0,)
+    assert len(geometry) == 1
+
+
 @pytest.mark.parametrize("ext", ["gpkg", "fgb"])
 def test_read_write_data_types_numeric(tmp_path, ext):
     # Point(0, 0)
@@ -1144,6 +1165,27 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         match="writing to existing in-memory object is not supported",
     ):
         write(buffer, geometry, field_data, driver="GeoJSON", layer="test", **meta)
+
+
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write(f, geometry, field_data, driver="GeoJSON", layer="test", **meta)
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write(f, geometry, field_data, driver="GeoJSON", layer="test", **meta)
 
 
 @pytest.mark.parametrize("ext", ["fgb", "gpkg", "geojson"])

@@ -100,7 +100,7 @@ jobs:
 
       - name: Build Docker image with vcpkg and gdal
         # using build-push-action (without push) to make use of cache arguments
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
@@ -113,7 +113,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.19.2
 
       - uses: actions/upload-artifact@v4
         with:
@@ -128,13 +128,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-11"
+          - os: "macos-12"
             triplet: "x64-osx-dynamic"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-11"
+          - os: "macos-12"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -196,7 +196,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
+        uses: pypa/cibuildwheel@v2.19.2
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -215,14 +215,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest", "macos-11", "macos-latest"]
+        os: ["ubuntu-20.04", "windows-latest", "macos-12", "macos-latest"]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           - os: "ubuntu-20.04"
             artifact: pyogrio-wheel-linux
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
-          - os: "macos-11"
+          - os: "macos-12"
             artifact: pyogrio-wheel-x64-osx-dynamic
           - os: "macos-latest"
             artifact: pyogrio-wheel-x64-osx-dynamic

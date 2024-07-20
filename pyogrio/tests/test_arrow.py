@@ -5,6 +5,7 @@ import math
 import os
 from packaging.version import Version
 import sys
+from zipfile import ZipFile
 
 import pytest
 import numpy as np
@@ -166,6 +167,12 @@ def test_read_arrow_bytes(geojson_bytes):
 
     assert meta["fields"].shape == (5,)
     assert len(table) == 3
+
+
+def test_read_arrow_nonseekable_bytes(nonseekable_bytes):
+    meta, table = read_arrow(nonseekable_bytes)
+    assert meta["fields"].shape == (0,)
+    assert len(table) == 1
 
 
 def test_read_arrow_filelike(geojson_filelike):
@@ -943,6 +950,45 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
             geometry_type=meta["geometry_type"],
             geometry_name=meta["geometry_name"] or "wkb_geometry",
         )
+
+
+@requires_arrow_write_api
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    meta, table = read_arrow(naturalearth_lowres, max_features=1)
+    meta["geometry_type"] = "MultiPolygon"
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write_arrow(
+                table,
+                f,
+                driver="GeoJSON",
+                layer="test",
+                crs=meta["crs"],
+                geometry_type=meta["geometry_type"],
+                geometry_name=meta["geometry_name"] or "wkb_geometry",
+            )
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write_arrow(
+                    table,
+                    f,
+                    driver="GeoJSON",
+                    layer="test",
+                    crs=meta["crs"],
+                    geometry_type=meta["geometry_type"],
+                    geometry_name=meta["geometry_name"] or "wkb_geometry",
+                )
 
 
 @requires_arrow_write_api
