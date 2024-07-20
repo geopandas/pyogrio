@@ -218,7 +218,9 @@ jobs:
 
   test-wheels:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
-    needs: [build-wheels-linux, build-wheels-mac-win]
+    # FIXME:
+    # needs: [build-wheels-linux, build-wheels-mac-win]
+    needs: [build-wheels-mac-win]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -286,37 +288,37 @@ jobs:
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           python -m pytest --pyargs pyogrio.tests -v
 
-  publish:
-    name: Publish pyogrio to GitHub / PyPI
-    needs: [test-sdist, test-wheels]
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/pyogrio
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
-      contents: write # this permission is required for the Github release action
+  # publish:
+  #   name: Publish pyogrio to GitHub / PyPI
+  #   needs: [test-sdist, test-wheels]
+  #   runs-on: ubuntu-latest
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/pyogrio
+  #   permissions:
+  #     id-token: write # IMPORTANT: this permission is mandatory for trusted publishing to PyPI
+  #     contents: write # this permission is required for the Github release action
 
-    # release on every tag
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+  #   # release on every tag
+  #   if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: pyogrio-*
-          path: dist
-          merge-multiple: true
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         pattern: pyogrio-*
+  #         path: dist
+  #         merge-multiple: true
 
-      - name: Publish distribution to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+  #     - name: Publish distribution to PyPI
+  #       uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Version ${{ github.ref_name }}
-          tag_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-          files: dist/*.tar.gz
-          token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: Create GitHub Release
+  #       id: create_release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         name: Version ${{ github.ref_name }}
+  #         tag_name: ${{ github.ref }}
+  #         draft: false
+  #         prerelease: false
+  #         files: dist/*.tar.gz
+  #         token: ${{ secrets.GITHUB_TOKEN }}
