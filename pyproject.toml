@@ -153,6 +153,7 @@ ignore = [
 "**/tests/*" = ["D"]
 
 [tool.ruff.lint.isort]
+combine-as-imports = true
 extra-standard-library = ["packaging"]
 
 section-order = [

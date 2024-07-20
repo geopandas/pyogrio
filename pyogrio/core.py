@@ -13,24 +13,14 @@ with GDALEnv():
     from pyogrio._ogr import (
         _get_drivers_for_path,
         _register_drivers,
+        get_gdal_config_option as _get_gdal_config_option,
+        get_gdal_data_path as _get_gdal_data_path,
         get_gdal_geos_version,
         get_gdal_version,
         get_gdal_version_string,
-        ogr_list_drivers,
-    )
-    from pyogrio._ogr import (
-        get_gdal_config_option as _get_gdal_config_option,
-    )
-    from pyogrio._ogr import (
-        get_gdal_data_path as _get_gdal_data_path,
-    )
-    from pyogrio._ogr import (
         init_gdal_data as _init_gdal_data,
-    )
-    from pyogrio._ogr import (
         init_proj_data as _init_proj_data,
-    )
-    from pyogrio._ogr import (
+        ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
     )
 
