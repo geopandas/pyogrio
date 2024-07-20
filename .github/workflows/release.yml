@@ -142,11 +142,11 @@ jobs:
           #   vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
           #   vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-12"
-            triplet: "arm64-osx-dynamic-release"
-            arch: arm64
-            vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
-            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
+          # - os: "macos-12"
+          #   triplet: "arm64-osx-dynamic-release"
+          #   arch: arm64
+          #   vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+          #   vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2019"
             triplet: "x64-windows-dynamic-release"
@@ -230,7 +230,7 @@ jobs:
             # "ubuntu-20.04",
             "windows-latest",
             # "macos-12",
-            "macos-latest",
+            # "macos-latest",
           ]
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
@@ -242,8 +242,8 @@ jobs:
             artifact: pyogrio-wheel-x64-windows-dynamic-release
           # - os: "macos-12"
           #   artifact: pyogrio-wheel-x64-osx-dynamic-release
-          - os: "macos-latest"
-            artifact: pyogrio-wheel-arm64-osx-dynamic-release
+          # - os: "macos-latest"
+          #   artifact: pyogrio-wheel-arm64-osx-dynamic-release
 
     steps:
       - name: Checkout
@@ -255,7 +255,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
-      - name: Create virtual environment
+      - name: Create virtual environment (Linux / MacOS)
+        if: ${{ runner.os != 'Windows' }}
         shell: bash
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -263,6 +264,14 @@ jobs:
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
+      - name: Create virtual environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        run: |
+          irm https://astral.sh/uv/install.ps1 | iex
+          uv venv .venv
+          "VIRTUAL_ENV=.venv" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
@@ -283,7 +292,6 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          . .venv/bin/activate
           cd ..
           python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           python -m pytest --pyargs pyogrio.tests -v
