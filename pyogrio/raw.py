@@ -481,14 +481,15 @@ def _validate_metadata(dataset_metadata, layer_metadata, metadata):
         layer_metadata = metadata
 
     # validate metadata types
-    for metadata in [dataset_metadata, layer_metadata]:
-        if metadata is not None:
-            for k, v in metadata.items():
+    for meta in [dataset_metadata, layer_metadata]:
+        if meta is not None:
+            for k, v in meta.items():
                 if not isinstance(k, str):
                     raise ValueError(f"metadata key {k} must be a string")
 
                 if not isinstance(v, str):
                     raise ValueError(f"metadata value {v} must be a string")
+
     return dataset_metadata, layer_metadata
 
 

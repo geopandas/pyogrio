@@ -191,7 +191,7 @@ def test_open_arrow_pyarrow(naturalearth_lowres):
 
 
 def test_open_arrow_batch_size(naturalearth_lowres):
-    meta, table = read_arrow(naturalearth_lowres)
+    _, table = read_arrow(naturalearth_lowres)
     batch_size = math.ceil(len(table) / 2)
 
     with open_arrow(naturalearth_lowres, batch_size=batch_size, use_pyarrow=True) as (
