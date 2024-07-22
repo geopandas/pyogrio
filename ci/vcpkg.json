@@ -10,7 +10,9 @@
                 "curl",
                 "geos",
                 "iconv",
-                "libkml"
+                "libkml",
+                "libspatialite",
+                "sqlite3"
             ]
         }
     ],
