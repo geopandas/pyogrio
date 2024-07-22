@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.9.1 (yyyy-mm-dd)
+## 0.10.0 (yyyy-mm-dd)
 
 ### Bug fixes
 
@@ -8,6 +8,13 @@
 -   Enable mask & bbox filter when geometry column not read (#431).
 -   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
 -   Prevent seek on read from compressed inputs (#443).
+
+### Packaging
+
+-   The GDAL library included in the wheels is updated from 3.8.5 to GDAL 3.9.1
+    and includes the LIBKML driver (#589).
+-   Updates to manylinux_2_28 for building Linux x64 wheels; these will require
+    Linux versions with glibc >= 2.28 (#589).
 
 ## 0.9.0 (2024-06-17)
 
