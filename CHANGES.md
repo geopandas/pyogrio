@@ -2,6 +2,14 @@
 
 ## 0.9.1 (yyyy-mm-dd)
 
+### Packaging
+
+-   For the conda-forge package, change the dependency from `libgdal` to
+    `libgdal-core`. This package is significantly smaller as it doesn't contain
+    some large GDAL plugins. Extra plugins can be installed as seperate conda
+    packages if needed: more info [here](https://gdal.org/download.html#conda)
+    (#452).
+
 ### Bug fixes
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
