@@ -1534,6 +1534,23 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][2] is None
 
 
+def test_write_read_vsimem(naturalearth_lowres_vsi, use_arrow):
+    path, _ = naturalearth_lowres_vsi
+    mem_path = f"/vsimem/{str(path)}"
+
+    input = read_dataframe(path, use_arrow=use_arrow)
+    assert len(input) == 177
+
+    try:
+        write_dataframe(input, mem_path, use_arrow=use_arrow)
+        result = read_dataframe(mem_path, use_arrow=use_arrow)
+        assert len(result) == 177
+    finally:
+        # TODO: delete_vsimem_file isn't public (yet)
+        # delete_vsimem_file(mem_path)
+        pass
+
+
 @pytest.mark.parametrize(
     "wkt,geom_types",
     [
