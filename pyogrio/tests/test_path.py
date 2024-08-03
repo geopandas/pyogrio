@@ -343,11 +343,3 @@ def test_get_vsi_path_or_buffer_obj_to_string():
 def test_get_vsi_path_or_buffer_fixtures_to_string(tmp_path):
     path = tmp_path / "test.gpkg"
     assert get_vsi_path_or_buffer(path) == str(path)
-
-
-@pytest.mark.parametrize(
-    "raw_path", ["/vsimem/test.shp.zip", "/vsizip//vsimem/test.shp.zip"]
-)
-def test_vsimem_path_exception(raw_path):
-    with pytest.raises(ValueError, match=""):
-        vsi_path(raw_path)

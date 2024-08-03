@@ -13,12 +13,12 @@ import os
 import sys
 import warnings
 
+from io import BytesIO
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
 from cpython.pycapsule cimport PyCapsule_GetPointer
-
 cimport cython
 from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 
@@ -2250,7 +2250,7 @@ def ogr_write(
     cdef int num_records = -1
     cdef int num_field_data = len(field_data) if field_data is not None else 0
     cdef int num_fields = len(fields) if fields is not None else 0
-    cdef bint is_vsi = False
+    cdef bint is_tmp_vsi = False
 
     if num_fields != num_field_data:
         raise ValueError("field_data array needs to be same length as fields array")
@@ -2291,12 +2291,16 @@ def ogr_write(
 
     try:
         # Setup in-memory handler if needed
-        path = get_ogr_vsimem_write_path(path_or_fp, driver)
-        is_vsi = path.startswith('/vsimem/')
+        if isinstance(path_or_fp, str):
+            path = path_or_fp
+            is_tmp_vsi = False
+        else:
+            path = get_ogr_vsimem_write_path(path_or_fp, driver)
+            is_tmp_vsi = path.startswith('/vsimem/')
 
         # Setup dataset and layer
         layer_created = create_ogr_dataset_layer(
-            path, is_vsi, layer, driver, crs, geometry_type, encoding,
+            path, is_tmp_vsi, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
             dataset_metadata, layer_metadata,
             &ogr_dataset, &ogr_layer,
@@ -2501,7 +2505,7 @@ def ogr_write(
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
         # copy in-memory file back to path_or_fp object
-        if is_vsi:
+        if is_tmp_vsi:
             read_vsimem_to_buffer(path, path_or_fp)
 
     finally:
@@ -2523,7 +2527,7 @@ def ogr_write(
         if ogr_dataset != NULL:
             ogr_close(ogr_dataset)
 
-        if is_vsi:
+        if is_tmp_vsi:
             delete_vsimem_file(path)
 
 
@@ -2548,7 +2552,7 @@ def ogr_write_arrow(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
-    cdef bint is_vsi = False
+    cdef bint is_tmp_vsi = False
     cdef ArrowArrayStream* stream = NULL
     cdef ArrowSchema schema
     cdef ArrowArray array
@@ -2557,11 +2561,16 @@ def ogr_write_arrow(
     array.release = NULL
 
     try:
-        path = get_ogr_vsimem_write_path(path_or_fp, driver)
-        is_vsi = path.startswith('/vsimem/')
+        # Setup in-memory handler if needed
+        if isinstance(path_or_fp, str):
+            path = path_or_fp
+            is_tmp_vsi = False
+        else:
+            path = get_ogr_vsimem_write_path(path_or_fp, driver)
+            is_tmp_vsi = path.startswith('/vsimem/')
 
         layer_created = create_ogr_dataset_layer(
-            path, is_vsi, layer, driver, crs, geometry_type, encoding,
+            path, is_tmp_vsi, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
             dataset_metadata, layer_metadata,
             &ogr_dataset, &ogr_layer,
@@ -2622,7 +2631,7 @@ def ogr_write_arrow(
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
         # copy in-memory file back to path_or_fp object
-        if is_vsi:
+        if is_tmp_vsi:
             read_vsimem_to_buffer(path, path_or_fp)
 
     finally:
@@ -2642,7 +2651,7 @@ def ogr_write_arrow(
         if ogr_dataset != NULL:
             ogr_close(ogr_dataset)
 
-        if is_vsi:
+        if is_tmp_vsi:
             delete_vsimem_file(path)
 
 

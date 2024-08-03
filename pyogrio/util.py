@@ -52,11 +52,6 @@ def vsi_path(path: str) -> str:
 
     """
 
-    if "/vsimem/" in path:
-        raise ValueError(
-            "path cannot contain /vsimem/ directly; to use an in-memory dataset a bytes object must be passed instead"
-        )
-
     # path is already in GDAL format
     if path.startswith("/vsi"):
         return path
