@@ -68,6 +68,7 @@ cdef extern from "cpl_vsi.h" nogil:
     unsigned char   *VSIGetMemFileBuffer(const char *path, vsi_l_offset *data_len, int take_ownership)
 
     int     VSIMkdir(const char *path, long mode)
+    int     VSIMkdirRecursive(const char *path, long mode)
     int     VSIRmdirRecursive(const char *pszDirname)
 
 
