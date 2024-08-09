@@ -16,6 +16,7 @@ from pyogrio._compat import (
     HAS_PYARROW,
     HAS_SHAPELY,
 )
+from pyogrio.core import vsi_rmtree
 from pyogrio.raw import read, write
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
@@ -34,6 +35,15 @@ DRIVERS = {
 DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
 
 ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
+
+START_FID = {
+    ".fgb": 0,
+    ".geojson": 0,
+    ".geojsonl": 0,
+    ".geojsons": 0,
+    ".gpkg": 1,
+    ".shp": 0,
+}
 
 
 def pytest_report_header(config):
@@ -120,6 +130,21 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
             out.write(naturalearth_lowres.parent / filename, filename)
 
     return path, f"/vsizip/{path}/{naturalearth_lowres.name}"
+
+
+@pytest.fixture(scope="function")
+def naturalearth_lowres_vsimem(naturalearth_lowres):
+    """Write naturalearth_lowres to a vsimem file for vsi tests"""
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    dst_path = Path(f"/vsimem/pyogrio_test/{naturalearth_lowres.stem}.gpkg")
+    meta["spatial_index"] = False
+    meta["geometry_type"] = "MultiPolygon"
+
+    write(dst_path, geometry, field_data, **meta)
+    yield dst_path
+
+    vsi_rmtree(dst_path.parent)
 
 
 @pytest.fixture(scope="session")

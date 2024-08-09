@@ -1,5 +1,7 @@
+import fnmatch
 from io import BytesIO
 from uuid import uuid4
+
 
 from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy
@@ -17,7 +19,7 @@ cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
     sibling files (though drivers that create sibling files are not supported for
     in-memory files).
 
-    Caller is responsible for deleting the directory via delete_vsimem_file()
+    Caller is responsible for deleting the directory via vsimem_rmtree_toplevel()
 
     Parameters
     ----------
@@ -28,8 +30,13 @@ cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
     if not isinstance(path_or_fp, BytesIO):
         return path_or_fp
 
-    # Create in-memory directory to contain auxiliary files
-    memfilename = uuid4().hex
+    # check for existing bytes
+    if path_or_fp.getbuffer().nbytes > 0:
+        raise NotImplementedError("writing to existing in-memory object is not supported")
+
+    # Create in-memory directory to contain auxiliary files.
+    # Prefix with "pyogrio_" so it is clear the directory was created by pyogrio. 
+    memfilename = f"pyogrio_{uuid4().hex}"
     VSIMkdir(f"/vsimem/{memfilename}".encode("UTF-8"), 0666)
 
     # file extension is required for some drivers, set it based on driver metadata
@@ -39,10 +46,6 @@ cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
         ext = "." + recommended_ext.split(" ")[0]
 
     path = f"/vsimem/{memfilename}/{memfilename}{ext}"
-
-    # check for existing bytes
-    if path_or_fp.getbuffer().nbytes > 0:
-        raise NotImplementedError("writing to existing in-memory object is not supported")
 
     return path
 
@@ -54,7 +57,8 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     will be prefixed with /vsizip/ and suffixed with .zip to enable proper
     reading by GDAL.
 
-    Caller is responsible for deleting the in-memory file via delete_vsimem_file().
+    Caller is responsible for deleting the in-memory file via
+    vsimem_rmtree_toplevel().
 
     Parameters
     ----------
@@ -65,12 +69,15 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     is_zipped = len(bytes_buffer) > 4 and bytes_buffer[:4].startswith(b"PK\x03\x04")
     ext = ".zip" if is_zipped else ""
 
-    path = f"/vsimem/{uuid4().hex}{ext}"
+    # Prefix with "pyogrio_" so it is clear the file was created by pyogrio. 
+    path = f"/vsimem/pyogrio_{uuid4().hex}{ext}"
 
     # Create an in-memory object that references bytes_buffer
     # NOTE: GDAL does not copy the contents of bytes_buffer; it must remain
     # in scope through the duration of using this file
-    vsi_handle = VSIFileFromMemBuffer(path.encode("UTF-8"), <unsigned char *>bytes_buffer, num_bytes, 0)
+    vsi_handle = VSIFileFromMemBuffer(
+        path.encode("UTF-8"), <unsigned char *>bytes_buffer, num_bytes, 0
+    )
 
     if vsi_handle == NULL:
         raise OSError("failed to read buffer into in-memory file")
@@ -88,8 +95,8 @@ cdef read_vsimem_to_buffer(str path, object out_buffer):
     """Copy bytes from in-memory file to buffer
 
     This will automatically unlink the in-memory file pointed to by path; caller
-    is still responsible for calling delete_vsimem_file() to cleanup any other
-    files contained in the in-memory directory.
+    is still responsible for calling vsimem_rmtree_toplevel() to cleanup any
+    other files contained in the in-memory directory.
 
     Parameters:
     -----------
@@ -118,23 +125,154 @@ cdef read_vsimem_to_buffer(str path, object out_buffer):
             CPLFree(vsi_buffer)
 
 
-cdef delete_vsimem_file(str path):
-    """ Recursively delete in-memory path or directory containing path
+cpdef vsimem_rmtree_toplevel(str path):
+    """Remove the toplevel file or toplevel directory containing the file.
 
-    This is used for final cleanup of an in-memory dataset, which may have been
-    created within a directory to contain sibling files.
+    This is used for final cleanup of an in-memory dataset. The path can point
+    to either:
+    - a toplevel file (directly in /vsimem/).
+    - a file in a directory, with possibly some sibling files.
+    - a zip file, which apparently is reported as a directory by VSI_ISDIR.
+
+    Except for the first case, the toplevel directory (direct subdirectory of
+    /vsimem/) will be determined and will be removed recursively.
 
     Additional VSI handlers may be chained to the left of /vsimem/ in path and
     will be ignored.
+
+    Even though it is only meant for "internal use", the function is declared
+    as cpdef, so it can be called from tests as well.
 
     Parameters:
     -----------
     path : str
         path to in-memory file
+
     """
+    cdef VSIStatBufL st_buf
 
     if "/vsimem/" not in path:
-        return
+        raise ValueError(f"Path is not a /vsimem/ path: '{path}'")
 
-    root = "/vsimem/" + path.split("/vsimem/")[1].split("/")[0]
-    VSIRmdirRecursive(root.encode("UTF-8"))
+    # Determine the toplevel directory of the file
+    mempath_parts = path.split("/vsimem/")[1].split("/")
+    if len(mempath_parts) == 0:
+        raise OSError("Removing /vsimem/ is not supported")
+
+    toplevel_path = f"/vsimem/{mempath_parts[0]}"
+
+    if not VSIStatL(toplevel_path.encode("UTF-8"), &st_buf) == 0:
+        raise FileNotFoundError(f"Path does not exist: '{path}'")
+    if VSI_ISDIR(st_buf.st_mode):
+        errcode = VSIRmdirRecursive(toplevel_path.encode("UTF-8"))
+    else:
+        errcode = VSIUnlink(toplevel_path.encode("UTF-8"))
+
+    if errcode != 0:
+        raise OSError(f"Error removing '{path}': {errcode=}")
+
+
+def ogr_vsi_listtree(str path, str pattern=None):
+    """Recursively list the contents in a vsi directory.
+
+    An fnmatch pattern can be specified to filter the directories/files
+    returned.
+
+    Parameters:
+    -----------
+    path : str
+        Path to the vsi directory to be listed.
+    pattern : str
+        Fnmatch pattern to filter results.
+
+    """
+    cdef const char *path_c
+    cdef int n
+    cdef char** papszFiles
+    cdef VSIStatBufL st_buf
+
+    try:
+        path_b = path.encode("utf-8")
+    except UnicodeDecodeError:
+        path_b = path
+    path_c = path_b
+    if not VSIStatL(path_c, &st_buf) == 0:
+        raise FileNotFoundError(f"Path does not exist: '{path}'")
+    if not VSI_ISDIR(st_buf.st_mode):
+        raise NotADirectoryError(f"Path is not a directory: '{path}'")
+
+    papszFiles = VSIReadDirRecursive(path_c)
+    n = CSLCount(<CSLConstList>papszFiles)
+    files = []
+    for i in range(n):
+        files.append(papszFiles[i].decode("utf-8"))
+    CSLDestroy(papszFiles)
+
+    # Apply filter pattern
+    if pattern is not None:
+        files = fnmatch.filter(files, pattern)
+
+    # Prepend files with the base path
+    if not path.endswith("/"):
+        path = f"{path}/"
+    files = [f"{path}{file}" for file in files]
+    
+    return files
+
+
+def ogr_vsi_rmtree(str path):
+    """Recursively remove vsi directory.
+
+    Parameters:
+    -----------
+    path : str
+        path to the vsi directory to be removed.
+
+    """
+    cdef const char *path_c
+    cdef VSIStatBufL st_buf
+
+    try:
+        path_b = path.encode("utf-8")
+    except UnicodeDecodeError:
+        path_b = path
+    path_c = path_b
+    if not VSIStatL(path_c, &st_buf) == 0:
+        raise FileNotFoundError(f"Path does not exist: '{path}'")
+    if not VSI_ISDIR(st_buf.st_mode):
+        raise NotADirectoryError(f"Path is not a directory: '{path}'")
+    if path.endswith("/vsimem") or path.endswith("/vsimem/"):
+        raise OSError("Removing /vsimem/ is not supported")
+
+    errcode = VSIRmdirRecursive(path_c)
+
+    if errcode != 0:
+        raise OSError(f"Error in rmtree of '{path}': {errcode=}")
+
+
+def ogr_vsi_unlink(str path):
+    """Remove vsi file.
+
+    Parameters:
+    -----------
+    path : str
+        path to the vsi file to be removed.
+
+    """
+    cdef const char *path_c
+    cdef VSIStatBufL st_buf
+
+    try:
+        path_b = path.encode("utf-8")
+    except UnicodeDecodeError:
+        path_b = path
+    path_c = path_b
+    if not VSIStatL(path_c, &st_buf) == 0:
+        raise FileNotFoundError(f"Path does not exist: '{path}'")
+    if VSI_ISDIR(st_buf.st_mode):
+        raise IsADirectoryError(f"Path is a directory: '{path}'")
+
+    errcode = VSIUnlink(path_c)
+
+    if errcode != 0:
+        raise OSError(f"Error removing '{path}': {errcode=}")

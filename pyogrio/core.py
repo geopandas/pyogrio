@@ -1,3 +1,5 @@
+from pathlib import Path
+from typing import Union
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
     get_vsi_path_or_buffer,
@@ -22,6 +24,12 @@ with GDALEnv():
     )
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
+    from pyogrio._vsi import (
+        ogr_vsi_listtree,
+        ogr_vsi_rmtree,
+        ogr_vsi_unlink,
+        vsimem_rmtree_toplevel,
+    )
 
     _init_gdal_data()
     _init_proj_data()
@@ -318,3 +326,76 @@ def get_gdal_data_path():
     str, or None if data directory was not found
     """
     return _get_gdal_data_path()
+
+
+def vsi_listtree(path: Union[str, Path], pattern: str = None):
+    """Recursively list the contents in a vsi directory.
+
+    An fnmatch pattern can be specified to filter the directories/files
+    returned.
+
+    Parameters:
+    -----------
+    path : str or pathlib.Path
+        Path to the vsi directory to be listed.
+    pattern : str, optional
+        Fnmatch pattern to filter results.
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    return ogr_vsi_listtree(path, pattern=pattern)
+
+
+def vsi_rmtree(path: Union[str, Path]):
+    """Recursively remove vsi directory.
+
+    Parameters:
+    -----------
+    path : str or pathlib.Path
+        path to the vsi directory to be removed.
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    ogr_vsi_rmtree(path)
+
+
+def vsi_unlink(path: Union[str, Path]):
+    """Remove a vsi file.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        path to vsimem file to be removed
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    ogr_vsi_unlink(path)
+
+
+def _vsimem_rmtree_toplevel(path: Union[str, Path]):
+    """Remove the parent directory of the file path recursively.
+
+    This is used for final cleanup of an in-memory dataset, which may have been
+    created within a directory to contain sibling files.
+
+    Additional VSI handlers may be chained to the left of /vsimem/ in path and
+    will be ignored.
+
+    Remark: function is defined here to be able to run tests on it.
+
+    Parameters:
+    -----------
+    path : str or pathlib.Path
+        path to in-memory file
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    vsimem_rmtree_toplevel(path)

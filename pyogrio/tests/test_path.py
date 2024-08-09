@@ -32,6 +32,7 @@ def change_cwd(path):
     [
         # local file paths that should be passed through as is
         ("data.gpkg", "data.gpkg"),
+        (Path("data.gpkg"), "data.gpkg"),
         ("/home/user/data.gpkg", "/home/user/data.gpkg"),
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
@@ -84,6 +85,8 @@ def change_cwd(path):
             "s3://testing/test.zip!a/b/item.shp",
             "/vsizip/vsis3/testing/test.zip/a/b/item.shp",
         ),
+        ("/vsimem/data.gpkg", "/vsimem/data.gpkg"),
+        (Path("/vsimem/data.gpkg"), "/vsimem/data.gpkg"),
     ],
 )
 def test_vsi_path(path, expected):
@@ -335,9 +338,15 @@ def test_uri_s3_dataframe(aws_env_setup):
     assert len(df) == 67
 
 
-def test_get_vsi_path_or_buffer_obj_to_string():
-    path = Path("/tmp/test.gpkg")
-    assert get_vsi_path_or_buffer(path) == str(path)
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        (Path("/tmp/test.gpkg"), str(Path("/tmp/test.gpkg"))),
+        (Path("/vsimem/test.gpkg"), "/vsimem/test.gpkg"),
+    ],
+)
+def test_get_vsi_path_or_buffer_obj_to_string(path, expected):
+    assert get_vsi_path_or_buffer(path) == expected
 
 
 def test_get_vsi_path_or_buffer_fixtures_to_string(tmp_path):

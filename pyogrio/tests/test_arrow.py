@@ -18,6 +18,7 @@ from pyogrio import (
     list_layers,
     get_gdal_config_option,
     set_gdal_config_options,
+    vsi_listtree,
 )
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
 from pyogrio.errors import DataSourceError, FieldError, DataLayerError
@@ -161,6 +162,9 @@ def test_read_arrow_vsi(naturalearth_lowres_vsi):
     table = read_arrow(naturalearth_lowres_vsi[1])[1]
     assert len(table) == 177
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 def test_read_arrow_bytes(geojson_bytes):
     meta, table = read_arrow(geojson_bytes)
@@ -168,11 +172,17 @@ def test_read_arrow_bytes(geojson_bytes):
     assert meta["fields"].shape == (5,)
     assert len(table) == 3
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 def test_read_arrow_nonseekable_bytes(nonseekable_bytes):
     meta, table = read_arrow(nonseekable_bytes)
     assert meta["fields"].shape == (0,)
     assert len(table) == 1
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 def test_read_arrow_filelike(geojson_filelike):
@@ -180,6 +190,9 @@ def test_read_arrow_filelike(geojson_filelike):
 
     assert meta["fields"].shape == (5,)
     assert len(table) == 3
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 def test_open_arrow_pyarrow(naturalearth_lowres):
@@ -884,6 +897,9 @@ def test_write_memory_driver_required(naturalearth_lowres):
             geometry_name=meta["geometry_name"] or "wkb_geometry",
         )
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 @requires_arrow_write_api
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
@@ -989,6 +1005,9 @@ def test_write_open_file_handle(tmp_path, naturalearth_lowres):
                     geometry_type=meta["geometry_type"],
                     geometry_name=meta["geometry_name"] or "wkb_geometry",
                 )
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 @requires_arrow_write_api

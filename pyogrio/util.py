@@ -1,6 +1,7 @@
 from pathlib import Path
 import re
 import sys
+from typing import Union
 from urllib.parse import urlparse
 
 from packaging.version import Version
@@ -27,9 +28,10 @@ def get_vsi_path_or_buffer(path_or_buffer):
     str or bytes
     """
 
-    # force path objects to string to specifically ignore their read method
+    # treat Path objects here already to ignore their read method + to avoid backslashes
+    # on Windows.
     if isinstance(path_or_buffer, Path):
-        return vsi_path(str(path_or_buffer))
+        return vsi_path(path_or_buffer)
 
     if isinstance(path_or_buffer, bytes):
         return path_or_buffer
@@ -46,11 +48,17 @@ def get_vsi_path_or_buffer(path_or_buffer):
     return vsi_path(str(path_or_buffer))
 
 
-def vsi_path(path: str) -> str:
+def vsi_path(path: Union[str, Path]) -> str:
     """
     Ensure path is a local path or a GDAL-compatible vsi path.
 
     """
+    # Convert Path objects to string, but for vsi paths, keep posix style path.
+    if isinstance(path, Path):
+        if sys.platform == "win32" and path.as_posix().startswith("/vsi"):
+            path = path.as_posix()
+        else:
+            path = str(path)
 
     # path is already in GDAL format
     if path.startswith("/vsi"):

@@ -36,6 +36,10 @@ cdef extern from "cpl_error.h" nogil:
     void CPLPopErrorHandler()
 
 
+cdef extern from "cpl_port.h":
+    ctypedef char **CSLConstList
+
+
 cdef extern from "cpl_string.h":
     char**      CSLAddNameValue(char **list, const char *name, const char *value)
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
@@ -53,6 +57,9 @@ cdef extern from "cpl_vsi.h" nogil:
         long st_mode
         int st_mtime
 
+    int         VSIStatL(const char *pszFilename, VSIStatBufL *psStatBuf)
+    int         VSI_ISDIR(int mode)
+    char**      VSIReadDirRecursive(const char *path)
     int         VSIFCloseL(VSILFILE *fp)
     int         VSIFFlushL(VSILFILE *fp)
     int         VSIUnlink(const char *path)
