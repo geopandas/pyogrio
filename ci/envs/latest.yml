@@ -8,4 +8,5 @@ dependencies:
   - shapely>=2
   - geopandas-base
   - pyarrow
+  - pyproj
 
