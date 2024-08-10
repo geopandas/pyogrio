@@ -57,7 +57,7 @@ cdef extern from "cpl_vsi.h" nogil:
         long st_mode
         int st_mtime
 
-    int         VSIStatL(const char *pszFilename, VSIStatBufL *psStatBuf)
+    int         VSIStatL(const char *path, VSIStatBufL *psStatBuf)
     int         VSI_ISDIR(int mode)
     char**      VSIReadDirRecursive(const char *path)
     int         VSIFCloseL(VSILFILE *fp)
@@ -69,7 +69,7 @@ cdef extern from "cpl_vsi.h" nogil:
 
     int     VSIMkdir(const char *path, long mode)
     int     VSIMkdirRecursive(const char *path, long mode)
-    int     VSIRmdirRecursive(const char *pszDirname)
+    int     VSIRmdirRecursive(const char *path)
 
 
 cdef extern from "ogr_core.h":
