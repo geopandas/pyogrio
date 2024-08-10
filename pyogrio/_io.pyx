@@ -1932,12 +1932,15 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
     except CPLE_BaseError as exc:
         raise DataSourceError(str(exc))
 
-    # If it is a vsimem file, create directories first to support GDAL < 3.8. Starting
-    # from GDAL 3.8 directories are created automatically.
-    if "/vsimem/" in str(path_c):
-        parent = Path(str(path_c)).parent.as_posix()
-        if not parent.endswith("/vsimem"):
-            VSIMkdirRecursive(parent.encode("utf-8"), 0666)
+    # For /vsimem/ files, with GDAL >= 3.8 parent directories are created automatically.
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        path = path_c.decode("UTF-8")
+        if "/vsimem/" in path:
+            parent = f"{Path(path).parent.as_posix()}"
+            if not parent.endswith("/vsimem"):
+                retcode = VSIMkdirRecursive(parent.encode("UTF-8"), 0666)
+                if retcode != 0:
+                    raise OSError(f"Could not create parent directory '{parent}'")
 
     # Create the dataset
     try:
