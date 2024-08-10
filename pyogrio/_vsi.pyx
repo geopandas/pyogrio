@@ -172,7 +172,7 @@ cpdef vsimem_rmtree_toplevel(str path):
         raise OSError(f"Error removing '{path}': {errcode=}")
 
 
-def ogr_vsi_listtree(str path, str pattern=None):
+def ogr_vsi_listtree(str path, str pattern):
     """Recursively list the contents in a vsi directory.
 
     An fnmatch pattern can be specified to filter the directories/files
@@ -183,7 +183,7 @@ def ogr_vsi_listtree(str path, str pattern=None):
     path : str
         Path to the vsi directory to be listed.
     pattern : str
-        Fnmatch pattern to filter results.
+        Pattern to filter results, in fnmatch format.
 
     """
     cdef const char *path_c
@@ -192,7 +192,7 @@ def ogr_vsi_listtree(str path, str pattern=None):
     cdef VSIStatBufL st_buf
 
     try:
-        path_b = path.encode("utf-8")
+        path_b = path.encode("UTF-8")
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
@@ -205,7 +205,7 @@ def ogr_vsi_listtree(str path, str pattern=None):
     n = CSLCount(<CSLConstList>papszFiles)
     files = []
     for i in range(n):
-        files.append(papszFiles[i].decode("utf-8"))
+        files.append(papszFiles[i].decode("UTF-8"))
     CSLDestroy(papszFiles)
 
     # Apply filter pattern
@@ -233,7 +233,7 @@ def ogr_vsi_rmtree(str path):
     cdef VSIStatBufL st_buf
 
     try:
-        path_b = path.encode("utf-8")
+        path_b = path.encode("UTF-8")
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
@@ -245,7 +245,6 @@ def ogr_vsi_rmtree(str path):
         raise OSError("Removing /vsimem/ is not supported")
 
     errcode = VSIRmdirRecursive(path_c)
-
     if errcode != 0:
         raise OSError(f"Error in rmtree of '{path}': {errcode=}")
 
@@ -263,7 +262,7 @@ def ogr_vsi_unlink(str path):
     cdef VSIStatBufL st_buf
 
     try:
-        path_b = path.encode("utf-8")
+        path_b = path.encode("UTF-8")
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
@@ -273,6 +272,5 @@ def ogr_vsi_unlink(str path):
         raise IsADirectoryError(f"Path is a directory: '{path}'")
 
     errcode = VSIUnlink(path_c)
-
     if errcode != 0:
         raise OSError(f"Error removing '{path}': {errcode=}")

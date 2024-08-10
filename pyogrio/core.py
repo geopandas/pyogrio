@@ -339,7 +339,7 @@ def vsi_listtree(path: Union[str, Path], pattern: str = None):
     path : str or pathlib.Path
         Path to the vsi directory to be listed.
     pattern : str, optional
-        Fnmatch pattern to filter results.
+        Pattern to filter results, in fnmatch format.
 
     """
     if isinstance(path, Path):
