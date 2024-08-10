@@ -18,11 +18,11 @@ jobs:
           python-version: "3.11"
       - uses: pre-commit/action@v3.0.1
 
-  Tests-conda:
+  Call-tests-conda:
     needs: [Linting]  # require linting to pass before tests run
     uses: ./.github/workflows/tests-conda.yml
   
-  Tests-docker-gdal:
+  Call-tests-docker-gdal:
     needs: [Linting]  # require linting to pass before tests run
     uses: ./.github/workflows/docker-gdal.yml
   
