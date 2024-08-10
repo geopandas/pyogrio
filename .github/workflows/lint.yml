@@ -1,11 +1,6 @@
 name: Linting
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:
+on: [workflow_call]  # Linting will be called from the test workflows.
 
 jobs:
   Linting:

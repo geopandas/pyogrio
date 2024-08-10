@@ -13,7 +13,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml  # use the callable lint job to lint
+
   test:
+    needs: [lint]  # require linting to pass before tests run
     name: ${{ matrix.os }}, python ${{ matrix.python }}, ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     defaults:
