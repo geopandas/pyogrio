@@ -65,6 +65,17 @@ def use_arrow(request):
     return request.param
 
 
+@pytest.fixture(
+    scope="session",
+    params=[
+        False,
+        pytest.param(True, marks=requires_arrow_write_api),
+    ],
+)
+def use_arrow_write(request):
+    return request.param
+
+
 @pytest.fixture(autouse=True)
 def skip_if_no_arrow_write_api(request):
     # automatically skip tests with use_arrow=True and that require Arrow write
@@ -1539,16 +1550,16 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][2] is None
 
 
-def test_write_read_vsimem(naturalearth_lowres_vsi, use_arrow):
+def test_write_read_vsimem(naturalearth_lowres_vsi, use_arrow_write):
     path, _ = naturalearth_lowres_vsi
     mem_path = f"/vsimem/{path.name}"
 
-    input = read_dataframe(path, use_arrow=use_arrow)
+    input = read_dataframe(path, use_arrow=use_arrow_write)
     assert len(input) == 177
 
     try:
-        write_dataframe(input, mem_path, use_arrow=use_arrow)
-        result = read_dataframe(mem_path, use_arrow=use_arrow)
+        write_dataframe(input, mem_path, use_arrow=use_arrow_write)
+        result = read_dataframe(mem_path, use_arrow=use_arrow_write)
         assert len(result) == 177
     finally:
         vsi_unlink(mem_path)
