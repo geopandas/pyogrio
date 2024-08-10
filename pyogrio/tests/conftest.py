@@ -137,7 +137,8 @@ def naturalearth_lowres_vsimem(naturalearth_lowres):
     """Write naturalearth_lowres to a vsimem file for vsi tests"""
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
-    dst_path = Path(f"/vsimem/pyogrio_test/{naturalearth_lowres.stem}.gpkg")
+    name = f"pyogrio_fixture_{naturalearth_lowres.stem}"
+    dst_path = Path(f"/vsimem/{name}/{name}.gpkg")
     meta["spatial_index"] = False
     meta["geometry_type"] = "MultiPolygon"
 
