@@ -1934,8 +1934,8 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
 
     # If it is a vsimem file, create directories first to support GDAL < 3.8. Starting
     # from GDAL 3.8 directories are created automatically.
-    if "/vsimem/" in path_c:
-        VSIMkdirRecursive(Path(path_c).parent.as_posix().encode("utf-8"), 0666)
+    if "/vsimem/" in str(path_c):
+        VSIMkdirRecursive(Path(str(path_c)).parent.as_posix().encode("utf-8"), 0666)
 
     # Create the dataset
     try:
