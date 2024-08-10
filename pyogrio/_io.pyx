@@ -1185,7 +1185,7 @@ def ogr_read(
     ):
 
     cdef int err = 0
-    cdef bint is_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1225,7 +1225,7 @@ def ogr_read(
         raise ValueError("'max_features' must be >= 0")
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_tmp_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             # for shapefiles, SHAPE_ENCODING must be set before opening the file
@@ -1363,7 +1363,7 @@ def ogr_read(
                 CPLFree(<void*>prev_shape_encoding)
                 prev_shape_encoding = NULL
 
-        if is_tmp_vsimem:
+        if use_tmp_vsimem:
             vsimem_rmtree_toplevel(path)
 
     return (
@@ -1425,7 +1425,7 @@ def ogr_open_arrow(
 ):
 
     cdef int err = 0
-    cdef bint is_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1481,7 +1481,7 @@ def ogr_open_arrow(
 
     reader = None
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_tmp_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             override_shape_encoding = True
@@ -1680,7 +1680,7 @@ def ogr_open_arrow(
                 CPLFree(<void*>prev_shape_encoding)
                 prev_shape_encoding = NULL
 
-        if is_tmp_vsimem:
+        if use_tmp_vsimem:
             vsimem_rmtree_toplevel(path)
 
 
@@ -1698,7 +1698,7 @@ def ogr_read_bounds(
     object mask=None):
 
     cdef int err = 0
-    cdef bint is_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1716,7 +1716,7 @@ def ogr_read_bounds(
         raise ValueError("'max_features' must be >= 0")
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_tmp_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
         ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
 
         if layer is None:
@@ -1745,7 +1745,7 @@ def ogr_read_bounds(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        if is_tmp_vsimem:
+        if use_tmp_vsimem:
             vsimem_rmtree_toplevel(path)
 
     return bounds
@@ -1759,7 +1759,7 @@ def ogr_read_info(
     int force_feature_count=False,
     int force_total_bounds=False):
 
-    cdef bint is_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1768,7 +1768,7 @@ def ogr_read_info(
     cdef bint override_shape_encoding = False
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_tmp_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             override_shape_encoding = True
@@ -1827,19 +1827,19 @@ def ogr_read_info(
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
 
-        if is_tmp_vsimem:
+        if use_tmp_vsimem:
             vsimem_rmtree_toplevel(path)
 
     return meta
 
 
 def ogr_list_layers(object path_or_buffer):
-    cdef bint is_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_tmp_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
         ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
         layers = get_layer_names(ogr_dataset)
 
@@ -1848,7 +1848,7 @@ def ogr_list_layers(object path_or_buffer):
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        if is_tmp_vsimem:
+        if use_tmp_vsimem:
             vsimem_rmtree_toplevel(path)
 
     return layers
@@ -2025,7 +2025,7 @@ cdef infer_field_types(list dtypes):
 
 cdef create_ogr_dataset_layer(
     str path,
-    bint is_tmp_vsimem,
+    bint use_tmp_vsimem,
     str layer,
     str driver,
     str crs,
@@ -2059,7 +2059,7 @@ cdef create_ogr_dataset_layer(
     encoding : str
         Only used if `driver` is "ESRI Shapefile". If not None, it overrules the default
         shapefile encoding, which is "UTF-8" in pyogrio.
-    is_tmp_vsimem : bool
+    use_tmp_vsimem : bool
         Whether the file path is meant to save a temporary memory file to.
 
     Returns
@@ -2089,7 +2089,7 @@ cdef create_ogr_dataset_layer(
     driver_c = driver_b
 
     # temporary in-memory dataset is always created from scratch
-    path_exists = os.path.exists(path) if not is_tmp_vsimem else False
+    path_exists = os.path.exists(path) if not use_tmp_vsimem else False
 
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
@@ -2125,7 +2125,7 @@ cdef create_ogr_dataset_layer(
                 raise exc
 
             # otherwise create from scratch
-            if is_tmp_vsimem:
+            if use_tmp_vsimem:
                 VSIUnlink(path_c)
             else:
                 os.unlink(path)
