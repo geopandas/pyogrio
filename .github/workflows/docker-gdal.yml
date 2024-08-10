@@ -1,11 +1,6 @@
 name: Docker GDAL Test
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:
+on: [workflow_call]  # will be called from lint workflow.
 
 # cancel running jobs on new commit to PR
 concurrency:
@@ -13,11 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    uses: ./.github/workflows/lint.yml  # use the callable lint job to lint
-
   TestLinux:
-    needs: [lint]  # require linting to pass before tests run
     name: GDAL ${{ matrix.container }}
     runs-on: ubuntu-latest
     strategy:

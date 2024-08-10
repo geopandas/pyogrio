@@ -1,11 +1,6 @@
 name: Conda Tests
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-  workflow_dispatch:
+on: [workflow_call]  # will be called from lint workflow.
 
 # cancel running jobs on new commit to PR
 concurrency:
@@ -13,11 +8,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    uses: ./.github/workflows/lint.yml  # use the callable lint job to lint
-
   test:
-    needs: [lint]  # require linting to pass before tests run
     name: ${{ matrix.os }}, python ${{ matrix.python }}, ${{ matrix.env }}
     runs-on: ${{ matrix.os }}
     defaults:

@@ -1,6 +1,11 @@
 name: Linting
 
-on: [workflow_call]  # Linting will be called from the test workflows.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   Linting:
@@ -12,3 +17,12 @@ jobs:
         with:
           python-version: "3.11"
       - uses: pre-commit/action@v3.0.1
+
+  Tests-conda:
+    needs: [Linting]  # require linting to pass before tests run
+    uses: ./.github/workflows/tests-conda.yml
+  
+  Tests-docker-gdal:
+    needs: [Linting]  # require linting to pass before tests run
+    uses: ./.github/workflows/docker-gdal.yml
+  
