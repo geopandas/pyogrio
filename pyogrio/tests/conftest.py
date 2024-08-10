@@ -142,7 +142,7 @@ def naturalearth_lowres_vsimem(naturalearth_lowres):
     meta["spatial_index"] = False
     meta["geometry_type"] = "MultiPolygon"
 
-    write(dst_path, geometry, field_data, **meta)
+    write(dst_path, geometry, field_data, layer="naturalearth_lowres", **meta)
     yield dst_path
 
     vsi_rmtree(dst_path.parent)
