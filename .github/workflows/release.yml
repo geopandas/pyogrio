@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.9.1"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.9.2"
 
     steps:
       - name: Install packages
@@ -121,7 +121,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        uses: pypa/cibuildwheel@v2.20.0
 
       - uses: actions/upload-artifact@v4
         with:
@@ -168,7 +168,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.9.1-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.9.2-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -204,7 +204,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        uses: pypa/cibuildwheel@v2.20.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
