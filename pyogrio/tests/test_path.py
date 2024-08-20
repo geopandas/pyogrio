@@ -5,6 +5,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyogrio
 import pyogrio.raw
+from pyogrio._compat import HAS_PYPROJ
 from pyogrio.util import get_vsi_path_or_buffer, vsi_path
 
 import pytest
@@ -238,6 +239,9 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
     path = tmp_path / "test.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
         for ext in ["dbf", "prj", "shp", "shx"]:
+            if not HAS_PYPROJ and ext == "prj":
+                continue
+
             filename = f"test1.{ext}"
             out.write(tmp_path / filename, filename)
 

@@ -8,7 +8,7 @@ from zipfile import ZipFile
 import numpy as np
 
 from pyogrio import __gdal_version__, list_drivers, list_layers, read_info
-from pyogrio._compat import HAS_ARROW_WRITE_API, PANDAS_GE_15
+from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -21,6 +21,7 @@ from pyogrio.tests.conftest import (
     requires_arrow_write_api,
     requires_gdal_geos,
     requires_pyarrow_api,
+    requires_pyproj,
 )
 
 import pytest
@@ -127,7 +128,8 @@ def test_read_csv_platform_encoding(tmp_path):
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
-    assert df.crs == "EPSG:4326"
+    if HAS_PYPROJ:
+        assert df.crs == "EPSG:4326"
     assert len(df) == 177
     assert df.columns.tolist() == [
         "pop_est",
@@ -1072,6 +1074,8 @@ def test_write_empty_geometry(tmp_path):
     # Check that no warning is raised with GeoSeries.notna()
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
+        if not HAS_PYPROJ:
+            warnings.filterwarnings("ignore", message="'crs' was not provided.")
         write_dataframe(expected, filename)
     assert filename.exists()
 
@@ -1462,6 +1466,7 @@ def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext, use_arr
     "ignore: You will likely lose important projection information"
 )
 @pytest.mark.requires_arrow_write_api
+@requires_pyproj
 def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     df = read_dataframe(naturalearth_lowres_all_ext)
     # project Belgium to a custom Albers Equal Area projection

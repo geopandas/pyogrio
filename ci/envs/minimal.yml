@@ -3,5 +3,5 @@ channels:
   - conda-forge
 dependencies:
   - numpy
-  - libgdal
+  - libgdal-core
   - pytest
