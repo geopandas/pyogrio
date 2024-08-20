@@ -1,7 +1,6 @@
 [build-system]
 requires = [
     "setuptools",
-    "wheel",
     "Cython>=0.29",
     "versioneer[toml]==0.28",
     # tomli is used by versioneer

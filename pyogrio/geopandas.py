@@ -447,7 +447,6 @@ def write_dataframe(
 
     from geopandas.array import to_wkb
     import pandas as pd
-    from pyproj.enums import WktVersion  # if geopandas is available so is pyproj
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
@@ -579,7 +578,7 @@ def write_dataframe(
         if epsg:
             crs = f"EPSG:{epsg}"  # noqa: E231
         else:
-            crs = geometry.crs.to_wkt(WktVersion.WKT1_GDAL)
+            crs = geometry.crs.to_wkt("WKT1_GDAL")
 
     if use_arrow:
         import pyarrow as pa

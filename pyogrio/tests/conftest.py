@@ -14,6 +14,7 @@ from pyogrio._compat import (
     HAS_ARROW_WRITE_API,
     HAS_GDAL_GEOS,
     HAS_PYARROW,
+    HAS_PYPROJ,
     HAS_SHAPELY,
 )
 from pyogrio.core import vsi_rmtree
@@ -63,6 +64,8 @@ requires_arrow_api = pytest.mark.skipif(not HAS_ARROW_API, reason="GDAL>=3.6 req
 requires_pyarrow_api = pytest.mark.skipif(
     not HAS_ARROW_API or not HAS_PYARROW, reason="GDAL>=3.6 and pyarrow required"
 )
+
+requires_pyproj = pytest.mark.skipif(not HAS_PYPROJ, reason="pyproj required")
 
 requires_arrow_write_api = pytest.mark.skipif(
     not HAS_ARROW_WRITE_API or not HAS_PYARROW,
