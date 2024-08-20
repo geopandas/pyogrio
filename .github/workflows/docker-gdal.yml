@@ -42,7 +42,6 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          uv pip install pip wheel
           uv pip install -e .[dev,test,geopandas]
 
       - name: Install pyarrow
