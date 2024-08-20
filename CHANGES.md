@@ -8,7 +8,8 @@
     `libgdal-core`. This package is significantly smaller as it doesn't contain
     some large GDAL plugins. Extra plugins can be installed as seperate conda
     packages if needed: more info [here](https://gdal.org/download.html#conda).
-    This also leads to `pyproj` becoming an optional dependency (#452).
+    This also leads to `pyproj` becoming an optional dependency; you will need
+    to install `pyproj` in order to support spatial reference systems (#452).
 
 ### Bug fixes
 
