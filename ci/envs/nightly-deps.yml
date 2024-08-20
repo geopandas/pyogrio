@@ -2,7 +2,7 @@ name: test
 channels:
   - conda-forge
 dependencies:
-  - libgdal
+  - libgdal-core
   - pytest
   - geopandas-base
   - pip

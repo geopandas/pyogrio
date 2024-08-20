@@ -9,6 +9,11 @@ except ImportError:
     pyarrow = None
 
 try:
+    import pyproj
+except ImportError:
+    pyproj = None
+
+try:
     import shapely
 except ImportError:
     shapely = None
@@ -27,6 +32,7 @@ except ImportError:
 HAS_ARROW_API = __gdal_version__ >= (3, 6, 0)
 HAS_ARROW_WRITE_API = __gdal_version__ >= (3, 8, 0)
 HAS_PYARROW = pyarrow is not None
+HAS_PYPROJ = pyproj is not None
 
 HAS_GEOPANDAS = geopandas is not None
 
