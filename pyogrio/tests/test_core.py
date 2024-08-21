@@ -1,36 +1,36 @@
 from pathlib import Path
 
 import numpy as np
-from numpy import array_equal, allclose
-import pytest
+from numpy import allclose, array_equal
 
 from pyogrio import (
-    __gdal_version__,
     __gdal_geos_version__,
+    __gdal_version__,
     detect_write_driver,
+    get_gdal_config_option,
+    get_gdal_data_path,
     list_drivers,
     list_layers,
     read_bounds,
     read_info,
     set_gdal_config_options,
-    get_gdal_config_option,
-    get_gdal_data_path,
     vsi_listtree,
     vsi_rmtree,
     vsi_unlink,
 )
 from pyogrio._compat import GDAL_GE_38
+from pyogrio._env import GDALEnv
 from pyogrio.core import _vsimem_rmtree_toplevel
-from pyogrio.errors import DataSourceError, DataLayerError
+from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
 from pyogrio.tests.conftest import START_FID, prepare_testfile, requires_shapely
 
-from pyogrio._env import GDALEnv
+import pytest
 
 with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
-    from pyogrio._ogr import ogr_driver_supports_write, has_gdal_data, has_proj_data
+    from pyogrio._ogr import has_gdal_data, has_proj_data, ogr_driver_supports_write
 
 
 try:
@@ -434,7 +434,8 @@ def test_read_info(naturalearth_lowres):
     elif naturalearth_lowres.suffix == ".shp":
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
-        # geometry_name == "" for formats where geometry column name cannot be customized
+        # geometry_name == "" for formats where geometry column name cannot be
+        # customized
         assert meta["geometry_name"] == ""
         assert meta["geometry_type"] == "Polygon"
         assert meta["driver"] == "ESRI Shapefile"

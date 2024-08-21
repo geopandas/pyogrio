@@ -1,14 +1,15 @@
-from pathlib import Path
+"""Utility functions."""
+
 import re
 import sys
+from packaging.version import Version
+from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
 
-from packaging.version import Version
-
 
 def get_vsi_path_or_buffer(path_or_buffer):
-    """Get vsi-prefixed path or bytes buffer depending on type of path_or_buffer
+    """Get vsi-prefixed path or bytes buffer depending on type of path_or_buffer.
 
     If path_or_buffer is a bytes object, it will be returned directly and will
     be read into an in-memory dataset when passed to one of the Cython functions.
@@ -22,12 +23,13 @@ def get_vsi_path_or_buffer(path_or_buffer):
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
+        A dataset path or URI, raw buffer, or file-like object with a read method.
 
     Returns
     -------
     str or bytes
-    """
 
+    """
     # treat Path objects here already to ignore their read method + to avoid backslashes
     # on Windows.
     if isinstance(path_or_buffer, Path):
@@ -49,10 +51,7 @@ def get_vsi_path_or_buffer(path_or_buffer):
 
 
 def vsi_path(path: Union[str, Path]) -> str:
-    """
-    Ensure path is a local path or a GDAL-compatible vsi path.
-
-    """
+    """Ensure path is a local path or a GDAL-compatible vsi path."""
     # Convert Path objects to string, but for vsi paths, keep posix style path.
     if isinstance(path, Path):
         if sys.platform == "win32" and path.as_posix().startswith("/vsi"):
@@ -101,12 +100,11 @@ SCHEMES = {
     # those are for now not added as supported URI
 }
 
-CURLSCHEMES = set([k for k, v in SCHEMES.items() if v == "curl"])
+CURLSCHEMES = {k for k, v in SCHEMES.items() if v == "curl"}
 
 
 def _parse_uri(path: str):
-    """
-    Parse a URI
+    """Parse a URI.
 
     Returns a tuples of (path, archive, scheme)
 
@@ -141,8 +139,7 @@ def _parse_uri(path: str):
 
 
 def _construct_vsi_path(path, archive, scheme) -> str:
-    """Convert a parsed path to a GDAL VSI path"""
-
+    """Convert a parsed path to a GDAL VSI path."""
     prefix = ""
     suffix = ""
     schemes = scheme.split("+")
@@ -151,9 +148,7 @@ def _construct_vsi_path(path, archive, scheme) -> str:
         schemes.insert(0, "zip")
 
     if schemes:
-        prefix = "/".join(
-            "vsi{0}".format(SCHEMES[p]) for p in schemes if p and p != "file"
-        )
+        prefix = "/".join(f"vsi{SCHEMES[p]}" for p in schemes if p and p != "file")
 
         if schemes[-1] in CURLSCHEMES:
             suffix = f"{schemes[-1]}://"
@@ -162,15 +157,15 @@ def _construct_vsi_path(path, archive, scheme) -> str:
         if archive:
             return "/{}/{}{}/{}".format(prefix, suffix, archive, path.lstrip("/"))
         else:
-            return "/{}/{}{}".format(prefix, suffix, path)
+            return f"/{prefix}/{suffix}{path}"
 
     return path
 
 
 def _preprocess_options_key_value(options):
-    """
-    Preprocess options, eg `spatial_index=True` gets converted
-    to `SPATIAL_INDEX="YES"`.
+    """Preprocess options.
+
+    For example, `spatial_index=True` gets converted to `SPATIAL_INDEX="YES"`.
     """
     if not isinstance(options, dict):
         raise TypeError(f"Expected options to be a dict, got {type(options)}")
@@ -194,6 +189,7 @@ def _mask_to_wkb(mask):
     Parameters
     ----------
     mask : Shapely geometry
+        The geometry to convert to WKB.
 
     Returns
     -------
@@ -204,8 +200,8 @@ def _mask_to_wkb(mask):
     ValueError
         raised if Shapely >= 2.0 is not available or mask is not a Shapely
         Geometry object
-    """
 
+    """
     if mask is None:
         return mask
 

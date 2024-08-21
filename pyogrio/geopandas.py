@@ -1,24 +1,24 @@
+"""Functions for reading and writing GeoPandas dataframes."""
+
 import os
+import warnings
 
 import numpy as np
 
 from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE_22
+from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
-    DRIVERS_NO_MIXED_SINGLE_MULTI,
     DRIVERS_NO_MIXED_DIMENSIONS,
+    DRIVERS_NO_MIXED_SINGLE_MULTI,
+    _get_write_path_driver,
     read,
     read_arrow,
     write,
-    _get_write_path_driver,
 )
-from pyogrio.errors import DataSourceError
-import warnings
 
 
 def _stringify_path(path):
-    """
-    Convert path-like to a string if possible, pass-through other objects
-    """
+    """Convert path-like to a string if possible, pass-through other objects."""
     if isinstance(path, str):
         return path
 
@@ -34,11 +34,11 @@ def _try_parse_datetime(ser):
     import pandas as pd  # only called when pandas is known to be installed
 
     if PANDAS_GE_22:
-        datetime_kwargs = dict(format="ISO8601")
+        datetime_kwargs = {"format": "ISO8601"}
     elif PANDAS_GE_20:
-        datetime_kwargs = dict(format="ISO8601", errors="ignore")
+        datetime_kwargs = {"format": "ISO8601", "errors": "ignore"}
     else:
-        datetime_kwargs = dict(yearfirst=True)
+        datetime_kwargs = {"yearfirst": True}
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -92,6 +92,7 @@ def read_dataframe(
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
+
     If the data source does not have a geometry column or ``read_geometry`` is False,
     a DataFrame will be returned.
 
@@ -100,7 +101,7 @@ def read_dataframe(
     Parameters
     ----------
     path_or_buffer : pathlib.Path or str, or bytes buffer
-         A dataset path or URI, or raw buffer.
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -199,11 +200,13 @@ def read_dataframe(
         Defaults to False, but this default can also be globally overridden
         by setting the ``PYOGRIO_USE_ARROW=1`` environment variable.
     on_invalid : str, optional (default: "raise")
+        The action to take when an invalid geometry is encountered. Possible
+        values:
 
         - **raise**: an exception will be raised if a WKB input geometry is
           invalid.
-        - **warn**: a warning will be raised and invalid WKB geometries will be
-          returned as ``None``.
+        - **warn**: invalid WKB geometries will be returned as ``None`` and a
+          warning will be raised.
         - **ignore**: invalid WKB geometries will be returned as ``None``
           without a warning.
 
@@ -238,12 +241,13 @@ def read_dataframe(
 
         https://arrow.apache.org/docs/python/generated/pyarrow.Table.html#pyarrow.Table.to_pandas
 
-    """  # noqa: E501
+    """
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.read_dataframe()")
 
-    import pandas as pd
     import geopandas as gp
+    import pandas as pd
+
     import shapely  # if geopandas is present, shapely is expected to be present
 
     path_or_buffer = _stringify_path(path_or_buffer)
@@ -348,8 +352,7 @@ def write_dataframe(
     layer_options=None,
     **kwargs,
 ):
-    """
-    Write GeoPandas GeoDataFrame to an OGR file format.
+    """Write GeoPandas GeoDataFrame to an OGR file format.
 
     Parameters
     ----------
@@ -439,14 +442,15 @@ def write_dataframe(
         explicit `dataset_options` or `layer_options` keywords to manually
         do this (for example if an option exists as both dataset and layer
         option).
+
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 
     if not HAS_GEOPANDAS:
         raise ImportError("geopandas is required to use pyogrio.write_dataframe()")
 
-    from geopandas.array import to_wkb
     import pandas as pd
+    from geopandas.array import to_wkb
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("'df' must be a DataFrame or GeoDataFrame")
@@ -495,7 +499,7 @@ def write_dataframe(
         else:
             values = col.values
         if isinstance(values, pd.api.extensions.ExtensionArray):
-            from pandas.arrays import IntegerArray, FloatingArray, BooleanArray
+            from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
 
             if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
                 field_data.append(values._data)
@@ -576,12 +580,13 @@ def write_dataframe(
         # if possible use EPSG codes instead
         epsg = geometry.crs.to_epsg()
         if epsg:
-            crs = f"EPSG:{epsg}"  # noqa: E231
+            crs = f"EPSG:{epsg}"
         else:
             crs = geometry.crs.to_wkt("WKT1_GDAL")
 
     if use_arrow:
         import pyarrow as pa
+
         from pyogrio.raw import write_arrow
 
         if geometry_column is not None:
