@@ -66,8 +66,6 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
           uv venv .venv
-          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Download sdist from artifacts
         uses: actions/download-artifact@v4
@@ -87,7 +85,7 @@ jobs:
         shell: bash
         run: |
           cd ..
-          python3 -m pytest --pyargs pyogrio.tests -v
+          uv run python -m pytest --pyargs pyogrio.tests -v
 
   build-wheels-linux:
     name: Build wheels on Linux
@@ -184,7 +182,7 @@ jobs:
           cd $VCPKG_INSTALLATION_ROOT
           # on mac the clone is not clean, otherwise git pull fails
           git reset --hard
-          # pull latest version to ensure the required commit with GDAL 3.8 is available
+          # pull latest version to ensure the required commit with GDAL 3.9 is available
           git pull
           git checkout 73794ce5f63fd138fab999a22959ca7c6305d93c
 
@@ -261,16 +259,12 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
           uv venv .venv
-          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
           irm https://astral.sh/uv/install.ps1 | iex
           uv venv .venv
-          "VIRTUAL_ENV=.venv" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Download wheels from artifacts
         uses: actions/download-artifact@v4
@@ -292,8 +286,8 @@ jobs:
         shell: bash
         run: |
           cd ..
-          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          python -m pytest --pyargs pyogrio.tests -v
+          uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+          uv run python -m pytest --pyargs pyogrio.tests -v
 
   publish:
     name: Publish pyogrio to GitHub / PyPI
