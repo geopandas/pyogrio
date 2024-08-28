@@ -2,8 +2,6 @@ from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-import pytest
-
 from pyogrio import (
     __gdal_version_string__,
     __version__,
@@ -18,6 +16,8 @@ from pyogrio._compat import (
     HAS_SHAPELY,
 )
 from pyogrio.raw import read, write
+
+import pytest
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
