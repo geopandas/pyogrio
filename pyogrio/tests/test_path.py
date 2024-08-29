@@ -1,16 +1,17 @@
+import contextlib
 import os
 from pathlib import Path
-import contextlib
-from zipfile import ZipFile, ZIP_DEFLATED
-
-import pytest
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pyogrio
 import pyogrio.raw
-from pyogrio.util import vsi_path, get_vsi_path_or_buffer
+from pyogrio._compat import HAS_PYPROJ
+from pyogrio.util import get_vsi_path_or_buffer, vsi_path
+
+import pytest
 
 try:
-    import geopandas  # NOQA
+    import geopandas  # noqa: F401
 
     has_geopandas = True
 except ImportError:
@@ -238,6 +239,9 @@ def test_detect_zip_path(tmp_path, naturalearth_lowres):
     path = tmp_path / "test.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
         for ext in ["dbf", "prj", "shp", "shx"]:
+            if not HAS_PYPROJ and ext == "prj":
+                continue
+
             filename = f"test1.{ext}"
             out.write(tmp_path / filename, filename)
 

@@ -3,7 +3,6 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
-import pytest
 
 from pyogrio import (
     __gdal_version_string__,
@@ -15,9 +14,12 @@ from pyogrio._compat import (
     HAS_ARROW_WRITE_API,
     HAS_GDAL_GEOS,
     HAS_PYARROW,
+    HAS_PYPROJ,
     HAS_SHAPELY,
 )
 from pyogrio.raw import read, write
+
+import pytest
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
@@ -54,6 +56,8 @@ requires_arrow_api = pytest.mark.skipif(not HAS_ARROW_API, reason="GDAL>=3.6 req
 requires_pyarrow_api = pytest.mark.skipif(
     not HAS_ARROW_API or not HAS_PYARROW, reason="GDAL>=3.6 and pyarrow required"
 )
+
+requires_pyproj = pytest.mark.skipif(not HAS_PYPROJ, reason="pyproj required")
 
 requires_arrow_write_api = pytest.mark.skipif(
     not HAS_ARROW_WRITE_API or not HAS_PYARROW,

@@ -1,27 +1,28 @@
+"""Core functions to interact with OGR data sources."""
+
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
-    get_vsi_path_or_buffer,
-    _preprocess_options_key_value,
     _mask_to_wkb,
+    _preprocess_options_key_value,
+    get_vsi_path_or_buffer,
 )
 
-
 with GDALEnv():
-    from pyogrio._ogr import (
-        get_gdal_version,
-        get_gdal_version_string,
-        get_gdal_geos_version,
-        ogr_list_drivers,
-        set_gdal_config_options as _set_gdal_config_options,
-        get_gdal_config_option as _get_gdal_config_option,
-        get_gdal_data_path as _get_gdal_data_path,
-        init_gdal_data as _init_gdal_data,
-        init_proj_data as _init_proj_data,
-        _register_drivers,
-        _get_drivers_for_path,
-    )
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
+    from pyogrio._ogr import (
+        _get_drivers_for_path,
+        _register_drivers,
+        get_gdal_config_option as _get_gdal_config_option,
+        get_gdal_data_path as _get_gdal_data_path,
+        get_gdal_geos_version,
+        get_gdal_version,
+        get_gdal_version_string,
+        init_gdal_data as _init_gdal_data,
+        init_proj_data as _init_proj_data,
+        ogr_list_drivers,
+        set_gdal_config_options as _set_gdal_config_options,
+    )
 
     _init_gdal_data()
     _init_proj_data()
@@ -48,8 +49,8 @@ def list_drivers(read=False, write=False):
     dict
         Mapping of driver name to file mode capabilities: ``"r"``: read, ``"w"``: write.
         Drivers that are available but with unknown support are marked with ``"?"``
-    """
 
+    """
     drivers = ogr_list_drivers()
 
     if read:
@@ -62,8 +63,9 @@ def list_drivers(read=False, write=False):
 
 
 def detect_write_driver(path):
-    """Attempt to infer the driver for a path by extension or prefix.  Only
-    drivers that support write capabilities will be detected.
+    """Attempt to infer the driver for a path by extension or prefix.
+
+    Only drivers that support write capabilities will be detected.
 
     If the path cannot be resolved to a single driver, a ValueError will be
     raised.
@@ -71,11 +73,13 @@ def detect_write_driver(path):
     Parameters
     ----------
     path : str
+        data source path
 
     Returns
     -------
     str
         name of the driver, if detected
+
     """
     # try to infer driver from path
     drivers = _get_drivers_for_path(path)
@@ -106,14 +110,15 @@ def list_layers(path_or_buffer, /):
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
+        A dataset path or URI, raw buffer, or file-like object with a read method.
 
     Returns
     -------
     ndarray shape (2, n)
         array of pairs of [<layer name>, <layer geometry type>]
         Note: geometry is `None` for nonspatial layers.
-    """
 
+    """
     return ogr_list_layers(get_vsi_path_or_buffer(path_or_buffer))
 
 
@@ -136,6 +141,7 @@ def read_bounds(
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : int or str, optional (default: first layer)
         If an integer is provided, it corresponds to the index of the layer
         with the data source.  If a string is provided, it must match the name
@@ -172,8 +178,8 @@ def read_bounds(
         fids are global IDs read from the FID field of the dataset
         bounds are ndarray of shape(4, n) containing ``xmin``, ``ymin``, ``xmax``,
         ``ymax``
-    """
 
+    """
     return ogr_read_bounds(
         get_vsi_path_or_buffer(path_or_buffer),
         layer=layer,
@@ -222,6 +228,7 @@ def read_info(
     Parameters
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
+        A dataset path or URI, raw buffer, or file-like object with a read method.
     layer : [type], optional
         Name or index of layer in data source.  Reads the first layer by default.
     encoding : [type], optional (default: None)
@@ -257,8 +264,8 @@ def read_info(
                 "dataset_metadata": "<dict of dataset metadata or None>"
                 "layer_metadata": "<dict of layer metadata or None>"
             }
-    """
 
+    """
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_read_info(
@@ -288,8 +295,8 @@ def set_gdal_config_options(options):
         configuration options.  ``True`` / ``False`` are normalized to ``'ON'``
         / ``'OFF'``. A value of ``None`` for a config option can be used to clear out a
         previously set value.
-    """
 
+    """
     _set_gdal_config_options(options)
 
 
@@ -305,8 +312,8 @@ def get_gdal_config_option(name):
     -------
     value of the option or None if not set
         ``'ON'`` / ``'OFF'`` are normalized to ``True`` / ``False``.
-    """
 
+    """
     return _get_gdal_config_option(name)
 
 
@@ -316,5 +323,6 @@ def get_gdal_data_path():
     Returns
     -------
     str, or None if data directory was not found
+
     """
     return _get_gdal_data_path()

@@ -1,15 +1,16 @@
 import contextlib
-from datetime import datetime
-from io import BytesIO
 import locale
 import warnings
+from datetime import datetime
+from io import BytesIO
+from zipfile import ZipFile
 
 import numpy as np
-import pytest
 
-from pyogrio import list_layers, list_drivers, read_info, __gdal_version__
+from pyogrio import __gdal_version__, list_drivers, list_layers, read_info
+from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
-from pyogrio.geopandas import read_dataframe, write_dataframe, PANDAS_GE_20
+from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
@@ -17,25 +18,27 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    requires_pyarrow_api,
     requires_arrow_write_api,
     requires_gdal_geos,
+    requires_pyarrow_api,
+    requires_pyproj,
 )
-from pyogrio._compat import PANDAS_GE_15, HAS_ARROW_WRITE_API
+
+import pytest
 
 try:
+    import geopandas as gp
     import pandas as pd
+    from geopandas.array import from_wkt
+
+    import shapely  # if geopandas is present, shapely is expected to be present
+    from shapely.geometry import Point
+
+    from geopandas.testing import assert_geodataframe_equal
     from pandas.testing import (
         assert_index_equal,
         assert_series_equal,
     )
-
-    import geopandas as gp
-    from geopandas.array import from_wkt
-    from geopandas.testing import assert_geodataframe_equal
-
-    import shapely  # if geopandas is present, shapely is expected to be present
-    from shapely.geometry import Point
 
 except ImportError:
     pass
@@ -124,7 +127,8 @@ def test_read_csv_platform_encoding(tmp_path):
 def test_read_dataframe(naturalearth_lowres_all_ext):
     df = read_dataframe(naturalearth_lowres_all_ext)
 
-    assert df.crs == "EPSG:4326"
+    if HAS_PYPROJ:
+        assert df.crs == "EPSG:4326"
     assert len(df) == 177
     assert df.columns.tolist() == [
         "pop_est",
@@ -952,9 +956,9 @@ def test_write_csv_encoding(tmp_path, encoding):
     write_dataframe(df, csv_pyogrio_path, encoding=encoding)
 
     # Check if the text files written both ways can be read again and give same result.
-    with open(csv_path, "r", encoding=encoding) as csv:
+    with open(csv_path, encoding=encoding) as csv:
         csv_str = csv.read()
-    with open(csv_pyogrio_path, "r", encoding=encoding) as csv_pyogrio:
+    with open(csv_pyogrio_path, encoding=encoding) as csv_pyogrio:
         csv_pyogrio_str = csv_pyogrio.read()
     assert csv_str == csv_pyogrio_str
 
@@ -988,7 +992,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
     if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
         assert list(geometry_types) == ["MultiPolygon"]
     else:
-        assert set(geometry_types) == set(["MultiPolygon", "Polygon"])
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
 
     # Coordinates are not precisely equal when written to JSON
     # dtypes do not necessarily round-trip precisely through JSON
@@ -1097,6 +1101,8 @@ def test_write_empty_geometry(tmp_path):
     # Check that no warning is raised with GeoSeries.notna()
     with warnings.catch_warnings():
         warnings.simplefilter("error", UserWarning)
+        if not HAS_PYPROJ:
+            warnings.filterwarnings("ignore", message="'crs' was not provided.")
         write_dataframe(expected, filename)
     assert filename.exists()
 
@@ -1204,7 +1210,7 @@ def test_write_dataframe_gdal_options(
         df,
         outfilename2,
         use_arrow=use_arrow,
-        layer_options=dict(spatial_index=spatial_index),
+        layer_options={"spatial_index": spatial_index},
     )
     assert outfilename2.exists() is True
     index_filename2 = tmp_path / "test2.qix"
@@ -1250,7 +1256,7 @@ def test_write_dataframe_gdal_options_dataset(tmp_path, naturalearth_lowres, use
         df,
         test_no_contents_filename2,
         use_arrow=use_arrow,
-        dataset_options=dict(add_gpkg_ogr_contents=False),
+        dataset_options={"add_gpkg_ogr_contents": False},
     )
     assert "gpkg_ogr_contents" not in _get_gpkg_table_names(test_no_contents_filename2)
 
@@ -1363,7 +1369,8 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
             ".shp",
             None,
             "Point",
-            "Could not add feature to layer at index|Error while writing batch to OGR layer",
+            "Could not add feature to layer at index|Error while writing batch to OGR "
+            "layer",
         ),
     ],
 )
@@ -1486,6 +1493,7 @@ def test_write_dataframe_infer_geometry_with_nulls(tmp_path, geoms, ext, use_arr
     "ignore: You will likely lose important projection information"
 )
 @pytest.mark.requires_arrow_write_api
+@requires_pyproj
 def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     df = read_dataframe(naturalearth_lowres_all_ext)
     # project Belgium to a custom Albers Equal Area projection
@@ -1572,7 +1580,7 @@ def test_write_read_null(tmp_path, use_arrow):
             ["2.5D MultiLineString", "MultiLineString Z"],
         ),
         (
-            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",
+            "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))",  # noqa: E501
             ["2.5D MultiPolygon", "MultiPolygon Z"],
         ),
         (
@@ -1615,7 +1623,7 @@ def test_write_geometry_z_types(tmp_path, wkt, geom_types, use_arrow):
             "MultiPolygon Z",
             False,
             [
-                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"
+                "MultiPolygon Z (((0 0 0, 0 1 0, 1 1 0, 0 0 0)), ((1 1 1, 1 2 1, 2 2 1, 1 1 1)))"  # noqa: E501
             ],
         ),
         (
@@ -2017,6 +2025,27 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         write_dataframe(df.head(1), buffer, driver="GeoJSON", layer="test")
 
 
+def test_write_open_file_handle(tmp_path, naturalearth_lowres):
+    """Verify that writing to an open file handle is not currently supported"""
+
+    df = read_dataframe(naturalearth_lowres)
+
+    # verify it fails for regular file handle
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with open(tmp_path / "test.geojson", "wb") as f:
+            write_dataframe(df.head(1), f)
+
+    # verify it fails for ZipFile
+    with pytest.raises(
+        NotImplementedError, match="writing to an open file handle is not yet supported"
+    ):
+        with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
+            with z.open("test.geojson", "w") as f:
+                write_dataframe(df.head(1), f)
+
+
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
 def test_non_utf8_encoding_io(tmp_path, ext, encoded_text):
     """Verify that we write non-UTF data to the data source
@@ -2107,7 +2136,8 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
 
 
 def test_encoding_read_option_collision_shapefile(naturalearth_lowres, use_arrow):
-    """Providing both encoding parameter and ENCODING open option (even if blank) is not allowed"""
+    """Providing both encoding parameter and ENCODING open option
+    (even if blank) is not allowed."""
 
     with pytest.raises(
         ValueError, match='cannot provide both encoding parameter and "ENCODING" option'
@@ -2118,7 +2148,8 @@ def test_encoding_read_option_collision_shapefile(naturalearth_lowres, use_arrow
 
 
 def test_encoding_write_layer_option_collision_shapefile(tmp_path, encoded_text):
-    """Providing both encoding parameter and ENCODING layer creation option (even if blank) is not allowed"""
+    """Providing both encoding parameter and ENCODING layer creation option
+    (even if blank) is not allowed."""
     encoding, text = encoded_text
 
     output_path = tmp_path / "test.shp"
@@ -2126,7 +2157,10 @@ def test_encoding_write_layer_option_collision_shapefile(tmp_path, encoded_text)
 
     with pytest.raises(
         ValueError,
-        match='cannot provide both encoding parameter and "ENCODING" layer creation option',
+        match=(
+            'cannot provide both encoding parameter and "ENCODING" layer creation '
+            "option"
+        ),
     ):
         write_dataframe(
             df, output_path, encoding=encoding, layer_options={"ENCODING": ""}
@@ -2164,7 +2198,8 @@ def test_non_utf8_encoding_shapefile_sql(tmp_path, use_arrow):
 
 @pytest.mark.requires_arrow_write_api
 def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
-    # confirm KML coordinates are written in lon, lat order even if CRS axis specifies otherwise
+    # confirm KML coordinates are written in lon, lat order even if CRS axis
+    # specifies otherwise
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
     output_path = tmp_path / "test.kml"

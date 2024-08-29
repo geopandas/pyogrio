@@ -2,10 +2,20 @@
 
 ## 0.9.1 (yyyy-mm-dd)
 
+### Packaging
+
+-   For the conda-forge package, change the dependency from `libgdal` to
+    `libgdal-core`. This package is significantly smaller as it doesn't contain
+    some large GDAL plugins. Extra plugins can be installed as seperate conda
+    packages if needed: more info [here](https://gdal.org/download.html#conda).
+    This also leads to `pyproj` becoming an optional dependency; you will need
+    to install `pyproj` in order to support spatial reference systems (#452).
+
 ### Bug fixes
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
--   BUG: Enable mask & bbox filter when geometry column not read (#431).
+-   Enable mask & bbox filter when geometry column not read (#431).
+-   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
 -   Prevent seek on read from compressed inputs (#443).
 
 ## 0.9.0 (2024-06-17)

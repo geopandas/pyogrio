@@ -1,29 +1,29 @@
 import numpy as np
-from numpy import array_equal, allclose
-import pytest
+from numpy import allclose, array_equal
 
 from pyogrio import (
-    __gdal_version__,
     __gdal_geos_version__,
+    __gdal_version__,
+    get_gdal_config_option,
+    get_gdal_data_path,
     list_drivers,
     list_layers,
     read_bounds,
     read_info,
     set_gdal_config_options,
-    get_gdal_config_option,
-    get_gdal_data_path,
 )
-from pyogrio.core import detect_write_driver
 from pyogrio._compat import GDAL_GE_38
-from pyogrio.errors import DataSourceError, DataLayerError
-from pyogrio.tests.conftest import HAS_SHAPELY, prepare_testfile
-
 from pyogrio._env import GDALEnv
+from pyogrio.core import detect_write_driver
+from pyogrio.errors import DataLayerError, DataSourceError
+from pyogrio.tests.conftest import prepare_testfile, requires_shapely
+
+import pytest
 
 with GDALEnv():
     # NOTE: this must be AFTER above imports, which init the GDAL and PROJ data
     # search paths
-    from pyogrio._ogr import ogr_driver_supports_write, has_gdal_data, has_proj_data
+    from pyogrio._ogr import has_gdal_data, has_proj_data, ogr_driver_supports_write
 
 
 try:
@@ -325,9 +325,7 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask",
     [
@@ -341,9 +339,7 @@ def test_read_bounds_mask_invalid(naturalearth_lowres, mask):
         read_bounds(naturalearth_lowres, mask=mask)
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
     with pytest.raises(ValueError, match="cannot set both 'bbox' and 'mask'"):
         read_bounds(
@@ -351,9 +347,7 @@ def test_read_bounds_bbox_mask_invalid(naturalearth_lowres):
         )
 
 
-@pytest.mark.skipif(
-    not HAS_SHAPELY, reason="Shapely is required for mask functionality"
-)
+@requires_shapely
 @pytest.mark.parametrize(
     "mask,expected",
     [
@@ -449,7 +443,8 @@ def test_read_info(naturalearth_lowres):
     elif naturalearth_lowres.suffix == ".shp":
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
-        # geometry_name == "" for formats where geometry column name cannot be customized
+        # geometry_name == "" for formats where geometry column name cannot be
+        # customized
         assert meta["geometry_name"] == ""
         assert meta["geometry_type"] == "Polygon"
         assert meta["driver"] == "ESRI Shapefile"

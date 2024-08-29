@@ -221,6 +221,7 @@ setup(
         "geopandas": ["geopandas"],
     },
     include_package_data=True,
+    exclude_package_data={'': ['*.h', '_*.pxd', '_*.pyx']},
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     package_data=package_data,

@@ -2,14 +2,17 @@ name: pyogrio-dev
 channels:
   - conda-forge
 dependencies:
+  # Required
   - numpy
-  - geopandas-base
-  - libgdal==3.8.3
-  - pyarrow
+  - libgdal-core
   - shapely>=2
+  # Optional
+  - geopandas-base
+  - pyproj
+  - pyarrow
   # Specific for dev
   - cython
   - pre-commit
   - pytest
+  - ruff==0.5.2
   - versioneer
-  - ruff
