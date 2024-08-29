@@ -492,6 +492,86 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
     )
 
 
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 6, 0),
+    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
+)
+@pytest.mark.parametrize(
+    "write_int64",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                __gdal_version__ < (3, 9, 0),
+                reason="OpenFileGDB write support for int64 values for GDAL >= 3.9.0",
+            ),
+        ),
+    ],
+)
+def test_write_openfilegdb(tmp_path, write_int64):
+    expected_field_data = [
+        np.array([True, False, True], dtype="bool"),
+        np.array([1, 2, 3], dtype="int16"),
+        np.array([1, 2, 3], dtype="int32"),
+        np.array([1, 2, 3], dtype="int64"),
+        np.array([1, 2, 3], dtype="float32"),
+        np.array([1, 2, 3], dtype="float64"),
+    ]
+
+    table = pa.table(
+        {
+            "geometry": points,
+            **{field.dtype.name: field for field in expected_field_data},
+        }
+    )
+
+    filename = tmp_path / "test.gdb"
+
+    expected_meta = {"crs": "EPSG:4326"}
+
+    # int64 is not supported without additional config: https://gdal.org/en/latest/drivers/vector/openfilegdb.html#bit-integer-field-support
+    # it is converted to float64 by default and raises a warning
+    write_params = (
+        {"TARGET_ARCGIS_VERSION": "ARCGIS_PRO_3_2_OR_LATER"} if write_int64 else {}
+    )
+
+    if write_int64:
+        ctx = contextlib.nullcontext()
+    else:
+        ctx = pytest.warns(
+            RuntimeWarning, match="Integer64 will be written as a Float64"
+        )
+
+    with ctx:
+        write_arrow(
+            table,
+            filename,
+            driver="OpenFileGDB",
+            geometry_type="Point",
+            geometry_name="geometry",
+            **expected_meta,
+            **write_params,
+        )
+
+    meta, table = read_arrow(filename)
+
+    if not write_int64:
+        expected_field_data[3] = expected_field_data[3].astype("float64")
+
+    # bool types are converted to int32
+    expected_field_data[0] = expected_field_data[0].astype("int32")
+
+    assert meta["crs"] == expected_meta["crs"]
+
+    # NOTE: geometry name is set to "SHAPE" by GDAL
+    assert np.array_equal(table[meta["geometry_name"]], points)
+    for i in range(len(expected_field_data)):
+        values = table[table.schema.names[i]].to_numpy()
+        assert values.dtype == expected_field_data[i].dtype
+        assert np.array_equal(values, expected_field_data[i])
+
+
 @pytest.mark.parametrize(
     "driver",
     {
