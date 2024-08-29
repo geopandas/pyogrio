@@ -492,6 +492,7 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
     )
 
 
+@requires_arrow_write_api
 @pytest.mark.skipif(
     __gdal_version__ < (3, 6, 0),
     reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
