@@ -4,7 +4,7 @@ FROM quay.io/pypa/manylinux_2_28_aarch64:2024-08-12-7fde9b1
 RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
 
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
-    git -C /opt/vcpkg checkout 4f4a1821b2e8c7a2863e4df65a4d514f84144049
+    git -C /opt/vcpkg checkout 73794ce5f63fd138fab999a22959ca7c6305d93c
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
