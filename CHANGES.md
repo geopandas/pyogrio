@@ -17,8 +17,7 @@
     packages if needed: more info [here](https://gdal.org/download.html#conda).
     This also leads to `pyproj` becoming an optional dependency; you will need
     to install `pyproj` in order to support spatial reference systems (#452).
--   The GDAL library included in the wheels is updated from 3.8.5 to GDAL 3.9.2
-    and includes the LIBKML driver (#466).
+-   The GDAL library included in the wheels is updated from 3.8.5 to GDAL 3.9.2 (#466).
 
 ## 0.9.0 (2024-06-17)
 
