@@ -532,11 +532,12 @@ def test_write_openfilegdb(tmp_path, write_int64):
 
     # int64 is not supported without additional config: https://gdal.org/en/latest/drivers/vector/openfilegdb.html#bit-integer-field-support
     # it is converted to float64 by default and raises a warning
+    # (for GDAL >= 3.9.0 only)
     write_params = (
         {"TARGET_ARCGIS_VERSION": "ARCGIS_PRO_3_2_OR_LATER"} if write_int64 else {}
     )
 
-    if write_int64:
+    if write_int64 or __gdal_version__ < (3, 9, 0):
         ctx = contextlib.nullcontext()
     else:
         ctx = pytest.warns(
