@@ -11,7 +11,6 @@ vcpkg_from_github(
     PATCHES
     0001-remove-ifndef-NOUNCRYPT.patch
     0002-add-declaration-for-mkdir.patch
-    pkgconfig.patch
 )
 
 # When zlib updated, the minizip port should be updated at the same time
