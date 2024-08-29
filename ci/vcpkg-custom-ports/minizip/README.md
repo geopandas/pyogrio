@@ -1,4 +1,4 @@
-Port adapted from [minizip 1.2.13#0](https://github.com/microsoft/vcpkg/tree/e0a9559a9b24af116388eae242d675bf9fde025c/ports/minizip).
+Port adapted from [minizip 1.3.1#1](https://github.com/microsoft/vcpkg/tree/6db51d86a9c2796581d74c9a7eb46e52ee8cb7eb/ports/minizip).
 
 Major edits:
 
@@ -6,3 +6,5 @@ Major edits:
 -   stripped out feature support
 -   stripped out Windows support
 -   stripped out Android support and related patch
+-   stripped out generating symbols in cmake
+-   stripped out building tools
