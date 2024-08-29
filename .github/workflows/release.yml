@@ -97,6 +97,17 @@ jobs:
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: "ubuntu-latest"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # use manylinux2014 for older glibc platforms until discontinued
+          - wheel_name: "pyogrio-wheel-linux-manylinux2014_x86_64"
+            container: "ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile"
+
+          # use manylinux_2_28 for any platforms with glibc>=2.28
+          - wheel_name: "pyogrio-wheel-linux-manylinux_2_28_x86_64"
+            container: "ci/manylinux_2_28_x86_64-vcpkg-gdal.Dockerfile"
 
     steps:
       - name: Checkout
@@ -116,7 +127,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile
+          file: ${{ matrix.container }}
           tags: manylinux-vcpkg-gdal:latest
           push: false
           load: true
@@ -130,7 +141,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: pyogrio-wheel-linux
+          name: ${{ matrix.wheel_name }}
           path: ./wheelhouse/*.whl
           compression-level: 0
 
@@ -239,9 +250,11 @@ jobs:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         include:
           - os: "ubuntu-latest"
-            artifact: pyogrio-wheel-linux
+            artifact: pyogrio-wheel-linux-manylinux2014_x86_64
+          - os: "ubuntu-latest"
+            artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "ubuntu-20.04"
-            artifact: pyogrio-wheel-linux
+            artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
           - os: "macos-12"
