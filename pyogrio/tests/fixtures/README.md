@@ -1,13 +1,28 @@
 # Test datasets
 
-## Natural Earth lowres
+## Obtaining / creating test datasets
+
+If a test dataset can be created in code, do that instead. If it is used in a
+single test, create the test dataset as part of that test. If it is used in
+more than a single test, add it to `pyogrio/tests/conftest.py` instead, as a
+function-scoped test fixture.
+
+If you need to obtain 3rd party test files:
+
+-   add a section below that describes the source location and processing steps
+    to derive that dataset
+-   make sure the license is compatible with including in Pyogrio (public domain or open-source)
+    and record that license below
+
+Please keep the test files no larger than necessary to use in tests.
+
+## Included test datasets
+
+### Natural Earth lowres
 
 `naturalearth_lowres.shp` was copied from GeoPandas.
 
-## FGDB test dataset
-
-`test_fgdb.gdb.zip`
-Downloaded from http://trac.osgeo.org/gdal/raw-attachment/wiki/FileGDB/test_fgdb.gdb.zip
+License: public domain
 
 ### GPKG test dataset with null values
 
@@ -75,15 +90,19 @@ NOTE: Reading boolean values into GeoPandas using Fiona backend treats those
 values as `None` and column dtype as `object`; Pyogrio treats those values as
 `np.nan` and column dtype as `float64`.
 
-### GPKG test with MultiSurface
-
-This was extracted from https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHDPlusHR/Beta/GDB/NHDPLUS_H_0308_HU4_GDB.zip
-`NHDWaterbody` layer using ogr2ogr:
-
-```bash
-ogr2ogr test_mixed_surface.gpkg NHDPLUS_H_0308_HU4_GDB.gdb NHDWaterbody -where '"NHDPlusID" = 15000300070477' -select "NHDPlusID"
-```
+License: same as Pyogrio
 
 ### OSM PBF test
 
 This was downloaded from https://github.com/openstreetmap/OSM-binary/blob/master/resources/sample.pbf
+
+License: [Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/)
+
+### Test files for geometry types that are downgraded on read
+
+`line_zm.gpkg` was created using QGIS to digitize a LineString GPKG layer with Z and M enabled. Downgraded to LineString Z on read.
+`curve.gpkg` was created using QGIS to digitize a Curve GPKG layer. Downgraded to LineString on read.
+`curvepolygon.gpkg` was created using QGIS to digitize a CurvePolygon GPKG layer. Downgraded to Polygon on read.
+`multisurface.gpkg` was created using QGIS to digitize a MultiSurface GPKG layer. Downgraded to MultiPolygon on read.
+
+License: same as Pyogrio

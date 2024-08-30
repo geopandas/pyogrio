@@ -619,13 +619,80 @@ def test_write_no_geom_no_fields():
     __gdal_version__ < (3, 6, 0),
     reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
 )
-def test_write_openfilegdb(tmp_path, naturalearth_lowres):
-    meta, _, geometry, field_data = read(naturalearth_lowres)
+@pytest.mark.parametrize(
+    "write_int64",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                __gdal_version__ < (3, 9, 0),
+                reason="OpenFileGDB write support for int64 values for GDAL >= 3.9.0",
+            ),
+        ),
+    ],
+)
+def test_write_openfilegdb(tmp_path, write_int64):
+    # Point(0, 0)
+    expected_geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 3, dtype=object
+    )
+    expected_field_data = [
+        np.array([True, False, True], dtype="bool"),
+        np.array([1, 2, 3], dtype="int16"),
+        np.array([1, 2, 3], dtype="int32"),
+        np.array([1, 2, 3], dtype="int64"),
+        np.array([1, 2, 3], dtype="float32"),
+        np.array([1, 2, 3], dtype="float64"),
+    ]
+    expected_fields = ["bool", "int16", "int32", "int64", "float32", "float64"]
+    expected_meta = {
+        "geometry_type": "Point",
+        "crs": "EPSG:4326",
+        "fields": expected_fields,
+    }
 
     filename = tmp_path / "test.gdb"
-    write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
 
-    assert filename.exists()
+    # int64 is not supported without additional config: https://gdal.org/en/latest/drivers/vector/openfilegdb.html#bit-integer-field-support
+    # it is converted to float64 by default and raises a warning
+    # (for GDAL >= 3.9.0 only)
+    write_params = (
+        {"TARGET_ARCGIS_VERSION": "ARCGIS_PRO_3_2_OR_LATER"} if write_int64 else {}
+    )
+
+    if write_int64 or __gdal_version__ < (3, 9, 0):
+        ctx = contextlib.nullcontext()
+    else:
+        ctx = pytest.warns(
+            RuntimeWarning, match="Integer64 will be written as a Float64"
+        )
+
+    with ctx:
+        write(
+            filename,
+            expected_geometry,
+            expected_field_data,
+            driver="OpenFileGDB",
+            **expected_meta,
+            **write_params,
+        )
+
+    meta, _, geometry, field_data = read(filename)
+
+    if not write_int64:
+        expected_field_data[3] = expected_field_data[3].astype("float64")
+
+    # bool types are converted to int32
+    expected_field_data[0] = expected_field_data[0].astype("int32")
+
+    assert meta["crs"] == expected_meta["crs"]
+    assert np.array_equal(meta["fields"], expected_meta["fields"])
+
+    assert np.array_equal(geometry, expected_geometry)
+    for i in range(len(expected_field_data)):
+        assert field_data[i].dtype == expected_field_data[i].dtype
+        assert np.array_equal(field_data[i], expected_field_data[i])
 
 
 @pytest.mark.parametrize("ext", DRIVERS)
@@ -934,17 +1001,17 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float64"
 
 
-def test_read_unsupported_types(test_ogr_types_list):
-    fields = read(test_ogr_types_list)[3]
+def test_read_unsupported_types(list_field_values_file):
+    fields = read(list_field_values_file)[3]
     # list field gets skipped, only integer field is read
     assert len(fields) == 1
 
-    fields = read(test_ogr_types_list, columns=["int64"])[3]
+    fields = read(list_field_values_file, columns=["int64"])[3]
     assert len(fields) == 1
 
 
-def test_read_datetime_millisecond(test_datetime):
-    field = read(test_datetime)[3][0]
+def test_read_datetime_millisecond(datetime_file):
+    field = read(datetime_file)[3][0]
     assert field.dtype == "datetime64[ms]"
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
@@ -973,13 +1040,14 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
     assert field_data[0] == "data1"
 
 
-def test_read_datetime_as_string(test_datetime_tz):
-    field = read(test_datetime_tz)[3][0]
+def test_read_datetime_as_string(datetime_tz_file):
+    field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
     # timezone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
-    field = read(test_datetime_tz, datetime_as_string=True)[3][0]
+
+    field = read(datetime_tz_file, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
     # GDAL doesn't return strings in ISO format (yet)
     assert field[0] == "2020/01/01 09:00:00.123-05"
