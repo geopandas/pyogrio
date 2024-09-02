@@ -82,8 +82,8 @@ jobs:
         shell: bash
         run: |
           uv pip install --no-cache wheelhouse/*.tar.gz
-          uv pip install --no-cache pytest pandas pyproj shapely>=2
-          uv pip install --no-cache --no-deps geopandas
+          uv pip install pytest pandas pyproj shapely>=2
+          uv pip install --no-deps geopandas
           uv pip list
 
       - name: Run tests
@@ -91,8 +91,10 @@ jobs:
         # virtual environment is automatically activated
         run: |
           cd ..
-          python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          python -m pytest --pyargs pyogrio.tests -v
+          # python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+          # python -m pytest --pyargs pyogrio.tests -v
+          uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
+          uv run python -m pytest --pyargs pyogrio.tests -v
 
   build-wheels-linux:
     name: Build wheels on Linux
@@ -302,9 +304,9 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          uv pip install --no-cache -r ci/requirements-wheel-test.txt
+          uv pip install -r ci/requirements-wheel-test.txt
           if [ ${{ matrix.python-version }} != "3.12" ]; then
-            uv pip install --no-cache --no-deps geopandas
+            uv pip install geopandas
           fi
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
           uv pip list
