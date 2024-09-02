@@ -62,15 +62,11 @@ jobs:
           apt-get update && apt-get install -y build-essential python3-dev
 
       - name: Create virtual environment
-        # install uv and use it to create a virtual environment, then add it to
-        # environment variables so that it is automatically activated and can be
-        # used for tests below
+        # install uv and use it to create a virtual environment
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
           uv venv .venv
-          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Download sdist from artifacts
         uses: actions/download-artifact@v4
@@ -88,11 +84,8 @@ jobs:
 
       - name: Run tests
         shell: bash
-        # virtual environment is automatically activated
         run: |
           cd ..
-          # python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
-          # python -m pytest --pyargs pyogrio.tests -v
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
