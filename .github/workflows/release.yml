@@ -303,10 +303,10 @@ jobs:
         shell: bash
         run: |
           uv pip install -r ci/requirements-wheel-test.txt
-          if [ ${{ matrix.python-version }} != "3.12" ]; then
-            uv pip install geopandas
-          fi
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
+          if [ ${{ matrix.python-version }} != "3.12" ]; then
+            uv pip install --no-deps geopandas
+          fi
           uv pip list
 
       - name: Run tests
