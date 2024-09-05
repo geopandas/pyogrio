@@ -263,9 +263,6 @@ jobs:
             artifact: pyogrio-wheel-arm64-osx-dynamic-release
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -313,7 +310,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
