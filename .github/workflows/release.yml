@@ -263,6 +263,11 @@ jobs:
             artifact: pyogrio-wheel-arm64-osx-dynamic-release
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: ci
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
