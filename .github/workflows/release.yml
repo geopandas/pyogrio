@@ -176,13 +176,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Export GitHub Actions cache environment variables
-        uses: actions/github-script@v7
-        with:
-          script: |
-            core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
@@ -191,20 +184,16 @@ jobs:
           brew reinstall automake
           echo $(which aclocal)
 
-      - name: Checkout specific version of vcpkg
-        shell: bash
-        run: |
-          cd $VCPKG_INSTALLATION_ROOT
-          # on mac the clone is not clean, otherwise git pull fails
-          git reset --hard
-          # pull specific commit with desired GDAL version
-          git pull
-          git checkout 73794ce5f63fd138fab999a22959ca7c6305d93c
+      - name: Install vcpkg and checkout specific version
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          vcpkgGitCommitId: 73794ce5f63fd138fab999a22959ca7c6305d93c
 
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+          VCPKG_INSTALLATION_ROOT: ${{ github.workspace }}/vcpkg
         shell: bash
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed --debug
@@ -222,6 +211,7 @@ jobs:
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+          VCPKG_INSTALLATION_ROOT: ${{ github.workspace }}/vcpkg
           CIBW_ARCHS: ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
