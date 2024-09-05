@@ -209,7 +209,7 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
         shell: bash
         run: |
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
+          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed --debug
           vcpkg list
 
       - name: Upload vcpkg build logs
@@ -266,7 +266,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          sparse-checkout: ci
+          sparse-checkout: ci/requirements-wheel-test.txt
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
