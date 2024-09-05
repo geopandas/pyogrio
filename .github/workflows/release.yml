@@ -157,7 +157,7 @@ jobs:
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-12"
+          - os: "macos-14"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
