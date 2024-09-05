@@ -283,8 +283,6 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
           uv venv .venv
-          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
