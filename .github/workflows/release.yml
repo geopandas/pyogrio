@@ -131,8 +131,8 @@ jobs:
           tags: manylinux-vcpkg-gdal:latest
           push: false
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
         env:
           BUILDKIT_PROGRESS: plain
 
