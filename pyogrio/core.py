@@ -338,7 +338,7 @@ def get_gdal_data_path():
 
 
 def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
-    """Recursively list the contents in a vsi directory.
+    """Recursively list the contents of a VSI directory.
 
     An fnmatch pattern can be specified to filter the directories/files
     returned.
