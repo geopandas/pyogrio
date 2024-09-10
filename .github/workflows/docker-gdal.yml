@@ -1,22 +1,28 @@
 name: Docker GDAL Test
 
-on: [workflow_call]  # will be called from lint workflow.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
 
 # cancel running jobs on new commit to PR
 concurrency:
-  group: Tests-docker-gdal-${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  Tests-docker-gdal:
+  TestLinux:
     name: GDAL ${{ matrix.container }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         container:
-          - "ghcr.io/osgeo/gdal:ubuntu-small-latest" # >= python 3.10.6
-          - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.3" # python 3.10.12
+          - "ghcr.io/osgeo/gdal:ubuntu-small-latest" # >= python 3.12.3
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.9.2" # python 3.12.3
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.6.4" # python 3.10.6
           - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.8.10
@@ -33,6 +39,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Create virtual environment
+        # install uv and use it to create a virtual environment, then add it to
+        # environment variables so that it is automatically activated and can be
+        # used for tests below
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env

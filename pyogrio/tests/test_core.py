@@ -162,7 +162,11 @@ def test_list_layers(
     naturalearth_lowres,
     naturalearth_lowres_vsi,
     naturalearth_lowres_vsimem,
-    test_fgdb_vsi,
+    line_zm_file,
+    curve_file,
+    curve_polygon_file,
+    multisurface_file,
+    no_geometry_file,
 ):
     assert array_equal(
         list_layers(naturalearth_lowres), [["naturalearth_lowres", "Polygon"]]
@@ -182,16 +186,17 @@ def test_list_layers(
     with pytest.warns(
         UserWarning, match=r"Measured \(M\) geometry types are not supported"
     ):
-        fgdb_layers = list_layers(test_fgdb_vsi)
-        # GDAL >= 3.4.0 includes 'another_relationship' layer
-        assert len(fgdb_layers) >= 7
+        assert array_equal(list_layers(line_zm_file), [["line_zm", "LineString Z"]])
 
-        # Make sure that nonspatial layer has None for geometry
-        assert array_equal(fgdb_layers[0], ["basetable_2", None])
+    # Curve / surface types are downgraded to plain types
+    assert array_equal(list_layers(curve_file), [["curve", "LineString"]])
+    assert array_equal(list_layers(curve_polygon_file), [["curvepolygon", "Polygon"]])
+    assert array_equal(
+        list_layers(multisurface_file), [["multisurface", "MultiPolygon"]]
+    )
 
-        # Confirm that measured 3D is downgraded to plain 3D during read
-        assert array_equal(fgdb_layers[3], ["test_lines", "MultiLineString Z"])
-        assert array_equal(fgdb_layers[6], ["test_areas", "MultiPolygon Z"])
+    # Make sure that nonspatial layer has None for geometry
+    assert array_equal(list_layers(no_geometry_file), [["no_geometry", None]])
 
 
 def test_list_layers_bytes(geojson_bytes):
@@ -505,8 +510,8 @@ def test_read_info_filelike(geojson_filelike):
         ),
     ],
 )
-def test_read_info_dataset_kwargs(data_dir, dataset_kwargs, fields):
-    meta = read_info(data_dir / "test_nested.geojson", **dataset_kwargs)
+def test_read_info_dataset_kwargs(nested_geojson_file, dataset_kwargs, fields):
+    meta = read_info(nested_geojson_file, **dataset_kwargs)
     assert meta["fields"].tolist() == fields
 
 
@@ -565,8 +570,8 @@ def test_read_info_unspecified_layer_warning(data_dir):
         read_info(data_dir / "sample.osm.pbf")
 
 
-def test_read_info_without_geometry(test_fgdb_vsi):
-    assert read_info(test_fgdb_vsi, layer="basetable_2")["total_bounds"] is None
+def test_read_info_without_geometry(no_geometry_file):
+    assert read_info(no_geometry_file)["total_bounds"] is None
 
 
 @pytest.mark.parametrize(

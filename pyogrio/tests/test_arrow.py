@@ -133,24 +133,24 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
     assert_frame_equal(result, expected)
 
 
-def test_read_arrow_nested_types(test_ogr_types_list):
+def test_read_arrow_nested_types(list_field_values_file):
     # with arrow, list types are supported
-    result = read_dataframe(test_ogr_types_list, use_arrow=True)
+    result = read_dataframe(list_field_values_file, use_arrow=True)
     assert "list_int64" in result.columns
     assert result["list_int64"][0].tolist() == [0, 1]
 
 
-def test_read_arrow_to_pandas_kwargs(test_fgdb_vsi):
+def test_read_arrow_to_pandas_kwargs(no_geometry_file):
     # with arrow, list types are supported
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
-    result = read_dataframe(
-        test_fgdb_vsi,
-        layer="basetable_2",
+    df = read_dataframe(
+        no_geometry_file,
+        read_geometry=False,
         use_arrow=True,
         arrow_to_pandas_kwargs=arrow_to_pandas_kwargs,
     )
-    assert "SEGMENT_NAME" in result.columns
-    assert result["SEGMENT_NAME"].dtype.name == "category"
+    assert df.col.dtype.name == "category"
+    assert np.array_equal(df.col.values.categories, ["a", "b", "c"])
 
 
 def test_read_arrow_raw(naturalearth_lowres):
@@ -310,14 +310,15 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def test_enable_with_environment_variable(test_ogr_types_list):
+def test_enable_with_environment_variable(list_field_values_file):
     # list types are only supported with arrow, so don't work by default and work
     # when arrow is enabled through env variable
-    result = read_dataframe(test_ogr_types_list)
+    result = read_dataframe(list_field_values_file)
     assert "list_int64" not in result.columns
 
     with use_arrow_context():
-        result = read_dataframe(test_ogr_types_list)
+        result = read_dataframe(list_field_values_file)
+
     assert "list_int64" in result.columns
 
 
@@ -502,6 +503,88 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
     assert not len(
         set(meta["fields"]).difference(data["features"][0]["properties"].keys())
     )
+
+
+@requires_arrow_write_api
+@pytest.mark.skipif(
+    __gdal_version__ < (3, 6, 0),
+    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
+)
+@pytest.mark.parametrize(
+    "write_int64",
+    [
+        False,
+        pytest.param(
+            True,
+            marks=pytest.mark.skipif(
+                __gdal_version__ < (3, 9, 0),
+                reason="OpenFileGDB write support for int64 values for GDAL >= 3.9.0",
+            ),
+        ),
+    ],
+)
+def test_write_openfilegdb(tmp_path, write_int64):
+    expected_field_data = [
+        np.array([True, False, True], dtype="bool"),
+        np.array([1, 2, 3], dtype="int16"),
+        np.array([1, 2, 3], dtype="int32"),
+        np.array([1, 2, 3], dtype="int64"),
+        np.array([1, 2, 3], dtype="float32"),
+        np.array([1, 2, 3], dtype="float64"),
+    ]
+
+    table = pa.table(
+        {
+            "geometry": points,
+            **{field.dtype.name: field for field in expected_field_data},
+        }
+    )
+
+    filename = tmp_path / "test.gdb"
+
+    expected_meta = {"crs": "EPSG:4326"}
+
+    # int64 is not supported without additional config: https://gdal.org/en/latest/drivers/vector/openfilegdb.html#bit-integer-field-support
+    # it is converted to float64 by default and raises a warning
+    # (for GDAL >= 3.9.0 only)
+    write_params = (
+        {"TARGET_ARCGIS_VERSION": "ARCGIS_PRO_3_2_OR_LATER"} if write_int64 else {}
+    )
+
+    if write_int64 or __gdal_version__ < (3, 9, 0):
+        ctx = contextlib.nullcontext()
+    else:
+        ctx = pytest.warns(
+            RuntimeWarning, match="Integer64 will be written as a Float64"
+        )
+
+    with ctx:
+        write_arrow(
+            table,
+            filename,
+            driver="OpenFileGDB",
+            geometry_type="Point",
+            geometry_name="geometry",
+            **expected_meta,
+            **write_params,
+        )
+
+    meta, table = read_arrow(filename)
+
+    if not write_int64:
+        expected_field_data[3] = expected_field_data[3].astype("float64")
+
+    # bool types are converted to int32
+    expected_field_data[0] = expected_field_data[0].astype("int32")
+
+    assert meta["crs"] == expected_meta["crs"]
+
+    # NOTE: geometry name is set to "SHAPE" by GDAL
+    assert np.array_equal(table[meta["geometry_name"]], points)
+    for i in range(len(expected_field_data)):
+        values = table[table.schema.names[i]].to_numpy()
+        assert values.dtype == expected_field_data[i].dtype
+        assert np.array_equal(values, expected_field_data[i])
 
 
 @pytest.mark.parametrize(
