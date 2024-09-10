@@ -2304,12 +2304,7 @@ def ogr_write(
 
     try:
         # Setup in-memory handler if needed
-        if isinstance(path_or_fp, str):
-            path = path_or_fp
-            use_tmp_vsimem = False
-        else:
-            path = get_ogr_vsimem_write_path(path_or_fp, driver)
-            use_tmp_vsimem = path.startswith('/vsimem/')
+        path, use_tmp_vsimem = get_ogr_vsimem_write_path(path_or_fp, driver)
 
         # Setup dataset and layer
         layer_created = create_ogr_dataset_layer(
@@ -2575,12 +2570,7 @@ def ogr_write_arrow(
 
     try:
         # Setup in-memory handler if needed
-        if isinstance(path_or_fp, str):
-            path = path_or_fp
-            use_tmp_vsimem = False
-        else:
-            path = get_ogr_vsimem_write_path(path_or_fp, driver)
-            use_tmp_vsimem = path.startswith('/vsimem/')
+        path, use_tmp_vsimem = get_ogr_vsimem_write_path(path_or_fp, driver)
 
         layer_created = create_ogr_dataset_layer(
             path, use_tmp_vsimem, layer, driver, crs, geometry_type, encoding,

@@ -10,27 +10,37 @@ from pyogrio._ogr cimport *
 from pyogrio._ogr import _get_driver_metadata_item
 
 
-cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
-    """ Return the original path or a /vsimem/ path
+cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
+    """ Return the path to write to and whether it is a tmp vsimem filepath.
 
-    If passed a io.BytesIO object, this will return a /vsimem/ path that can be
-    used to create a new in-memory file with an extension inferred from the driver
-    if possible.  Path will be contained in an in-memory directory to contain
-    sibling files (though drivers that create sibling files are not supported for
-    in-memory files).
-
-    Caller is responsible for deleting the directory via vsimem_rmtree_toplevel()
+    If passed a io.BytesIO object to write to, a temporary vsimem file will be
+    used to be able to write the data directly to memory.
+    Hence, a tuple will be returned with a /vsimem/ path and True to indicate
+    the path will be to a tmp vsimem file.
+    The path will have an extension inferred from the driver if possible. Path
+    will be contained in an in-memory directory to contain sibling files
+    (though drivers that create sibling files are not supported for in-memory
+    files).
+    Caller is responsible for deleting the directory via 
+    vsimem_rmtree_toplevel().
 
     Parameters
     ----------
     path_or_fp : str or io.BytesIO object
     driver : str
+
+    Returns
+    -------
+    tuple of (path, use_tmp_vsimem)
+        Tuple of the path to write to and a bool indicating if the path is a
+        temporary vsimem filepath.
+
     """
-
+    # The write path is not a BytesIO object, so return path as-is
     if not isinstance(path_or_fp, BytesIO):
-        return path_or_fp
+        return (path_or_fp, False)
 
-    # check for existing bytes
+    # Check for existing bytes
     if path_or_fp.getbuffer().nbytes > 0:
         raise NotImplementedError("writing to existing in-memory object is not supported")
 
@@ -47,7 +57,7 @@ cdef str get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
     path = f"/vsimem/{memfilename}/{memfilename}{ext}"
 
-    return path
+    return (path, True)
 
 
 cdef str read_buffer_to_vsimem(bytes bytes_buffer):
