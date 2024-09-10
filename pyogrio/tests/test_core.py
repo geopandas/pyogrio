@@ -652,9 +652,13 @@ def test_vsimem_rmtree_error(naturalearth_lowres_vsimem):
     with pytest.raises(FileNotFoundError, match="Path does not exist"):
         vsi_rmtree("/vsimem/non-existent")
 
-    with pytest.raises(OSError, match="Removing /vsimem/ is not supported"):
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
         vsi_rmtree("/vsimem")
-    with pytest.raises(OSError, match="Removing /vsimem/ is not supported"):
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
         vsi_rmtree("/vsimem/")
 
     # Verify that naturalearth_lowres_vsimem still exists.
