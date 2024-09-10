@@ -126,15 +126,15 @@ cdef read_vsimem_to_buffer(str path, object out_buffer):
 
 
 cpdef vsimem_rmtree_toplevel(str path):
-    """Remove the toplevel file or toplevel directory containing the file.
+    """Remove the top-level file or top-level directory containing the file.
 
     This is used for final cleanup of an in-memory dataset. The path can point
     to either:
-    - a toplevel file (directly in /vsimem/).
+    - a top-level file (directly in /vsimem/).
     - a file in a directory, with possibly some sibling files.
     - a zip file, which apparently is reported as a directory by VSI_ISDIR.
 
-    Except for the first case, the toplevel directory (direct subdirectory of
+    Except for the first case, the top-level directory (direct subdirectory of
     /vsimem/) will be determined and will be removed recursively.
 
     Additional VSI handlers may be chained to the left of /vsimem/ in path and
@@ -154,15 +154,16 @@ cpdef vsimem_rmtree_toplevel(str path):
     if "/vsimem/" not in path:
         raise ValueError(f"Path is not a /vsimem/ path: '{path}'")
 
-    # Determine the toplevel directory of the file
+    # Determine the top-level directory of the file
     mempath_parts = path.split("/vsimem/")[1].split("/")
     if len(mempath_parts) == 0:
-        raise OSError("Removing /vsimem/ is not supported")
+        raise OSError("path to in-memory file or directory is required")
 
     toplevel_path = f"/vsimem/{mempath_parts[0]}"
 
     if not VSIStatL(toplevel_path.encode("UTF-8"), &st_buf) == 0:
         raise FileNotFoundError(f"Path does not exist: '{path}'")
+
     if VSI_ISDIR(st_buf.st_mode):
         errcode = VSIRmdirRecursive(toplevel_path.encode("UTF-8"))
     else:
@@ -191,22 +192,22 @@ def ogr_vsi_listtree(str path, str pattern):
     cdef char** papszFiles
     cdef VSIStatBufL st_buf
 
-    try:
-        path_b = path.encode("UTF-8")
-    except UnicodeDecodeError:
-        path_b = path
+    path_b = path.encode("UTF-8")
     path_c = path_b
+
     if not VSIStatL(path_c, &st_buf) == 0:
         raise FileNotFoundError(f"Path does not exist: '{path}'")
     if not VSI_ISDIR(st_buf.st_mode):
         raise NotADirectoryError(f"Path is not a directory: '{path}'")
 
-    papszFiles = VSIReadDirRecursive(path_c)
-    n = CSLCount(<CSLConstList>papszFiles)
-    files = []
-    for i in range(n):
-        files.append(papszFiles[i].decode("UTF-8"))
-    CSLDestroy(papszFiles)
+    try:
+        papszFiles = VSIReadDirRecursive(path_c)
+        n = CSLCount(<CSLConstList>papszFiles)
+        files = []
+        for i in range(n):
+            files.append(papszFiles[i].decode("UTF-8"))
+    finally:
+        CSLDestroy(papszFiles)
 
     # Apply filter pattern
     if pattern is not None:
@@ -242,7 +243,7 @@ def ogr_vsi_rmtree(str path):
     if not VSI_ISDIR(st_buf.st_mode):
         raise NotADirectoryError(f"Path is not a directory: '{path}'")
     if path.endswith("/vsimem") or path.endswith("/vsimem/"):
-        raise OSError("Removing /vsimem/ is not supported")
+        raise OSError("path to in-memory file or directory is required")
 
     errcode = VSIRmdirRecursive(path_c)
     if errcode != 0:

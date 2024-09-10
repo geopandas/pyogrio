@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Add support to read, write, list and remove `/vsimem/` files (#457)
+-   Add support to read, write, list, and remove `/vsimem/` files (#457)
 
 ## 0.9.1 (yyyy-mm-dd)
 

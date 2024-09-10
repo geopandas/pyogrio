@@ -1936,7 +1936,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
     IF CTE_GDAL_VERSION < (3, 8, 0):
         path = path_c.decode("UTF-8")
         if "/vsimem/" in path:
-            parent = f"{Path(path).parent.as_posix()}"
+            parent = str(Path(path).parent.as_posix())
             if not parent.endswith("/vsimem"):
                 retcode = VSIMkdirRecursive(parent.encode("UTF-8"), 0666)
                 if retcode != 0:

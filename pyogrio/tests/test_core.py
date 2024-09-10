@@ -718,7 +718,7 @@ def test_vsimem_rmtree_toplevel(naturalearth_lowres):
     assert test_dir_path.parent.as_posix() not in files
     assert test_dir2_path.as_posix() in files
 
-    # Test deleting toplevel dir of file in a subdirectory
+    # Test deleting top-level dir of file in a subdirectory
     _vsimem_rmtree_toplevel(test_dir2_path)
     assert test_dir2_path.as_posix() not in vsi_listtree("/vsimem/")
 
