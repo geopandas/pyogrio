@@ -1,6 +1,6 @@
 {
     "name": "pyogrio",
-    "version": "0.8.0",
+    "version": "0.10.0",
     "dependencies": [
         {
             "name": "gdal",
@@ -8,5 +8,5 @@
             "features": ["recommended-features", "curl", "geos", "iconv"]
         }
     ],
-    "builtin-baseline": "4f4a1821b2e8c7a2863e4df65a4d514f84144049"
+    "builtin-baseline": "73794ce5f63fd138fab999a22959ca7c6305d93c"
 }

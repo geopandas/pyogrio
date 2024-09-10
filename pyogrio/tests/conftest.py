@@ -2,6 +2,8 @@ from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+import numpy as np
+
 from pyogrio import (
     __gdal_version_string__,
     __version__,
@@ -126,8 +128,23 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 
 
 @pytest.fixture(scope="session")
-def test_fgdb_vsi():
-    return f"/vsizip/{_data_dir}/test_fgdb.gdb.zip"
+def line_zm_file():
+    return _data_dir / "line_zm.gpkg"
+
+
+@pytest.fixture(scope="session")
+def curve_file():
+    return _data_dir / "curve.gpkg"
+
+
+@pytest.fixture(scope="session")
+def curve_polygon_file():
+    return _data_dir / "curvepolygon.gpkg"
+
+
+@pytest.fixture(scope="session")
+def multisurface_file():
+    return _data_dir / "multisurface.gpkg"
 
 
 @pytest.fixture(scope="session")
@@ -135,19 +152,141 @@ def test_gpkg_nulls():
     return _data_dir / "test_gpkg_nulls.gpkg"
 
 
-@pytest.fixture(scope="session")
-def test_ogr_types_list():
-    return _data_dir / "test_ogr_types_list.geojson"
+@pytest.fixture(scope="function")
+def no_geometry_file(tmp_path):
+    # create a GPKG layer that does not include geometry
+    filename = tmp_path / "test_no_geometry.gpkg"
+    write(
+        filename,
+        layer="no_geometry",
+        geometry=None,
+        field_data=[np.array(["a", "b", "c"])],
+        fields=["col"],
+    )
+
+    return filename
 
 
-@pytest.fixture(scope="session")
-def test_datetime():
-    return _data_dir / "test_datetime.geojson"
+@pytest.fixture(scope="function")
+def list_field_values_file(tmp_path):
+    # Create a GeoJSON file with list values in a property
+    list_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { "int64": 1, "list_int64": [0, 1] },
+                "geometry": { "type": "Point", "coordinates": [0, 2] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "int64": 2, "list_int64": [2, 3] },
+                "geometry": { "type": "Point", "coordinates": [1, 2] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "int64": 3, "list_int64": [4, 5] },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "int64": 4, "list_int64": [6, 7] },
+                "geometry": { "type": "Point", "coordinates": [3, 2] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "int64": 5, "list_int64": [8, 9] },
+                "geometry": { "type": "Point", "coordinates": [4, 2] }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_ogr_types_list.geojson"
+    with open(filename, "w") as f:
+        _ = f.write(list_geojson)
+
+    return filename
 
 
-@pytest.fixture(scope="session")
-def test_datetime_tz():
-    return _data_dir / "test_datetime_tz.geojson"
+@pytest.fixture(scope="function")
+def nested_geojson_file(tmp_path):
+    # create GeoJSON file with nested properties
+    nested_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "top_level": "A",
+                    "intermediate_level": {
+                        "bottom_level": "B"
+                    }
+                }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_nested.geojson"
+    with open(filename, "w") as f:
+        _ = f.write(nested_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
+def datetime_file(tmp_path):
+    # create GeoJSON file with millisecond precision
+    datetime_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { "col": "2020-01-01T09:00:00.123" },
+                "geometry": { "type": "Point", "coordinates": [1, 1] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "col": "2020-01-01T10:00:00" },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_datetime.geojson"
+    with open(filename, "w") as f:
+        _ = f.write(datetime_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
+def datetime_tz_file(tmp_path):
+    # create GeoJSON file with datetimes with timezone
+    datetime_tz_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { "datetime_col": "2020-01-01T09:00:00.123-05:00" },
+                "geometry": { "type": "Point", "coordinates": [1, 1] }
+            },
+            {
+                "type": "Feature",
+                "properties": { "datetime_col": "2020-01-01T10:00:00-05:00" },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_datetime_tz.geojson"
+    with open(filename, "w") as f:
+        f.write(datetime_tz_geojson)
+
+    return filename
 
 
 @pytest.fixture(scope="function")
