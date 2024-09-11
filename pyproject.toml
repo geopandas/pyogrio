@@ -7,6 +7,35 @@ requires = [
     "tomli; python_version < '3.11'",
 ]
 
+[project]
+name = "pyogrio"
+dynamic = ["version"]
+authors = [{ name = "Brendan C. Ward", email = "bcward@astutespruce.com" }]
+maintainers = [{ name = "pyogrio contributors" }]
+license = { text = "MIT License" }
+description = "Vectorized spatial vector file format I/O using GDAL/OGR"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+requires-python = ">=3.8"
+dependencies = ["certifi", "numpy", "packaging"]
+
+[project.optional-dependencies]
+dev = ["cython"]
+test = ["pytest", "pytest-cov"]
+benchmark = ["pytest-benchmark"]
+geopandas = ["geopandas"]
+
+[project.urls]
+Home = "https://pyogrio.readthedocs.io/"
+Repository = "https://github.com/geopandas/pyogrio"
+
 [tool.cibuildwheel]
 skip = ["cp36-*", "cp37-*", "pp*", "*musllinux*"]
 archs = ["auto64"]
