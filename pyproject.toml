@@ -13,7 +13,7 @@ name = "pyogrio"
 dynamic = ["version"]
 authors = [{ name = "Brendan C. Ward", email = "bcward@astutespruce.com" }]
 maintainers = [{ name = "pyogrio contributors" }]
-license = { text = "MIT License" }
+license = { file = "LICENSE" }
 description = "Vectorized spatial vector file format I/O using GDAL/OGR"
 readme = "README.md"
 classifiers = [
