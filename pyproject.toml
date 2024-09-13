@@ -6,6 +6,7 @@ requires = [
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyogrio"
@@ -37,7 +38,7 @@ Home = "https://pyogrio.readthedocs.io/"
 Repository = "https://github.com/geopandas/pyogrio"
 
 [tool.cibuildwheel]
-skip = ["cp36-*", "cp37-*", "pp*", "*musllinux*"]
+skip = ["pp*", "*musllinux*"]
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
@@ -92,7 +93,6 @@ tag_prefix = "v"
 [tool.ruff]
 line-length = 88
 extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py"]
-target-version = "py38"
 
 [tool.ruff.lint]
 select = [
