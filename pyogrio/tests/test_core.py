@@ -645,23 +645,28 @@ def test_vsimem_listtree(naturalearth_lowres):
 
 
 @pytest.mark.parametrize(
-    "path, exception, error_match",
+    "path, is_fixture, exception, error_match",
     [
-        ("naturalearth_lowres_vsimem", NotADirectoryError, "Path is not a directory"),
-        ("/vsimem/non-existent", FileNotFoundError, "Path does not exist"),
-        ("/vsimem", OSError, "path to in-memory file or directory is required"),
-        ("/vsimem/", OSError, "path to in-memory file or directory is required"),
+        (
+            "naturalearth_lowres_vsimem",
+            True,
+            NotADirectoryError,
+            "Path is not a directory",
+        ),
+        ("/vsimem/non-existent", False, FileNotFoundError, "Path does not exist"),
+        ("/vsimem", False, OSError, "path to in-memory file or directory is required"),
+        ("/vsimem/", False, OSError, "path to in-memory file or directory is required"),
     ],
 )
-def test_vsimem_rmtree_error(path, exception, error_match, request):
-    if not path.startswith("/vsimem"):
+def test_vsimem_rmtree_error(path, is_fixture, exception, error_match, request):
+    if is_fixture:
         path = request.getfixturevalue(path)
 
     with pytest.raises(exception, match=error_match):
         vsi_rmtree(path)
 
-    # Verify that naturalearth_lowres_vsimem still exists.
-    if not path.startswith("/vsimem"):
+    # If path was a fixture, the temp file should still exists.
+    if is_fixture:
         assert path.as_posix() in vsi_listtree("/vsimem")
 
 
