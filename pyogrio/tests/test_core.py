@@ -645,24 +645,25 @@ def test_vsimem_listtree(naturalearth_lowres):
     vsi_rmtree(test_dir_path.parent)
 
 
-def test_vsimem_rmtree_error(naturalearth_lowres_vsimem):
-    with pytest.raises(NotADirectoryError, match="Path is not a directory"):
-        vsi_rmtree(naturalearth_lowres_vsimem)
+@pytest.mark.parametrize(
+    "path, exception, error_match",
+    [
+        ("naturalearth_lowres_vsimem", NotADirectoryError, "Path is not a directory"),
+        ("/vsimem/non-existent", FileNotFoundError, "Path does not exist"),
+        ("/vsimem", OSError, "path to in-memory file or directory is required"),
+        ("/vsimem/", OSError, "path to in-memory file or directory is required"),
+    ],
+)
+def test_vsimem_rmtree_error(path, exception, error_match, request):
+    if not path.startswith("/vsimem"):
+        path = request.getfixturevalue(path)
 
-    with pytest.raises(FileNotFoundError, match="Path does not exist"):
-        vsi_rmtree("/vsimem/non-existent")
-
-    with pytest.raises(
-        OSError, match="path to in-memory file or directory is required"
-    ):
-        vsi_rmtree("/vsimem")
-    with pytest.raises(
-        OSError, match="path to in-memory file or directory is required"
-    ):
-        vsi_rmtree("/vsimem/")
+    with pytest.raises(exception, match=error_match):
+        vsi_rmtree(path)
 
     # Verify that naturalearth_lowres_vsimem still exists.
-    assert naturalearth_lowres_vsimem.as_posix() in vsi_listtree("/vsimem")
+    if not path.startswith("/vsimem"):
+        assert path.as_posix() in vsi_listtree("/vsimem")
 
 
 def test_vsimem_rmtree_unlink(naturalearth_lowres):
