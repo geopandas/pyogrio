@@ -350,6 +350,12 @@ def test_uri_s3_dataframe(aws_env_setup):
     ],
 )
 def test_get_vsi_path_or_buffer_obj_to_string(path, expected):
+    """Verify that get_vsi_path_or_buffer retains forward slashes in /vsimem paths.
+
+    The /vsimem paths should keep forward slashes for GDAL to recognize them as such.
+    However, on Windows systems, forward slashes are by default replaced by backslashes,
+    so this test verifies that this doesn't happen for /vsimem paths.
+    """
     assert get_vsi_path_or_buffer(path) == expected
 
 
