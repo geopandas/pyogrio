@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
 
+from pyogrio._vsi import vsimem_rmtree_toplevel as _vsimem_rmtree_toplevel
+
 
 def get_vsi_path_or_buffer(path_or_buffer):
     """Get VSI-prefixed path or bytes buffer depending on type of path_or_buffer.
@@ -220,3 +222,26 @@ def _mask_to_wkb(mask):
         raise ValueError("'mask' parameter must be a Shapely geometry")
 
     return shapely.to_wkb(mask)
+
+
+def vsimem_rmtree_toplevel(path: Union[str, Path]):
+    """Remove the parent directory of the file path recursively.
+
+    This is used for final cleanup of an in-memory dataset, which may have been
+    created within a directory to contain sibling files.
+
+    Additional VSI handlers may be chained to the left of /vsimem/ in path and
+    will be ignored.
+
+    Remark: function is defined here to be able to run tests on it.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        path to in-memory file
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    _vsimem_rmtree_toplevel(path)
