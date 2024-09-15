@@ -126,7 +126,7 @@ def naturalearth_lowres_all_ext(tmp_path, naturalearth_lowres, request):
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
-    """Wrap naturalearth_lowres as a zip file for vsi tests"""
+    """Wrap naturalearth_lowres as a zip file for VSI tests"""
 
     path = tmp_path / f"{naturalearth_lowres.name}.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
@@ -139,7 +139,7 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsimem(naturalearth_lowres):
-    """Write naturalearth_lowres to a vsimem file for vsi tests"""
+    """Write naturalearth_lowres to a vsimem file for VSI tests"""
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
     name = f"pyogrio_fixture_{naturalearth_lowres.stem}"

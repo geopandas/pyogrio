@@ -14,7 +14,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     """ Return the path to write to and whether it is a tmp vsimem filepath.
 
     If passed a io.BytesIO object to write to, a temporary vsimem file will be
-    used to be able to write the data directly to memory.
+    used to write the data directly to memory.
     Hence, a tuple will be returned with a /vsimem/ path and True to indicate
     the path will be to a tmp vsimem file.
     The path will have an extension inferred from the driver if possible. Path
@@ -141,7 +141,7 @@ cpdef vsimem_rmtree_toplevel(str path):
     This is used for final cleanup of an in-memory dataset. The path can point
     to either:
     - a top-level file (directly in /vsimem/).
-    - a file in a directory, with possibly some sibling files.
+    - a file in a directory, which may include sibling files.
     - a zip file, which apparently is reported as a directory by VSI_ISDIR.
 
     Except for the first case, the top-level directory (direct subdirectory of
@@ -184,7 +184,7 @@ cpdef vsimem_rmtree_toplevel(str path):
 
 
 def ogr_vsi_listtree(str path, str pattern):
-    """Recursively list the contents in a vsi directory.
+    """Recursively list the contents in a VSI directory.
 
     An fnmatch pattern can be specified to filter the directories/files
     returned.
@@ -192,7 +192,7 @@ def ogr_vsi_listtree(str path, str pattern):
     Parameters:
     -----------
     path : str
-        Path to the vsi directory to be listed.
+        Path to the VSI directory to be listed.
     pattern : str
         Pattern to filter results, in fnmatch format.
 
@@ -232,12 +232,12 @@ def ogr_vsi_listtree(str path, str pattern):
 
 
 def ogr_vsi_rmtree(str path):
-    """Recursively remove vsi directory.
+    """Recursively remove VSI directory.
 
     Parameters:
     -----------
     path : str
-        path to the vsi directory to be removed.
+        path to the VSI directory to be removed.
 
     """
     cdef const char *path_c
@@ -261,12 +261,12 @@ def ogr_vsi_rmtree(str path):
 
 
 def ogr_vsi_unlink(str path):
-    """Remove vsi file.
+    """Remove VSI file.
 
     Parameters:
     -----------
     path : str
-        path to the vsi file to be removed.
+        path to the VSI file to be removed.
 
     """
     cdef const char *path_c
@@ -277,8 +277,10 @@ def ogr_vsi_unlink(str path):
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
+    
     if not VSIStatL(path_c, &st_buf) == 0:
         raise FileNotFoundError(f"Path does not exist: '{path}'")
+
     if VSI_ISDIR(st_buf.st_mode):
         raise IsADirectoryError(f"Path is a directory: '{path}'")
 

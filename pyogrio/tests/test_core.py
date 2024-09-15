@@ -620,7 +620,7 @@ def test_vsimem_listtree(naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta["spatial_index"] = False
     meta["geometry_type"] = "MultiPolygon"
-    test_file_path = Path(f"/vsimem/pyogrio_test_{naturalearth_lowres.stem}.gpkg")
+    test_file_path = Path("/vsimem/pyogrio_test_naturalearth_lowres.gpkg")
     test_dir_path = Path(f"/vsimem/pyogrio_dir_test/{naturalearth_lowres.stem}.gpkg")
 
     write(test_file_path, geometry, field_data, **meta)

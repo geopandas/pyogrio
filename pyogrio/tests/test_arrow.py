@@ -163,7 +163,8 @@ def test_read_arrow_vsi(naturalearth_lowres_vsi):
     table = read_arrow(naturalearth_lowres_vsi[1])[1]
     assert len(table) == 177
 
-    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    # Check temp file was cleaned up. Filter to files created by pyogrio, as GDAL keeps
+    # cache files in /vsimem/.
     assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 

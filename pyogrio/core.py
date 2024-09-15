@@ -346,7 +346,7 @@ def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
     Parameters
     ----------
     path : str or pathlib.Path
-        Path to the vsi directory to be listed.
+        Path to the VSI directory to be listed.
     pattern : str, optional
         Pattern to filter results, in fnmatch format.
 
@@ -358,12 +358,12 @@ def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
 
 
 def vsi_rmtree(path: Union[str, Path]):
-    """Recursively remove vsi directory.
+    """Recursively remove VSI directory.
 
     Parameters
     ----------
     path : str or pathlib.Path
-        path to the vsi directory to be removed.
+        path to the VSI directory to be removed.
 
     """
     if isinstance(path, Path):
@@ -373,7 +373,7 @@ def vsi_rmtree(path: Union[str, Path]):
 
 
 def vsi_unlink(path: Union[str, Path]):
-    """Remove a vsi file.
+    """Remove a VSI file.
 
     Parameters
     ----------

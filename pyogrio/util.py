@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 
 def get_vsi_path_or_buffer(path_or_buffer):
-    """Get vsi-prefixed path or bytes buffer depending on type of path_or_buffer.
+    """Get VSI-prefixed path or bytes buffer depending on type of path_or_buffer.
 
     If path_or_buffer is a bytes object, it will be returned directly and will
     be read into an in-memory dataset when passed to one of the Cython functions.
@@ -51,8 +51,8 @@ def get_vsi_path_or_buffer(path_or_buffer):
 
 
 def vsi_path(path: Union[str, Path]) -> str:
-    """Ensure path is a local path or a GDAL-compatible vsi path."""
-    # Convert Path objects to string, but for vsi paths, keep posix style path.
+    """Ensure path is a local path or a GDAL-compatible VSI path."""
+    # Convert Path objects to string, but for VSI paths, keep posix style path.
     if isinstance(path, Path):
         if sys.platform == "win32" and path.as_posix().startswith("/vsi"):
             path = path.as_posix()
