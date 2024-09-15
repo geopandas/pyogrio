@@ -142,7 +142,7 @@ cpdef vsimem_rmtree_toplevel(str path):
     to either:
     - a top-level file (directly in /vsimem/).
     - a file in a directory, which may include sibling files.
-    - a zip file, which apparently is reported as a directory by VSI_ISDIR.
+    - a zip file (reported as a directory by VSI_ISDIR).
 
     Except for the first case, the top-level directory (direct subdirectory of
     /vsimem/) will be determined and will be removed recursively.
