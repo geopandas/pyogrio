@@ -2125,10 +2125,7 @@ cdef create_ogr_dataset_layer(
                 raise exc
 
             # otherwise create from scratch
-            if use_tmp_vsimem:
-                VSIUnlink(path_c)
-            else:
-                os.unlink(path)
+            os.unlink(path)
 
             ogr_dataset = NULL
 
