@@ -42,9 +42,13 @@ jobs:
         # install uv and use it to create a virtual environment, then add it to
         # environment variables so that it is automatically activated and can be
         # used for tests below
+        shell: bash
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
+          if [ ${{ matrix.container }} == "osgeo/gdal:ubuntu-small-3.5.3" ]; then
+            uv python install 3.9
+          fi
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
