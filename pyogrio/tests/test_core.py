@@ -614,32 +614,6 @@ def test_error_handling_warning(capfd, naturalearth_lowres):
     assert capfd.readouterr().err == ""
 
 
-@pytest.mark.parametrize(
-    "path, is_fixture, exception, error_match",
-    [
-        (
-            "naturalearth_lowres_vsimem",
-            True,
-            NotADirectoryError,
-            "Path is not a directory",
-        ),
-        ("/vsimem/non-existent", False, FileNotFoundError, "Path does not exist"),
-        ("/vsimem", False, OSError, "path to in-memory file or directory is required"),
-        ("/vsimem/", False, OSError, "path to in-memory file or directory is required"),
-    ],
-)
-def test_vsimem_rmtree_error(path, is_fixture, exception, error_match, request):
-    if is_fixture:
-        path = request.getfixturevalue(path)
-
-    with pytest.raises(exception, match=error_match):
-        vsi_rmtree(path)
-
-    # If path was a fixture, the temp file should still exists.
-    if is_fixture:
-        assert path.as_posix() in vsi_listtree("/vsimem")
-
-
 def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
     """Test all basic functionalities of file handling in /vsimem/."""
     # Prepare test data in /vsimem
@@ -674,6 +648,25 @@ def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
 
     # Remove test_file
     vsi_unlink(test_file_path)
+
+def test_vsimem_rmtree_error(naturalearth_lowres_vsimem):
+    with pytest.raises(NotADirectoryError, match="Path is not a directory"):
+        vsi_rmtree(naturalearth_lowres_vsimem)
+
+    with pytest.raises(FileNotFoundError, match="Path does not exist"):
+        vsi_rmtree("/vsimem/non-existent")
+
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
+        vsi_rmtree("/vsimem")
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
+        vsi_rmtree("/vsimem/")
+
+    # Verify that naturalearth_lowres_vsimem still exists.
+    assert naturalearth_lowres_vsimem.as_posix() in vsi_listtree("/vsimem")
 
 
 def test_vsimem_unlink_error(naturalearth_lowres_vsimem):
