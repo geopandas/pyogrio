@@ -11,7 +11,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyogrio"
 dynamic = ["version"]
-authors = [{ name = "Brendan C. Ward", email = "bcward@astutespruce.com" }, { name = "pyogrio contributors" }]
+authors = [
+    { name = "Brendan C. Ward", email = "bcward@astutespruce.com" },
+    { name = "pyogrio contributors" }
+]
 maintainers = [{ name = "pyogrio contributors" }]
 license = { file = "LICENSE" }
 description = "Vectorized spatial vector file format I/O using GDAL/OGR"
