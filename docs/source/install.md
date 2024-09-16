@@ -24,10 +24,13 @@ This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
 raw I/O support and `geopandas` and their dependencies for GeoDataFrame
 I/O support.
 
-To enable additional GDAL divers, you may need to install them directly:
+By default, the `GDAL` package on conda-forge currently includes LIBKML and
+Spatialite. However, you may need to install additional drivers by installing
+the associated [conda-forge package](https://gdal.org/en/latest/download.html#conda):
 
--   LIBKML: [libkml](https://anaconda.org/conda-forge/libkml)
--   Spatialite: [libspatialite](https://anaconda.org/conda-forge/libspatialite)
+-   `libgdal-arrow-parquet`
+-   `libgdal-pg`
+-   `libgdal-xls`
 
 ### PyPI
 
@@ -48,7 +51,7 @@ platform.
 The binary wheels available on PyPI include the core GDAL drivers (GeoJSON,
 ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc) but do not include more advanced
 drivers such as LIBKML and Spatialite. Use conda-forge to install pyogrio and
-then install these additional drivers directly.
+then install these additional drivers directly if needed.
 
 ### Troubleshooting installation errors
 
