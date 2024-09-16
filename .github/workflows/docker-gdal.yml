@@ -25,8 +25,8 @@ jobs:
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.6.4" # python 3.10.6
-          - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.8.10?
-          - "osgeo/gdal:ubuntu-small-3.4.3" # python 3.8.10?
+          - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.9.20 (installed manually)
+          - "osgeo/gdal:ubuntu-small-3.4.3" # python 3.9.20 (installed manually)
 
     container:
       image: ${{ matrix.container }}
@@ -37,13 +37,13 @@ jobs:
           apt-get update && apt-get install -y build-essential git python3-dev
 
       - name: Install Python 
-        if: ${{ matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3' }}
+        # the GDAL 3.4 and 3.5 images do have Python 3.8 installed, so have to
+        # install a more recent Python version manually 
+        if: matrix.container == 'osgeo/gdal:ubuntu-small-3.5.3' || matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3'
         run: |
-          apt-get install -y software-properties-common
-          apt-get update -y -q
+          apt-get update && apt-get install -y software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update -y -q
-          apt-get install -y python3.9-dev
+          apt-get update && apt-get install -y python3.9-dev
 
       - uses: actions/checkout@v4
 
@@ -51,13 +51,9 @@ jobs:
         # install uv and use it to create a virtual environment, then add it to
         # environment variables so that it is automatically activated and can be
         # used for tests below
-        shell: bash
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
-          if [ ${{ matrix.container }} == "osgeo/gdal:ubuntu-small-3.5.3" ]; then
-            uv python install 3.9
-          fi
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
