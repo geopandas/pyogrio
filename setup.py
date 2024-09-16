@@ -202,24 +202,8 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass["build_ext"] = build_ext
 
 setup(
-    name="pyogrio",
     version=version,
     packages=find_packages(),
-    url="https://github.com/geopandas/pyogrio",
-    license="MIT",
-    author="Brendan C. Ward",
-    author_email="bcward@astutespruce.com",
-    description="Vectorized spatial vector file format I/O using GDAL/OGR",
-    long_description_content_type="text/markdown",
-    long_description=open("README.md").read(),
-    python_requires=">=3.8",
-    install_requires=["certifi", "numpy", "packaging"],
-    extras_require={
-        "dev": ["Cython"],
-        "test": ["pytest", "pytest-cov"],
-        "benchmark": ["pytest-benchmark"],
-        "geopandas": ["geopandas"],
-    },
     include_package_data=True,
     exclude_package_data={'': ['*.h', '_*.pxd', '_*.pyx']},
     cmdclass=cmdclass,
