@@ -2,7 +2,6 @@ import fnmatch
 from io import BytesIO
 from uuid import uuid4
 
-
 from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy
 
@@ -11,7 +10,7 @@ from pyogrio._ogr import _get_driver_metadata_item
 
 
 cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
-    """ Return the path to write to and whether it is a tmp vsimem filepath.
+    """Return the path to write to and whether it is a tmp vsimem filepath.
 
     If passed a io.BytesIO object to write to, a temporary vsimem file will be
     used to write the data directly to memory.
@@ -21,6 +20,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     will be contained in an in-memory directory to contain sibling files
     (though drivers that create sibling files are not supported for in-memory
     files).
+
     Caller is responsible for deleting the directory via 
     vsimem_rmtree_toplevel().
 

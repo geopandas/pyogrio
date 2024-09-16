@@ -614,36 +614,6 @@ def test_error_handling_warning(capfd, naturalearth_lowres):
     assert capfd.readouterr().err == ""
 
 
-def test_vsimem_listtree(naturalearth_lowres):
-    # Prepare test data in /vsimem
-    meta, _, geometry, field_data = read(naturalearth_lowres)
-    meta["spatial_index"] = False
-    meta["geometry_type"] = "MultiPolygon"
-    test_file_path = Path("/vsimem/pyogrio_test_naturalearth_lowres.gpkg")
-    test_dir_path = Path(f"/vsimem/pyogrio_dir_test/{naturalearth_lowres.stem}.gpkg")
-
-    write(test_file_path, geometry, field_data, **meta)
-    write(test_dir_path, geometry, field_data, **meta)
-
-    # Check basic listtree
-    files = vsi_listtree("/vsimem/")
-    assert test_file_path.as_posix() in files
-    assert test_dir_path.as_posix() in files
-
-    # Check listtree with pattern
-    files = vsi_listtree("/vsimem/", pattern="pyogrio_dir_test*.gpkg")
-    assert test_file_path.as_posix() not in files
-    assert test_dir_path.as_posix() in files
-
-    files = vsi_listtree("/vsimem/", pattern="pyogrio_test*.gpkg")
-    assert test_file_path.as_posix() in files
-    assert test_dir_path.as_posix() not in files
-
-    # Clean up
-    vsi_unlink(test_file_path)
-    vsi_rmtree(test_dir_path.parent)
-
-
 @pytest.mark.parametrize(
     "path, is_fixture, exception, error_match",
     [
@@ -670,14 +640,14 @@ def test_vsimem_rmtree_error(path, is_fixture, exception, error_match, request):
         assert path.as_posix() in vsi_listtree("/vsimem")
 
 
-def test_vsimem_rmtree_unlink(naturalearth_lowres):
+def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
     """Test all basic functionalities of file handling in /vsimem/."""
     # Prepare test data in /vsimem
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta["spatial_index"] = False
     meta["geometry_type"] = "MultiPolygon"
-    test_file_path = Path(f"/vsimem/{naturalearth_lowres.stem}.gpkg")
-    test_dir_path = Path(f"/vsimem/test_dir/{naturalearth_lowres.stem}.gpkg")
+    test_file_path = Path("/vsimem/pyogrio_test_naturalearth_lowres.gpkg")
+    test_dir_path = Path(f"/vsimem/pyogrio_dir_test/{naturalearth_lowres.stem}.gpkg")
 
     write(test_file_path, geometry, field_data, **meta)
     write(test_dir_path, geometry, field_data, **meta)
@@ -686,6 +656,15 @@ def test_vsimem_rmtree_unlink(naturalearth_lowres):
     files = vsi_listtree("/vsimem/")
     assert test_file_path.as_posix() in files
     assert test_dir_path.as_posix() in files
+
+    # Check listtree with pattern
+    files = vsi_listtree("/vsimem/", pattern="pyogrio_dir_test*.gpkg")
+    assert test_file_path.as_posix() not in files
+    assert test_dir_path.as_posix() in files
+
+    files = vsi_listtree("/vsimem/", pattern="pyogrio_test*.gpkg")
+    assert test_file_path.as_posix() in files
+    assert test_dir_path.as_posix() not in files
 
     # Remove test_dir and its contents
     vsi_rmtree(test_dir_path.parent)
