@@ -36,10 +36,12 @@ jobs:
         run: |
           apt-get update && apt-get install -y build-essential git python3-dev
 
-      - name: Checkout code
+      - name: Install Python 
         if: ${{ matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3' }}
         run: |
-          sudo add-apt-repository -y ppa:deadsnakes/ppa
+          apt-get install -y software-properties-common
+          apt-get update -y -q
+          add-apt-repository -y ppa:deadsnakes/ppa
           apt-get update -y -q
           apt-get install -y python3.9-dev
 
