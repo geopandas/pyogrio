@@ -649,6 +649,7 @@ def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
     # Remove test_file
     vsi_unlink(test_file_path)
 
+
 def test_vsimem_rmtree_error(naturalearth_lowres_vsimem):
     with pytest.raises(NotADirectoryError, match="Path is not a directory"):
         vsi_rmtree(naturalearth_lowres_vsimem)
