@@ -22,15 +22,15 @@ conda install -c conda-forge pyogrio
 
 This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
 raw I/O support and `geopandas` and their dependencies for GeoDataFrame
-I/O support.
+I/O support. By default, the `GDAL` package on conda-forge already supports a
+wide range of vector formats. If needed, you can install additional drivers by
+installing the associated
+[conda-forge package](https://gdal.org/en/latest/download.html#conda). The
+following packages are currently available to install extra vector drivers:
 
-By default, the `GDAL` package on conda-forge currently includes LIBKML and
-Spatialite. However, you may need to install additional drivers by installing
-the associated [conda-forge package](https://gdal.org/en/latest/download.html#conda):
-
--   `libgdal-arrow-parquet`
--   `libgdal-pg`
--   `libgdal-xls`
+-   `libgdal-arrow-parquet` ((Geo)Parquet and (Geo)Arrow IPC)
+-   `libgdal-pg` (PostgreSQL / PostGIS)
+-   `libgdal-xls` (XLS - MS Excel format)
 
 ### PyPI
 
@@ -50,8 +50,8 @@ platform.
 
 The binary wheels available on PyPI include the core GDAL drivers (GeoJSON,
 ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc) but do not include more advanced
-drivers such as LIBKML and Spatialite. Use conda-forge to install pyogrio and
-then install these additional drivers directly if needed.
+drivers such as LIBKML and Spatialite. If you need such drivers, we recommend
+that you use conda-forge to install pyogrio as explained above.
 
 ### Troubleshooting installation errors
 
