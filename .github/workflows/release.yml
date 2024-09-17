@@ -305,7 +305,7 @@ jobs:
           if [ ${{ matrix.python-version }} != "3.13" ]; then
             uv pip install -r ci/requirements-wheel-test.txt
           else
-            uv pip install numpy pytest
+            uv pip install pytest numpy certifi packaging
           fi
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
           if [ ${{ matrix.python-version }} != "3.13" ]; then
