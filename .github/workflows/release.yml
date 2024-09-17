@@ -247,7 +247,7 @@ jobs:
             "macos-12",
             "macos-latest",
           ]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -302,9 +302,13 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          uv pip install -r ci/requirements-wheel-test.txt
+          if [ ${{ matrix.python-version }} != "3.13" ]; then
+            uv pip install -r ci/requirements-wheel-test.txt
+          else
+            uv pip install numpy pytest
+          fi
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} != "3.12" ]; then
+          if [ ${{ matrix.python-version }} != "3.13" ]; then
             uv pip install --no-deps geopandas
           fi
           uv pip list
