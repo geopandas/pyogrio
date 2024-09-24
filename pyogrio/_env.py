@@ -7,7 +7,6 @@
 import logging
 import os
 import platform
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -28,7 +27,7 @@ except ImportError:
 
 gdal_dll_dir = None
 
-if platform.system() == "Windows" and sys.version_info >= (3, 8):
+if platform.system() == "Windows":
     # if loading of extension modules fails, search for gdal dll directory
     try:
         import pyogrio._io  # noqa: F401
