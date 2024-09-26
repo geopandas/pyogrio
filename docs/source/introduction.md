@@ -533,9 +533,6 @@ You can also use a dictionary to specify either `dataset_options` or
 
 ## Reading from and writing to in-memory datasets
 
-Pyogrio can automatically create and manage in-memory virtual files (`/vsimem`)
-to enable reading and writing from in-memory datasets.
-
 It is possible to read from a dataset stored as bytes:
 
 ```python
