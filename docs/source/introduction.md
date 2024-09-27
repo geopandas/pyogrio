@@ -590,9 +590,6 @@ gdal.Rasterize("test.tif", '/vsimem/test.gpkg', outputType=gdal.GDT_Byte, noData
 from pyogrio import vsi_unlink
 
 vsi_unlink('/vsimem/test.gpkg')
-
-# or use gdal to release it
-gdal.Unlink('/vsimem/test.gpkg')
 ```
 
 Pyogrio can also read from a valid `/vsimem/` file created using a different
