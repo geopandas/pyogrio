@@ -581,15 +581,15 @@ packages that support the `/vsimem/` interface, such as the `gdal` package:
 ```python
 from osgeo import gdal
 
-write_dataframe(df, '/vsimem/test.gpkg', layer="my_layer", driver="GPKG")
+write_dataframe(df, "/vsimem/test.gpkg", layer="my_layer", driver="GPKG")
 
 # perform some operation using it
-gdal.Rasterize("test.tif", '/vsimem/test.gpkg', outputType=gdal.GDT_Byte, noData=255, initValues=255, xRes=0.1, yRes=-0.1, allTouched=True, burnValues=1)
+gdal.Rasterize("test.tif", "/vsimem/test.gpkg", outputType=gdal.GDT_Byte, noData=255, initValues=255, xRes=0.1, yRes=-0.1, allTouched=True, burnValues=1)
 
 # release the memory using pyogrio
 from pyogrio import vsi_unlink
 
-vsi_unlink('/vsimem/test.gpkg')
+vsi_unlink("/vsimem/test.gpkg")
 ```
 
 Pyogrio can also read from a valid `/vsimem/` file created using a different
