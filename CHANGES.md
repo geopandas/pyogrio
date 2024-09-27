@@ -2,6 +2,10 @@
 
 ## 0.10.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Add support to read, write, list, and remove `/vsimem/` files (#457)
+
 ### Bug fixes
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).

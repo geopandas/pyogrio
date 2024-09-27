@@ -563,7 +563,7 @@ def _get_write_path_driver(path, driver, append=False):
         )
 
     else:
-        path = vsi_path(str(path))
+        path = vsi_path(path)
 
         if driver is None:
             driver = detect_write_driver(path)
