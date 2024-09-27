@@ -21,6 +21,9 @@ from pyogrio.core import (
     read_bounds,
     read_info,
     set_gdal_config_options,
+    vsi_listtree,
+    vsi_rmtree,
+    vsi_unlink,
 )
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write_arrow
@@ -37,10 +40,13 @@ __all__ = [
     "set_gdal_config_options",
     "get_gdal_config_option",
     "get_gdal_data_path",
-    "read_arrow",
     "open_arrow",
-    "write_arrow",
+    "read_arrow",
     "read_dataframe",
+    "vsi_listtree",
+    "vsi_rmtree",
+    "vsi_unlink",
+    "write_arrow",
     "write_dataframe",
     "__gdal_version__",
     "__gdal_version_string__",

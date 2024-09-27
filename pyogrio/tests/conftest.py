@@ -17,6 +17,7 @@ from pyogrio._compat import (
     HAS_PYPROJ,
     HAS_SHAPELY,
 )
+from pyogrio.core import vsi_rmtree
 from pyogrio.raw import read, write
 
 import pytest
@@ -37,6 +38,15 @@ DRIVERS = {
 DRIVER_EXT = {driver: ext for ext, driver in DRIVERS.items()}
 
 ALL_EXTS = [".fgb", ".geojson", ".geojsonl", ".gpkg", ".shp"]
+
+START_FID = {
+    ".fgb": 0,
+    ".geojson": 0,
+    ".geojsonl": 0,
+    ".geojsons": 0,
+    ".gpkg": 1,
+    ".shp": 0,
+}
 
 
 def pytest_report_header(config):
@@ -116,7 +126,7 @@ def naturalearth_lowres_all_ext(tmp_path, naturalearth_lowres, request):
 
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
-    """Wrap naturalearth_lowres as a zip file for vsi tests"""
+    """Wrap naturalearth_lowres as a zip file for VSI tests"""
 
     path = tmp_path / f"{naturalearth_lowres.name}.zip"
     with ZipFile(path, mode="w", compression=ZIP_DEFLATED, compresslevel=5) as out:
@@ -125,6 +135,22 @@ def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
             out.write(naturalearth_lowres.parent / filename, filename)
 
     return path, f"/vsizip/{path}/{naturalearth_lowres.name}"
+
+
+@pytest.fixture(scope="function")
+def naturalearth_lowres_vsimem(naturalearth_lowres):
+    """Write naturalearth_lowres to a vsimem file for VSI tests"""
+
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    name = f"pyogrio_fixture_{naturalearth_lowres.stem}"
+    dst_path = Path(f"/vsimem/{name}/{name}.gpkg")
+    meta["spatial_index"] = False
+    meta["geometry_type"] = "MultiPolygon"
+
+    write(dst_path, geometry, field_data, layer="naturalearth_lowres", **meta)
+    yield dst_path
+
+    vsi_rmtree(dst_path.parent)
 
 
 @pytest.fixture(scope="session")

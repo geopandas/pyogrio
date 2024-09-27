@@ -1,5 +1,8 @@
 """Core functions to interact with OGR data sources."""
 
+from pathlib import Path
+from typing import Optional, Union
+
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
     _mask_to_wkb,
@@ -22,6 +25,11 @@ with GDALEnv():
         init_proj_data as _init_proj_data,
         ogr_list_drivers,
         set_gdal_config_options as _set_gdal_config_options,
+    )
+    from pyogrio._vsi import (
+        ogr_vsi_listtree,
+        ogr_vsi_rmtree,
+        ogr_vsi_unlink,
     )
 
     _init_gdal_data()
@@ -326,3 +334,53 @@ def get_gdal_data_path():
 
     """
     return _get_gdal_data_path()
+
+
+def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
+    """Recursively list the contents of a VSI directory.
+
+    An fnmatch pattern can be specified to filter the directories/files
+    returned.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Path to the VSI directory to be listed.
+    pattern : str, optional
+        Pattern to filter results, in fnmatch format.
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    return ogr_vsi_listtree(path, pattern=pattern)
+
+
+def vsi_rmtree(path: Union[str, Path]):
+    """Recursively remove VSI directory.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        path to the VSI directory to be removed.
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    ogr_vsi_rmtree(path)
+
+
+def vsi_unlink(path: Union[str, Path]):
+    """Remove a VSI file.
+
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        path to vsimem file to be removed
+
+    """
+    if isinstance(path, Path):
+        path = path.as_posix()
+
+    ogr_vsi_unlink(path)

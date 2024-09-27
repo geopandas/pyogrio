@@ -36,6 +36,10 @@ cdef extern from "cpl_error.h" nogil:
     void CPLPopErrorHandler()
 
 
+cdef extern from "cpl_port.h":
+    ctypedef char **CSLConstList
+
+
 cdef extern from "cpl_string.h":
     char**      CSLAddNameValue(char **list, const char *name, const char *value)
     char**      CSLSetNameValue(char **list, const char *name, const char *value)
@@ -53,6 +57,9 @@ cdef extern from "cpl_vsi.h" nogil:
         long st_mode
         int st_mtime
 
+    int         VSIStatL(const char *path, VSIStatBufL *psStatBuf)
+    int         VSI_ISDIR(int mode)
+    char**      VSIReadDirRecursive(const char *path)
     int         VSIFCloseL(VSILFILE *fp)
     int         VSIFFlushL(VSILFILE *fp)
     int         VSIUnlink(const char *path)
@@ -61,7 +68,8 @@ cdef extern from "cpl_vsi.h" nogil:
     unsigned char   *VSIGetMemFileBuffer(const char *path, vsi_l_offset *data_len, int take_ownership)
 
     int     VSIMkdir(const char *path, long mode)
-    int     VSIRmdirRecursive(const char *pszDirname)
+    int     VSIMkdirRecursive(const char *path, long mode)
+    int     VSIRmdirRecursive(const char *path)
 
 
 cdef extern from "ogr_core.h":

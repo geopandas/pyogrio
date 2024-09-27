@@ -7,7 +7,14 @@ from zipfile import ZipFile
 
 import numpy as np
 
-from pyogrio import __gdal_version__, list_drivers, list_layers, read_info
+from pyogrio import (
+    __gdal_version__,
+    list_drivers,
+    list_layers,
+    read_info,
+    vsi_listtree,
+    vsi_unlink,
+)
 from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
@@ -18,6 +25,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
+    START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
     requires_pyarrow_api,
@@ -371,12 +379,9 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
         fid_as_index=True,
         **kwargs,
     )
-    if naturalearth_lowres_all_ext.suffix in [".gpkg"]:
-        # File format where fid starts at 1
-        assert_index_equal(df.index, pd.Index([3, 4], name="fid"))
-    else:
-        # File format where fid starts at 0
-        assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+    fids_expected = pd.Index([2, 3], name="fid")
+    fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
+    assert_index_equal(df.index, fids_expected)
 
 
 def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
@@ -1568,6 +1573,22 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][2] is None
 
 
+@pytest.mark.requires_arrow_write_api
+def test_write_read_vsimem(naturalearth_lowres_vsi, use_arrow):
+    path, _ = naturalearth_lowres_vsi
+    mem_path = f"/vsimem/{path.name}"
+
+    input = read_dataframe(path, use_arrow=use_arrow)
+    assert len(input) == 177
+
+    try:
+        write_dataframe(input, mem_path, use_arrow=use_arrow)
+        result = read_dataframe(mem_path, use_arrow=use_arrow)
+        assert len(result) == 177
+    finally:
+        vsi_unlink(mem_path)
+
+
 @pytest.mark.parametrize(
     "wkt,geom_types",
     [
@@ -1974,6 +1995,9 @@ def test_write_memory(naturalearth_lowres, driver):
         check_dtype=not is_json,
     )
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 def test_write_memory_driver_required(naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
@@ -1985,6 +2009,9 @@ def test_write_memory_driver_required(naturalearth_lowres):
         match="driver must be provided to write to in-memory file",
     ):
         write_dataframe(df.head(1), buffer, driver=None, layer="test")
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
@@ -2001,6 +2028,9 @@ def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
     ):
         write_dataframe(df, buffer, driver=driver, layer="test")
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory_append_unsupported(naturalearth_lowres, driver):
@@ -2013,6 +2043,9 @@ def test_write_memory_append_unsupported(naturalearth_lowres, driver):
     ):
         write_dataframe(df.head(1), buffer, driver=driver, layer="test", append=True)
 
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
+
 
 def test_write_memory_existing_unsupported(naturalearth_lowres):
     df = read_dataframe(naturalearth_lowres)
@@ -2023,6 +2056,9 @@ def test_write_memory_existing_unsupported(naturalearth_lowres):
         match="writing to existing in-memory object is not supported",
     ):
         write_dataframe(df.head(1), buffer, driver="GeoJSON", layer="test")
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 def test_write_open_file_handle(tmp_path, naturalearth_lowres):
@@ -2044,6 +2080,9 @@ def test_write_open_file_handle(tmp_path, naturalearth_lowres):
         with ZipFile(tmp_path / "test.geojson.zip", "w") as z:
             with z.open("test.geojson", "w") as f:
                 write_dataframe(df.head(1), f)
+
+    # Check temp file was cleaned up. Filter, as gdal keeps cache files in /vsimem/.
+    assert vsi_listtree("/vsimem/", pattern="pyogrio_*") == []
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])

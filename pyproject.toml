@@ -6,9 +6,42 @@ requires = [
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
 ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyogrio"
+dynamic = ["version"]
+authors = [
+    { name = "Brendan C. Ward", email = "bcward@astutespruce.com" },
+    { name = "pyogrio contributors" }
+]
+maintainers = [{ name = "pyogrio contributors" }]
+license = { file = "LICENSE" }
+description = "Vectorized spatial vector file format I/O using GDAL/OGR"
+readme = "README.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+requires-python = ">=3.9"
+dependencies = ["certifi", "numpy", "packaging"]
+
+[project.optional-dependencies]
+dev = ["cython"]
+test = ["pytest", "pytest-cov"]
+benchmark = ["pytest-benchmark"]
+geopandas = ["geopandas"]
+
+[project.urls]
+Home = "https://pyogrio.readthedocs.io/"
+Repository = "https://github.com/geopandas/pyogrio"
 
 [tool.cibuildwheel]
-skip = ["cp36-*", "cp37-*", "pp*", "*musllinux*"]
+skip = ["pp*", "*musllinux*"]
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
@@ -63,7 +96,6 @@ tag_prefix = "v"
 [tool.ruff]
 line-length = 88
 extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py"]
-target-version = "py38"
 
 [tool.ruff.lint]
 select = [
