@@ -1765,6 +1765,10 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
 
 def test_read_multisurface(multisurface_file, use_arrow):
     if use_arrow:
+        # TODO: revisit once https://github.com/geopandas/pyogrio/issues/478
+        # is resolved.
+        pytest.skip("Shapely + GEOS 3.13 crashes in from_wkb for this case")
+
         with pytest.raises(shapely.errors.GEOSException):
             # TODO(Arrow)
             # shapely fails parsing the WKB
