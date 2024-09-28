@@ -1,10 +1,10 @@
 # CHANGELOG
 
-## 0.10.0 (yyyy-mm-dd)
+## 0.10.0 (2024-09-28)
 
 ### Improvements
 
--   Add support to read, write, list, and remove `/vsimem/` files (#457)
+-   Add support to read, write, list, and remove `/vsimem/` files (#457).
 
 ### Bug fixes
 
