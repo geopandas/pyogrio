@@ -63,7 +63,7 @@ jobs:
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: ci/envs/${{ matrix.env }}.yml
-          mamba-binary-path: ${{ runner.temp }}\Scripts\micromamba.exe
+          micromamba-binary-path: ${{ runner.temp }}\Scripts\micromamba.exe
           create-args: >-
             python=${{ matrix.python }}
             ${{ matrix.extra }}
