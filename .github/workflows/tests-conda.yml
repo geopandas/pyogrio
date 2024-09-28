@@ -49,10 +49,21 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install Conda environment with Micromamba
+      - name: Install Conda environment with Micromamba (Linux/MacOS)
+        if: runner.os != 'Windows'
         uses: mamba-org/setup-micromamba@v1
         with:
           environment-file: ci/envs/${{ matrix.env }}.yml
+          create-args: >-
+            python=${{ matrix.python }}
+            ${{ matrix.extra }}
+
+      - name: Install Conda environment with Micromamba (Windows)p
+        if: runner.os == 'Windows'
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: ci/envs/${{ matrix.env }}.yml
+          mamba-binary-path: ${{ runner.temp }}\Scripts\micromamba.exe
           create-args: >-
             python=${{ matrix.python }}
             ${{ matrix.extra }}
