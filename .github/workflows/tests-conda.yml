@@ -64,6 +64,7 @@ jobs:
         with:
           environment-file: ci/envs/${{ matrix.env }}.yml
           micromamba-binary-path: ${{ runner.temp }}\Scripts\micromamba.exe
+          micromamba-root-path: ${{ runner.temp }}\micromamba
           create-args: >-
             python=${{ matrix.python }}
             ${{ matrix.extra }}
