@@ -90,7 +90,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
@@ -131,8 +130,8 @@ jobs:
           tags: manylinux-vcpkg-gdal:latest
           push: false
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
         env:
           BUILDKIT_PROGRESS: plain
 
@@ -158,7 +157,7 @@ jobs:
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-12"
+          - os: "macos-14"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -177,15 +176,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache vcpkg
-        uses: actions/cache@v4
-        id: vcpkgcache
-        with:
-          path: |
-            ${{ matrix.vcpkg_cache }}
-          # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.9.2-cache0
-
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
@@ -194,22 +184,19 @@ jobs:
           brew reinstall automake
           echo $(which aclocal)
 
-      - name: Checkout specific version of vcpkg
-        shell: bash
-        run: |
-          cd $VCPKG_INSTALLATION_ROOT
-          # on mac the clone is not clean, otherwise git pull fails
-          git reset --hard
-          # pull specific commit with desired GDAL version
-          git pull
-          git checkout 73794ce5f63fd138fab999a22959ca7c6305d93c
+      - name: Install vcpkg and checkout specific version
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: '${{ github.workspace }}/vcpkg'
+          vcpkgGitCommitId: 73794ce5f63fd138fab999a22959ca7c6305d93c
 
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+          VCPKG_INSTALLATION_ROOT: ${{ github.workspace }}/vcpkg
         shell: bash
         run: |
-          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
+          vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed --debug
           vcpkg list
 
       - name: Upload vcpkg build logs
@@ -224,6 +211,7 @@ jobs:
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+          VCPKG_INSTALLATION_ROOT: ${{ github.workspace }}/vcpkg
           CIBW_ARCHS: ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
@@ -265,6 +253,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: ci/requirements-wheel-test.txt
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -282,8 +273,6 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.cargo/env
           uv venv .venv
-          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
-          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
@@ -317,7 +306,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
