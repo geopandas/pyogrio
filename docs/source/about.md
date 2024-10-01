@@ -22,7 +22,7 @@ for working with OGR vector data sources. It is **awesome**, has highly-dedicate
 maintainers and contributors, and exposes more functionality than Pyogrio ever will.
 This project would not be possible without Fiona having come first.
 
-Pyogrio uses a vectorized (array-oriented) approach for reading and writing
+Pyogrio uses a bulk-oriented approach for reading and writing
 spatial vector file formats, which enables faster I/O operations. It borrows
 from the internal mechanics and lessons learned of Fiona. It uses a stateless
 approach to reading or writing data; all data are read or written in a single
