@@ -1,10 +1,10 @@
 # pyogrio - bulk-oriented spatial vector file I/O using GDAL/OGR
 
 Pyogrio provides fast, bulk-oriented read and write access to 
-[GDAL/OGR vector data sources](https://gdal.org/en/latest/drivers/vector/index.html),
-such as ESRI Shapefile, GeoPackage, GeoJSON,... Vector data sources typically
-have geometries, such as points, lines, or polygons, and associated records
-with potentially many columns worth of data.
+[GDAL/OGR](https://gdal.org/en/latest/drivers/vector/index.html) vector data
+sources, such as ESRI Shapefile, GeoPackage, GeoJSON,... Vector data sources
+typically have geometries, such as points, lines, or polygons, and associated
+records with potentially many columns worth of data.
 
 The typical use is to read or write these data sources to/from
 [GeoPandas](https://github.com/geopandas/geopandas) `GeoDataFrames`. Because
