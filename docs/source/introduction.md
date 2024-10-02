@@ -531,6 +531,73 @@ You can also use a dictionary to specify either `dataset_options` or
 >>> write_dataframe(df, '/tmp/test.gpkg', dataset_options={"version": "1.0"}, layer_options={"geometry_name": "the_geom"})
 ```
 
+## Reading from and writing to in-memory datasets
+
+It is possible to read from a dataset stored as bytes:
+
+```python
+from io import BytesIO
+
+# save a GeoJSON to bytes
+geojson = """{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": { },
+            "geometry": { "type": "Point", "coordinates": [1, 1] }
+        }
+    ]
+}"""
+
+geojson_bytes = BytesIO(geojson.encode("UTF-8"))
+
+df = read_dataframe(geojson_bytes)
+```
+
+Note: this may emit a `RuntimeWarning` where the in-memory dataset is detected
+to be a particular format but lacks the expected file extension (e.g., `.gpkg`)
+because the in-memory path automatically created by pyogrio does not include the
+extension.
+
+It is also possible to write a dataset to bytes, but driver must also be
+specified, and layer name should be specified to avoid it being set to a random
+character string:
+
+```python
+buffer = BytesIO()
+
+write_dataframe(df, buffer, layer="my_layer", driver="GPKG")
+
+out_bytes = buffer.getvalue()
+```
+
+Note: this is limited to single-file data formats (e.g., GPKG) and does not
+support formats with multiple files (e.g., ESRI Shapefile).
+
+It is also possible to use a `/vsimem/` in-memory dataset with other GDAL-based
+packages that support the `/vsimem/` interface, such as the `gdal` package:
+
+```python
+from osgeo import gdal
+
+write_dataframe(df, "/vsimem/test.gpkg", layer="my_layer", driver="GPKG")
+
+# perform some operation using it
+gdal.Rasterize("test.tif", "/vsimem/test.gpkg", outputType=gdal.GDT_Byte, noData=255, initValues=255, xRes=0.1, yRes=-0.1, allTouched=True, burnValues=1)
+
+# release the memory using pyogrio
+from pyogrio import vsi_unlink
+
+vsi_unlink("/vsimem/test.gpkg")
+```
+
+Pyogrio can also read from a valid `/vsimem/` file created using a different
+package.
+
+It is the user's responsibility to clean up the in-memory filesystem; pyogrio
+will not automatically release those resources.
+
 ## Configuration options
 
 It is possible to set
