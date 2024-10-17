@@ -1,5 +1,6 @@
 import contextlib
 import locale
+import time
 import warnings
 from datetime import datetime
 from io import BytesIO
@@ -348,6 +349,29 @@ def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
     if use_arrow:
         # with Arrow, the datetimes are always read as UTC
         df["dates"] = df["dates"].dt.tz_convert("UTC")
+    assert_geodataframe_equal(df, result)
+
+
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_read_write_datetime_no_tz(tmp_path, use_arrow):
+    dates_raw = ["2020-01-01 09:00:00.123", "2020-01-01 10:00:00"]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1)]},
+        crs="EPSG:4326",
+    )
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow)
+    if use_arrow:
+        # with Arrow, the datetimes are always read as UTC
+        df["dates"] = df["dates"].dt.tz_localize(time.timezone).dt.tz_convert("UTC")
     assert_geodataframe_equal(df, result)
 
 
