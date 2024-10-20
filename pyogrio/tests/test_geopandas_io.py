@@ -93,8 +93,20 @@ def spatialite_available(path):
         return False
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-def test_read_csv_encoding(tmp_path, encoding, use_arrow):
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_pyarrow_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_read_csv_encoding(tmp_path, encoding, arrow):
+    """ "Test reading CSV files with different encodings.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -105,7 +117,7 @@ def test_read_csv_encoding(tmp_path, encoding, use_arrow):
     # Read csv. The data should be read with the same default encoding as the csv file
     # was written in, but should have been converted to utf-8 in the dataframe returned.
     # Hence, the asserts below, with strings in utf-8, be OK.
-    df = read_dataframe(csv_path, encoding=encoding, use_arrow=use_arrow)
+    df = read_dataframe(csv_path, encoding=encoding, use_arrow=arrow)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
@@ -943,10 +955,20 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-@pytest.mark.requires_arrow_write_api
-def test_write_csv_encoding(tmp_path, encoding, use_arrow):
-    """Test if write_dataframe uses the default encoding correctly."""
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_arrow_write_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_write_csv_encoding(tmp_path, encoding, arrow):
+    """Test if write_dataframe uses the default encoding correctly.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -959,7 +981,7 @@ def test_write_csv_encoding(tmp_path, encoding, use_arrow):
     # same encoding as above.
     df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
     csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
-    write_dataframe(df, csv_pyogrio_path, encoding=encoding, use_arrow=use_arrow)
+    write_dataframe(df, csv_pyogrio_path, encoding=encoding, use_arrow=arrow)
 
     # Check if the text files written both ways can be read again and give same result.
     with open(csv_path, encoding=encoding) as csv:
