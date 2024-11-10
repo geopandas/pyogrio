@@ -3,7 +3,6 @@
 """IO support for OGR vector data sources
 """
 
-
 import contextlib
 import datetime
 import locale
@@ -26,9 +25,18 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 import numpy as np
 
 from pyogrio._ogr cimport *
-from pyogrio._err cimport *
+from pyogrio._err cimport (
+    exc_check, exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer, StackChecker
+)
 from pyogrio._vsi cimport *
-from pyogrio._err import CPLE_BaseError, CPLE_NotSupportedError, NullPointerError
+from pyogrio._err import (
+    CPLE_AppDefinedError,
+    CPLE_BaseError,
+    CPLE_NotSupportedError,
+    CPLE_OpenFailedError,
+    NullPointerError,
+    stack_errors,
+)
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
 from pyogrio.errors import CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
 
@@ -185,7 +193,8 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     options : char **, optional
         dataset open options
     """
-    cdef void* ogr_dataset = NULL
+    cdef void *ogr_dataset = NULL
+    cdef StackChecker error_stack_checker
 
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
@@ -196,28 +205,33 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     else:
         flags |= GDAL_OF_READONLY
 
-
     try:
         # WARNING: GDAL logs warnings about invalid open options to stderr
         # instead of raising an error
-        ogr_dataset = exc_wrap_pointer(
-            GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
-        )
-
-        return ogr_dataset
+        with stack_errors() as error_stack_checker:
+            ogr_dataset = GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
+            return error_stack_checker.exc_wrap_pointer(ogr_dataset)
 
     except NullPointerError:
         raise DataSourceError(
-            "Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))
+            f"Failed to open dataset (mode={mode}): {path_c.decode('utf-8')}"
         ) from None
 
     except CPLE_BaseError as exc:
-        if str(exc).endswith("a supported file format."):
+        # If there are inner exceptions, append their errmsg to the errmsg
+        errmsg = str(exc)
+        inner = exc.__cause__
+        while inner is not None:
+            errmsg = f"{errmsg}; {inner}"
+            inner = inner.__cause__
+
+        if exc.errmsg.endswith("a supported file format."):
             raise DataSourceError(
-                f"{str(exc)} It might help to specify the correct driver explicitly by "
+                f"{errmsg}; It might help to specify the correct driver explicitly by "
                 "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
             ) from None
-        raise DataSourceError(str(exc)) from None
+
+        raise DataSourceError(errmsg) from None
 
 
 cdef ogr_close(GDALDatasetH ogr_dataset):

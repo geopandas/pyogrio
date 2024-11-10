@@ -1,11 +1,25 @@
-# ported from fiona::_err.pyx
-from enum import IntEnum
+"""Error handling code for GDAL/OGR.
+
+Ported from fiona::_err.pyx
+"""
+
+import contextlib
+import logging
 import warnings
+from contextvars import ContextVar
+from enum import IntEnum
+from itertools import zip_longest
 
 from pyogrio._ogr cimport (
     CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
     CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr,
-    CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPushErrorHandler)
+    CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPopErrorHandler,
+    CPLPushErrorHandler, CPLPushErrorHandlerEx)
+
+log = logging.getLogger(__name__)
+
+_ERROR_STACK = ContextVar("error_stack")
+_ERROR_STACK.set([])
 
 
 # CPL Error types as an enum.
@@ -17,9 +31,9 @@ class GDALError(IntEnum):
     fatal = CE_Fatal
 
 
-
 class CPLE_BaseError(Exception):
     """Base CPL error class.
+
     For internal use within Cython only.
     """
 
@@ -103,6 +117,10 @@ class CPLE_AWSSignatureDoesNotMatchError(CPLE_BaseError):
     pass
 
 
+class CPLE_AWSError(CPLE_BaseError):
+    pass
+
+
 class NullPointerError(CPLE_BaseError):
     """
     Returned from exc_wrap_pointer when a NULL pointer is passed, but no GDAL
@@ -111,6 +129,21 @@ class NullPointerError(CPLE_BaseError):
     pass
 
 
+class CPLError(CPLE_BaseError):
+    """
+    Returned from exc_wrap_int when a error code is returned, but no GDAL
+    error was set.
+    """
+    pass
+
+
+cdef dict _LEVEL_MAP = {
+    0: 0,
+    1: logging.DEBUG,
+    2: logging.WARNING,
+    3: logging.ERROR,
+    4: logging.CRITICAL
+}
 
 # Map of GDAL error numbers to the Python exceptions.
 exception_map = {
@@ -132,12 +165,51 @@ exception_map = {
     13: CPLE_AWSObjectNotFoundError,
     14: CPLE_AWSAccessDeniedError,
     15: CPLE_AWSInvalidCredentialsError,
-    16: CPLE_AWSSignatureDoesNotMatchError
+    16: CPLE_AWSSignatureDoesNotMatchError,
+    17: CPLE_AWSError
+}
+
+cdef dict _CODE_MAP = {
+    0: 'CPLE_None',
+    1: 'CPLE_AppDefined',
+    2: 'CPLE_OutOfMemory',
+    3: 'CPLE_FileIO',
+    4: 'CPLE_OpenFailed',
+    5: 'CPLE_IllegalArg',
+    6: 'CPLE_NotSupported',
+    7: 'CPLE_AssertionFailed',
+    8: 'CPLE_NoWriteAccess',
+    9: 'CPLE_UserInterrupt',
+    10: 'ObjectNull',
+    11: 'CPLE_HttpResponse',
+    12: 'CPLE_AWSBucketNotFound',
+    13: 'CPLE_AWSObjectNotFound',
+    14: 'CPLE_AWSAccessDenied',
+    15: 'CPLE_AWSInvalidCredentials',
+    16: 'CPLE_AWSSignatureDoesNotMatch',
+    17: 'CPLE_AWSError'
 }
 
 
+cdef class GDALErrCtxManager:
+    """A manager for GDAL error handling contexts."""
+
+    def __enter__(self):
+        CPLErrorReset()
+        return self
+
+    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
+        cdef int err_type = CPLGetLastErrorType()
+        cdef int err_no = CPLGetLastErrorNo()
+        cdef const char *msg = CPLGetLastErrorMsg()
+        # TODO: warn for err_type 2?
+        if err_type >= 2:
+            raise exception_map[err_no](err_type, err_no, msg)
+
+
 cdef inline object exc_check():
-    """Checks GDAL error stack for fatal or non-fatal errors
+    """Checks GDAL error stack for fatal or non-fatal errors.
+
     Returns
     -------
     An Exception, SystemExit, or None
@@ -173,8 +245,31 @@ cdef inline object exc_check():
         return
 
 
+cdef get_last_error_msg():
+    """Checks GDAL error stack for the latest error message.
+
+    Returns
+    -------
+    An error message or empty string
+
+    """
+    err_msg = CPLGetLastErrorMsg()
+
+    if err_msg != NULL:
+        # Reformat messages.
+        msg_b = err_msg
+        msg = msg_b.decode('utf-8')
+        msg = msg.replace("`", "'")
+        msg = msg.replace("\n", " ")
+    else:
+        msg = ""
+
+    return msg
+
+
 cdef void *exc_wrap_pointer(void *ptr) except NULL:
-    """Wrap a GDAL/OGR function that returns GDALDatasetH etc (void *)
+    """Wrap a GDAL/OGR function that returns GDALDatasetH etc (void *).
+
     Raises an exception if a non-fatal error has be set or if pointer is NULL.
     """
     if ptr == NULL:
@@ -188,10 +283,9 @@ cdef void *exc_wrap_pointer(void *ptr) except NULL:
 
 
 cdef int exc_wrap_int(int err) except -1:
-    """Wrap a GDAL/OGR function that returns CPLErr or OGRErr (int)
-    Raises an exception if a non-fatal error has be set.
+    """Wrap a GDAL/OGR function that returns CPLErr or OGRErr (int).
 
-    Copied from Fiona (_err.pyx).
+    Raises an exception if a non-fatal error has be set.
     """
     if err:
         exc = exc_check()
@@ -218,9 +312,11 @@ cdef int exc_wrap_ogrerr(int err) except -1:
 cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil:
     """Custom CPL error handler to match the Python behaviour.
 
-    Generally we want to suppress error printing to stderr (behaviour of the
-    default GDAL error handler) because we already raise a Python exception
-    that includes the error message.
+    For non-fatal errors (CE_Failure), error printing to stderr (behaviour of
+    the default GDAL error handler) is suppressed, because we already raise a
+    Python exception that includes the error message.
+
+    Warnings are converted to Python warnings.
     """
     if err_class == CE_Fatal:
         # If the error class is CE_Fatal, we want to have a message issued
@@ -248,3 +344,197 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil
 
 def _register_error_handler():
     CPLPushErrorHandler(<CPLErrorHandler>error_handler)
+
+cpl_errs = GDALErrCtxManager()
+
+
+cdef class StackChecker:
+
+    def __init__(self, error_stack=None):
+        self.error_stack = error_stack or {}
+
+    cdef int exc_wrap_int(self, int err) except -1:
+        """Wrap a GDAL/OGR function that returns CPLErr (int).
+
+        Raises an exception if a non-fatal error has been added to the
+        exception stack.
+        """
+        if err:
+            stack = self.error_stack.get()
+            for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
+                if error is not None and cause is not None:
+                    error.__cause__ = cause
+
+            if stack:
+                last = stack.pop()
+                if last is not None:
+                    raise last
+
+        return err
+
+    cdef void *exc_wrap_pointer(self, void *ptr) except NULL:
+        """Wrap a GDAL/OGR function that returns a pointer.
+
+        Raises an exception if a non-fatal error has been added to the
+        exception stack.
+        """
+        if ptr == NULL:
+            stack = self.error_stack.get()
+            for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
+                if error is not None and cause is not None:
+                    error.__cause__ = cause
+
+            if stack:
+                last = stack.pop()
+                if last is not None:
+                    raise last
+
+        return ptr
+
+
+cdef void log_error(
+    CPLErr err_class,
+    int err_no,
+    const char* msg,
+) noexcept with gil:
+    """Send CPL errors to Python's logger.
+
+    Because this function is called by GDAL with no Python context, we
+    can't propagate exceptions that we might raise here. They'll be
+    ignored.
+    """
+    if err_no in _CODE_MAP:
+        # We've observed that some GDAL functions may emit multiple
+        # ERROR level messages and yet succeed. We want to see those
+        # messages in our log file, but not at the ERROR level. We
+        # turn the level down to INFO.
+        if err_class == CE_Failure:
+            log.info(
+                "GDAL signalled an error: err_no=%r, msg=%r",
+                err_no,
+                msg.decode("utf-8")
+            )
+        elif err_no == 0:
+            log.log(_LEVEL_MAP[err_class], "%s", msg.decode("utf-8"))
+        else:
+            log.log(_LEVEL_MAP[err_class], "%s:%s", _CODE_MAP[err_no], msg.decode("utf-8"))
+    else:
+        log.info("Unknown error number %r", err_no)
+
+
+IF UNAME_SYSNAME == "Windows":
+    cdef void __stdcall stacking_error_handler(
+        CPLErr err_class,
+        int err_no,
+        const char* err_msg
+    ) noexcept with gil:
+        """Custom CPL error handler that adds non-fatal errors to a stack.
+
+        All non-fatal errors (CE_Failure) are not printed to stderr (behaviour
+        of the default GDAL error handler), but they are converted to python
+        exceptions and added to a stack, so they can be dealt with afterwards.
+
+        Warnings are converted to Python warnings.
+        """
+        global _ERROR_STACK
+        log_error(err_class, err_no, err_msg)
+
+        if err_class == CE_Fatal:
+            # If the error class is CE_Fatal, we want to have a message issued
+            # because the CPL support code does an abort() before any exception
+            # can be generated
+            CPLDefaultErrorHandler(err_class, err_no, err_msg)
+
+            return
+
+        elif err_class == CE_Failure:
+            # For Failures, add them to the error exception stack
+            stack = _ERROR_STACK.get()
+            stack.append(
+                exception_map.get(err_no, CPLE_BaseError)(err_class, err_no, err_msg.decode("utf-8")),
+            )
+            _ERROR_STACK.set(stack)
+
+            return
+
+        elif err_class == CE_Warning:
+            msg_b = err_msg
+            msg = msg_b.decode("utf-8")
+            warnings.warn(msg, RuntimeWarning)
+
+            return
+
+        # Fall back to the default handler for non-failure messages since
+        # they won't be translated into exceptions.
+        CPLDefaultErrorHandler(err_class, err_no, err_msg)
+
+ELSE:
+    cdef void stacking_error_handler(
+        CPLErr err_class,
+        int err_no,
+        const char* err_msg
+    ) noexcept with gil:
+        """Custom CPL error handler that adds non-fatal errors to a stack.
+
+        All non-fatal errors (CE_Failure) are not printed to stderr (behaviour
+        of the default GDAL error handler), but they are converted to python
+        exceptions and added to a stack, so they can be dealt with afterwards.
+
+        Warnings are converted to Python warnings.
+        """
+        global _ERROR_STACK
+        log_error(err_class, err_no, err_msg)
+
+        if err_class == CE_Fatal:
+            # If the error class is CE_Fatal, we want to have a message issued
+            # because the CPL support code does an abort() before any exception
+            # can be generated
+            CPLDefaultErrorHandler(err_class, err_no, err_msg)
+
+            return
+
+        elif err_class == CE_Failure:
+            # For Failures, add them to the error exception stack
+            stack = _ERROR_STACK.get()
+            stack.append(
+                exception_map.get(err_no, CPLE_BaseError)(err_class, err_no, err_msg.decode("utf-8")),
+            )
+            _ERROR_STACK.set(stack)
+
+            return
+
+        elif err_class == CE_Warning:
+            msg_b = err_msg
+            msg = msg_b.decode("utf-8")
+            warnings.warn(msg, RuntimeWarning)
+
+            return
+
+        # Fall back to the default handler for non-failure messages since
+        # they won't be translated into exceptions.
+        CPLDefaultErrorHandler(err_class, err_no, err_msg)
+
+
+@contextlib.contextmanager
+def stack_errors():
+    """A context manager that captures all GDAL non-fatal errors occuring.
+
+    It adds all errors to a single stack, so it assumes that no more than one
+    GDAL function is called.
+
+    Yields a StackChecker object that can be used to check the error stack.
+    """
+    CPLErrorReset()
+    global _ERROR_STACK
+    _ERROR_STACK.set([])
+
+    # stacking_error_handler records GDAL errors in the order they occur and
+    # converts them to exceptions.
+    CPLPushErrorHandlerEx(<CPLErrorHandler>stacking_error_handler, NULL)
+
+    # Run code in the `with` block.
+    yield StackChecker(_ERROR_STACK)
+
+    CPLPopErrorHandler()
+    _ERROR_STACK.set([])
+    CPLErrorReset()

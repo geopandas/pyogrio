@@ -12,6 +12,7 @@ from pyogrio import (
     list_drivers,
     list_layers,
     read_info,
+    set_gdal_config_options,
     vsi_listtree,
     vsi_unlink,
 )
@@ -225,6 +226,17 @@ def test_read_force_2d(tmp_path, use_arrow):
         use_arrow=use_arrow,
     )
     assert not df.iloc[0].geometry.has_z
+
+
+def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
+    set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
+    with pytest.raises(
+        DataSourceError,
+        match="Failed to read GeoJSON data; .* GeoJSON object too complex",
+    ):
+        read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
+
+    set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
 def test_read_layer(tmp_path, use_arrow):
