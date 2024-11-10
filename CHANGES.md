@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.11.0 (????-??-??)
+
+### Improvements
+
+-   Capture all errors logged by gdal when opening a file fails (#495).
+
 ## 0.10.0 (2024-09-28)
 
 ### Improvements
