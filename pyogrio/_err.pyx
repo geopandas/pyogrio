@@ -24,6 +24,10 @@ _ERROR_STACK.set([])
 
 # CPL Error types as an enum.
 class GDALError(IntEnum):
+    """GDAL error types/classes.
+    
+    GDAL doc: https://gdal.org/en/latest/doxygen/cpl__error_8h.html#a463ba7c7202a505416ff95b1aeefa2de
+    """
     none = CE_None
     debug = CE_Debug
     warning = CE_Warning
@@ -238,10 +242,24 @@ cdef get_last_error_msg():
     An error message or empty string
 
     """
-    err_msg = CPLGetLastErrorMsg()
+    return clean_error_message(CPLGetLastErrorMsg())
 
+
+cdef clean_error_message(const char* err_msg):
+    """Cleans up error messages from GDAL.
+
+    Parameters
+    ----------
+    err_msg : const char*
+        The error message to clean up.
+
+    Returns
+    -------
+    str
+        The cleaned up error message or empty string
+    """
     if err_msg != NULL:
-        # Reformat messages.
+        # Reformat message.
         msg_b = err_msg
         try:
             msg = msg_b.decode("utf-8")
@@ -251,7 +269,7 @@ cdef get_last_error_msg():
             msg = f"Could not decode error message to UTF-8. Raw error: {msg_b}"
 
     else:
-        msg = "No error message."
+        msg = ""
 
     return msg
 
@@ -298,7 +316,7 @@ cdef int exc_wrap_ogrerr(int err) except -1:
     return err
 
 
-cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil:
+cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) noexcept nogil:
     """Custom CPL error handler to match the Python behaviour.
 
     For non-fatal errors (CE_Failure), error printing to stderr (behaviour of
@@ -321,9 +339,7 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) nogil
 
     elif err_class == CE_Warning:
         with gil:
-            msg_b = err_msg
-            msg = msg_b.decode('utf-8')
-            warnings.warn(msg, RuntimeWarning)
+            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
         return
 
     # Fall back to the default handler for non-failure messages since
@@ -440,16 +456,16 @@ IF UNAME_SYSNAME == "Windows":
             # For Failures, add them to the error exception stack
             stack = _ERROR_STACK.get()
             stack.append(
-                exception_map.get(err_no, CPLE_BaseError)(err_class, err_no, err_msg.decode("utf-8")),
+                exception_map.get(err_no, CPLE_BaseError)(
+                    err_class, err_no, clean_error_message(err_msg)
+                ),
             )
             _ERROR_STACK.set(stack)
 
             return
 
         elif err_class == CE_Warning:
-            msg_b = err_msg
-            msg = msg_b.decode("utf-8")
-            warnings.warn(msg, RuntimeWarning)
+            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
 
             return
 
@@ -486,16 +502,16 @@ ELSE:
             # For Failures, add them to the error exception stack
             stack = _ERROR_STACK.get()
             stack.append(
-                exception_map.get(err_no, CPLE_BaseError)(err_class, err_no, err_msg.decode("utf-8")),
+                exception_map.get(err_no, CPLE_BaseError)(
+                    err_class, err_no, clean_error_message(err_msg)
+                ),
             )
             _ERROR_STACK.set(stack)
 
             return
 
         elif err_class == CE_Warning:
-            msg_b = err_msg
-            msg = msg_b.decode("utf-8")
-            warnings.warn(msg, RuntimeWarning)
+            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
 
             return
 
