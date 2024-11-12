@@ -16,8 +16,6 @@ from pyogrio._ogr cimport (
     CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPopErrorHandler,
     CPLPushErrorHandler, CPLPushErrorHandlerEx)
 
-log = logging.getLogger(__name__)
-
 _ERROR_STACK = ContextVar("error_stack")
 _ERROR_STACK.set([])
 
@@ -140,14 +138,6 @@ class CPLError(CPLE_BaseError):
     """
     pass
 
-
-cdef dict _LEVEL_MAP = {
-    0: 0,
-    1: logging.DEBUG,
-    2: logging.WARNING,
-    3: logging.ERROR,
-    4: logging.CRITICAL
-}
 
 # Map of GDAL error numbers to the Python exceptions.
 exception_map = {
@@ -397,36 +387,6 @@ cdef class StackChecker:
         return ptr
 
 
-cdef void log_error(
-    CPLErr err_class,
-    int err_no,
-    const char* msg,
-) noexcept with gil:
-    """Send CPL errors to Python's logger.
-
-    Because this function is called by GDAL with no Python context, we
-    can't propagate exceptions that we might raise here. They'll be
-    ignored.
-    """
-    if err_no in _CODE_MAP:
-        # We've observed that some GDAL functions may emit multiple
-        # ERROR level messages and yet succeed. We want to see those
-        # messages in our log file, but not at the ERROR level. We
-        # turn the level down to INFO.
-        if err_class == CE_Failure:
-            log.info(
-                "GDAL signalled an error: err_no=%r, msg=%r",
-                err_no,
-                msg.decode("utf-8")
-            )
-        elif err_no == 0:
-            log.log(_LEVEL_MAP[err_class], "%s", msg.decode("utf-8"))
-        else:
-            log.log(_LEVEL_MAP[err_class], "%s:%s", _CODE_MAP[err_no], msg.decode("utf-8"))
-    else:
-        log.info("Unknown error number %r", err_no)
-
-
 IF UNAME_SYSNAME == "Windows":
     cdef void __stdcall stacking_error_handler(
         CPLErr err_class,
@@ -442,7 +402,6 @@ IF UNAME_SYSNAME == "Windows":
         Warnings are converted to Python warnings.
         """
         global _ERROR_STACK
-        log_error(err_class, err_no, err_msg)
 
         if err_class == CE_Fatal:
             # If the error class is CE_Fatal, we want to have a message issued
@@ -488,7 +447,6 @@ ELSE:
         Warnings are converted to Python warnings.
         """
         global _ERROR_STACK
-        log_error(err_class, err_no, err_msg)
 
         if err_class == CE_Fatal:
             # If the error class is CE_Fatal, we want to have a message issued
