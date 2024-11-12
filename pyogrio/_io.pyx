@@ -26,7 +26,7 @@ import numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport (
-    exc_check, exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer, ErrorHandler
+    check_last_error, check_int, check_ogrerr, check_pointer, ErrorHandler
 )
 from pyogrio._vsi cimport *
 from pyogrio._err import (
@@ -210,7 +210,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         # instead of raising an error
         with capture_errors() as errors:
             ogr_dataset = GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
-            return errors.exc_wrap_pointer(ogr_dataset)
+            return errors.check_pointer(ogr_dataset)
 
     except NullPointerError:
         raise DataSourceError(
@@ -241,7 +241,7 @@ cdef ogr_close(GDALDatasetH ogr_dataset):
     if ogr_dataset != NULL:
         IF CTE_GDAL_VERSION >= (3, 7, 0):
             if GDALClose(ogr_dataset) != CE_None:
-                return exc_check()
+                return check_last_error()
 
             return
 
@@ -250,7 +250,7 @@ cdef ogr_close(GDALDatasetH ogr_dataset):
 
             # GDAL will set an error if there was an error writing the data source
             # on close
-            return exc_check()
+            return check_last_error()
 
 
 cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
@@ -272,10 +272,10 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
         if isinstance(layer, str):
             name_b = layer.encode('utf-8')
             name_c = name_b
-            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
+            ogr_layer = check_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
 
         elif isinstance(layer, int):
-            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
+            ogr_layer = check_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -318,11 +318,11 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
         sql_b = sql.encode('utf-8')
         sql_c = sql_b
         if sql_dialect is None:
-            return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
+            return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
 
         sql_dialect_b = sql_dialect.encode('utf-8')
         sql_dialect_c = sql_dialect_b
-        return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
+        return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -350,7 +350,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
     cdef char *ogr_wkt = NULL
 
     try:
-        ogr_crs = exc_wrap_pointer(OGR_L_GetSpatialRef(ogr_layer))
+        ogr_crs = check_pointer(OGR_L_GetSpatialRef(ogr_layer))
 
     except NullPointerError:
         # No coordinate system defined.
@@ -397,7 +397,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     cdef void *ogr_driver
 
     try:
-        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
+        ogr_driver = check_pointer(GDALGetDatasetDriver(ogr_dataset))
 
     except NullPointerError:
         raise DataLayerError(f"Could not detect driver of dataset") from None
@@ -440,7 +440,7 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
         feature_count = 0
         while True:
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
                 feature_count +=1
 
             except NullPointerError:
@@ -484,7 +484,7 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
 
     cdef OGREnvelope ogr_envelope
     try:
-        exc_wrap_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
+        check_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
         bounds = (
            ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
         )
@@ -635,7 +635,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     cdef const char *key_c
 
     try:
-        ogr_featuredef = exc_wrap_pointer(OGR_L_GetLayerDefn(ogr_layer))
+        ogr_featuredef = check_pointer(OGR_L_GetLayerDefn(ogr_layer))
 
     except NullPointerError:
         raise DataLayerError("Could not get layer definition") from None
@@ -652,7 +652,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     for i in range(field_count):
         try:
-            ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
+            ogr_fielddef = check_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
 
         except NullPointerError:
             raise FieldError(f"Could not get field definition for field at index {i}") from None
@@ -714,7 +714,7 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     # logs to stderr
     if err != OGRERR_NONE:
         try:
-            exc_check()
+            check_last_error()
         except CPLE_BaseError as exc:
             raise ValueError(str(exc))
 
@@ -987,7 +987,7 @@ cdef get_features(
                 break
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1081,7 +1081,7 @@ cdef get_features_by_fid(
             fid = fids[i]
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
+                ogr_feature = check_pointer(OGR_L_GetFeature(ogr_layer, fid))
 
             except NullPointerError:
                 raise FeatureError(f"Could not read feature with fid {fid}") from None
@@ -1136,7 +1136,7 @@ cdef get_bounds(
                 break
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1938,7 +1938,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
 
     # Get the driver
     try:
-        ogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver_c))
+        ogr_driver = check_pointer(GDALGetDriverByName(driver_c))
 
     except NullPointerError:
         raise DataSourceError(f"Could not obtain driver: {driver_c.decode('utf-8')} (check that it was installed correctly into GDAL)")
@@ -1958,7 +1958,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
 
     # Create the dataset
     try:
-        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
+        ogr_dataset = check_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
 
     except NullPointerError:
         raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}") from None
@@ -1980,7 +1980,7 @@ cdef void * create_crs(str crs) except NULL:
     crs_c = crs_b
 
     try:
-        ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
+        ogr_crs = check_pointer(OSRNewSpatialReference(NULL))
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
             raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8'))) from None
@@ -2204,12 +2204,12 @@ cdef create_ogr_dataset_layer(
             layer_b = layer.encode('UTF-8')
             layer_c = layer_b
 
-            ogr_layer = exc_wrap_pointer(
+            ogr_layer = check_pointer(
                     GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
                             geometry_code, layer_options))
 
         else:
-            ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
+            ogr_layer = check_pointer(get_ogr_layer(ogr_dataset, layer))
 
         # Set dataset and layer metadata
         set_metadata(ogr_dataset, dataset_metadata)
@@ -2348,7 +2348,7 @@ def ogr_write(
 
                 name_b = fields[i].encode(encoding)
                 try:
-                    ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
+                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_type))
 
                     # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
                     if field_subtype != OFSTNone:
@@ -2359,7 +2359,7 @@ def ogr_write(
 
                     # TODO: set precision
 
-                    exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+                    check_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
                 except:
                     raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
@@ -2503,7 +2503,7 @@ def ogr_write(
 
             # Add feature to the layer
             try:
-                exc_wrap_int(OGR_L_CreateFeature(ogr_layer, ogr_feature))
+                check_int(OGR_L_CreateFeature(ogr_layer, ogr_feature))
 
             except CPLE_BaseError as exc:
                 raise FeatureError(f"Could not add feature to layer at index {i}: {exc}") from None
@@ -2629,7 +2629,7 @@ def ogr_write_arrow(
                 break
 
             if not OGR_L_WriteArrowBatch(ogr_layer, &schema, &array, options):
-                exc = exc_check()
+                exc = check_last_error()
                 gdal_msg = f": {str(exc)}" if exc else "."
                 raise DataLayerError(
                     f"Error while writing batch to OGR layer{gdal_msg}"
@@ -2756,7 +2756,7 @@ cdef create_fields_from_arrow_schema(
             continue
 
         if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
-            exc = exc_check()
+            exc = check_last_error()
             gdal_msg = f" ({str(exc)})" if exc else ""
             raise FieldError(
                 f"Error while creating field from Arrow for field {i} with name "

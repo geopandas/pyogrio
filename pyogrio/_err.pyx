@@ -125,7 +125,7 @@ class CPLE_AWSError(CPLE_BaseError):
 
 class NullPointerError(CPLE_BaseError):
     """
-    Returned from exc_wrap_pointer when a NULL pointer is passed, but no GDAL
+    Returned from check_pointer when a NULL pointer is passed, but no GDAL
     error was raised.
     """
     pass
@@ -133,7 +133,7 @@ class NullPointerError(CPLE_BaseError):
 
 class CPLError(CPLE_BaseError):
     """
-    Returned from exc_wrap_int when a error code is returned, but no GDAL
+    Returned from check_int when a error code is returned, but no GDAL
     error was set.
     """
     pass
@@ -201,8 +201,12 @@ cdef class GDALErrCtxManager:
             raise exception_map[err_no](err_type, err_no, msg)
 
 
-cdef inline object exc_check():
-    """Checks GDAL error stack for fatal or non-fatal errors.
+cdef inline object check_last_error():
+    """Checks if the last GDAL error was a fatal or non-fatal error.
+
+    When a non-fatal error is found, an appropriate exception is raised.
+
+    When a fatal error is found, SystemExit is called.
 
     Returns
     -------
@@ -264,13 +268,16 @@ cdef clean_error_message(const char* err_msg):
     return msg
 
 
-cdef void *exc_wrap_pointer(void *ptr) except NULL:
-    """Wrap a GDAL/OGR function that returns GDALDatasetH etc (void *).
+cdef void *check_pointer(void *ptr) except NULL:
+    """Check the pointer returned by a GDAL/OGR function.
 
-    Raises an exception if a non-fatal error has be set or if pointer is NULL.
+    If `ptr` is `NULL`, an exception inheriting from CPLE_BaseError is raised.
+    When the last error registered by GDAL/OGR was a non-fatal error, the
+    exception raised will be customized appropriately. Otherwise a
+    NullPointerError is raised.
     """
     if ptr == NULL:
-        exc = exc_check()
+        exc = check_last_error()
         if exc:
             raise exc
         else:
@@ -279,29 +286,33 @@ cdef void *exc_wrap_pointer(void *ptr) except NULL:
     return ptr
 
 
-cdef int exc_wrap_int(int err) except -1:
-    """Wrap a GDAL/OGR function that returns CPLErr or OGRErr (int).
+cdef int check_int(int err) except -1:
+    """Check the CPLErr (int) value returned by a GDAL/OGR function.
 
-    Raises an exception if a non-fatal error has be set.
+    If `err` is a nonzero value, an exception inheriting from CPLE_BaseError is
+    raised.
+    When the last error registered by GDAL/OGR was a non-fatal error, the
+    exception raised will be customized appropriately. Otherwise a CPLError is
+    raised.
     """
     if err:
-        exc = exc_check()
+        exc = check_last_error()
         if exc:
             raise exc
         else:
             # no error message from GDAL
-            raise CPLE_BaseError(-1, -1, "Unspecified OGR / GDAL error")
+            raise CPLError(-1, -1, "Unspecified OGR / GDAL error")
+
     return err
 
 
-cdef int exc_wrap_ogrerr(int err) except -1:
-    """Wrap a function that returns OGRErr (int) but does not use the
-    CPL error stack.
+cdef int check_ogrerr(int err) except -1:
+    """Check the OGRErr (int) value returned by a GDAL/OGR function.
 
-    Adapted from Fiona (_err.pyx).
+    If `err` is a nonzero value, a CPLE_BaseError is raised.
     """
     if err != 0:
-        raise CPLE_BaseError(3, err, f"OGR Error code {err}")
+        raise CPLE_BaseError(CE_Failure, err, f"OGR Error code {err}")
 
     return err
 
@@ -348,12 +359,14 @@ cdef class ErrorHandler:
     def __init__(self, error_stack=None):
         self.error_stack = error_stack or {}
 
-    cdef int exc_wrap_int(self, int err) except -1:
-        """Wrap a GDAL/OGR function that returns CPLErr (int).
+    cdef int check_int(self, int err) except -1:
+        """Check the CPLErr (int) value returned by a GDAL/OGR function.
 
-        Raises an exception if a non-fatal error has been added to the
-        exception stack. Only checks for errors if `err` is set to a nonzero
-        value.
+        If `err` is a nonzero value, an exception inheriting from
+        CPLE_BaseError is raised.
+        When a non-fatal GDAL/OGR error was captured in the error stack, the
+        exception raised will be customized appropriately. Otherwise, a
+        CPLError is raised.
         """
         if err:
             stack = self.error_stack.get()
@@ -365,14 +378,19 @@ cdef class ErrorHandler:
                 last = stack.pop()
                 if last is not None:
                     raise last
+            else:
+                raise CPLError(CE_Failure, err, "Unspecified OGR / GDAL error")
 
         return err
 
-    cdef void *exc_wrap_pointer(self, void *ptr) except NULL:
-        """Wrap a GDAL/OGR function that returns a pointer.
+    cdef void *check_pointer(self, void *ptr) except NULL:
+        """Check the pointer returned by a GDAL/OGR function.
 
-        Raises an exception if a non-fatal error has been added to the
-        exception stack. Only checks for errors if `ptr` is `NULL`.
+        If `ptr` is `NULL`, an exception inheriting from CPLE_BaseError is
+        raised.
+        When a non-fatal GDAL/OGR error was captured in the error stack, the
+        exception raised will be customized appropriately. Otherwise, a
+        NullPointerError is raised.
         """
         if ptr == NULL:
             stack = self.error_stack.get()
@@ -384,6 +402,8 @@ cdef class ErrorHandler:
                 last = stack.pop()
                 if last is not None:
                     raise last
+            else:
+                raise NullPointerError(-1, -1, "NULL pointer error")
 
         return ptr
 
