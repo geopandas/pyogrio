@@ -214,32 +214,17 @@ cdef inline object exc_check():
     -------
     An Exception, SystemExit, or None
     """
-    cdef const char *msg_c = NULL
-
     err_type = CPLGetLastErrorType()
     err_no = CPLGetLastErrorNo()
-    err_msg = CPLGetLastErrorMsg()
+    err_msg = get_last_error_msg()
 
-    if err_msg == NULL:
-        msg = "No error message."
-    else:
-        # Reformat messages.
-        msg_b = err_msg
-
-        try:
-            msg = msg_b.decode('utf-8')
-            msg = msg.replace("`", "'")
-            msg = msg.replace("\n", " ")
-        except UnicodeDecodeError as exc:
-            msg = f"Could not decode error message to UTF-8.  Raw error: {msg_b}"
-
-    if err_type == 3:
+    if err_type == CE_Failure:
         CPLErrorReset()
         return exception_map.get(
-            err_no, CPLE_BaseError)(err_type, err_no, msg)
+            err_no, CPLE_BaseError)(err_type, err_no, err_msg)
 
-    if err_type == 4:
-        return SystemExit("Fatal error: {0}".format((err_type, err_no, msg)))
+    if err_type == CE_Fatal:
+        return SystemExit("Fatal error: {0}".format((err_type, err_no, err_msg)))
 
     else:
         return
@@ -258,11 +243,15 @@ cdef get_last_error_msg():
     if err_msg != NULL:
         # Reformat messages.
         msg_b = err_msg
-        msg = msg_b.decode('utf-8')
-        msg = msg.replace("`", "'")
-        msg = msg.replace("\n", " ")
+        try:
+            msg = msg_b.decode("utf-8")
+            msg = msg.replace("`", "'")
+            msg = msg.replace("\n", " ")
+        except UnicodeDecodeError as exc:
+            msg = f"Could not decode error message to UTF-8. Raw error: {msg_b}"
+
     else:
-        msg = ""
+        msg = "No error message."
 
     return msg
 
