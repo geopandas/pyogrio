@@ -4,7 +4,6 @@ Ported from fiona::_err.pyx
 """
 
 import contextlib
-import logging
 import warnings
 from contextvars import ContextVar
 from enum import IntEnum
