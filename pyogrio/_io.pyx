@@ -26,7 +26,7 @@ import numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport (
-    exc_check, exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer, StackChecker
+    exc_check, exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer, ErrorHandler
 )
 from pyogrio._vsi cimport *
 from pyogrio._err import (
@@ -35,7 +35,7 @@ from pyogrio._err import (
     CPLE_NotSupportedError,
     CPLE_OpenFailedError,
     NullPointerError,
-    stack_errors,
+    capture_errors,
 )
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
 from pyogrio.errors import CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
@@ -194,7 +194,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         dataset open options
     """
     cdef void *ogr_dataset = NULL
-    cdef StackChecker error_stack_checker
+    cdef ErrorHandler errors
 
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
@@ -208,9 +208,9 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     try:
         # WARNING: GDAL logs warnings about invalid open options to stderr
         # instead of raising an error
-        with stack_errors() as error_stack_checker:
+        with capture_errors() as errors:
             ogr_dataset = GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
-            return error_stack_checker.exc_wrap_pointer(ogr_dataset)
+            return errors.exc_wrap_pointer(ogr_dataset)
 
     except NullPointerError:
         raise DataSourceError(

@@ -343,7 +343,7 @@ def _register_error_handler():
 cpl_errs = GDALErrCtxManager()
 
 
-cdef class StackChecker:
+cdef class ErrorHandler:
 
     def __init__(self, error_stack=None):
         self.error_stack = error_stack or {}
@@ -352,7 +352,8 @@ cdef class StackChecker:
         """Wrap a GDAL/OGR function that returns CPLErr (int).
 
         Raises an exception if a non-fatal error has been added to the
-        exception stack.
+        exception stack. Only checks for errors if `err` is set to a nonzero
+        value.
         """
         if err:
             stack = self.error_stack.get()
@@ -371,7 +372,7 @@ cdef class StackChecker:
         """Wrap a GDAL/OGR function that returns a pointer.
 
         Raises an exception if a non-fatal error has been added to the
-        exception stack.
+        exception stack. Only checks for errors if `ptr` is `NULL`.
         """
         if ptr == NULL:
             stack = self.error_stack.get()
@@ -433,13 +434,14 @@ cdef void stacking_error_handler(
 
 
 @contextlib.contextmanager
-def stack_errors():
+def capture_errors():
     """A context manager that captures all GDAL non-fatal errors occuring.
 
     It adds all errors to a single stack, so it assumes that no more than one
     GDAL function is called.
 
-    Yields a StackChecker object that can be used to check the error stack.
+    Yields an ErrorHandler object that can be used to handle the errors
+    if any were captured.
     """
     CPLErrorReset()
     global _ERROR_STACK
@@ -450,7 +452,7 @@ def stack_errors():
     CPLPushErrorHandlerEx(<CPLErrorHandler>stacking_error_handler, NULL)
 
     # Run code in the `with` block.
-    yield StackChecker(_ERROR_STACK)
+    yield ErrorHandler(_ERROR_STACK)
 
     CPLPopErrorHandler()
     _ERROR_STACK.set([])
