@@ -387,95 +387,49 @@ cdef class StackChecker:
         return ptr
 
 
-IF UNAME_SYSNAME == "Windows":
-    cdef void __stdcall stacking_error_handler(
-        CPLErr err_class,
-        int err_no,
-        const char* err_msg
-    ) noexcept with gil:
-        """Custom CPL error handler that adds non-fatal errors to a stack.
+cdef void stacking_error_handler(
+    CPLErr err_class,
+    int err_no,
+    const char* err_msg
+) noexcept with gil:
+    """Custom CPL error handler that adds non-fatal errors to a stack.
 
-        All non-fatal errors (CE_Failure) are not printed to stderr (behaviour
-        of the default GDAL error handler), but they are converted to python
-        exceptions and added to a stack, so they can be dealt with afterwards.
+    All non-fatal errors (CE_Failure) are not printed to stderr (behaviour
+    of the default GDAL error handler), but they are converted to python
+    exceptions and added to a stack, so they can be dealt with afterwards.
 
-        Warnings are converted to Python warnings.
-        """
-        global _ERROR_STACK
+    Warnings are converted to Python warnings.
+    """
+    global _ERROR_STACK
 
-        if err_class == CE_Fatal:
-            # If the error class is CE_Fatal, we want to have a message issued
-            # because the CPL support code does an abort() before any exception
-            # can be generated
-            CPLDefaultErrorHandler(err_class, err_no, err_msg)
-
-            return
-
-        elif err_class == CE_Failure:
-            # For Failures, add them to the error exception stack
-            stack = _ERROR_STACK.get()
-            stack.append(
-                exception_map.get(err_no, CPLE_BaseError)(
-                    err_class, err_no, clean_error_message(err_msg)
-                ),
-            )
-            _ERROR_STACK.set(stack)
-
-            return
-
-        elif err_class == CE_Warning:
-            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
-
-            return
-
-        # Fall back to the default handler for non-failure messages since
-        # they won't be translated into exceptions.
+    if err_class == CE_Fatal:
+        # If the error class is CE_Fatal, we want to have a message issued
+        # because the CPL support code does an abort() before any exception
+        # can be generated
         CPLDefaultErrorHandler(err_class, err_no, err_msg)
 
-ELSE:
-    cdef void stacking_error_handler(
-        CPLErr err_class,
-        int err_no,
-        const char* err_msg
-    ) noexcept with gil:
-        """Custom CPL error handler that adds non-fatal errors to a stack.
+        return
 
-        All non-fatal errors (CE_Failure) are not printed to stderr (behaviour
-        of the default GDAL error handler), but they are converted to python
-        exceptions and added to a stack, so they can be dealt with afterwards.
+    elif err_class == CE_Failure:
+        # For Failures, add them to the error exception stack
+        stack = _ERROR_STACK.get()
+        stack.append(
+            exception_map.get(err_no, CPLE_BaseError)(
+                err_class, err_no, clean_error_message(err_msg)
+            ),
+        )
+        _ERROR_STACK.set(stack)
 
-        Warnings are converted to Python warnings.
-        """
-        global _ERROR_STACK
+        return
 
-        if err_class == CE_Fatal:
-            # If the error class is CE_Fatal, we want to have a message issued
-            # because the CPL support code does an abort() before any exception
-            # can be generated
-            CPLDefaultErrorHandler(err_class, err_no, err_msg)
+    elif err_class == CE_Warning:
+        warnings.warn(clean_error_message(err_msg), RuntimeWarning)
 
-            return
+        return
 
-        elif err_class == CE_Failure:
-            # For Failures, add them to the error exception stack
-            stack = _ERROR_STACK.get()
-            stack.append(
-                exception_map.get(err_no, CPLE_BaseError)(
-                    err_class, err_no, clean_error_message(err_msg)
-                ),
-            )
-            _ERROR_STACK.set(stack)
-
-            return
-
-        elif err_class == CE_Warning:
-            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
-
-            return
-
-        # Fall back to the default handler for non-failure messages since
-        # they won't be translated into exceptions.
-        CPLDefaultErrorHandler(err_class, err_no, err_msg)
+    # Fall back to the default handler for non-failure messages since
+    # they won't be translated into exceptions.
+    CPLDefaultErrorHandler(err_class, err_no, err_msg)
 
 
 @contextlib.contextmanager
