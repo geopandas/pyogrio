@@ -162,43 +162,6 @@ exception_map = {
     17: CPLE_AWSError
 }
 
-cdef dict _CODE_MAP = {
-    0: 'CPLE_None',
-    1: 'CPLE_AppDefined',
-    2: 'CPLE_OutOfMemory',
-    3: 'CPLE_FileIO',
-    4: 'CPLE_OpenFailed',
-    5: 'CPLE_IllegalArg',
-    6: 'CPLE_NotSupported',
-    7: 'CPLE_AssertionFailed',
-    8: 'CPLE_NoWriteAccess',
-    9: 'CPLE_UserInterrupt',
-    10: 'ObjectNull',
-    11: 'CPLE_HttpResponse',
-    12: 'CPLE_AWSBucketNotFound',
-    13: 'CPLE_AWSObjectNotFound',
-    14: 'CPLE_AWSAccessDenied',
-    15: 'CPLE_AWSInvalidCredentials',
-    16: 'CPLE_AWSSignatureDoesNotMatch',
-    17: 'CPLE_AWSError'
-}
-
-
-cdef class GDALErrCtxManager:
-    """A manager for GDAL error handling contexts."""
-
-    def __enter__(self):
-        CPLErrorReset()
-        return self
-
-    def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
-        cdef int err_type = CPLGetLastErrorType()
-        cdef int err_no = CPLGetLastErrorNo()
-        cdef const char *msg = CPLGetLastErrorMsg()
-        # TODO: warn for err_type 2?
-        if err_type >= 2:
-            raise exception_map[err_no](err_type, err_no, msg)
-
 
 cdef inline object check_last_error():
     """Checks if the last GDAL error was a fatal or non-fatal error.
@@ -349,8 +312,6 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) noexc
 
 def _register_error_handler():
     CPLPushErrorHandler(<CPLErrorHandler>error_handler)
-
-cpl_errs = GDALErrCtxManager()
 
 
 cdef class ErrorHandler:
