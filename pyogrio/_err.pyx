@@ -19,19 +19,6 @@ _ERROR_STACK = ContextVar("error_stack")
 _ERROR_STACK.set([])
 
 
-# CPL Error types as an enum.
-class GDALError(IntEnum):
-    """GDAL error types/classes.
-    
-    GDAL doc: https://gdal.org/en/latest/doxygen/cpl__error_8h.html#a463ba7c7202a505416ff95b1aeefa2de
-    """
-    none = CE_None
-    debug = CE_Debug
-    warning = CE_Warning
-    failure = CE_Failure
-    fatal = CE_Fatal
-
-
 class CPLE_BaseError(Exception):
     """Base CPL error class.
 
