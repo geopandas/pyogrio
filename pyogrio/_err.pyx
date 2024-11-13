@@ -6,7 +6,6 @@ Ported from fiona::_err.pyx
 import contextlib
 import warnings
 from contextvars import ContextVar
-from enum import IntEnum
 from itertools import zip_longest
 
 from pyogrio._ogr cimport (
