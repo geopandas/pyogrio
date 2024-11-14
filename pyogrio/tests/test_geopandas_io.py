@@ -2257,7 +2257,7 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
     if "LIBKML" in list_drivers():
         # test appending to the existing file only if LIBKML is available
         # as it appears to fall back on LIBKML driver when appending.
-        points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+        points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
         gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
 
         write_dataframe(
