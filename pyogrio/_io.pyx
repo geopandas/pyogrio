@@ -210,7 +210,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         # instead of raising an error
         with capture_errors() as errors:
             ogr_dataset = GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
-            return errors.check_pointer(ogr_dataset)
+            return errors.check_pointer(ogr_dataset, True)
 
     except NullPointerError:
         raise DataSourceError(
@@ -218,20 +218,13 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         ) from None
 
     except CPLE_BaseError as exc:
-        # If there are inner exceptions, append their errmsg to the errmsg
-        errmsg = str(exc)
-        inner = exc.__cause__
-        while inner is not None:
-            errmsg = f"{errmsg}; {inner}"
-            inner = inner.__cause__
-
-        if exc.errmsg.endswith("a supported file format."):
+        if " not recognized as a supported file format." in exc.errmsg:
             raise DataSourceError(
-                f"{errmsg}; It might help to specify the correct driver explicitly by "
+                f"{exc.errmsg}; It might help to specify the correct driver explicitly by "
                 "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
             ) from None
 
-        raise DataSourceError(errmsg) from None
+        raise DataSourceError(exc.errmsg) from None
 
 
 cdef ogr_close(GDALDatasetH ogr_dataset):

@@ -305,7 +305,7 @@ cdef class ErrorHandler:
     def __init__(self, error_stack=None):
         self.error_stack = error_stack or {}
 
-    cdef int check_int(self, int err) except -1:
+    cdef int check_int(self, int err, bint squash_errors) except -1:
         """Check the CPLErr (int) value returned by a GDAL/OGR function.
 
         If `err` is a nonzero value, an exception inheriting from
@@ -313,6 +313,20 @@ cdef class ErrorHandler:
         When a non-fatal GDAL/OGR error was captured in the error stack, the
         exception raised will be customized appropriately. Otherwise, a
         CPLError is raised.
+
+        Parameters
+        ----------
+        err : int
+            The CPLErr returned by a GDAL/OGR function.
+        squash_errors : bool
+            True to squash all errors captured to one error with the exception type of
+            the last error and all error messages concatenated.
+
+        Returns
+        -------
+        int
+            The `err` input parameter if it is zero. Otherwise an exception is raised.
+
         """
         if err:
             stack = self.error_stack.get()
@@ -323,13 +337,24 @@ cdef class ErrorHandler:
             if stack:
                 last = stack.pop()
                 if last is not None:
+                    if squash_errors:
+                        # Concatenate all error messages, and raise a single exception
+                        errmsg = str(last)
+                        inner = last.__cause__
+                        while inner is not None:
+                            errmsg = f"{errmsg}; {inner}"
+                            inner = inner.__cause__
+
+                        raise type(last)(-1, -1, errmsg)
+
                     raise last
+
             else:
                 raise CPLError(CE_Failure, err, "Unspecified OGR / GDAL error")
 
         return err
 
-    cdef void *check_pointer(self, void *ptr) except NULL:
+    cdef void *check_pointer(self, void *ptr, bint squash_errors) except NULL:
         """Check the pointer returned by a GDAL/OGR function.
 
         If `ptr` is `NULL`, an exception inheriting from CPLE_BaseError is
@@ -337,6 +362,21 @@ cdef class ErrorHandler:
         When a non-fatal GDAL/OGR error was captured in the error stack, the
         exception raised will be customized appropriately. Otherwise, a
         NullPointerError is raised.
+
+        Parameters
+        ----------
+        ptr : pointer
+            The pointer returned by a GDAL/OGR function.
+        squash_errors : bool
+            True to squash all errors captured to one error with the exception type of
+            the last error and all error messages concatenated.
+
+        Returns
+        -------
+        pointer
+            The `ptr` input parameter if it is not `NULL`. Otherwise an exception is
+            raised.
+
         """
         if ptr == NULL:
             stack = self.error_stack.get()
@@ -347,7 +387,18 @@ cdef class ErrorHandler:
             if stack:
                 last = stack.pop()
                 if last is not None:
+                    if squash_errors:
+                        # Concatenate all error messages, and raise a single exception
+                        errmsg = str(last)
+                        inner = last.__cause__
+                        while inner is not None:
+                            errmsg = f"{errmsg}; {inner}"
+                            inner = inner.__cause__
+
+                        raise type(last)(-1, -1, errmsg)
+
                     raise last
+
             else:
                 raise NullPointerError(-1, -1, "NULL pointer error")
 
