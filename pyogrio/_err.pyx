@@ -163,6 +163,8 @@ cdef inline object check_last_error():
     err_type = CPLGetLastErrorType()
     err_no = CPLGetLastErrorNo()
     err_msg = clean_error_message(CPLGetLastErrorMsg())
+    if err_msg == "":
+        err_msg = "No error message."
 
     if err_type == CE_Failure:
         CPLErrorReset()
@@ -308,25 +310,9 @@ cdef class ErrorHandler:
         """
         if err != OGRERR_NONE:
             stack = self.error_stack.get()
-            for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
-                if error is not None and cause is not None:
-                    error.__cause__ = cause
 
             if stack:
-                last = stack.pop()
-                if last is not None:
-                    if squash_errors:
-                        # Concatenate all error messages, and raise a single exception
-                        errmsg = str(last)
-                        inner = last.__cause__
-                        while inner is not None:
-                            errmsg = f"{errmsg}; {inner}"
-                            inner = inner.__cause__
-
-                        raise type(last)(-1, -1, errmsg)
-
-                    raise last
-
+                self._handle_error_stack(squash_errors)
             else:
                 raise CPLError(CE_Failure, err, "Unspecified OGR / GDAL error")
 
@@ -358,29 +344,38 @@ cdef class ErrorHandler:
         """
         if ptr == NULL:
             stack = self.error_stack.get()
-            for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
-                if error is not None and cause is not None:
-                    error.__cause__ = cause
 
             if stack:
-                last = stack.pop()
-                if last is not None:
-                    if squash_errors:
-                        # Concatenate all error messages, and raise a single exception
-                        errmsg = str(last)
-                        inner = last.__cause__
-                        while inner is not None:
-                            errmsg = f"{errmsg}; {inner}"
-                            inner = inner.__cause__
-
-                        raise type(last)(-1, -1, errmsg)
-
-                    raise last
-
+                self._handle_error_stack(squash_errors)
             else:
                 raise NullPointerError(-1, -1, "NULL pointer error")
 
         return ptr
+    
+    cdef void _handle_error_stack(self, bint squash_errors):
+        """Handle the errors in `error_stack`."""
+        stack = self.error_stack.get()
+
+        for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
+            if error is not None and cause is not None:
+                error.__cause__ = cause
+
+        last = stack.pop()
+        if last is not None:
+            if squash_errors:
+                # Concatenate all error messages, and raise a single exception
+                errmsg = str(last)
+                inner = last.__cause__
+                while inner is not None:
+                    errmsg = f"{errmsg}; {inner}"
+                    inner = inner.__cause__
+
+                if errmsg == "":
+                    errmsg = "No error message."
+
+                raise type(last)(-1, -1, errmsg)
+
+            raise last
 
 
 cdef void stacking_error_handler(
