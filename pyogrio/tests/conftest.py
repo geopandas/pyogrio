@@ -124,6 +124,11 @@ def naturalearth_lowres_all_ext(tmp_path, naturalearth_lowres, request):
     return prepare_testfile(naturalearth_lowres, tmp_path, request.param)
 
 
+@pytest.fixture(scope="function", params=[".geojson"])
+def naturalearth_lowres_geojson(tmp_path, naturalearth_lowres, request):
+    return prepare_testfile(naturalearth_lowres, tmp_path, request.param)
+
+
 @pytest.fixture(scope="function")
 def naturalearth_lowres_vsi(tmp_path, naturalearth_lowres):
     """Wrap naturalearth_lowres as a zip file for VSI tests"""

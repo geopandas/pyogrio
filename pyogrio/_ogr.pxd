@@ -33,6 +33,7 @@ cdef extern from "cpl_error.h" nogil:
     ctypedef void (*CPLErrorHandler)(CPLErr, int, const char*)
     void CPLDefaultErrorHandler(CPLErr, int, const char *)
     void CPLPushErrorHandler(CPLErrorHandler handler)
+    void CPLPushErrorHandlerEx(CPLErrorHandler handler, void *userdata)
     void CPLPopErrorHandler()
 
 
