@@ -414,7 +414,7 @@ def capture_errors():
 
     # stacking_error_handler records GDAL errors in the order they occur and
     # converts them to exceptions.
-    CPLPushErrorHandlerEx(<CPLErrorHandler>stacking_error_handler, NULL)
+    CPLPushErrorHandler(<CPLErrorHandler>stacking_error_handler)
 
     # Run code in the `with` block.
     yield ErrorHandler(_ERROR_STACK)
