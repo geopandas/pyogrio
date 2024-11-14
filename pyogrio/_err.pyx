@@ -162,7 +162,7 @@ cdef inline object check_last_error():
     """
     err_type = CPLGetLastErrorType()
     err_no = CPLGetLastErrorNo()
-    err_msg = get_last_error_msg()
+    err_msg = clean_error_message(CPLGetLastErrorMsg())
 
     if err_type == CE_Failure:
         CPLErrorReset()
@@ -174,17 +174,6 @@ cdef inline object check_last_error():
 
     else:
         return
-
-
-cdef get_last_error_msg():
-    """Checks GDAL error stack for the latest error message.
-
-    Returns
-    -------
-    An error message or empty string
-
-    """
-    return clean_error_message(CPLGetLastErrorMsg())
 
 
 cdef clean_error_message(const char* err_msg):
