@@ -26,7 +26,7 @@ import numpy as np
 
 from pyogrio._ogr cimport *
 from pyogrio._err cimport (
-    check_last_error, check_int, check_ogrerr, check_pointer, ErrorHandler
+    check_last_error, check_int, check_pointer, ErrorHandler
 )
 from pyogrio._vsi cimport *
 from pyogrio._err import (
@@ -478,13 +478,12 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
     """
 
     cdef OGREnvelope ogr_envelope
-    try:
-        check_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
+
+    if OGR_L_GetExtent(ogr_layer, &ogr_envelope, force) == OGRERR_NONE:
         bounds = (
            ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
         )
-
-    except CPLE_BaseError:
+    else:
         bounds = None
 
     return bounds

@@ -3,7 +3,7 @@ import sys
 from uuid import uuid4
 import warnings
 
-from pyogrio._err cimport check_int, check_ogrerr, check_pointer
+from pyogrio._err cimport check_int, check_pointer
 from pyogrio._err import CPLE_BaseError, NullPointerError
 from pyogrio.errors import DataSourceError
 
@@ -182,15 +182,15 @@ def has_proj_data():
     """
     cdef OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL)
 
-    try:
-        check_ogrerr(check_int(OSRImportFromEPSG(srs, 4326)))
-    except CPLE_BaseError:
-        return False
-    else:
+    retval = OSRImportFromEPSG(srs, 4326)
+    if srs != NULL:
+        OSRRelease(srs)
+
+    if retval == OGRERR_NONE:
+        # Succesfull return, so PROJ data files are correctly found
         return True
-    finally:
-        if srs != NULL:
-            OSRRelease(srs)
+    else:
+        return False
 
 
 def init_gdal_data():

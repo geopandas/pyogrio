@@ -10,7 +10,7 @@ from itertools import zip_longest
 
 from pyogrio._ogr cimport (
     CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
-    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr,
+    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr, OGRERR_NONE,
     CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPopErrorHandler,
     CPLPushErrorHandler, CPLPushErrorHandlerEx)
 
@@ -237,30 +237,18 @@ cdef void *check_pointer(void *ptr) except NULL:
 cdef int check_int(int err) except -1:
     """Check the CPLErr (int) value returned by a GDAL/OGR function.
 
-    If `err` is a nonzero value, an exception inheriting from CPLE_BaseError is
-    raised.
+    If `err` is not OGRERR_NONE, an exception inheriting from CPLE_BaseError is raised.
     When the last error registered by GDAL/OGR was a non-fatal error, the
     exception raised will be customized appropriately. Otherwise a CPLError is
     raised.
     """
-    if err:
+    if err != OGRERR_NONE:
         exc = check_last_error()
         if exc:
             raise exc
         else:
             # no error message from GDAL
             raise CPLError(-1, -1, "Unspecified OGR / GDAL error")
-
-    return err
-
-
-cdef int check_ogrerr(int err) except -1:
-    """Check the OGRErr (int) value returned by a GDAL/OGR function.
-
-    If `err` is a nonzero value, a CPLE_BaseError is raised.
-    """
-    if err != 0:
-        raise CPLE_BaseError(CE_Failure, err, f"OGR Error code {err}")
 
     return err
 
@@ -308,8 +296,8 @@ cdef class ErrorHandler:
     cdef int check_int(self, int err, bint squash_errors) except -1:
         """Check the CPLErr (int) value returned by a GDAL/OGR function.
 
-        If `err` is a nonzero value, an exception inheriting from
-        CPLE_BaseError is raised.
+        If `err` is not OGRERR_NONE, an exception inheriting from CPLE_BaseError is
+        raised.
         When a non-fatal GDAL/OGR error was captured in the error stack, the
         exception raised will be customized appropriately. Otherwise, a
         CPLError is raised.
@@ -325,10 +313,11 @@ cdef class ErrorHandler:
         Returns
         -------
         int
-            The `err` input parameter if it is zero. Otherwise an exception is raised.
+            The `err` input parameter if it is OGRERR_NONE. Otherwise an exception is
+            raised.
 
         """
-        if err:
+        if err != OGRERR_NONE:
             stack = self.error_stack.get()
             for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
                 if error is not None and cause is not None:

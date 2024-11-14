@@ -1,6 +1,5 @@
 cdef object check_last_error()
 cdef int check_int(int retval) except -1
-cdef int check_ogrerr(int retval) except -1
 cdef void *check_pointer(void *ptr) except NULL
 
 cdef class ErrorHandler:
