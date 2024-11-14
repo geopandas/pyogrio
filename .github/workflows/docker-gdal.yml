@@ -53,7 +53,7 @@ jobs:
         # used for tests below
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          . $HOME/.cargo/env
+          . $HOME/.local/bin/env
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
