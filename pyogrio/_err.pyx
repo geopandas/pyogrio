@@ -428,7 +428,6 @@ cdef void stacking_error_handler(
     elif err_class == CE_Failure:
         # For Failures, add them to the error exception stack
         with gil:
-            global _ERROR_STACK
             stack = _ERROR_STACK.get()
             stack.append(
                 exception_map.get(err_no, CPLE_BaseError)(
@@ -460,7 +459,6 @@ def capture_errors():
     if any were captured.
     """
     CPLErrorReset()
-    global _ERROR_STACK
     _ERROR_STACK.set([])
 
     # stacking_error_handler records GDAL errors in the order they occur and
