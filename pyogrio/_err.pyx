@@ -10,9 +10,9 @@ from itertools import zip_longest
 
 from pyogrio._ogr cimport (
     CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
-    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr, OGRERR_NONE,
-    CPLErr, CPLErrorHandler, CPLDefaultErrorHandler, CPLPopErrorHandler,
-    CPLPushErrorHandler, CPLPushErrorHandlerEx)
+    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr,
+    OGRERR_NONE, CPLErr, CPLErrorHandler, CPLDefaultErrorHandler,
+    CPLPopErrorHandler, CPLPushErrorHandler)
 
 _ERROR_STACK = ContextVar("error_stack")
 _ERROR_STACK.set([])
