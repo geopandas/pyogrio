@@ -218,15 +218,15 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         ) from None
 
     except CPLE_BaseError as exc:
-        if " a supported file format." in exc.errmsg:
+        if " a supported file format." in str(exc):
             # In gdal 3.9, this error message was slightly changed, so we can only check
             # on this part of the error message.
             raise DataSourceError(
-                f"{exc.errmsg}; It might help to specify the correct driver explicitly by "
+                f"{str(exc)}; It might help to specify the correct driver explicitly by "
                 "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
             ) from None
 
-        raise DataSourceError(exc.errmsg) from None
+        raise DataSourceError(str(exc)) from None
 
 
 cdef ogr_close(GDALDatasetH ogr_dataset):
