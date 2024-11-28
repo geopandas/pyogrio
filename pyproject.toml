@@ -13,7 +13,7 @@ name = "pyogrio"
 dynamic = ["version"]
 authors = [
     { name = "Brendan C. Ward", email = "bcward@astutespruce.com" },
-    { name = "pyogrio contributors" }
+    { name = "pyogrio contributors" },
 ]
 maintainers = [{ name = "pyogrio contributors" }]
 license = { file = "LICENSE" }
@@ -51,7 +51,7 @@ build-verbosity = 3
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.9.2"
+GDAL_VERSION = "3.10.0"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
@@ -66,7 +66,7 @@ repair-wheel-command = [
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.9.2"
+GDAL_VERSION = "3.10.0"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
@@ -80,7 +80,7 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows-dynamic-release"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.9.2"
+GDAL_VERSION = "3.10.0"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
