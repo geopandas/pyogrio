@@ -276,13 +276,11 @@ jobs:
         uses: astral-sh/setup-uv@v4
 
       - name: Create virtual environment (Linux / MacOS)
-        # install uv and use it to create a virtual environment, then add it to
-        # environment variables so that it is automatically activated and can be
-        # used for tests below
+        # use uv to create a virtual environment, then add it to environment
+        # variables so that it is automatically activated and can be used for
+        # tests below
         if: ${{ runner.os != 'Windows' }}
         run: |
-          # curl -LsSf https://astral.sh/uv/install.sh | sh
-          # . $HOME/.local/bin/env
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
@@ -290,7 +288,6 @@ jobs:
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          # irm https://astral.sh/uv/install.ps1 | iex
           uv venv .venv
           "VIRTUAL_ENV=.venv" | Out-File -FilePath $env:GITHUB_ENV -Append
           "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
