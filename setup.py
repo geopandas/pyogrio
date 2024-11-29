@@ -153,11 +153,6 @@ else:
 
     ext_options, gdal_version_str = get_gdal_config()
 
-    # FIXME: remove
-    print(
-        f'GDAL version string: {gdal_version_str}; split: {gdal_version_str.strip("dev").split(".")}'
-    )
-
     gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
     if not gdal_version >= MIN_GDAL_VERSION:
         sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
