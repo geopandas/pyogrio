@@ -277,7 +277,6 @@ jobs:
         # environment variables so that it is automatically activated and can be
         # used for tests below
         if: ${{ runner.os != 'Windows' }}
-        shell: bash
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           . $HOME/.local/bin/env
