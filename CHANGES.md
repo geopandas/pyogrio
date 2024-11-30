@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.11.0 (TBD)
+
+### Packaging
+
+-   the GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+
 ## 0.10.0 (2024-09-28)
 
 ### Improvements
