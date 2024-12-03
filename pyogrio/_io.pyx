@@ -214,7 +214,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
 
     except NullPointerError:
         raise DataSourceError(
-            f"Failed to open dataset (mode={mode}): {path_c.decode('utf-8')}"
+            f"Failed to open dataset ({mode=}): {path_c.decode('utf-8')}"
         ) from None
 
     except CPLE_BaseError as exc:
