@@ -229,14 +229,15 @@ def test_read_force_2d(tmp_path, use_arrow):
 
 
 def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
-    set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
-    with pytest.raises(
-        DataSourceError,
-        match="Failed to read GeoJSON data; .* GeoJSON object too complex",
-    ):
-        read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
-
-    set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
+    try:
+        set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
+        with pytest.raises(
+            DataSourceError,
+            match="Failed to read GeoJSON data; .* GeoJSON object too complex",
+        ):
+            read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
+    finally:
+        set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
 def test_read_layer(tmp_path, use_arrow):
