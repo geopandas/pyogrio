@@ -1,10 +1,14 @@
 # CHANGELOG
 
-## 0.11.0 (????-??-??)
+## 0.11.0 (TBD)
 
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
+
+### Packaging
+
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
 
 ## 0.10.0 (2024-09-28)
 

@@ -21,6 +21,7 @@ jobs:
       matrix:
         container:
           - "ghcr.io/osgeo/gdal:ubuntu-small-latest" # >= python 3.12.3
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.10.0" # python 3.12.3
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.9.2" # python 3.12.3
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.10.12
@@ -36,9 +37,9 @@ jobs:
         run: |
           apt-get update && apt-get install -y build-essential git python3-dev
 
-      - name: Install Python 
+      - name: Install Python
         # the GDAL 3.4 and 3.5 images do have Python 3.8 installed, so have to
-        # install a more recent Python version manually 
+        # install a more recent Python version manually
         if: matrix.container == 'osgeo/gdal:ubuntu-small-3.5.3' || matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3'
         run: |
           apt-get update && apt-get install -y software-properties-common
