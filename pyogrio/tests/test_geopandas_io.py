@@ -16,7 +16,7 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -228,6 +228,10 @@ def test_read_force_2d(tmp_path, use_arrow):
     assert not df.iloc[0].geometry.has_z
 
 
+@pytest.mark.skipif(
+    not GDAL_GE_352,
+    reason="gdal >= 3.5.2 needed to use OGR_GEOJSON_MAX_OBJ_SIZE with a float value",
+)
 def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
     try:
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
