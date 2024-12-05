@@ -174,9 +174,6 @@ cdef inline object check_last_error():
     if err_type == CE_Fatal:
         return SystemExit("Fatal error: {0}".format((err_type, err_no, err_msg)))
 
-    else:
-        return
-
 
 cdef clean_error_message(const char* err_msg):
     """Cleans up error messages from GDAL.
@@ -222,6 +219,7 @@ cdef void *check_pointer(void *ptr) except NULL:
         else:
             # null pointer was passed, but no error message from GDAL
             raise NullPointerError(-1, -1, "NULL pointer error")
+
     return ptr
 
 
@@ -260,12 +258,12 @@ cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) noexc
         CPLDefaultErrorHandler(err_class, err_no, err_msg)
         return
 
-    elif err_class == CE_Failure:
+    if err_class == CE_Failure:
         # For Failures, do nothing as those are explicitly caught
         # with error return codes and translated into Python exceptions
         return
 
-    elif err_class == CE_Warning:
+    if err_class == CE_Warning:
         with gil:
             warnings.warn(clean_error_message(err_msg), RuntimeWarning)
         return
@@ -309,9 +307,7 @@ cdef class ErrorHandler:
 
         """
         if err != OGRERR_NONE:
-            stack = self.error_stack.get()
-
-            if stack:
+            if self.error_stack.get():
                 self._handle_error_stack(squash_errors)
             else:
                 raise CPLError(CE_Failure, err, "Unspecified OGR / GDAL error")
@@ -343,9 +339,7 @@ cdef class ErrorHandler:
 
         """
         if ptr == NULL:
-            stack = self.error_stack.get()
-
-            if stack:
+            if self.error_stack.get():
                 self._handle_error_stack(squash_errors)
             else:
                 raise NullPointerError(-1, -1, "NULL pointer error")
@@ -355,7 +349,6 @@ cdef class ErrorHandler:
     cdef void _handle_error_stack(self, bint squash_errors):
         """Handle the errors in `error_stack`."""
         stack = self.error_stack.get()
-
         for error, cause in zip_longest(stack[::-1], stack[::-1][1:]):
             if error is not None and cause is not None:
                 error.__cause__ = cause
@@ -398,7 +391,7 @@ cdef void stacking_error_handler(
         CPLDefaultErrorHandler(err_class, err_no, err_msg)
         return
 
-    elif err_class == CE_Failure:
+    if err_class == CE_Failure:
         # For Failures, add them to the error exception stack
         with gil:
             stack = _ERROR_STACK.get()
@@ -411,7 +404,7 @@ cdef void stacking_error_handler(
 
         return
 
-    elif err_class == CE_Warning:
+    if err_class == CE_Warning:
         with gil:
             warnings.warn(clean_error_message(err_msg), RuntimeWarning)
         return
