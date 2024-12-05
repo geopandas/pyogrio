@@ -2253,7 +2253,8 @@ def ogr_write(
     cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
-    cdef unsigned char *wkb_buffer = NULL
+    cdef const unsigned char *wkb_buffer = NULL
+    cdef unsigned int wkbtype = 0
     cdef int supports_transactions = 0
     cdef int err = 0
     cdef int i = 0
@@ -2373,15 +2374,18 @@ def ogr_write(
             # TODO: geometry must not be null or errors
             wkb = None if geometry is None else geometry[i]
             if wkb is not None:
-                wkbtype = <int>bytearray(wkb)[1]
-                # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
-                # use "little" if the first byte == 1
+                wkb_buffer = wkb
+                if wkb_buffer[0] == 1:
+                    # Little endian WKB type.
+                    wkbtype = wkb_buffer[1] + (wkb_buffer[2] << 8) + (wkb_buffer[3] << 16) + (<unsigned int>wkb_buffer[4] << 24)
+                else:
+                    # Big endian WKB type.
+                    wkbtype = (<unsigned int>(wkb_buffer[1]) << 24) + (wkb_buffer[2] << 16) + (wkb_buffer[3] << 8) + wkb_buffer[4]
                 ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
                 if ogr_geometry == NULL:
                     raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
 
                 # import the WKB
-                wkb_buffer = wkb
                 err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
                 if err:
                     raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
