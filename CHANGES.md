@@ -6,6 +6,10 @@
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
 
+### Bug fixes
+
+-   Fix WKB writing on big-endian systems (#497).
+
 ### Packaging
 
 -   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
