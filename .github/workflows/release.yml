@@ -152,13 +152,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-12"
+          - os: "macos-13"
             triplet: "x64-osx-dynamic-release"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "macos-12"
+          - os: "macos-13"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -244,7 +244,7 @@ jobs:
             "ubuntu-latest",
             "ubuntu-20.04",
             "windows-latest",
-            "macos-12",
+            "macos-13",
             "macos-latest",
           ]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
@@ -257,7 +257,7 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
-          - os: "macos-12"
+          - os: "macos-13"
             artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"
             artifact: pyogrio-wheel-arm64-osx-dynamic-release
