@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 0.11.0 (TBD)
+
+### Improvements
+
+-   Capture all errors logged by gdal when opening a file fails (#495).
+
+### Bug fixes
+
+-   Fix WKB writing on big-endian systems (#497).
+
+### Packaging
+
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+
 ## 0.10.0 (2024-09-28)
 
 ### Improvements
@@ -10,7 +24,7 @@
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
 -   Enable mask & bbox filter when geometry column not read (#431).
--   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
+-   Raise `NotImplementedError` when user attempts to write to an open file handle (#442).
 -   Prevent seek on read from compressed inputs (#443).
 
 ### Packaging

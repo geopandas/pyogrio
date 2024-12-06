@@ -7,7 +7,7 @@ RUN yum install -y curl unzip zip tar perl-IPC-Cmd
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
-    git -C /opt/vcpkg checkout 73794ce5f63fd138fab999a22959ca7c6305d93c
+    git -C /opt/vcpkg checkout 0857a4b08c14030bbe41e80accb2b1fddb047a74
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
