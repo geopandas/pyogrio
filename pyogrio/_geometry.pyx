@@ -84,7 +84,7 @@ cdef str get_geometry_type(void *ogr_layer):
     cdef OGRwkbGeometryType ogr_type
 
     try:
-        ogr_featuredef = exc_wrap_pointer(OGR_L_GetLayerDefn(ogr_layer))
+        ogr_featuredef = check_pointer(OGR_L_GetLayerDefn(ogr_layer))
     except NullPointerError:
         raise DataLayerError("Could not get layer definition")
 

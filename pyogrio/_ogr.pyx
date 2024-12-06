@@ -3,7 +3,7 @@ import sys
 from uuid import uuid4
 import warnings
 
-from pyogrio._err cimport exc_wrap_int, exc_wrap_ogrerr, exc_wrap_pointer
+from pyogrio._err cimport check_int, check_pointer
 from pyogrio._err import CPLE_BaseError, NullPointerError
 from pyogrio.errors import DataSourceError
 
@@ -182,15 +182,15 @@ def has_proj_data():
     """
     cdef OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL)
 
-    try:
-        exc_wrap_ogrerr(exc_wrap_int(OSRImportFromEPSG(srs, 4326)))
-    except CPLE_BaseError:
-        return False
-    else:
+    retval = OSRImportFromEPSG(srs, 4326)
+    if srs != NULL:
+        OSRRelease(srs)
+
+    if retval == OGRERR_NONE:
+        # Succesfull return, so PROJ data files are correctly found
         return True
-    finally:
-        if srs != NULL:
-            OSRRelease(srs)
+    else:
+        return False
 
 
 def init_gdal_data():
@@ -282,7 +282,7 @@ def _get_driver_metadata_item(driver, metadata_item):
     cdef void *cogr_driver = NULL
 
     try:
-        cogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver.encode('UTF-8')))
+        cogr_driver = check_pointer(GDALGetDriverByName(driver.encode('UTF-8')))
     except NullPointerError:
         raise DataSourceError(
             f"Could not obtain driver: {driver} (check that it was installed "
