@@ -58,7 +58,7 @@ def _try_parse_datetime(ser):
         except Exception:
             res = ser
     # if object dtype, try parse as utc instead
-    if res.dtype == "object":
+    if res.dtype in ("object", "string"):
         try:
             res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
         except Exception:
