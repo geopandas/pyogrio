@@ -206,3 +206,6 @@ section-order = [
     "geopandas.tests",
     "geopandas.testing",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
