@@ -16,13 +16,7 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import (
-    GDAL_EQ_3100,
-    GDAL_GE_352,
-    HAS_ARROW_WRITE_API,
-    HAS_PYPROJ,
-    PANDAS_GE_15,
-)
+from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1141,9 +1135,9 @@ def test_write_empty_geometry(tmp_path):
 
 @pytest.mark.requires_arrow_write_api
 def test_write_fid_gpkg(tmp_path, use_arrow):
-    if use_arrow and GDAL_EQ_3100:
-        # Issue with GDAL 3.10.0: https://github.com/OSGeo/gdal/issues/11527
-        pytest.xfail(reason="bug in GDAL 3.10.0")
+    if use_arrow:
+        # Issue logged here: https://github.com/OSGeo/gdal/issues/11527
+        pytest.xfail(reason="Custom fid gives GDAL error with use_arrow")
 
     input_gdf = gp.GeoDataFrame(
         {"fid": [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"

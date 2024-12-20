@@ -42,7 +42,6 @@ PANDAS_GE_22 = pandas is not None and Version(pandas.__version__) >= Version("2.
 
 GDAL_GE_352 = __gdal_version__ >= (3, 5, 2)
 GDAL_GE_38 = __gdal_version__ >= (3, 8, 0)
-GDAL_EQ_3100 = __gdal_version__ == (3, 10, 0)
 
 HAS_GDAL_GEOS = __gdal_geos_version__ is not None
 
