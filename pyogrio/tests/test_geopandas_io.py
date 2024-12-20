@@ -993,12 +993,20 @@ def test_write_csv_encoding(tmp_path, encoding):
     assert csv_bytes == csv_pyogrio_bytes
 
 
-@pytest.mark.parametrize("ext, fid_column", [(".gpkg", "fid"), (".sqlite", "ogc_fid")])
+@pytest.mark.parametrize(
+    "ext, fid_column",
+    [
+        (".gpkg", "fid"),
+        (".gpkg", "FID"),
+        (".sqlite", "ogc_fid"),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
 def test_write_custom_fids(tmp_path, ext, fid_column, use_arrow):
     """Test to specify the fid's to be used when writing to a file.
 
-    This is only supported for some formats, e.g. GPKG and SQLite.
+    This is only supported for some formats, e.g. GPKG and SQLite. The fid_column name
+    is case insensitive.
     """
     input_gdf = gp.GeoDataFrame(
         {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
