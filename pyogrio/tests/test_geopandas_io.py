@@ -1006,7 +1006,7 @@ def test_write_custom_fids(tmp_path, ext, fid_column, use_arrow):
     """Test to specify the fid's to be used when writing to a file.
 
     This is only supported for some formats, e.g. GPKG and SQLite. The fid_column name
-    is case insensitive.
+    is treated as case-insensitive (by GDAL).
     """
     input_gdf = gp.GeoDataFrame(
         {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
