@@ -16,7 +16,13 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_EQ_3100,
+    GDAL_GE_352,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1131,6 +1137,25 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_fid_gpkg(tmp_path, use_arrow):
+    if use_arrow and GDAL_EQ_3100:
+        # Issue with GDAL 3.10.0: https://github.com/OSGeo/gdal/issues/11527
+        pytest.xfail(reason="bug in GDAL 3.10.0")
+
+    input_gdf = gp.GeoDataFrame(
+        {"fid": [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    path = tmp_path / "test.gpkg"
+    write_dataframe(input_gdf, path, use_arrow=use_arrow)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    assert_geodataframe_equal(output_gdf, input_gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
