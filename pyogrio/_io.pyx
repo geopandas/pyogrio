@@ -2751,6 +2751,8 @@ cdef create_fields_from_arrow_schema(
     # Hence, the column should not be created as an ordinary field well.
     # Doing so anyway additionally triggers a bug in GDAL < 3.10.1:
     # https://github.com/OSGeo/gdal/issues/11527#issuecomment-2556092722
+    fid_column = get_string(OGR_L_GetFIDColumn(destLayer))
+
     # The schema object is a struct type where each child is a column.
     cdef ArrowSchema* child
     for i in range(schema.n_children):
