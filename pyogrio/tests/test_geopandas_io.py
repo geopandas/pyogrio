@@ -993,6 +993,28 @@ def test_write_csv_encoding(tmp_path, encoding):
     assert csv_bytes == csv_pyogrio_bytes
 
 
+@pytest.mark.parametrize("ext, fid_column", [(".gpkg", "fid"), (".sqlite", "ogc_fid")])
+@pytest.mark.requires_arrow_write_api
+def test_write_custom_fids(tmp_path, ext, fid_column, use_arrow):
+    """Test to specify the fid's to be used when writing to a file.
+
+    This is only supported for some formats, e.g. GPKG and SQLite.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    path = tmp_path / f"test{ext}"
+    write_dataframe(input_gdf, path, use_arrow=use_arrow)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    # pyogrio always sets "fid" as index name with `fid_as_index`
+    expected_gdf = input_gdf.rename(columns={fid_column: "fid"})
+    assert_geodataframe_equal(output_gdf, expected_gdf)
+
+
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
@@ -1131,21 +1153,6 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
-
-
-@pytest.mark.requires_arrow_write_api
-def test_write_fid_gpkg(tmp_path, use_arrow):
-    input_gdf = gp.GeoDataFrame(
-        {"fid": [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
-    )
-    path = tmp_path / "test.gpkg"
-    write_dataframe(input_gdf, path, use_arrow=use_arrow)
-
-    assert path.exists()
-    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
-    output_gdf = output_gdf.reset_index()
-
-    assert_geodataframe_equal(output_gdf, input_gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
