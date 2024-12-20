@@ -2752,6 +2752,20 @@ cdef create_fields_from_arrow_schema(
         # Don't create property for geometry column
         if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
             continue
+        
+        # Some formats store the FID explicitly in a real column, e.g. GPKG.
+        # For those formats, OGR_L_GetFIDColumn will return the default column
+        # name used and otherwise it returns "". The column name can also be
+        # explicitly choosed
+        # When a column with the appropriate name is present in the data, GDAL
+        # will automatically use it for the FID. Reference:
+        # https://gdal.org/en/stable/tutorials/vector_api_tut.html#writing-to-ogr-using-the-arrow-c-data-interface
+        # Hence, the field should not be created as well. Doing so anyway
+        # additionally triggers a bug in GDAL < 3.10.1:
+        # https://github.com/OSGeo/gdal/issues/11527#issuecomment-2556092722
+        fid_column = get_string(OGR_L_GetFIDColumn(destLayer))
+        if fid_column != "" and get_string(child.name) == fid_column:
+            continue
 
         if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
             exc = check_last_error()

@@ -1135,10 +1135,6 @@ def test_write_empty_geometry(tmp_path):
 
 @pytest.mark.requires_arrow_write_api
 def test_write_fid_gpkg(tmp_path, use_arrow):
-    if use_arrow:
-        # Issue logged here: https://github.com/OSGeo/gdal/issues/11527
-        pytest.xfail(reason="Custom fid gives GDAL error with use_arrow")
-
     input_gdf = gp.GeoDataFrame(
         {"fid": [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
     )
