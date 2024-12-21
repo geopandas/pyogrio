@@ -1104,15 +1104,27 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+@pytest.mark.parametrize(
+    "columns, dtype",
+    [
+        ([], None),
+        (["col_int"], np.int64),
+        (["col_float"], np.float64),
+        (["col_object"], object),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
-def test_write_empty_dataframe(tmp_path, ext, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    if use_arrow and dtype is object:
+        pytest.xfail(reason="writing an empty object column with Arrow gives an error")
+
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
 
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
-    df = read_dataframe(filename)
+    df = read_dataframe(filename, use_arrow=use_arrow)
     assert_geodataframe_equal(df, expected)
 
 
