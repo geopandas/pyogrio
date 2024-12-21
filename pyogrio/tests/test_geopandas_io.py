@@ -994,25 +994,36 @@ def test_write_csv_encoding(tmp_path, encoding):
 
 
 @pytest.mark.parametrize(
-    "ext, fid_column",
+    "ext, fid_column, fid_param_value",
     [
-        (".gpkg", "fid"),
-        (".gpkg", "FID"),
-        (".sqlite", "ogc_fid"),
+        (".gpkg", "fid", None),
+        (".gpkg", "FID", None),
+        (".sqlite", "ogc_fid", None),
+        (".gpkg", "fid_custom", "fid_custom"),
+        (".gpkg", "FID_custom", "fid_custom"),
+        (".sqlite", "ogc_fid_custom", "ogc_fid_custom"),
     ],
 )
 @pytest.mark.requires_arrow_write_api
-def test_write_custom_fids(tmp_path, ext, fid_column, use_arrow):
-    """Test to specify the fid's to be used when writing to a file.
+def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
+    """Test to specify fids to save when writing to a file.
 
-    This is only supported for some formats, e.g. GPKG and SQLite. The fid_column name
-    is treated as case-insensitive (by GDAL).
+    Saving custom fids is only supported for formats that actually store the fid, like
+    e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
+
+    If `fid_param_value` is specified (not None), the `fid` parameter is passed to
+    `write_dataframe` which will cause GDAL to use the column name specified for the
+    fid.
     """
     input_gdf = gp.GeoDataFrame(
         {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
     )
+    kwargs = {}
+    if fid_param_value is not None:
+        kwargs["fid"] = fid_param_value
     path = tmp_path / f"test{ext}"
-    write_dataframe(input_gdf, path, use_arrow=use_arrow)
+
+    write_dataframe(input_gdf, path, use_arrow=use_arrow, **kwargs)
 
     assert path.exists()
     output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
