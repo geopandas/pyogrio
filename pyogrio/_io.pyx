@@ -2742,11 +2742,11 @@ cdef create_fields_from_arrow_schema(
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
     # Some formats store the FID explicitly in a real column, e.g. GPKG.
-    # For those formats, OGR_L_GetFIDColumn will return the column
-    # name used for this and otherwise it returns "". GDAL typically also provides a
-    # layer creation option to overrule the column name to be used as FID column.
-    # When a column with the appropriate name is present in the data, GDAL
-    # will automatically use it for the FID. Reference:
+    # For those formats, OGR_L_GetFIDColumn will return the column name used
+    # for this and otherwise it returns "". GDAL typically also provides a
+    # layer creation option to overrule the column name to be used as FID
+    # column. When a column with the appropriate name is present in the data,
+    # GDAL will automatically use it for the FID. Reference:
     # https://gdal.org/en/stable/tutorials/vector_api_tut.html#writing-to-ogr-using-the-arrow-c-data-interface
     # Hence, the column should not be created as an ordinary field well.
     # Doing so anyway additionally triggers a bug in GDAL < 3.10.1:
@@ -2766,9 +2766,13 @@ cdef create_fields_from_arrow_schema(
             continue
         
         # Don't create property for column that will already be used as FID
-        # Note: it seems that GDAL initially checks the FID column case-sensitive, but
-        # then falls back to case-insensitive matching via the "ordinary" field being
-        # added. Hence: if this check is case sensitive, it always turns out fine.
+        # Note: it seems that GDAL initially checks the FID column
+        # case-sensitive, but then falls back to case-insensitive matching via
+        # the "ordinary" field being added. So, the check here needs to be
+        # case-sensitive so the column is still added as regular column if the
+        # casing isn't matched, otherwise the column is simply "lost".
+        # Note2: in the non-arrow path, the FID column is also treated
+        # case-insensitive, so this is consistent with that.
         if fid_column != "" and get_string(child.name) == fid_column:
             continue
 

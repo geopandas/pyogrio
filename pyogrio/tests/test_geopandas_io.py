@@ -1006,14 +1006,15 @@ def test_write_csv_encoding(tmp_path, encoding):
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
-    """Test to specify fids to save when writing to a file.
+    """Test to specify FIDs to save when writing to a file.
 
-    Saving custom fids is only supported for formats that actually store the fid, like
+    Saving custom FIDs is only supported for formats that actually store the FID, like
     e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
 
-    If `fid_param_value` is specified (not None), the `fid` parameter is passed to
-    `write_dataframe` which will cause GDAL to use the column name specified for the
-    fid.
+    Typically, GDAL supports using a custom FID column for these file formats via a
+    `FID` layer creation option. This test also tests this: if `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe` which will
+    cause GDAL to use the column name specified for the FID.
     """
     input_gdf = gp.GeoDataFrame(
         {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
