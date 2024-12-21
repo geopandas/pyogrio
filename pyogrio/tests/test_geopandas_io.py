@@ -1012,9 +1012,9 @@ def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow
     e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
 
     Typically, GDAL supports using a custom FID column for these file formats via a
-    `FID` layer creation option. This test also tests this: if `fid_param_value` is
-    specified (not None), an `fid` parameter is passed to `write_dataframe` which will
-    cause GDAL to use the column name specified for the FID.
+    `FID` layer creation option, which is also tested here. If `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe`, causing
+    GDAL to use the column name specified for the FID.
     """
     input_gdf = gp.GeoDataFrame(
         {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
