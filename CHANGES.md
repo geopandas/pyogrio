@@ -9,6 +9,7 @@
 ### Bug fixes
 
 -   Fix WKB writing on big-endian systems (#497).
+-   Fix writing fids to e.g. GPKG file with use_arrow (#511).
 
 ### Packaging
 
