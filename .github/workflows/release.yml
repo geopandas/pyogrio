@@ -208,14 +208,6 @@ jobs:
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed --debug
           vcpkg list
 
-      # FIXME: remove
-      - name: Log windows install directory
-        if: ${{ runner.os == 'Windows' }}
-        run: |
-          ls $VCPKG_INSTALLATION_ROOT/installed
-          ls $VCPKG_INSTALLATION_ROOT/installed/x64-windows-dynamic-release
-          ls $VCPKG_INSTALLATION_ROOT/installed/x64-windows-dynamic-release/bin
-
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
