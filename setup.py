@@ -20,12 +20,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-MIN_PYTHON_VERSION = (3, 8, 0)
+MIN_PYTHON_VERSION = (3, 9, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.8 is required")
+    raise RuntimeError("Python >= 3.9 is required")
 
 
 def copy_data_tree(datadir, destdir):
@@ -202,26 +202,10 @@ cmdclass = versioneer.get_cmdclass()
 cmdclass["build_ext"] = build_ext
 
 setup(
-    name="pyogrio",
     version=version,
     packages=find_packages(),
-    url="https://github.com/geopandas/pyogrio",
-    license="MIT",
-    author="Brendan C. Ward",
-    author_email="bcward@astutespruce.com",
-    description="Vectorized spatial vector file format I/O using GDAL/OGR",
-    long_description_content_type="text/markdown",
-    long_description=open("README.md").read(),
-    python_requires=">=3.8",
-    install_requires=["certifi", "numpy", "packaging"],
-    extras_require={
-        "dev": ["Cython"],
-        "test": ["pytest", "pytest-cov"],
-        "benchmark": ["pytest-benchmark"],
-        "geopandas": ["geopandas"],
-    },
     include_package_data=True,
-    exclude_package_data={'': ['*.h', '_*.pxd', '_*.pyx']},
+    exclude_package_data={"": ["*.h", "_*.pxd", "_*.pyx"]},
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     package_data=package_data,

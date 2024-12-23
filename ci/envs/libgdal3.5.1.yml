@@ -5,8 +5,3 @@ dependencies:
   - numpy
   - libgdal==3.5.1
   - pytest
-  - geopandas-base
-  - pip
-  - pip:
-      # install Shapely >= 2.0 using pip because it is not available on conda-forge for above libgdal
-      - shapely>=2

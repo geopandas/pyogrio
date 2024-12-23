@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.9.2"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.0"
 
     steps:
       - name: Install packages
@@ -67,7 +67,7 @@ jobs:
         # used for tests below
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
-          . $HOME/.cargo/env
+          . $HOME/.local/bin/env
           uv venv .venv
           echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
@@ -136,7 +136,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v2.22.0
 
       - uses: actions/upload-artifact@v4
         with:
@@ -151,7 +151,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: "macos-12"
+          - os: "macos-13"
             triplet: "x64-osx-dynamic-release"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
@@ -176,6 +176,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        id: vcpkgcache
+        with:
+          path: |
+            ${{ matrix.vcpkg_cache }}
+          # bump the last digit to avoid using previous build cache
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.0-cache0
+
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
       - name: Reinstall automake
@@ -188,7 +197,7 @@ jobs:
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgDirectory: '${{ github.workspace }}/vcpkg'
-          vcpkgGitCommitId: 73794ce5f63fd138fab999a22959ca7c6305d93c
+          vcpkgGitCommitId: 0857a4b08c14030bbe41e80accb2b1fddb047a74
 
       - name: Install GDAL
         env:
@@ -207,7 +216,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.20.0
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -232,10 +241,10 @@ jobs:
             "ubuntu-latest",
             "ubuntu-20.04",
             "windows-latest",
-            "macos-12",
+            "macos-13",
             "macos-latest",
           ]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -245,7 +254,7 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
-          - os: "macos-12"
+          - os: "macos-13"
             artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"
             artifact: pyogrio-wheel-arm64-osx-dynamic-release
@@ -263,21 +272,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
       - name: Create virtual environment (Linux / MacOS)
-        # install uv and use it to create a virtual environment, then add it to
-        # environment variables so that it is automatically activated and can be
-        # used for tests below
+        # use uv to create a virtual environment, then add it to environment
+        # variables so that it is automatically activated and can be used for
+        # tests below
         if: ${{ runner.os != 'Windows' }}
-        shell: bash
         run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          . $HOME/.cargo/env
           uv venv .venv
 
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
         run: |
-          irm https://astral.sh/uv/install.ps1 | iex
           uv venv .venv
           "VIRTUAL_ENV=.venv" | Out-File -FilePath $env:GITHUB_ENV -Append
           "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
@@ -291,9 +299,13 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          uv pip install -r ci/requirements-wheel-test.txt
+          if [ ${{ matrix.python-version }} != "3.13" ]; then
+            uv pip install -r ci/requirements-wheel-test.txt
+          else
+            uv pip install pytest numpy certifi packaging
+          fi
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} != "3.12" ]; then
+          if [ ${{ matrix.python-version }} != "3.13" ]; then
             uv pip install --no-deps geopandas
           fi
           uv pip list

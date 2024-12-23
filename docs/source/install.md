@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.8 - 3.11 and GDAL 3.4.x - 3.8.x
+Supports Python 3.9 - 3.13 and GDAL 3.4.x - 3.9.x
 
 Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
@@ -22,7 +22,15 @@ conda install -c conda-forge pyogrio
 
 This requires compatible versions of `GDAL` and `numpy` from `conda-forge` for
 raw I/O support and `geopandas` and their dependencies for GeoDataFrame
-I/O support.
+I/O support. By default, the `GDAL` package on conda-forge already supports a
+wide range of vector formats. If needed, you can install additional drivers by
+installing the associated
+[conda-forge package](https://gdal.org/en/latest/download.html#conda). The
+following packages are currently available to install extra vector drivers:
+
+-   `libgdal-arrow-parquet` ((Geo)Parquet and (Geo)Arrow IPC)
+-   `libgdal-pg` (PostgreSQL / PostGIS)
+-   `libgdal-xls` (XLS - MS Excel format)
 
 ### PyPI
 
@@ -39,6 +47,11 @@ If you get installation errors about Cython or GDAL not being available, this is
 most likely due to the installation process falling back to installing from the
 source distribution because the available wheels are not compatible with your
 platform.
+
+The binary wheels available on PyPI include the core GDAL drivers (GeoJSON,
+ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc) but do not include more advanced
+drivers such as LIBKML and Spatialite. If you need such drivers, we recommend
+that you use conda-forge to install pyogrio as explained above.
 
 ### Troubleshooting installation errors
 

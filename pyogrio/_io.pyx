@@ -3,7 +3,6 @@
 """IO support for OGR vector data sources
 """
 
-
 import contextlib
 import datetime
 import locale
@@ -12,6 +11,7 @@ import math
 import os
 import sys
 import warnings
+from pathlib import Path
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
@@ -25,9 +25,18 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 import numpy as np
 
 from pyogrio._ogr cimport *
-from pyogrio._err cimport *
+from pyogrio._err cimport (
+    check_last_error, check_int, check_pointer, ErrorHandler
+)
 from pyogrio._vsi cimport *
-from pyogrio._err import CPLE_BaseError, CPLE_NotSupportedError, NullPointerError
+from pyogrio._err import (
+    CPLE_AppDefinedError,
+    CPLE_BaseError,
+    CPLE_NotSupportedError,
+    CPLE_OpenFailedError,
+    NullPointerError,
+    capture_errors,
+)
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
 from pyogrio.errors import CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
 
@@ -184,7 +193,8 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     options : char **, optional
         dataset open options
     """
-    cdef void* ogr_dataset = NULL
+    cdef void *ogr_dataset = NULL
+    cdef ErrorHandler errors
 
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
@@ -195,27 +205,27 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     else:
         flags |= GDAL_OF_READONLY
 
-
     try:
         # WARNING: GDAL logs warnings about invalid open options to stderr
         # instead of raising an error
-        ogr_dataset = exc_wrap_pointer(
-            GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
-        )
-
-        return ogr_dataset
+        with capture_errors() as errors:
+            ogr_dataset = GDALOpenEx(path_c, flags, NULL, <const char *const *>options, NULL)
+            return errors.check_pointer(ogr_dataset, True)
 
     except NullPointerError:
         raise DataSourceError(
-            "Failed to open dataset (mode={}): {}".format(mode, path_c.decode("utf-8"))
+            f"Failed to open dataset ({mode=}): {path_c.decode('utf-8')}"
         ) from None
 
     except CPLE_BaseError as exc:
-        if str(exc).endswith("a supported file format."):
+        if " a supported file format." in str(exc):
+            # In gdal 3.9, this error message was slightly changed, so we can only check
+            # on this part of the error message.
             raise DataSourceError(
-                f"{str(exc)} It might help to specify the correct driver explicitly by "
+                f"{str(exc)}; It might help to specify the correct driver explicitly by "
                 "prefixing the file path with '<DRIVER>:', e.g. 'CSV:path'."
             ) from None
+
         raise DataSourceError(str(exc)) from None
 
 
@@ -226,7 +236,7 @@ cdef ogr_close(GDALDatasetH ogr_dataset):
     if ogr_dataset != NULL:
         IF CTE_GDAL_VERSION >= (3, 7, 0):
             if GDALClose(ogr_dataset) != CE_None:
-                return exc_check()
+                return check_last_error()
 
             return
 
@@ -235,7 +245,7 @@ cdef ogr_close(GDALDatasetH ogr_dataset):
 
             # GDAL will set an error if there was an error writing the data source
             # on close
-            return exc_check()
+            return check_last_error()
 
 
 cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
@@ -257,10 +267,10 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
         if isinstance(layer, str):
             name_b = layer.encode('utf-8')
             name_c = name_b
-            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
+            ogr_layer = check_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
 
         elif isinstance(layer, int):
-            ogr_layer = exc_wrap_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
+            ogr_layer = check_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -303,11 +313,11 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
         sql_b = sql.encode('utf-8')
         sql_c = sql_b
         if sql_dialect is None:
-            return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
+            return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
 
         sql_dialect_b = sql_dialect.encode('utf-8')
         sql_dialect_c = sql_dialect_b
-        return exc_wrap_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
+        return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -335,7 +345,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
     cdef char *ogr_wkt = NULL
 
     try:
-        ogr_crs = exc_wrap_pointer(OGR_L_GetSpatialRef(ogr_layer))
+        ogr_crs = check_pointer(OGR_L_GetSpatialRef(ogr_layer))
 
     except NullPointerError:
         # No coordinate system defined.
@@ -382,7 +392,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     cdef void *ogr_driver
 
     try:
-        ogr_driver = exc_wrap_pointer(GDALGetDatasetDriver(ogr_dataset))
+        ogr_driver = check_pointer(GDALGetDatasetDriver(ogr_dataset))
 
     except NullPointerError:
         raise DataLayerError(f"Could not detect driver of dataset") from None
@@ -425,7 +435,7 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
         feature_count = 0
         while True:
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
                 feature_count +=1
 
             except NullPointerError:
@@ -468,13 +478,12 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
     """
 
     cdef OGREnvelope ogr_envelope
-    try:
-        exc_wrap_ogrerr(OGR_L_GetExtent(ogr_layer, &ogr_envelope, force))
+
+    if OGR_L_GetExtent(ogr_layer, &ogr_envelope, force) == OGRERR_NONE:
         bounds = (
            ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
         )
-
-    except CPLE_BaseError:
+    else:
         bounds = None
 
     return bounds
@@ -620,7 +629,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     cdef const char *key_c
 
     try:
-        ogr_featuredef = exc_wrap_pointer(OGR_L_GetLayerDefn(ogr_layer))
+        ogr_featuredef = check_pointer(OGR_L_GetLayerDefn(ogr_layer))
 
     except NullPointerError:
         raise DataLayerError("Could not get layer definition") from None
@@ -637,7 +646,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     for i in range(field_count):
         try:
-            ogr_fielddef = exc_wrap_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
+            ogr_fielddef = check_pointer(OGR_FD_GetFieldDefn(ogr_featuredef, i))
 
         except NullPointerError:
             raise FieldError(f"Could not get field definition for field at index {i}") from None
@@ -699,7 +708,7 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     # logs to stderr
     if err != OGRERR_NONE:
         try:
-            exc_check()
+            check_last_error()
         except CPLE_BaseError as exc:
             raise ValueError(str(exc))
 
@@ -972,7 +981,7 @@ cdef get_features(
                 break
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1066,7 +1075,7 @@ cdef get_features_by_fid(
             fid = fids[i]
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetFeature(ogr_layer, fid))
+                ogr_feature = check_pointer(OGR_L_GetFeature(ogr_layer, fid))
 
             except NullPointerError:
                 raise FeatureError(f"Could not read feature with fid {fid}") from None
@@ -1121,7 +1130,7 @@ cdef get_bounds(
                 break
 
             try:
-                ogr_feature = exc_wrap_pointer(OGR_L_GetNextFeature(ogr_layer))
+                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1184,7 +1193,7 @@ def ogr_read(
     ):
 
     cdef int err = 0
-    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1224,7 +1233,7 @@ def ogr_read(
         raise ValueError("'max_features' must be >= 0")
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             # for shapefiles, SHAPE_ENCODING must be set before opening the file
@@ -1362,8 +1371,8 @@ def ogr_read(
                 CPLFree(<void*>prev_shape_encoding)
                 prev_shape_encoding = NULL
 
-        if is_vsimem:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
     return (
         meta,
@@ -1424,7 +1433,7 @@ def ogr_open_arrow(
 ):
 
     cdef int err = 0
-    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef const char *where_c = NULL
@@ -1480,7 +1489,7 @@ def ogr_open_arrow(
 
     reader = None
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             override_shape_encoding = True
@@ -1679,8 +1688,8 @@ def ogr_open_arrow(
                 CPLFree(<void*>prev_shape_encoding)
                 prev_shape_encoding = NULL
 
-        if is_vsimem:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
 
 def ogr_read_bounds(
@@ -1697,7 +1706,7 @@ def ogr_read_bounds(
     object mask=None):
 
     cdef int err = 0
-    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1715,7 +1724,7 @@ def ogr_read_bounds(
         raise ValueError("'max_features' must be >= 0")
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
         ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
 
         if layer is None:
@@ -1744,8 +1753,8 @@ def ogr_read_bounds(
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        if is_vsimem:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
     return bounds
 
@@ -1758,7 +1767,7 @@ def ogr_read_info(
     int force_feature_count=False,
     int force_total_bounds=False):
 
-    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -1767,7 +1776,7 @@ def ogr_read_info(
     cdef bint override_shape_encoding = False
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
 
         if encoding:
             override_shape_encoding = True
@@ -1826,19 +1835,19 @@ def ogr_read_info(
             if prev_shape_encoding != NULL:
                 CPLFree(<void*>prev_shape_encoding)
 
-        if is_vsimem:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
     return meta
 
 
 def ogr_list_layers(object path_or_buffer):
-    cdef bint is_vsimem = isinstance(path_or_buffer, bytes)
+    cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
     try:
-        path = read_buffer_to_vsimem(path_or_buffer) if is_vsimem else path_or_buffer
+        path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
         ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
         layers = get_layer_names(ogr_dataset)
 
@@ -1847,8 +1856,8 @@ def ogr_list_layers(object path_or_buffer):
             GDALClose(ogr_dataset)
             ogr_dataset = NULL
 
-        if is_vsimem:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
     return layers
 
@@ -1923,7 +1932,7 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
 
     # Get the driver
     try:
-        ogr_driver = exc_wrap_pointer(GDALGetDriverByName(driver_c))
+        ogr_driver = check_pointer(GDALGetDriverByName(driver_c))
 
     except NullPointerError:
         raise DataSourceError(f"Could not obtain driver: {driver_c.decode('utf-8')} (check that it was installed correctly into GDAL)")
@@ -1931,9 +1940,19 @@ cdef void * ogr_create(const char* path_c, const char* driver_c, char** options)
     except CPLE_BaseError as exc:
         raise DataSourceError(str(exc))
 
+    # For /vsimem/ files, with GDAL >= 3.8 parent directories are created automatically.
+    IF CTE_GDAL_VERSION < (3, 8, 0):
+        path = path_c.decode("UTF-8")
+        if "/vsimem/" in path:
+            parent = str(Path(path).parent.as_posix())
+            if not parent.endswith("/vsimem"):
+                retcode = VSIMkdirRecursive(parent.encode("UTF-8"), 0666)
+                if retcode != 0:
+                    raise OSError(f"Could not create parent directory '{parent}'")
+
     # Create the dataset
     try:
-        ogr_dataset = exc_wrap_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
+        ogr_dataset = check_pointer(GDALCreate(ogr_driver, path_c, 0, 0, 0, GDT_Unknown, options))
 
     except NullPointerError:
         raise DataSourceError(f"Failed to create dataset with driver: {path_c.decode('utf-8')} {driver_c.decode('utf-8')}") from None
@@ -1955,7 +1974,7 @@ cdef void * create_crs(str crs) except NULL:
     crs_c = crs_b
 
     try:
-        ogr_crs = exc_wrap_pointer(OSRNewSpatialReference(NULL))
+        ogr_crs = check_pointer(OSRNewSpatialReference(NULL))
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
             raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8'))) from None
@@ -2014,7 +2033,7 @@ cdef infer_field_types(list dtypes):
 
 cdef create_ogr_dataset_layer(
     str path,
-    bint is_vsi,
+    bint use_tmp_vsimem,
     str layer,
     str driver,
     str crs,
@@ -2048,6 +2067,8 @@ cdef create_ogr_dataset_layer(
     encoding : str
         Only used if `driver` is "ESRI Shapefile". If not None, it overrules the default
         shapefile encoding, which is "UTF-8" in pyogrio.
+    use_tmp_vsimem : bool
+        Whether the file path is meant to save a temporary memory file to.
 
     Returns
     -------
@@ -2075,8 +2096,8 @@ cdef create_ogr_dataset_layer(
     driver_b = driver.encode('UTF-8')
     driver_c = driver_b
 
-    # in-memory dataset is always created from scratch
-    path_exists = os.path.exists(path) if not is_vsi else False
+    # temporary in-memory dataset is always created from scratch
+    path_exists = os.path.exists(path) if not use_tmp_vsimem else False
 
     if not layer:
         layer = os.path.splitext(os.path.split(path)[1])[0]
@@ -2112,10 +2133,7 @@ cdef create_ogr_dataset_layer(
                 raise exc
 
             # otherwise create from scratch
-            if is_vsi:
-                VSIUnlink(path_c)
-            else:
-                os.unlink(path)
+            os.unlink(path)
 
             ogr_dataset = NULL
 
@@ -2180,12 +2198,12 @@ cdef create_ogr_dataset_layer(
             layer_b = layer.encode('UTF-8')
             layer_c = layer_b
 
-            ogr_layer = exc_wrap_pointer(
+            ogr_layer = check_pointer(
                     GDALDatasetCreateLayer(ogr_dataset, layer_c, ogr_crs,
                             geometry_code, layer_options))
 
         else:
-            ogr_layer = exc_wrap_pointer(get_ogr_layer(ogr_dataset, layer))
+            ogr_layer = check_pointer(get_ogr_layer(ogr_dataset, layer))
 
         # Set dataset and layer metadata
         set_metadata(ogr_dataset, dataset_metadata)
@@ -2243,14 +2261,15 @@ def ogr_write(
     cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
-    cdef unsigned char *wkb_buffer = NULL
+    cdef const unsigned char *wkb_buffer = NULL
+    cdef unsigned int wkbtype = 0
     cdef int supports_transactions = 0
     cdef int err = 0
     cdef int i = 0
     cdef int num_records = -1
     cdef int num_field_data = len(field_data) if field_data is not None else 0
     cdef int num_fields = len(fields) if fields is not None else 0
-    cdef bint is_vsi = False
+    cdef bint use_tmp_vsimem = False
 
     if num_fields != num_field_data:
         raise ValueError("field_data array needs to be same length as fields array")
@@ -2291,12 +2310,11 @@ def ogr_write(
 
     try:
         # Setup in-memory handler if needed
-        path = get_ogr_vsimem_write_path(path_or_fp, driver)
-        is_vsi = path.startswith('/vsimem/')
+        path, use_tmp_vsimem = get_ogr_vsimem_write_path(path_or_fp, driver)
 
         # Setup dataset and layer
         layer_created = create_ogr_dataset_layer(
-            path, is_vsi, layer, driver, crs, geometry_type, encoding,
+            path, use_tmp_vsimem, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
             dataset_metadata, layer_metadata,
             &ogr_dataset, &ogr_layer,
@@ -2325,7 +2343,7 @@ def ogr_write(
 
                 name_b = fields[i].encode(encoding)
                 try:
-                    ogr_fielddef = exc_wrap_pointer(OGR_Fld_Create(name_b, field_type))
+                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_type))
 
                     # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html
                     if field_subtype != OFSTNone:
@@ -2336,7 +2354,7 @@ def ogr_write(
 
                     # TODO: set precision
 
-                    exc_wrap_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+                    check_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
                 except:
                     raise FieldError(f"Error adding field '{fields[i]}' to layer") from None
@@ -2364,15 +2382,18 @@ def ogr_write(
             # TODO: geometry must not be null or errors
             wkb = None if geometry is None else geometry[i]
             if wkb is not None:
-                wkbtype = <int>bytearray(wkb)[1]
-                # may need to consider all 4 bytes: int.from_bytes(wkb[0][1:4], byteorder="little")
-                # use "little" if the first byte == 1
+                wkb_buffer = wkb
+                if wkb_buffer[0] == 1:
+                    # Little endian WKB type.
+                    wkbtype = wkb_buffer[1] + (wkb_buffer[2] << 8) + (wkb_buffer[3] << 16) + (<unsigned int>wkb_buffer[4] << 24)
+                else:
+                    # Big endian WKB type.
+                    wkbtype = (<unsigned int>(wkb_buffer[1]) << 24) + (wkb_buffer[2] << 16) + (wkb_buffer[3] << 8) + wkb_buffer[4]
                 ogr_geometry = OGR_G_CreateGeometry(<OGRwkbGeometryType>wkbtype)
                 if ogr_geometry == NULL:
                     raise GeometryError(f"Could not create geometry at index {i} for WKB type {wkbtype}") from None
 
                 # import the WKB
-                wkb_buffer = wkb
                 err = OGR_G_ImportFromWkb(ogr_geometry, wkb_buffer, len(wkb))
                 if err:
                     raise GeometryError(f"Could not create geometry from WKB at index {i}") from None
@@ -2480,7 +2501,7 @@ def ogr_write(
 
             # Add feature to the layer
             try:
-                exc_wrap_int(OGR_L_CreateFeature(ogr_layer, ogr_feature))
+                check_int(OGR_L_CreateFeature(ogr_layer, ogr_feature))
 
             except CPLE_BaseError as exc:
                 raise FeatureError(f"Could not add feature to layer at index {i}: {exc}") from None
@@ -2501,7 +2522,7 @@ def ogr_write(
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
         # copy in-memory file back to path_or_fp object
-        if is_vsi:
+        if use_tmp_vsimem:
             read_vsimem_to_buffer(path, path_or_fp)
 
     finally:
@@ -2523,8 +2544,8 @@ def ogr_write(
         if ogr_dataset != NULL:
             ogr_close(ogr_dataset)
 
-        if is_vsi:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
 
 def ogr_write_arrow(
@@ -2548,7 +2569,7 @@ def ogr_write_arrow(
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef char **options = NULL
-    cdef bint is_vsi = False
+    cdef bint use_tmp_vsimem = False
     cdef ArrowArrayStream* stream = NULL
     cdef ArrowSchema schema
     cdef ArrowArray array
@@ -2557,11 +2578,11 @@ def ogr_write_arrow(
     array.release = NULL
 
     try:
-        path = get_ogr_vsimem_write_path(path_or_fp, driver)
-        is_vsi = path.startswith('/vsimem/')
+        # Setup in-memory handler if needed
+        path, use_tmp_vsimem = get_ogr_vsimem_write_path(path_or_fp, driver)
 
         layer_created = create_ogr_dataset_layer(
-            path, is_vsi, layer, driver, crs, geometry_type, encoding,
+            path, use_tmp_vsimem, layer, driver, crs, geometry_type, encoding,
             dataset_kwargs, layer_kwargs, append,
             dataset_metadata, layer_metadata,
             &ogr_dataset, &ogr_layer,
@@ -2606,7 +2627,7 @@ def ogr_write_arrow(
                 break
 
             if not OGR_L_WriteArrowBatch(ogr_layer, &schema, &array, options):
-                exc = exc_check()
+                exc = check_last_error()
                 gdal_msg = f": {str(exc)}" if exc else "."
                 raise DataLayerError(
                     f"Error while writing batch to OGR layer{gdal_msg}"
@@ -2622,7 +2643,7 @@ def ogr_write_arrow(
             raise DataSourceError(f"Failed to write features to dataset {path}; {exc}")
 
         # copy in-memory file back to path_or_fp object
-        if is_vsi:
+        if use_tmp_vsimem:
             read_vsimem_to_buffer(path, path_or_fp)
 
     finally:
@@ -2642,8 +2663,8 @@ def ogr_write_arrow(
         if ogr_dataset != NULL:
             ogr_close(ogr_dataset)
 
-        if is_vsi:
-            delete_vsimem_file(path)
+        if use_tmp_vsimem:
+            vsimem_rmtree_toplevel(path)
 
 
 cdef get_arrow_extension_metadata(const ArrowSchema* schema):
@@ -2733,7 +2754,7 @@ cdef create_fields_from_arrow_schema(
             continue
 
         if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
-            exc = exc_check()
+            exc = check_last_error()
             gdal_msg = f" ({str(exc)})" if exc else ""
             raise FieldError(
                 f"Error while creating field from Arrow for field {i} with name "

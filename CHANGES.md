@@ -1,12 +1,30 @@
 # CHANGELOG
 
-## 0.10.0 (yyyy-mm-dd)
+## 0.11.0 (TBD)
+
+### Improvements
+
+-   Capture all errors logged by gdal when opening a file fails (#495).
+
+### Bug fixes
+
+-   Fix WKB writing on big-endian systems (#497).
+
+### Packaging
+
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+
+## 0.10.0 (2024-09-28)
+
+### Improvements
+
+-   Add support to read, write, list, and remove `/vsimem/` files (#457).
 
 ### Bug fixes
 
 -   Silence warning from `write_dataframe` with `GeoSeries.notna()` (#435).
 -   Enable mask & bbox filter when geometry column not read (#431).
--   Raise NotImplmentedError when user attempts to write to an open file handle (#442).
+-   Raise `NotImplementedError` when user attempts to write to an open file handle (#442).
 -   Prevent seek on read from compressed inputs (#443).
 
 ### Packaging
@@ -18,6 +36,8 @@
     This also leads to `pyproj` becoming an optional dependency; you will need
     to install `pyproj` in order to support spatial reference systems (#452).
 -   The GDAL library included in the wheels is updated from 3.8.5 to GDAL 3.9.2 (#466).
+-   pyogrio now requires a minimum version of Python >= 3.9 (#473).
+-   Wheels are now available for Python 3.13.
 
 ## 0.9.0 (2024-06-17)
 

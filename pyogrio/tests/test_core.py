@@ -1,9 +1,12 @@
+from pathlib import Path
+
 import numpy as np
 from numpy import allclose, array_equal
 
 from pyogrio import (
     __gdal_geos_version__,
     __gdal_version__,
+    detect_write_driver,
     get_gdal_config_option,
     get_gdal_data_path,
     list_drivers,
@@ -11,12 +14,15 @@ from pyogrio import (
     read_bounds,
     read_info,
     set_gdal_config_options,
+    vsi_listtree,
+    vsi_rmtree,
+    vsi_unlink,
 )
 from pyogrio._compat import GDAL_GE_38
 from pyogrio._env import GDALEnv
-from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataLayerError, DataSourceError
-from pyogrio.tests.conftest import prepare_testfile, requires_shapely
+from pyogrio.raw import read, write
+from pyogrio.tests.conftest import START_FID, prepare_testfile, requires_shapely
 
 import pytest
 
@@ -154,6 +160,7 @@ def test_list_drivers():
 def test_list_layers(
     naturalearth_lowres,
     naturalearth_lowres_vsi,
+    naturalearth_lowres_vsimem,
     line_zm_file,
     curve_file,
     curve_polygon_file,
@@ -166,6 +173,11 @@ def test_list_layers(
 
     assert array_equal(
         list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
+    )
+
+    assert array_equal(
+        list_layers(naturalearth_lowres_vsimem),
+        [["naturalearth_lowres", "MultiPolygon"]],
     )
 
     # Measured 3D is downgraded to plain 3D during read
@@ -207,22 +219,18 @@ def test_list_layers_filelike(geojson_filelike):
     assert layers[0, 0] == "test"
 
 
-def test_read_bounds(naturalearth_lowres):
-    fids, bounds = read_bounds(naturalearth_lowres)
+@pytest.mark.parametrize(
+    "testfile",
+    ["naturalearth_lowres", "naturalearth_lowres_vsimem", "naturalearth_lowres_vsi"],
+)
+def test_read_bounds(testfile, request):
+    path = request.getfixturevalue(testfile)
+    path = path if not isinstance(path, tuple) else path[1]
+
+    fids, bounds = read_bounds(path)
     assert fids.shape == (177,)
     assert bounds.shape == (4, 177)
-
-    assert fids[0] == 0
-    # Fiji; wraps antimeridian
-    assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
-
-
-def test_read_bounds_vsi(naturalearth_lowres_vsi):
-    fids, bounds = read_bounds(naturalearth_lowres_vsi[1])
-    assert fids.shape == (177,)
-    assert bounds.shape == (4, 177)
-
-    assert fids[0] == 0
+    assert fids[0] == START_FID[Path(path).suffix]
     # Fiji; wraps antimeridian
     assert allclose(bounds[:, 0], [-180.0, -18.28799, 180.0, -16.02088])
 
@@ -308,12 +316,9 @@ def test_read_bounds_bbox(naturalearth_lowres_all_ext):
     fids, bounds = read_bounds(naturalearth_lowres_all_ext, bbox=(-85, 8, -80, 10))
 
     assert fids.shape == (2,)
-    if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        # fid in gpkg is 1-based
-        assert array_equal(fids, [34, 35])  # PAN, CRI
-    else:
-        # fid in other formats is 0-based
-        assert array_equal(fids, [33, 34])  # PAN, CRI
+    fids_expected = np.array([33, 34])  # PAN, CRI
+    fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
+    assert array_equal(fids, fids_expected)
 
     assert bounds.shape == (4, 2)
     assert allclose(
@@ -378,12 +383,8 @@ def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
 
     fids = read_bounds(naturalearth_lowres_all_ext, mask=mask)[0]
 
-    if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        # fid in gpkg is 1-based
-        assert array_equal(fids, np.array(expected) + 1)
-    else:
-        # fid in other formats is 0-based
-        assert array_equal(fids, expected)
+    fids_expected = np.array(expected) + START_FID[naturalearth_lowres_all_ext.suffix]
+    assert array_equal(fids, fids_expected)
 
 
 @pytest.mark.skipif(
@@ -399,21 +400,15 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
     if __gdal_geos_version__ is None:
         # bboxes for CAN, RUS overlap but do not intersect geometries
         assert fids.shape == (4,)
-        if naturalearth_lowres_all_ext.suffix == ".gpkg":
-            # fid in gpkg is 1-based
-            assert array_equal(fids, [4, 5, 19, 28])  # CAN, USA, RUS, MEX
-        else:
-            # fid in other formats is 0-based
-            assert array_equal(fids, [3, 4, 18, 27])  # CAN, USA, RUS, MEX
+        fids_expected = np.array([3, 4, 18, 27])  # CAN, USA, RUS, MEX
+        fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
+        assert array_equal(fids, fids_expected)
 
     else:
         assert fids.shape == (2,)
-        if naturalearth_lowres_all_ext.suffix == ".gpkg":
-            # fid in gpkg is 1-based
-            assert array_equal(fids, [5, 28])  # USA, MEX
-        else:
-            # fid in other formats is 0-based
-            assert array_equal(fids, [4, 27])  # USA, MEX
+        fids_expected = np.array([4, 27])  # USA, MEX
+        fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
+        assert array_equal(fids, fids_expected)
 
 
 @pytest.mark.parametrize("naturalearth_lowres", [".shp", ".gpkg"], indirect=True)
@@ -453,8 +448,14 @@ def test_read_info(naturalearth_lowres):
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
 
 
-def test_read_info_vsi(naturalearth_lowres_vsi):
-    meta = read_info(naturalearth_lowres_vsi[1])
+@pytest.mark.parametrize(
+    "testfile", ["naturalearth_lowres_vsimem", "naturalearth_lowres_vsi"]
+)
+def test_read_info_vsi(testfile, request):
+    path = request.getfixturevalue(testfile)
+    path = path if not isinstance(path, tuple) else path[1]
+
+    meta = read_info(path)
 
     assert meta["fields"].shape == (5,)
     assert meta["features"] == 177
@@ -611,3 +612,67 @@ def test_error_handling_warning(capfd, naturalearth_lowres):
         read_info(naturalearth_lowres, INVALID="YES")
 
     assert capfd.readouterr().err == ""
+
+
+def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
+    """Test all basic functionalities of file handling in /vsimem/."""
+    # Prepare test data in /vsimem
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+    meta["spatial_index"] = False
+    meta["geometry_type"] = "MultiPolygon"
+    test_file_path = Path("/vsimem/pyogrio_test_naturalearth_lowres.gpkg")
+    test_dir_path = Path(f"/vsimem/pyogrio_dir_test/{naturalearth_lowres.stem}.gpkg")
+
+    write(test_file_path, geometry, field_data, **meta)
+    write(test_dir_path, geometry, field_data, **meta)
+
+    # Check if everything was created properly with listtree
+    files = vsi_listtree("/vsimem/")
+    assert test_file_path.as_posix() in files
+    assert test_dir_path.as_posix() in files
+
+    # Check listtree with pattern
+    files = vsi_listtree("/vsimem/", pattern="pyogrio_dir_test*.gpkg")
+    assert test_file_path.as_posix() not in files
+    assert test_dir_path.as_posix() in files
+
+    files = vsi_listtree("/vsimem/", pattern="pyogrio_test*.gpkg")
+    assert test_file_path.as_posix() in files
+    assert test_dir_path.as_posix() not in files
+
+    # Remove test_dir and its contents
+    vsi_rmtree(test_dir_path.parent)
+    files = vsi_listtree("/vsimem/")
+    assert test_file_path.as_posix() in files
+    assert test_dir_path.as_posix() not in files
+
+    # Remove test_file
+    vsi_unlink(test_file_path)
+
+
+def test_vsimem_rmtree_error(naturalearth_lowres_vsimem):
+    with pytest.raises(NotADirectoryError, match="Path is not a directory"):
+        vsi_rmtree(naturalearth_lowres_vsimem)
+
+    with pytest.raises(FileNotFoundError, match="Path does not exist"):
+        vsi_rmtree("/vsimem/non-existent")
+
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
+        vsi_rmtree("/vsimem")
+    with pytest.raises(
+        OSError, match="path to in-memory file or directory is required"
+    ):
+        vsi_rmtree("/vsimem/")
+
+    # Verify that naturalearth_lowres_vsimem still exists.
+    assert naturalearth_lowres_vsimem.as_posix() in vsi_listtree("/vsimem")
+
+
+def test_vsimem_unlink_error(naturalearth_lowres_vsimem):
+    with pytest.raises(IsADirectoryError, match="Path is a directory"):
+        vsi_unlink(naturalearth_lowres_vsimem.parent)
+
+    with pytest.raises(FileNotFoundError, match="Path does not exist"):
+        vsi_unlink("/vsimem/non-existent.gpkg")
