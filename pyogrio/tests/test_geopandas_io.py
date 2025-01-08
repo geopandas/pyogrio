@@ -993,6 +993,48 @@ def test_write_csv_encoding(tmp_path, encoding):
     assert csv_bytes == csv_pyogrio_bytes
 
 
+@pytest.mark.parametrize(
+    "ext, fid_column, fid_param_value",
+    [
+        (".gpkg", "fid", None),
+        (".gpkg", "FID", None),
+        (".sqlite", "ogc_fid", None),
+        (".gpkg", "fid_custom", "fid_custom"),
+        (".gpkg", "FID_custom", "fid_custom"),
+        (".sqlite", "ogc_fid_custom", "ogc_fid_custom"),
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
+    """Test to specify FIDs to save when writing to a file.
+
+    Saving custom FIDs is only supported for formats that actually store the FID, like
+    e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
+
+    Typically, GDAL supports using a custom FID column for these file formats via a
+    `FID` layer creation option, which is also tested here. If `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe`, causing
+    GDAL to use the column name specified for the FID.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    kwargs = {}
+    if fid_param_value is not None:
+        kwargs["fid"] = fid_param_value
+    path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, path, use_arrow=use_arrow, **kwargs)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    # pyogrio always sets "fid" as index name with `fid_as_index`
+    expected_gdf = input_gdf.rename(columns={fid_column: "fid"})
+    assert_geodataframe_equal(output_gdf, expected_gdf)
+
+
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):

@@ -2741,6 +2741,18 @@ cdef create_fields_from_arrow_schema(
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
+    # Some formats store the FID explicitly in a real column, e.g. GPKG.
+    # For those formats, OGR_L_GetFIDColumn will return the column name used
+    # for this and otherwise it returns "". GDAL typically also provides a
+    # layer creation option to overrule the column name to be used as FID
+    # column. When a column with the appropriate name is present in the data,
+    # GDAL will automatically use it for the FID. Reference:
+    # https://gdal.org/en/stable/tutorials/vector_api_tut.html#writing-to-ogr-using-the-arrow-c-data-interface
+    # Hence, the column should not be created as an ordinary field as well.
+    # Doing so triggers a bug in GDAL < 3.10.1:
+    # https://github.com/OSGeo/gdal/issues/11527#issuecomment-2556092722
+    fid_column = get_string(OGR_L_GetFIDColumn(destLayer))
+
     # The schema object is a struct type where each child is a column.
     cdef ArrowSchema* child
     for i in range(schema.n_children):
@@ -2751,6 +2763,17 @@ cdef create_fields_from_arrow_schema(
 
         # Don't create property for geometry column
         if get_string(child.name) == geometry_name or is_arrow_geometry_field(child):
+            continue
+        
+        # Don't create property for column that will already be used as FID
+        # Note: it seems that GDAL initially uses a case-sensitive check of the
+        # FID column, but then falls back to case-insensitive matching via
+        # the "ordinary" field being added. So, the check here needs to be
+        # case-sensitive so the column is still added as regular column if the
+        # casing isn't matched, otherwise the column is simply "lost".
+        # Note2: in the non-arrow path, the FID column is also treated
+        # case-insensitive, so this is consistent with that.
+        if fid_column != "" and get_string(child.name) == fid_column:
             continue
 
         if not OGR_L_CreateFieldFromArrowSchema(destLayer, child, options):
