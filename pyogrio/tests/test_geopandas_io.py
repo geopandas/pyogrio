@@ -14,10 +14,11 @@ from pyogrio import (
     list_drivers,
     list_layers,
     read_info,
+    set_gdal_config_options,
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -227,6 +228,22 @@ def test_read_force_2d(tmp_path, use_arrow):
         use_arrow=use_arrow,
     )
     assert not df.iloc[0].geometry.has_z
+
+
+@pytest.mark.skipif(
+    not GDAL_GE_352,
+    reason="gdal >= 3.5.2 needed to use OGR_GEOJSON_MAX_OBJ_SIZE with a float value",
+)
+def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
+    try:
+        set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
+        with pytest.raises(
+            DataSourceError,
+            match="Failed to read GeoJSON data; .* GeoJSON object too complex",
+        ):
+            read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
+    finally:
+        set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
 def test_read_layer(tmp_path, use_arrow):
@@ -1022,6 +1039,48 @@ def test_write_csv_encoding(tmp_path, encoding):
     with open(csv_pyogrio_path, "rb") as csv_pyogrio:
         csv_pyogrio_bytes = csv_pyogrio.read()
     assert csv_bytes == csv_pyogrio_bytes
+
+
+@pytest.mark.parametrize(
+    "ext, fid_column, fid_param_value",
+    [
+        (".gpkg", "fid", None),
+        (".gpkg", "FID", None),
+        (".sqlite", "ogc_fid", None),
+        (".gpkg", "fid_custom", "fid_custom"),
+        (".gpkg", "FID_custom", "fid_custom"),
+        (".sqlite", "ogc_fid_custom", "ogc_fid_custom"),
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
+    """Test to specify FIDs to save when writing to a file.
+
+    Saving custom FIDs is only supported for formats that actually store the FID, like
+    e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
+
+    Typically, GDAL supports using a custom FID column for these file formats via a
+    `FID` layer creation option, which is also tested here. If `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe`, causing
+    GDAL to use the column name specified for the FID.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    kwargs = {}
+    if fid_param_value is not None:
+        kwargs["fid"] = fid_param_value
+    path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, path, use_arrow=use_arrow, **kwargs)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    # pyogrio always sets "fid" as index name with `fid_as_index`
+    expected_gdf = input_gdf.rename(columns={fid_column: "fid"})
+    assert_geodataframe_equal(output_gdf, expected_gdf)
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
@@ -2305,7 +2364,7 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
     if "LIBKML" in list_drivers():
         # test appending to the existing file only if LIBKML is available
         # as it appears to fall back on LIBKML driver when appending.
-        points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+        points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
         gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
 
         write_dataframe(
