@@ -406,7 +406,12 @@ def test_read_write_datetime_timestamp_with_nulls(tmp_path, ext, use_arrow):
         None,
     ]
     dates = pd.Series(dates_raw, dtype="O")
-    dates_expected = pd.Series(pd.to_datetime(dates_raw).as_unit("ms"), name="dates")
+
+    if PANDAS_GE_20:
+        expected = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        expected = pd.to_datetime(dates_raw)
+    expected = pd.Series(expected, name="dates")
 
     df = gp.GeoDataFrame(
         {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
@@ -416,7 +421,7 @@ def test_read_write_datetime_timestamp_with_nulls(tmp_path, ext, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
 
-    assert_series_equal(result.dates, dates_expected)
+    assert_series_equal(result.dates, expected)
 
 
 def test_read_null_values(tmp_path, use_arrow):
