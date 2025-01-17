@@ -298,6 +298,9 @@ def test_read_datetime(datetime_file, use_arrow):
 @pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
 @pytest.mark.requires_arrow_write_api
 def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
+
     df = read_dataframe(datetime_tz_file)
     # Make the index non-consecutive to test this case as well. Added for issue
     # https://github.com/geopandas/pyogrio/issues/324
@@ -345,6 +348,9 @@ def test_write_datetime_mixed_offset(tmp_path, use_arrow):
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
 @pytest.mark.requires_arrow_write_api
 def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
+    if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
+        pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
+
     dates_raw = ["2020-01-01 09:00:00.123", "2020-01-01 10:00:00"]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
@@ -365,6 +371,9 @@ def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_read_write_datetime_tz_with_nulls(tmp_path, ext, use_arrow):
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
+
     dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
