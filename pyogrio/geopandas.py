@@ -39,6 +39,7 @@ def _try_parse_datetime(ser):
         datetime_kwargs = {"format": "ISO8601", "errors": "ignore"}
     else:
         datetime_kwargs = {"yearfirst": True}
+
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
@@ -51,12 +52,6 @@ def _try_parse_datetime(ser):
             res = pd.to_datetime(ser, **datetime_kwargs)
         except Exception:
             res = ser
-    # if object dtype, try parse as utc instead
-    if res.dtype == "object":
-        try:
-            res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
-        except Exception:
-            pass
 
     if res.dtype != "object":
         # GDAL only supports ms precision, convert outputs to match.
@@ -66,6 +61,7 @@ def _try_parse_datetime(ser):
             res = res.dt.as_unit("ms")
         else:
             res = res.dt.round(freq="ms")
+
     return res
 
 
@@ -486,6 +482,8 @@ def write_dataframe(
     gdal_tz_offsets = {}
     for name in fields:
         col = df[name]
+        values = None
+
         if isinstance(col.dtype, pd.DatetimeTZDtype):
             # Deal with datetimes with timezones by passing down timezone separately
             # pass down naive datetime
@@ -500,8 +498,20 @@ def write_dataframe(
             # Convert each row offset to a signed multiple of 15m and add to GMT value
             gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
             gdal_tz_offsets[name] = gdal_offset_representation.values
-        else:
+
+        elif col.dtype == "object":
+            # Column of Timestamp objects, also split in naive datetime and tz offset
+            col_na = df[col.notna()][name]
+            if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
+                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
+                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
+                gdal_tz_offsets[name] = gdal_offset_repr.values
+                naive = col.apply(lambda x: None if pd.isna(x) else x.tz_localize(None))
+                values = naive.values
+
+        if values is None:
             values = col.values
+
         if isinstance(values, pd.api.extensions.ExtensionArray):
             from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
 
@@ -624,7 +634,32 @@ def write_dataframe(
             df = pd.DataFrame(df, copy=False)
             df[geometry_column] = geometry
 
+        # Convert all datetime columns to isoformat strings, to avoid mixed timezone
+        # information getting lost.
+        datetime_cols = []
+        for name, dtype in df.dtypes.items():
+            col = df[name]
+            if dtype == "object":
+                # When all non-NA values are Timestamps, treat as datetime column
+                col_na = df[col.notna()][name]
+                if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
+                    df[name] = col.apply(
+                        lambda x: None if pd.isna(x) else x.isoformat()
+                    )
+                    datetime_cols.append(name)
+            elif isinstance(dtype, pd.DatetimeTZDtype):
+                # Also for regular datetime columns with timezone mixed timezones are
+                # possible when thera is a difference between summer and winter time.
+                df[name] = col.apply(lambda x: None if pd.isna(x) else x.isoformat())
+                datetime_cols.append(name)
+
         table = pa.Table.from_pandas(df, preserve_index=False)
+
+        # Add metadata to datetime columns so GDAL knows they are datetimes.
+        for datetime_col in datetime_cols:
+            table = _add_column_metadata(
+                table, column_metadata={datetime_col: {"GDAL:OGR:type": "DateTime"}}
+            )
 
         if geometry_column is not None:
             # ensure that the geometry column is binary (for all-null geometries,
@@ -685,3 +720,48 @@ def write_dataframe(
         gdal_tz_offsets=gdal_tz_offsets,
         **kwargs,
     )
+
+
+def _add_column_metadata(table, column_metadata: dict = {}):
+    """Add or update column-level metadata to an arrow table.
+
+    Parameters
+    ----------
+    table : pyarrow.Table
+        The table to add the column metadata to.
+    column_metadata : dict
+        A dictionary with column metadata in the form
+            {
+                "column_1": {"some": "data"},
+                "column_2": {"more": "stuff"},
+            }
+
+    Returns
+    -------
+    pyarrow.Table: table with the updated column metadata.
+    """
+    import pyarrow as pa
+
+    if not column_metadata:
+        return table
+
+    # Create updated column fields with new metadata
+    fields = []
+    for col in table.schema.names:
+        if col in column_metadata:
+            # Add/update column metadata
+            metadata = table.field(col).metadata or {}
+            for key, value in column_metadata[col].items():
+                metadata[key] = value
+            # Update field with updated metadata
+            fields.append(table.field(col).with_metadata(metadata))
+        else:
+            fields.append(table.field(col))
+
+    # Create new schema with the updated field metadata
+    schema = pa.schema(fields, metadata=table.schema.metadata)
+
+    # Build new table with updated schema (shouldn't copy data)
+    table = table.cast(schema)
+
+    return table
