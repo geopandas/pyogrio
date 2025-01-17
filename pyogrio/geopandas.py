@@ -257,11 +257,9 @@ def read_dataframe(
 
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
-    if not use_arrow:
-        # For arrow, datetimes are read as is.
-        # For numpy IO, datetimes are read as string values to preserve timezone info
-        # as numpy does not directly support timezones.
-        kwargs["datetime_as_string"] = True
+
+    # Always read datetimes are as string values to preserve (mixed) timezone info
+    # as numpy does not directly support timezones and arrow support is also limited.
     result = read_func(
         path_or_buffer,
         layer=layer,
@@ -278,6 +276,7 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        datetime_as_string=True,
         **kwargs,
     )
 
@@ -291,6 +290,11 @@ def read_dataframe(
             kwargs.update(arrow_to_pandas_kwargs)
         df = table.to_pandas(**kwargs)
         del table
+
+        # convert datetime columns that were read as string to datetime
+        for dtype, column in zip(meta["dtypes"], meta["fields"]):
+            if dtype is not None and dtype.startswith("datetime"):
+                df[column] = _try_parse_datetime(df[column])
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])

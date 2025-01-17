@@ -233,6 +233,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Read OGR data source into a pyarrow Table.
@@ -303,6 +304,7 @@ def read_arrow(
         skip_features=gdal_skip_features,
         batch_size=batch_size,
         use_pyarrow=True,
+        datetime_as_string=datetime_as_string,
         **kwargs,
     ) as source:
         meta, reader = source
@@ -358,6 +360,7 @@ def open_arrow(
     return_fids=False,
     batch_size=65_536,
     use_pyarrow=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Open OGR data source as a stream of Arrow record batches.
@@ -386,6 +389,9 @@ def open_arrow(
         ArrowStream object. In the default case, this stream object needs
         to be passed to another library supporting the Arrow PyCapsule
         Protocol to consume the stream of data.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as strings,
+        as arrow doesn't support e.g. mixed timezones.
 
     Examples
     --------
@@ -423,6 +429,7 @@ def open_arrow(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
@@ -453,6 +460,7 @@ def open_arrow(
         dataset_kwargs=dataset_kwargs,
         batch_size=batch_size,
         use_pyarrow=use_pyarrow,
+        datetime_as_string=datetime_as_string,
     )
 
 

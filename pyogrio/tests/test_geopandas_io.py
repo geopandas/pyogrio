@@ -1,13 +1,11 @@
 import contextlib
 import locale
-import time
 import warnings
 from datetime import datetime
 from io import BytesIO
 from zipfile import ZipFile
 
 import numpy as np
-import pytz
 
 from pyogrio import (
     __gdal_version__,
@@ -316,9 +314,6 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath, use_arrow=use_arrow)
     df_read = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow:
-        # with Arrow, the datetimes are always read as UTC for .gpkg
-        expected = expected.dt.tz_convert("UTC")
     assert_series_equal(df_read.datetime_col, expected)
 
 
@@ -348,9 +343,6 @@ def test_write_datetime_mixed_offset(tmp_path, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
-@pytest.mark.filterwarnings(
-    "ignore: Non-conformant content for record 1 in column dates"
-)
 @pytest.mark.requires_arrow_write_api
 def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
     dates_raw = ["2020-01-01 09:00:00.123", "2020-01-01 10:00:00"]
@@ -359,17 +351,11 @@ def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
     else:
         dates = pd.to_datetime(dates_raw)
     df = gp.GeoDataFrame(
-        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1)]},
-        crs="EPSG:4326",
+        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1)]}, crs="EPSG:4326"
     )
     fpath = tmp_path / f"test{ext}"
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow and ext == ".gpkg":
-        # for GPKG with Arrow, the datetime is written as naive datetime with the
-        # correct times, but when read the naive time is assumed to be UTC, which
-        # changes the effective time so this seems wrong.
-        df["dates"] = df["dates"].dt.tz_localize(time.timezone).dt.tz_convert("UTC")
     assert_geodataframe_equal(df, result)
 
 
@@ -391,28 +377,7 @@ def test_read_write_datetime_tz_with_nulls(tmp_path, ext, use_arrow):
     fpath = tmp_path / f"test{ext}"
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow:
-        if ext == ".fgb":
-            # when FlatGeoBuffer is read with Arrow, for datetimes with equal timezone,
-            # a column type with the appropriate minutes offset is returned.
-            # REMARK: For .fgb, the timezone is just dropped when reading or writing!!!
-            #     -> 2020-01-01T09:00:00.123-05:00 becomes 2020-01-01T09:00:00.123
-            df["dates"] = df["dates"].dt.tz_localize(tz=None)
-        elif ext in (".geojson", ".geojsonl"):
-            # when GeoJSON is read with Arrow, for datetimes with equal timezone, a
-            # column type with the appropriate minutes offset is returned.
-            # REMARK: for .geojson, the data is written fine, but when reading it goes
-            # wrong: 2020-01-01T09:00:00.123-05:00 becomes 2020-01-01T04:00:00.123-05:00
-            df["dates"] = (
-                df["dates"]
-                .dt.tz_localize(tz=None)
-                .dt.tz_localize(tz="UTC")
-                .dt.tz_convert(pytz.FixedOffset(-300))
-            )
-        elif ext == ".gpkg":
-            # when GPKG is read with Arrow, datetimes with timezone are converted to
-            # UTC.
-            df["dates"] = df["dates"].dt.tz_convert("UTC")
+
     assert_geodataframe_equal(df, result)
 
 
