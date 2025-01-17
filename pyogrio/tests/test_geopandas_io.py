@@ -326,6 +326,9 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
 @pytest.mark.requires_arrow_write_api
 def test_write_datetime_localized_mixed_offset(tmp_path, use_arrow):
     """Test with localized dates across a different summer/winter timezone offset."""
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
+
     # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
     dates = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111"]
     naive_col = pd.Series(pd.to_datetime(dates), name="dates")
@@ -350,6 +353,9 @@ def test_write_datetime_localized_mixed_offset(tmp_path, use_arrow):
 @pytest.mark.requires_arrow_write_api
 def test_write_datetime_mixed_offsets(tmp_path, use_arrow):
     """Test with dates with mixed timezone offsets."""
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
+
     # Pandas datetime64 column types doesn't support mixed timezone offsets, so this
     # list converts to pandas.Timestamp objects instead.
     dates = ["2023-01-01 11:00:01.111+01:00", "2023-06-01 10:00:01.111+05:00"]
