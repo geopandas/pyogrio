@@ -368,6 +368,7 @@ def test_write_datetime_mixed_offsets(tmp_path, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
 
+    assert result["dates"][0] == offset_col[0]
     assert_series_equal(result["dates"], offset_col)
 
 
