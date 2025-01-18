@@ -297,7 +297,7 @@ def test_read_datetime(datetime_file, use_arrow):
 
 @pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
 @pytest.mark.requires_arrow_write_api
-def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
+def test_write_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     if use_arrow and __gdal_version__ < (3, 11, 0):
         pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
 
@@ -374,7 +374,8 @@ def test_write_datetime_mixed_offsets(tmp_path, use_arrow):
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
 @pytest.mark.requires_arrow_write_api
-def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
+def test_write_datetime_no_tz(tmp_path, ext, use_arrow):
+    """Test writing/reading a datetime column without timezone information."""
     if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
         pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
 
@@ -412,7 +413,7 @@ def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
     "ignore: Non-conformant content for record 1 in column dates"
 )
 @pytest.mark.requires_arrow_write_api
-def test_read_write_datetime_objects_with_nulls(tmp_path, dates_raw, ext, use_arrow):
+def test_write_datetime_objects_with_nulls(tmp_path, dates_raw, ext, use_arrow):
     if use_arrow and __gdal_version__ < (3, 11, 0):
         pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
 
