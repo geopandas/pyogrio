@@ -2,6 +2,7 @@
 
 import os
 import warnings
+from datetime import datetime
 
 import numpy as np
 
@@ -508,6 +509,14 @@ def write_dataframe(
                 gdal_tz_offsets[name] = gdal_offset_repr.values
                 naive = col.apply(lambda x: None if pd.isna(x) else x.tz_localize(None))
                 values = naive.values
+            elif len(col_na) and all(isinstance(x, datetime) for x in col_na):
+                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
+                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
+                gdal_tz_offsets[name] = gdal_offset_repr.values
+                naive = col.apply(
+                    lambda x: None if pd.isna(x) else x.replace(tzinfo=None)
+                )
+                values = naive.values
 
         if values is None:
             values = col.values
@@ -642,7 +651,9 @@ def write_dataframe(
             if dtype == "object":
                 # When all non-NA values are Timestamps, treat as datetime column
                 col_na = df[col.notna()][name]
-                if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
+                if len(col_na) and all(
+                    isinstance(x, (pd.Timestamp, datetime)) for x in col_na
+                ):
                     df[name] = col.apply(
                         lambda x: None if pd.isna(x) else x.isoformat()
                     )

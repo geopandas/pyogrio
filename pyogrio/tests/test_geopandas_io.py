@@ -393,19 +393,29 @@ def test_read_write_datetime_no_tz(tmp_path, ext, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize(
+    "dates_raw",
+    [
+        (
+            pd.Timestamp("2020-01-01T09:00:00.123-05:00"),
+            pd.Timestamp("2020-01-01T10:00:00-05:00"),
+            None,
+        ),
+        (
+            datetime.fromisoformat("2020-01-01T09:00:00.123-05:00"),
+            datetime.fromisoformat("2020-01-01T10:00:00-05:00"),
+            None,
+        ),
+    ],
+)
 @pytest.mark.filterwarnings(
     "ignore: Non-conformant content for record 1 in column dates"
 )
 @pytest.mark.requires_arrow_write_api
-def test_read_write_datetime_timestamp_with_nulls(tmp_path, ext, use_arrow):
+def test_read_write_datetime_objects_with_nulls(tmp_path, dates_raw, ext, use_arrow):
     if use_arrow and __gdal_version__ < (3, 11, 0):
         pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
 
-    dates_raw = [
-        pd.Timestamp("2020-01-01T09:00:00.123-05:00"),
-        pd.Timestamp("2020-01-01T10:00:00-05:00"),
-        None,
-    ]
     dates = pd.Series(dates_raw, dtype="O")
 
     if PANDAS_GE_20:
@@ -422,6 +432,9 @@ def test_read_write_datetime_timestamp_with_nulls(tmp_path, ext, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
 
+    # With some older versions, the offset is represented slightly differently
+    if str(result.dates.dtype) == "datetime64[ns, pytz.FixedOffset(-300)]":
+        result.dates = result.dates.astype(expected.dtype)
     assert_series_equal(result.dates, expected)
 
 
