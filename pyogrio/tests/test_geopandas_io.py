@@ -356,20 +356,23 @@ def test_write_datetime_mixed_offsets(tmp_path, use_arrow):
     if use_arrow and __gdal_version__ < (3, 11, 0):
         pytest.skip("Arrow datetime handling improved in GDAL >= 3.11")
 
-    # Pandas datetime64 column types doesn't support mixed timezone offsets, so this
-    # list converts to pandas.Timestamp objects instead.
-    dates = ["2023-01-01 11:00:01.111+01:00", "2023-06-01 10:00:01.111+05:00"]
-    offset_col = pd.Series(pd.to_datetime(dates), name="dates")
+    # Pandas datetime64 column types doesn't support mixed timezone offsets, so
+    # it needs to be a list of pandas.Timestamp objects instead.
+    dates = [
+        pd.Timestamp("2023-01-01 11:00:01.111+01:00"),
+        pd.Timestamp("2023-06-01 10:00:01.111+05:00"),
+    ]
+    expected = pd.Series(dates, name="dates")
+
     df = gp.GeoDataFrame(
-        {"dates": offset_col, "geometry": [Point(1, 1), Point(1, 1)]},
+        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1)]},
         crs="EPSG:4326",
     )
     fpath = tmp_path / "test.gpkg"
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow)
 
-    assert result["dates"][0] == offset_col[0]
-    assert_series_equal(result["dates"], offset_col)
+    assert_series_equal(result["dates"], expected)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
