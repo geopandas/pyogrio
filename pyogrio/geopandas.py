@@ -255,8 +255,9 @@ def read_dataframe(
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
 
-    # Always read datetimes are as string values to preserve (mixed) timezone info
-    # as numpy does not directly support timezones and arrow support is also limited.
+    # Always read datetimes as string values to preserve (mixed) timezone info
+    # as numpy does not directly support timezones and arrow datetime columns
+    # don't support mixed timezones.
     result = read_func(
         path_or_buffer,
         layer=layer,
