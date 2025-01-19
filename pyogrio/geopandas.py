@@ -335,7 +335,6 @@ def read_dataframe(
     return gp.GeoDataFrame(df, geometry=geometry, crs=meta["crs"])
 
 
-# TODO: handle index properly
 def write_dataframe(
     df,
     path,
@@ -471,69 +470,9 @@ def write_dataframe(
     if len(geometry_columns) > 0:
         geometry_column = geometry_columns[0]
         geometry = df[geometry_column]
-        fields = [c for c in df.columns if not c == geometry_column]
     else:
         geometry_column = None
         geometry = None
-        fields = list(df.columns)
-
-    # TODO: may need to fill in pd.NA, etc
-    field_data = []
-    field_mask = []
-    # dict[str, np.array(int)] special case for dt-tz fields
-    gdal_tz_offsets = {}
-    for name in fields:
-        col = df[name]
-        values = None
-
-        if isinstance(col.dtype, pd.DatetimeTZDtype):
-            # Deal with datetimes with timezones by passing down timezone separately
-            # pass down naive datetime
-            naive = col.dt.tz_localize(None)
-            values = naive.values
-            # compute offset relative to UTC explicitly
-            tz_offset = naive - col.dt.tz_convert("UTC").dt.tz_localize(None)
-            # Convert to GDAL timezone offset representation.
-            # GMT is represented as 100 and offsets are represented by adding /
-            # subtracting 1 for every 15 minutes different from GMT.
-            # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
-            # Convert each row offset to a signed multiple of 15m and add to GMT value
-            gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
-            gdal_tz_offsets[name] = gdal_offset_representation.values
-
-        elif col.dtype == "object":
-            # Column of Timestamp objects, also split in naive datetime and tz offset
-            col_na = df[col.notna()][name]
-            if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
-                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
-                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
-                gdal_tz_offsets[name] = gdal_offset_repr.values
-                naive = col.apply(lambda x: None if pd.isna(x) else x.tz_localize(None))
-                values = naive.values
-            elif len(col_na) and all(isinstance(x, datetime) for x in col_na):
-                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
-                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
-                gdal_tz_offsets[name] = gdal_offset_repr.values
-                naive = col.apply(
-                    lambda x: None if pd.isna(x) else x.replace(tzinfo=None)
-                )
-                values = naive.values
-
-        if values is None:
-            values = col.values
-
-        if isinstance(values, pd.api.extensions.ExtensionArray):
-            from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
-
-            if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
-                field_data.append(values._data)
-                field_mask.append(values._mask)
-            else:
-                field_data.append(np.asarray(values))
-                field_mask.append(np.asarray(values.isna()))
-        else:
-            field_data.append(values)
-            field_mask.append(None)
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_column is not None:
@@ -709,6 +648,68 @@ def write_dataframe(
     # If there is geometry data, prepare it to be written
     if geometry_column is not None:
         geometry = to_wkb(geometry.values)
+        fields = [c for c in df.columns if not c == geometry_column]
+    else:
+        fields = list(df.columns)
+
+    # Convert data to numpy arrays for writing
+    # TODO: may need to fill in pd.NA, etc
+    field_data = []
+    field_mask = []
+    # dict[str, np.array(int)] special case for dt-tz fields
+    gdal_tz_offsets = {}
+    for name in fields:
+        col = df[name]
+        values = None
+
+        if isinstance(col.dtype, pd.DatetimeTZDtype):
+            # Deal with datetimes with timezones by passing down timezone separately
+            # pass down naive datetime
+            naive = col.dt.tz_localize(None)
+            values = naive.values
+            # compute offset relative to UTC explicitly
+            tz_offset = naive - col.dt.tz_convert("UTC").dt.tz_localize(None)
+            # Convert to GDAL timezone offset representation.
+            # GMT is represented as 100 and offsets are represented by adding /
+            # subtracting 1 for every 15 minutes different from GMT.
+            # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes
+            # Convert each row offset to a signed multiple of 15m and add to GMT value
+            gdal_offset_representation = tz_offset // pd.Timedelta("15m") + 100
+            gdal_tz_offsets[name] = gdal_offset_representation.values
+
+        elif col.dtype == "object":
+            # Column of Timestamp objects, also split in naive datetime and tz offset
+            col_na = df[col.notna()][name]
+            if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
+                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
+                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
+                gdal_tz_offsets[name] = gdal_offset_repr.values
+                naive = col.apply(lambda x: None if pd.isna(x) else x.tz_localize(None))
+                values = naive.values
+            elif len(col_na) and all(isinstance(x, datetime) for x in col_na):
+                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
+                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
+                gdal_tz_offsets[name] = gdal_offset_repr.values
+                naive = col.apply(
+                    lambda x: None if pd.isna(x) else x.replace(tzinfo=None)
+                )
+                values = naive.values
+
+        if values is None:
+            values = col.values
+
+        if isinstance(values, pd.api.extensions.ExtensionArray):
+            from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
+
+            if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
+                field_data.append(values._data)
+                field_mask.append(values._mask)
+            else:
+                field_data.append(np.asarray(values))
+                field_mask.append(np.asarray(values.isna()))
+        else:
+            field_data.append(values)
+            field_mask.append(None)
 
     write(
         path,
