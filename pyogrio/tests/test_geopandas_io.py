@@ -6,7 +6,6 @@ from io import BytesIO
 from zipfile import ZipFile
 
 import numpy as np
-from pandas.api.types import is_datetime64_dtype
 
 from pyogrio import (
     __gdal_version__,
@@ -40,6 +39,7 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
+    from pandas.api.types import is_datetime64_dtype
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -331,9 +331,7 @@ def test_write_read_datetime_tz(tmp_path, ext, use_arrow):
         if ext in (".fgb", ".gpkg"):
             # With GDAL < 3.11 with arrow, datetime columns are written as string type
             # columns
-            df.dates = df.dates.map(
-                lambda x: x.isoformat() if x is not pd.NaT else pd.NaT
-            )
+            df.dates = df.dates.map(lambda x: x.isoformat())
 
     assert_series_equal(result.dates, df.dates, check_index=False)
 
@@ -479,7 +477,7 @@ def test_write_read_datetime_objects_with_nulls(tmp_path, dates_raw, ext, use_ar
             # With GDAL < 3.11 with arrow, datetime columns are written as string type
             # columns
             exp_df.dates = exp_df.dates.map(
-                lambda x: x.isoformat() if x is not pd.NaT else pd.NaT
+                lambda x: x.isoformat() if x is not pd.NaT else None
             )
 
     assert_geodataframe_equal(result, exp_df)
