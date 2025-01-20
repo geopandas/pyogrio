@@ -304,6 +304,12 @@ def test_write_read_datetime_tz(tmp_path, ext, use_arrow):
 
     This should result in the result being in pandas datetime64 dtype column.
     """
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
+        # as well as retaining the timezone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+        pytest.xfail("Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow")
+
     dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
@@ -452,6 +458,12 @@ def test_write_read_datetime_no_tz(tmp_path, ext, use_arrow):
 @pytest.mark.requires_arrow_write_api
 def test_write_read_datetime_objects_with_nulls(tmp_path, dates_raw, ext, use_arrow):
     """Datetime objects with null values and the equal offset are read as datetime64."""
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
+        # as well as retaining the timezone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+        pytest.xfail("Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow")
+
     dates = pd.Series(dates_raw, dtype="O")
     df = gp.GeoDataFrame(
         {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
