@@ -600,7 +600,7 @@ def write_dataframe(
                     datetime_cols.append(name)
             elif isinstance(dtype, pd.DatetimeTZDtype):
                 # Also for regular datetime columns with timezone mixed timezones are
-                # possible when thera is a difference between summer and winter time.
+                # possible when there is a difference between summer and winter time.
                 df[name] = col.apply(lambda x: None if pd.isna(x) else x.isoformat())
                 datetime_cols.append(name)
 
@@ -678,15 +678,11 @@ def write_dataframe(
             gdal_tz_offsets[name] = gdal_offset_representation.values
 
         elif col.dtype == "object":
-            # Column of Timestamp objects, also split in naive datetime and tz offset
+            # Column of Timestamp/datetime objects, split in naive datetime and tz.
             col_na = df[col.notna()][name]
-            if len(col_na) and all(isinstance(x, pd.Timestamp) for x in col_na):
-                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
-                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
-                gdal_tz_offsets[name] = gdal_offset_repr.values
-                naive = col.apply(lambda x: None if pd.isna(x) else x.tz_localize(None))
-                values = naive.values
-            elif len(col_na) and all(isinstance(x, datetime) for x in col_na):
+            if len(col_na) and all(
+                isinstance(x, (pd.Timestamp, datetime)) for x in col_na
+            ):
                 tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
                 gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
                 gdal_tz_offsets[name] = gdal_offset_repr.values
