@@ -598,9 +598,9 @@ def write_dataframe(
                         lambda x: None if pd.isna(x) else x.isoformat()
                     )
                     datetime_cols.append(name)
-            elif isinstance(dtype, pd.DatetimeTZDtype):
-                # Also for regular datetime columns with timezone mixed timezones are
-                # possible when there is a difference between summer and winter time.
+            elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
+                # When a timezone has daylight saving time the offsets can also be
+                # different. UTC doesn't have this issue.
                 df[name] = col.apply(lambda x: None if pd.isna(x) else x.isoformat())
                 datetime_cols.append(name)
 
