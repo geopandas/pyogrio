@@ -39,7 +39,6 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
-    from pandas.api.types import is_datetime64_dtype
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -432,7 +431,7 @@ def test_write_read_datetime_no_tz(tmp_path, ext, use_arrow):
         assert_series_equal(result.dates, df.dates.dt.tz_localize("UTC"))
         pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
 
-    assert is_datetime64_dtype(result.dates.dtype)
+    assert str(result.dates.dtype) == "datetime64[ms, UTC]"
     assert_geodataframe_equal(result, df)
 
 
