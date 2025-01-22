@@ -517,7 +517,7 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow):
         assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
         pytest.xfail("UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow")
 
-    assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+    assert str(result.dates.dtype) == "datetime64[ms, UTC]"
     assert_geodataframe_equal(result, df)
 
 
