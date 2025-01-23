@@ -1157,9 +1157,6 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
-    if use_arrow and dtype is object:
-        pytest.xfail(reason="writing an empty object column with Arrow gives an error")
-
     expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
 
     filename = tmp_path / f"test{ext}"
