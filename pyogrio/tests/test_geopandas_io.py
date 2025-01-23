@@ -1157,7 +1157,9 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, crs=4326)
+    for column in columns:
+        expected[column] = expected[column].astype(dtype)
 
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
