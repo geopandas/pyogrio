@@ -1184,6 +1184,24 @@ def test_write_empty_geometry(tmp_path):
     assert_geodataframe_equal(df, expected)
 
 
+@pytest.mark.requires_arrow_write_api
+def test_write_None_string_column(tmp_path, use_arrow):
+    if use_arrow:
+        pytest.xfail(
+            "error when an object column with only None values is written with arrow."
+        )
+
+    gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+    assert filename.exists()
+
+    result_gdf = read_dataframe(filename, use_arrow=use_arrow)
+    assert result_gdf.object_col.dtype == object
+    assert_geodataframe_equal(result_gdf, gdf)
+
+
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
 @pytest.mark.requires_arrow_write_api
 def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
