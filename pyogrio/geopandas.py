@@ -594,14 +594,12 @@ def write_dataframe(
                 if len(col_na) and all(
                     isinstance(x, (pd.Timestamp, datetime)) for x in col_na
                 ):
-                    df[name] = col.apply(
-                        lambda x: None if pd.isna(x) else x.isoformat()
-                    )
+                    df[name] = col.astype("string")
                     datetime_cols.append(name)
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
-                # When a timezone has daylight saving time the offsets can also be
-                # different. UTC doesn't have this issue.
-                df[name] = col.apply(lambda x: None if pd.isna(x) else x.isoformat())
+                # When it is a datetime column with a timezone different than UTC, it
+                # needs to be converted to string, otherwise the timezone info is lost.
+                df[name] = col.astype("string")
                 datetime_cols.append(name)
 
         table = pa.Table.from_pandas(df, preserve_index=False)
