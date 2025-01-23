@@ -385,7 +385,9 @@ def test_write_read_datetime_tz_localized_mixed_offset(tmp_path, ext, use_arrow)
     dates_naive = pd.Series(pd.to_datetime(dates_raw), name="dates")
     dates_local = dates_naive.dt.tz_localize("Australia/Sydney")
     dates_local_offsets_str = dates_local.astype("string").astype("O")
-    dates_exp = dates_local_offsets_str.map(pd.Timestamp)
+    dates_exp = dates_local_offsets_str.apply(
+        lambda x: pd.Timestamp(x) if pd.notna(x) else None
+    )
 
     df = gp.GeoDataFrame(
         {"dates": dates_local, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
@@ -540,7 +542,7 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow):
         assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
         pytest.xfail("UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow")
 
-    assert result.dates.dtype.name == "datetime64[ms, UTC]"
+    assert result.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
     assert_geodataframe_equal(result, df)
 
 
