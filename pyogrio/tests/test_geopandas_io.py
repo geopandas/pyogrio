@@ -531,7 +531,7 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow):
     df = gp.GeoDataFrame(
         {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
     )
-    assert df.dates.dtype.name == "datetime64[ms, UTC]"
+    assert df.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
 
     fpath = tmp_path / f"test{ext}"
     write_dataframe(df, fpath, use_arrow=use_arrow)
