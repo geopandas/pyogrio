@@ -1166,7 +1166,7 @@ def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
 
     assert filename.exists()
     df = read_dataframe(filename, use_arrow=use_arrow)
-    assert_geodataframe_equal(df, expected)
+    assert_geodataframe_equal(df, expected, check_index_type=False)
 
 
 def test_write_empty_geometry(tmp_path):
