@@ -10,7 +10,8 @@
 
 -   Fix WKB writing on big-endian systems (#497).
 -   Fix writing fids to e.g. GPKG file with `use_arrow` (#511).
--   Fix error when an empty object column is written with `use_arrow` (#512).
+-   Fix error in `write_dataframe` when writing an empty or all-None object
+    column with `use_arrow` (#512).
 
 ### Packaging
 
