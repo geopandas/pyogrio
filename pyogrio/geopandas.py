@@ -458,7 +458,7 @@ def write_dataframe(
         use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
     path, driver = _get_write_path_driver(path, driver, append=append)
 
-    if use_arrow and df.empty or len(df) == 0:
+    if use_arrow and (df.empty or len(df) == 0):
         # with arrow, string columns without data trigger an error, so disable arrow
         # when writing an empty dataframe.
         use_arrow = False
