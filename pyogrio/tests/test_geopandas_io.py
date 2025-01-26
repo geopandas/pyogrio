@@ -140,19 +140,18 @@ def test_read_csv_platform_encoding(tmp_path, use_arrow):
         csv.write("Wilhelm Röntgen,Zürich\n")
 
     if use_arrow:
-        handler = pytest.raises(
-            DataSourceError, match="The file being read is not encoded in UTF-8"
-        )
+        with pytest.raises(
+            DataSourceError,
+            match="; please use_arrow=False",
+        ):
+            df = read_dataframe(csv_path, use_arrow=use_arrow)
     else:
-        handler = contextlib.nullcontext()
-
-    with handler:
         df = read_dataframe(csv_path, use_arrow=use_arrow)
 
-    assert len(df) == 1
-    assert df.columns.tolist() == ["näme", "city"]
-    assert df.city.tolist() == ["Zürich"]
-    assert df.näme.tolist() == ["Wilhelm Röntgen"]
+        assert len(df) == 1
+        assert df.columns.tolist() == ["näme", "city"]
+        assert df.city.tolist() == ["Zürich"]
+        assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
@@ -2194,7 +2193,10 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
 
     if use_arrow:
         # pyarrow cannot decode column name with incorrect encoding
-        with pytest.raises(UnicodeDecodeError):
+        with pytest.raises(
+            DataSourceError,
+            match="The file being read is not encoded in UTF-8; please use_arrow=False",
+        ):
             read_dataframe(output_path, use_arrow=True)
     else:
         bad = read_dataframe(output_path, use_arrow=False)
