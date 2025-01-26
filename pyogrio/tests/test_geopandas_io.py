@@ -130,13 +130,24 @@ def test_read_csv_encoding(tmp_path, encoding, arrow):
     reason="test requires non-UTF-8 default platform",
 )
 def test_read_csv_platform_encoding(tmp_path, use_arrow):
-    """verify that read defaults to platform encoding; only works on Windows (CP1252)"""
+    """Verify that read defaults to platform encoding; only works on Windows (CP1252).
+
+    When use_arrow=True, reading an non-UTF8 fails.
+    """
     csv_path = tmp_path / "test.csv"
     with open(csv_path, "w", encoding=locale.getpreferredencoding()) as csv:
         csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
-    df = read_dataframe(csv_path, use_arrow=use_arrow)
+    if use_arrow:
+        handler = pytest.raises(
+            DataSourceError, match="The file being read is not encoded in UTF-8"
+        )
+    else:
+        handler = contextlib.nullcontext()
+
+    with handler:
+        df = read_dataframe(csv_path, use_arrow=use_arrow)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
