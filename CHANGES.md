@@ -5,6 +5,8 @@
 ### Improvements
 
 -   Add support to read, write, list, and remove `/vsimem/` files (#457).
+-   Raise specific error when trying to read non-UTF-8 file with
+    `use_arrow=True` (#490).
 
 ### Bug fixes
 
