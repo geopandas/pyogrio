@@ -1157,6 +1157,11 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    """Test writing dataframe with no rows.
+
+    With use_arrow, object type columns with no rows are converted to null type columns
+    by pyarrow, but null columns are not supported by GDAL. Added to test fix for #513.
+    """
     expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
@@ -1185,11 +1190,11 @@ def test_write_empty_geometry(tmp_path):
 
 @pytest.mark.requires_arrow_write_api
 def test_write_None_string_column(tmp_path, use_arrow):
-    if use_arrow:
-        pytest.xfail(
-            "error when an object column with only None values is written with arrow."
-        )
+    """Test pandas object columns with all None values.
 
+    With use_arrow, such columns are converted to null type columns by pyarrow, but null
+    columns are not supported by GDAL. Added to test fix for #513.
+    """
     gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
     filename = tmp_path / "test.gpkg"
 

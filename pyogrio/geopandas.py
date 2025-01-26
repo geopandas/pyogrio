@@ -458,11 +458,6 @@ def write_dataframe(
         use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
     path, driver = _get_write_path_driver(path, driver, append=append)
 
-    if use_arrow and (df.empty or len(df) == 0):
-        # with arrow, string columns without data trigger an error, so disable arrow
-        # when writing an empty dataframe.
-        use_arrow = False
-
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
         raise ValueError(
@@ -587,6 +582,15 @@ def write_dataframe(
             df[geometry_column] = geometry
 
         table = pa.Table.from_pandas(df, preserve_index=False)
+
+        # Null arrow columns are not supported by GDAL, so convert to string
+        for field_index, field in enumerate(table.schema):
+            if field.type == pa.null():
+                table = table.set_column(
+                    field_index,
+                    field.with_type(pa.string()),
+                    table[field_index].cast(pa.string()),
+                )
 
         if geometry_column is not None:
             # ensure that the geometry column is binary (for all-null geometries,
