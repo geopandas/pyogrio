@@ -61,7 +61,7 @@ def get_gdal_geos_version():
 
 def set_gdal_config_options(dict options):
     for name, value in options.items():
-        name_b = name.encode('utf-8')
+        name_b = name.encode("utf-8")
         name_c = name_b
 
         # None is a special case; this is used to clear the previous value
@@ -71,16 +71,16 @@ def set_gdal_config_options(dict options):
 
         # normalize bool to ON/OFF
         if isinstance(value, bool):
-            value_b = b'ON' if value else b'OFF'
+            value_b = b"ON" if value else b"OFF"
         else:
-            value_b = str(value).encode('utf-8')
+            value_b = str(value).encode("utf-8")
 
         value_c = value_b
         CPLSetConfigOption(<const char*>name_c, <const char*>value_c)
 
 
 def get_gdal_config_option(str name):
-    name_b = name.encode('utf-8')
+    name_b = name.encode("utf-8")
     name_c = name_b
     value = CPLGetConfigOption(<const char*>name_c, NULL)
 
@@ -90,9 +90,9 @@ def get_gdal_config_option(str name):
     if value.isdigit():
         return int(value)
 
-    if value == b'ON':
+    if value == b"ON":
         return True
-    if value == b'OFF':
+    if value == b"OFF":
         return False
 
     str_value = get_string(value)
@@ -102,7 +102,7 @@ def get_gdal_config_option(str name):
 
 def ogr_driver_supports_write(driver):
     # check metadata for driver to see if it supports write
-    if _get_driver_metadata_item(driver, "DCAP_CREATE") == 'YES':
+    if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
         return True
 
     return False
@@ -110,7 +110,7 @@ def ogr_driver_supports_write(driver):
 
 def ogr_driver_supports_vsi(driver):
     # check metadata for driver to see if it supports write
-    if _get_driver_metadata_item(driver, "DCAP_VIRTUALIO") == 'YES':
+    if _get_driver_metadata_item(driver, "DCAP_VIRTUALIO") == "YES":
         return True
 
     return False
@@ -214,7 +214,7 @@ def init_gdal_data():
     if has_gdal_data():
         return
 
-    wk_path = os.path.join(sys.prefix, 'share', 'gdal')
+    wk_path = os.path.join(sys.prefix, "share", "gdal")
     if os.path.exists(wk_path):
         set_gdal_config_options({"GDAL_DATA": wk_path})
         if not has_gdal_data():
@@ -246,7 +246,7 @@ def init_proj_data():
     if has_proj_data():
         return
 
-    wk_path = os.path.join(sys.prefix, 'share', 'proj')
+    wk_path = os.path.join(sys.prefix, "share", "proj")
     if os.path.exists(wk_path):
         set_proj_search_path(wk_path)
         # verify that this now resolves
@@ -282,7 +282,7 @@ def _get_driver_metadata_item(driver, metadata_item):
     cdef void *cogr_driver = NULL
 
     try:
-        cogr_driver = check_pointer(GDALGetDriverByName(driver.encode('UTF-8')))
+        cogr_driver = check_pointer(GDALGetDriverByName(driver.encode("UTF-8")))
     except NullPointerError:
         raise DataSourceError(
             f"Could not obtain driver: {driver} (check that it was installed "
@@ -291,12 +291,12 @@ def _get_driver_metadata_item(driver, metadata_item):
     except CPLE_BaseError as exc:
         raise DataSourceError(str(exc))
 
-    metadata_c = GDALGetMetadataItem(cogr_driver, metadata_item.encode('UTF-8'), NULL)
+    metadata_c = GDALGetMetadataItem(cogr_driver, metadata_item.encode("UTF-8"), NULL)
 
     metadata = None
     if metadata_c != NULL:
         metadata = metadata_c
-        metadata = metadata.decode('UTF-8')
+        metadata = metadata.decode("UTF-8")
         if len(metadata) == 0:
             metadata = None
 
@@ -318,11 +318,11 @@ def _get_drivers_for_path(path):
 
 
     # allow specific drivers to have a .zip extension to match GDAL behavior
-    if ext == 'zip':
-        if path.endswith('.shp.zip'):
-            ext = 'shp.zip'
-        elif path.endswith('.gpkg.zip'):
-            ext = 'gpkg.zip'
+    if ext == "zip":
+        if path.endswith(".shp.zip"):
+            ext = "shp.zip"
+        elif path.endswith(".gpkg.zip"):
+            ext = "gpkg.zip"
 
     drivers = []
     for i in range(OGRGetDriverCount()):
@@ -336,7 +336,7 @@ def _get_drivers_for_path(path):
         # extensions is a space-delimited list of supported extensions
         # for driver
         extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
-        if ext is not None and extensions is not None and ext in extensions.lower().split(' '):
+        if ext is not None and extensions is not None and ext in extensions.lower().split(" "):
             drivers.append(name)
         else:
             prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")

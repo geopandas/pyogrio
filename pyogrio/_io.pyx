@@ -46,19 +46,19 @@ log = logging.getLogger(__name__)
 # Mapping of OGR integer field types to Python field type names
 # (index in array is the integer field type)
 FIELD_TYPES = [
-    'int32',         # OFTInteger, Simple 32bit integer
+    "int32",         # OFTInteger, Simple 32bit integer
     None,            # OFTIntegerList, List of 32bit integers, not supported
-    'float64',       # OFTReal, Double Precision floating point
+    "float64",       # OFTReal, Double Precision floating point
     None,            # OFTRealList, List of doubles, not supported
-    'object',        # OFTString, String of UTF-8 chars
+    "object",        # OFTString, String of UTF-8 chars
     None,            # OFTStringList, Array of strings, not supported
     None,            # OFTWideString, deprecated, not supported
     None,            # OFTWideStringList, deprecated, not supported
-    'object',        #  OFTBinary, Raw Binary data
-    'datetime64[D]', # OFTDate, Date
+    "object",        #  OFTBinary, Raw Binary data
+    "datetime64[D]", # OFTDate, Date
     None,            # OFTTime, Time, NOTE: not directly supported in numpy
-    'datetime64[ms]',# OFTDateTime, Date and Time
-    'int64',         # OFTInteger64, Single 64bit integer
+    "datetime64[ms]",# OFTDateTime, Date and Time
+    "int64",         # OFTInteger64, Single 64bit integer
     None             # OFTInteger64List, List of 64bit integers, not supported
 ]
 
@@ -71,29 +71,29 @@ FIELD_SUBTYPES = {
 
 # Mapping of numpy ndarray dtypes to (field type, subtype)
 DTYPE_OGR_FIELD_TYPES = {
-    'int8': (OFTInteger, OFSTInt16),
-    'int16': (OFTInteger, OFSTInt16),
-    'int32': (OFTInteger, OFSTNone),
-    'int': (OFTInteger64, OFSTNone),
-    'int64': (OFTInteger64, OFSTNone),
+    "int8": (OFTInteger, OFSTInt16),
+    "int16": (OFTInteger, OFSTInt16),
+    "int32": (OFTInteger, OFSTNone),
+    "int": (OFTInteger64, OFSTNone),
+    "int64": (OFTInteger64, OFSTNone),
     # unsigned ints have to be converted to ints; these are converted
     # to the next largest integer size
-    'uint8': (OFTInteger, OFSTInt16),
-    'uint16': (OFTInteger, OFSTNone),
-    'uint32': (OFTInteger64, OFSTNone),
+    "uint8": (OFTInteger, OFSTInt16),
+    "uint16": (OFTInteger, OFSTNone),
+    "uint32": (OFTInteger64, OFSTNone),
     # TODO: these might get truncated, check maximum value and raise error
-    'uint': (OFTInteger64, OFSTNone),
-    'uint64': (OFTInteger64, OFSTNone),
+    "uint": (OFTInteger64, OFSTNone),
+    "uint64": (OFTInteger64, OFSTNone),
 
     # bool is handled as integer with boolean subtype
-    'bool': (OFTInteger, OFSTBoolean),
+    "bool": (OFTInteger, OFSTBoolean),
 
-    'float32': (OFTReal,OFSTFloat32),
-    'float': (OFTReal, OFSTNone),
-    'float64': (OFTReal, OFSTNone),
+    "float32": (OFTReal,OFSTFloat32),
+    "float": (OFTReal, OFSTNone),
+    "float64": (OFTReal, OFSTNone),
 
-    'datetime64[D]': (OFTDate, OFSTNone),
-    'datetime64': (OFTDateTime, OFSTNone),
+    "datetime64[D]": (OFTDate, OFSTNone),
+    "datetime64": (OFTDateTime, OFSTNone),
 }
 
 
@@ -140,8 +140,8 @@ cdef char** dict_to_options(object values):
         return NULL
 
     for k, v in values.items():
-        k = k.encode('UTF-8')
-        v = v.encode('UTF-8')
+        k = k.encode("UTF-8")
+        v = v.encode("UTF-8")
         options = CSLAddNameValue(options, <const char *>k, <const char *>v)
 
     return options
@@ -265,7 +265,7 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
 
     try:
         if isinstance(layer, str):
-            name_b = layer.encode('utf-8')
+            name_b = layer.encode("utf-8")
             name_c = name_b
             ogr_layer = check_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
 
@@ -285,7 +285,7 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
         # Note: this returns NULL and does not need to be freed via
         # GDALDatasetReleaseResultSet()
         layer_name = get_string(OGR_L_GetName(ogr_layer))
-        sql_b = f"SET interest_layers = {layer_name}".encode('utf-8')
+        sql_b = f"SET interest_layers = {layer_name}".encode("utf-8")
         sql_c = sql_b
 
         GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
@@ -310,12 +310,12 @@ cdef OGRLayerH execute_sql(GDALDatasetH ogr_dataset, str sql, str sql_dialect=No
     """
 
     try:
-        sql_b = sql.encode('utf-8')
+        sql_b = sql.encode("utf-8")
         sql_c = sql_b
         if sql_dialect is None:
             return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
 
-        sql_dialect_b = sql_dialect.encode('utf-8')
+        sql_dialect_b = sql_dialect.encode("utf-8")
         sql_dialect_c = sql_dialect_b
         return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c))
 
@@ -363,7 +363,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
 
     if authority_key != NULL and authority_val != NULL:
         key = get_string(authority_key)
-        if key == 'EPSG':
+        if key == "EPSG":
             value = get_string(authority_val)
             return f"EPSG:{value}"
 
@@ -530,7 +530,7 @@ cdef get_metadata(GDALMajorObjectH obj):
 
     if metadata != NULL:
         return dict(
-            metadata[i].decode('UTF-8').split('=', 1)
+            metadata[i].decode("UTF-8").split("=", 1)
             for i in range(CSLCount(metadata))
         )
 
@@ -701,7 +701,7 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     ValueError: if SQL query is not valid
     """
 
-    where_b = where.encode('utf-8')
+    where_b = where.encode("utf-8")
     where_c = where_b
     err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
     # WARNING: GDAL does not raise this error for GPKG but instead only
@@ -863,7 +863,7 @@ cdef process_fields(
             if field_type in (OFTInteger, OFTInteger64, OFTReal):
                 # if a boolean or integer type, have to cast to float to hold
                 # NaN values
-                if data.dtype.kind in ('b', 'i', 'u'):
+                if data.dtype.kind in ("b", "i", "u"):
                     field_data[j] = field_data[j].astype(np.float64)
                     field_data_view[j] = field_data[j][:]
                     field_data_view[j][i] = np.nan
@@ -871,7 +871,7 @@ cdef process_fields(
                     data[i] = np.nan
 
             elif field_type in ( OFTDate, OFTDateTime) and not datetime_as_string:
-                data[i] = np.datetime64('NaT')
+                data[i] = np.datetime64("NaT")
 
             else:
                 data[i] = None
@@ -911,7 +911,7 @@ cdef process_fields(
                 microsecond = round(ms * 1000) * 1000
 
                 if not success:
-                    data[i] = np.datetime64('NaT')
+                    data[i] = np.datetime64("NaT")
 
                 elif field_type == OFTDate:
                     data[i] = datetime.date(year, month, day).isoformat()
@@ -952,7 +952,7 @@ cdef get_features(
         fid_data = None
 
     if read_geometry:
-        geometries = np.empty(shape=(num_features, ), dtype='object')
+        geometries = np.empty(shape=(num_features, ), dtype="object")
         geom_view = geometries[:]
 
     else:
@@ -1052,7 +1052,7 @@ cdef get_features_by_fid(
     OGR_L_ResetReading(ogr_layer)
 
     if read_geometry:
-        geometries = np.empty(shape=(count, ), dtype='object')
+        geometries = np.empty(shape=(count, ), dtype="object")
         geom_view = geometries[:]
 
     else:
@@ -1120,7 +1120,7 @@ cdef get_bounds(
     fid_data = np.empty(shape=(num_features), dtype=np.int64)
     fid_view = fid_data[:]
 
-    bounds_data = np.empty(shape=(4, num_features), dtype='float64')
+    bounds_data = np.empty(shape=(4, num_features), dtype="float64")
     bounds_view = bounds_data[:]
 
     i = 0
@@ -1245,7 +1245,7 @@ def ogr_read(
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, dataset_options)
 
         if sql is None:
             if layer is None:
@@ -1344,11 +1344,11 @@ def ogr_read(
             )
 
         meta = {
-            'crs': crs,
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'dtypes':fields[:,3],
-            'geometry_type': geometry_type,
+            "crs": crs,
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "dtypes":fields[:,3],
+            "geometry_type": geometry_type,
         }
 
     finally:
@@ -1384,7 +1384,7 @@ def ogr_read(
 
 cdef void pycapsule_array_stream_deleter(object stream_capsule) noexcept:
     cdef ArrowArrayStream* stream = <ArrowArrayStream*>PyCapsule_GetPointer(
-        stream_capsule, 'arrow_array_stream'
+        stream_capsule, "arrow_array_stream"
     )
     # Do not invoke the deleter on a used/moved capsule
     if stream.release != NULL:
@@ -1397,7 +1397,7 @@ cdef object alloc_c_stream(ArrowArrayStream** c_stream):
     c_stream[0] = <ArrowArrayStream*> malloc(sizeof(ArrowArrayStream))
     # Ensure the capsule destructor doesn't call a random release pointer
     c_stream[0].release = NULL
-    return PyCapsule_New(c_stream[0], 'arrow_array_stream', &pycapsule_array_stream_deleter)
+    return PyCapsule_New(c_stream[0], "arrow_array_stream", &pycapsule_array_stream_deleter)
 
 
 class _ArrowStream:
@@ -1496,7 +1496,7 @@ def ogr_open_arrow(
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, dataset_options)
 
         if sql is None:
             if layer is None:
@@ -1516,7 +1516,7 @@ def ogr_open_arrow(
 
                 encoding = "UTF-8"
 
-            elif encoding.replace('-','').upper() != 'UTF8':
+            elif encoding.replace("-","").upper() != "UTF8":
                 raise ValueError("non-UTF-8 encoding is not supported for Arrow; use the non-Arrow interface instead")
 
         else:
@@ -1536,10 +1536,10 @@ def ogr_open_arrow(
         IF CTE_GDAL_VERSION < (3, 8, 3):
 
             driver = get_driver(ogr_dataset)
-            if driver in {'FlatGeobuf', 'GPKG'}:
+            if driver in {"FlatGeobuf", "GPKG"}:
                 ignored = set(ignored_fields)
                 for f in fields:
-                    if f[2] not in ignored and f[3] == 'bool':
+                    if f[2] not in ignored and f[3] == "bool":
                         raise RuntimeError(
                             "GDAL < 3.8.3 does not correctly read boolean data values using the "
                             "Arrow API.  Do not use read_arrow() / use_arrow=True for this dataset."
@@ -1613,7 +1613,7 @@ def ogr_open_arrow(
             options = CSLSetNameValue(
                 options,
                 "MAX_FEATURES_IN_BATCH",
-                str(batch_size).encode('UTF-8')
+                str(batch_size).encode("UTF-8")
             )
 
         # Default to geoarrow metadata encoding
@@ -1621,7 +1621,7 @@ def ogr_open_arrow(
             options = CSLSetNameValue(
                 options,
                 "GEOMETRY_METADATA_ENCODING",
-                "GEOARROW".encode('UTF-8')
+                "GEOARROW".encode("UTF-8")
             )
 
         # make sure layer is read from beginning
@@ -1646,12 +1646,12 @@ def ogr_open_arrow(
             reader = _ArrowStream(capsule)
 
         meta = {
-            'crs': crs,
-            'encoding': encoding,
-            'fields': fields[:,2], # return only names
-            'geometry_type': geometry_type,
-            'geometry_name': geometry_name,
-            'fid_column': fid_column,
+            "crs": crs,
+            "encoding": encoding,
+            "fields": fields[:,2], # return only names
+            "geometry_type": geometry_type,
+            "geometry_name": geometry_name,
+            "fid_column": fid_column,
         }
 
         # stream has to be consumed before the Dataset is closed
@@ -1725,7 +1725,7 @@ def ogr_read_bounds(
 
     try:
         path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
-        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, NULL)
 
         if layer is None:
             layer = get_default_layer(ogr_dataset)
@@ -1783,7 +1783,7 @@ def ogr_read_info(
             prev_shape_encoding = override_threadlocal_config_option("SHAPE_ENCODING", encoding)
 
         dataset_options = dict_to_options(dataset_kwargs)
-        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, dataset_options)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, dataset_options)
 
         if layer is None:
             layer = get_default_layer(ogr_dataset)
@@ -1848,7 +1848,7 @@ def ogr_list_layers(object path_or_buffer):
 
     try:
         path = read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
-        ogr_dataset = ogr_open(path.encode('UTF-8'), 0, NULL)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, NULL)
         layers = get_layer_names(ogr_dataset)
 
     finally:
@@ -1883,7 +1883,7 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
     if len(layers) > 1:
         dataset_name = os.path.basename(get_string(OGR_DS_GetName(ogr_dataset)))
 
-        other_layer_names = ', '.join([f"'{l}'" for l in layers[1:, 0]])
+        other_layer_names = ", ".join([f"'{l}'" for l in layers[1:, 0]])
         warnings.warn(
             f"More than one layer found in '{dataset_name}': '{first_layer_name}' "
             f"(default), {other_layer_names}. Specify layer parameter to avoid this "
@@ -1970,14 +1970,14 @@ cdef void * create_crs(str crs) except NULL:
     cdef char *crs_c = NULL
     cdef void *ogr_crs = NULL
 
-    crs_b = crs.encode('UTF-8')
+    crs_b = crs.encode("UTF-8")
     crs_c = crs_b
 
     try:
         ogr_crs = check_pointer(OSRNewSpatialReference(NULL))
         err = OSRSetFromUserInput(ogr_crs, crs_c)
         if err:
-            raise CRSError("Could not set CRS: {}".format(crs_c.decode('UTF-8'))) from None
+            raise CRSError("Could not set CRS: {}".format(crs_c.decode("UTF-8"))) from None
 
     except CPLE_BaseError as exc:
         OSRRelease(ogr_crs)
@@ -2004,7 +2004,7 @@ cdef infer_field_types(list dtypes):
             field_types_view[i, 1] = field_subtype
 
         # Determine field type from ndarray values
-        elif dtype == np.dtype('O'):
+        elif dtype == np.dtype("O"):
             # Object type is ambiguous: could be a string or binary data
             # TODO: handle binary or other types
             # for now fall back to string (same as Geopandas)
@@ -2090,10 +2090,10 @@ cdef create_ogr_dataset_layer(
     cdef OGRwkbGeometryType geometry_code
     cdef int layer_idx = -1
 
-    path_b = path.encode('UTF-8')
+    path_b = path.encode("UTF-8")
     path_c = path_b
 
-    driver_b = driver.encode('UTF-8')
+    driver_b = driver.encode("UTF-8")
     driver_c = driver_b
 
     # temporary in-memory dataset is always created from scratch
@@ -2105,7 +2105,7 @@ cdef create_ogr_dataset_layer(
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
     # GPKG might be the only multi-layer writeable type.  TODO: check this
-    if driver in ('ESRI Shapefile', 'GeoJSON', 'GeoJSONSeq', 'FlatGeobuf') and path_exists:
+    if driver in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "FlatGeobuf") and path_exists:
         if not append:
             os.unlink(path)
             path_exists = False
@@ -2117,7 +2117,7 @@ cdef create_ogr_dataset_layer(
 
             for i in range(GDALDatasetGetLayerCount(ogr_dataset)):
                 name = OGR_L_GetName(GDALDatasetGetLayer(ogr_dataset, i))
-                if layer == name.decode('UTF-8'):
+                if layer == name.decode("UTF-8"):
                     layer_idx = i
                     break
 
@@ -2169,11 +2169,11 @@ cdef create_ogr_dataset_layer(
 
         # Setup other layer creation options
         for k, v in layer_kwargs.items():
-            k = k.encode('UTF-8')
-            v = v.encode('UTF-8')
+            k = k.encode("UTF-8")
+            v = v.encode("UTF-8")
             layer_options = CSLAddNameValue(layer_options, <const char *>k, <const char *>v)
 
-        if driver == 'ESRI Shapefile':
+        if driver == "ESRI Shapefile":
             # ENCODING option must be set for shapefiles to properly write *.cpg
             # file containing the encoding; this is not a supported option for
             # other drivers.  This is done after setting general options above
@@ -2183,7 +2183,7 @@ cdef create_ogr_dataset_layer(
 
             # always write to UTF-8 if encoding is not set
             encoding = encoding or "UTF-8"
-            encoding_b = encoding.upper().encode('UTF-8')
+            encoding_b = encoding.upper().encode("UTF-8")
             encoding_c = encoding_b
             layer_options = CSLSetNameValue(layer_options, "ENCODING", encoding_c)
 
@@ -2195,7 +2195,7 @@ cdef create_ogr_dataset_layer(
 
     try:
         if create_layer:
-            layer_b = layer.encode('UTF-8')
+            layer_b = layer.encode("UTF-8")
             layer_c = layer_b
 
             ogr_layer = check_pointer(
@@ -2320,7 +2320,7 @@ def ogr_write(
             &ogr_dataset, &ogr_layer,
         )
 
-        if driver == 'ESRI Shapefile':
+        if driver == "ESRI Shapefile":
             # force encoding for remaining operations to be in UTF-8 (even if user
             # provides an encoding) because GDAL will automatically convert those to
             # the target encoding because ENCODING is set as a layer creation option
@@ -2591,7 +2591,7 @@ def ogr_write_arrow(
         # only shapefile supports non-UTF encoding because ENCODING option is set
         # during dataset creation and GDAL auto-translates from UTF-8 values to that
         # encoding
-        if encoding and encoding.replace('-','').upper() != 'UTF8' and driver != 'ESRI Shapefile':
+        if encoding and encoding.replace("-","").upper() != "UTF8" and driver != "ESRI Shapefile":
             raise ValueError("non-UTF-8 encoding is not supported for Arrow; use the non-Arrow interface instead")
 
         if geometry_name:
