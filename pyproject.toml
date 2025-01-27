@@ -85,6 +85,9 @@ PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
 
+[tool.cython-lint]
+ignore = ["E265", "E222"]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
@@ -95,7 +98,7 @@ tag_prefix = "v"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py"]
+extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py", "conf.py", "setup.py"]
 
 [tool.ruff.lint]
 select = [
