@@ -289,7 +289,15 @@ def read_dataframe(
         kwargs = {"self_destruct": True}
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
-        df = table.to_pandas(**kwargs)
+
+        try:
+            df = table.to_pandas(**kwargs)
+        except UnicodeDecodeError as ex:
+            # Arrow does not support reading data in a non-UTF-8 encoding
+            raise DataSourceError(
+                "The file being read is not encoded in UTF-8; please use_arrow=False"
+            ) from ex
+
         del table
 
         if fid_as_index:
