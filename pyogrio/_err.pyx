@@ -9,8 +9,8 @@ from contextvars import ContextVar
 from itertools import zip_longest
 
 from pyogrio._ogr cimport (
-    CE_None, CE_Debug, CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
-    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg, OGRErr,
+    CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
+    CPLGetLastErrorType, CPLGetLastErrorNo, CPLGetLastErrorMsg,
     OGRERR_NONE, CPLErr, CPLErrorHandler, CPLDefaultErrorHandler,
     CPLPopErrorHandler, CPLPushErrorHandler)
 
@@ -242,7 +242,9 @@ cdef int check_int(int err) except -1:
     return err
 
 
-cdef void error_handler(CPLErr err_class, int err_no, const char* err_msg) noexcept nogil:
+cdef void error_handler(
+    CPLErr err_class, int err_no, const char* err_msg
+) noexcept nogil:
     """Custom CPL error handler to match the Python behaviour.
 
     For non-fatal errors (CE_Failure), error printing to stderr (behaviour of
@@ -345,7 +347,7 @@ cdef class ErrorHandler:
                 raise NullPointerError(-1, -1, "NULL pointer error")
 
         return ptr
-    
+
     cdef void _handle_error_stack(self, bint squash_errors):
         """Handle the errors in `error_stack`."""
         stack = self.error_stack.get()
