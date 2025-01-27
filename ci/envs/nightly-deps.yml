@@ -1,5 +1,6 @@
-name: test
+name: test-nightly-deps
 channels:
+  - gdal-master
   - conda-forge
 dependencies:
   - libgdal-core
@@ -12,5 +13,3 @@ dependencies:
     - shapely
     - pandas
     - pyarrow
-
-
