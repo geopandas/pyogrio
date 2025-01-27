@@ -25,10 +25,10 @@ cdef extern from "cpl_error.h" nogil:
         CE_Failure
         CE_Fatal
 
-    void            CPLErrorReset()
-    int             CPLGetLastErrorNo()
+    void           CPLErrorReset()
+    int            CPLGetLastErrorNo()
     const char*    CPLGetLastErrorMsg()
-    int             CPLGetLastErrorType()
+    int            CPLGetLastErrorType()
 
     ctypedef void (*CPLErrorHandler)(CPLErr, int, const char*)
     void CPLDefaultErrorHandler(CPLErr, int, const char *)
@@ -64,8 +64,13 @@ cdef extern from "cpl_vsi.h" nogil:
     int         VSIFFlushL(VSILFILE *fp)
     int         VSIUnlink(const char *path)
 
-    VSILFILE        *VSIFileFromMemBuffer(const char *path, void *data, vsi_l_offset data_len, int take_ownership)
-    unsigned char   *VSIGetMemFileBuffer(const char *path, vsi_l_offset *data_len, int take_ownership)
+    VSILFILE*       VSIFileFromMemBuffer(const char *path,
+                                         void *data,
+                                         vsi_l_offset data_len,
+                                         int take_ownership)
+    unsigned char*  VSIGetMemFileBuffer(const char *path,
+                                        vsi_l_offset *data_len,
+                                        int take_ownership)
 
     int     VSIMkdir(const char *path, long mode)
     int     VSIMkdirRecursive(const char *path, long mode)
@@ -201,14 +206,18 @@ cdef extern from "ogr_srs_api.h":
 
     int                     OSRAutoIdentifyEPSG(OGRSpatialReferenceH srs)
     OGRErr                  OSRExportToWkt(OGRSpatialReferenceH srs, char **params)
-    const char*             OSRGetAuthorityName(OGRSpatialReferenceH srs, const char *key)
-    const char*             OSRGetAuthorityCode(OGRSpatialReferenceH srs, const char *key)
+    const char*             OSRGetAuthorityName(OGRSpatialReferenceH srs,
+                                                const char *key)
+    const char*             OSRGetAuthorityCode(OGRSpatialReferenceH srs,
+                                                const char *key)
     OGRErr                  OSRImportFromEPSG(OGRSpatialReferenceH srs, int code)
     ctypedef enum OSRAxisMappingStrategy:
         OAMS_TRADITIONAL_GIS_ORDER
-        
-    void                    OSRSetAxisMappingStrategy(OGRSpatialReferenceH hSRS, OSRAxisMappingStrategy)
-    int                     OSRSetFromUserInput(OGRSpatialReferenceH srs, const char *pszDef)
+
+    void                    OSRSetAxisMappingStrategy(OGRSpatialReferenceH hSRS,
+                                                      OSRAxisMappingStrategy)
+    int                     OSRSetFromUserInput(OGRSpatialReferenceH srs,
+                                                const char *pszDef)
     void                    OSRSetPROJSearchPaths(const char *const *paths)
     OGRSpatialReferenceH    OSRNewSpatialReference(const char *wkt)
     void                    OSRRelease(OGRSpatialReferenceH srs)
@@ -261,30 +270,47 @@ cdef extern from "ogr_api.h":
     int64_t         OGR_F_GetFID(OGRFeatureH feature)
     OGRGeometryH    OGR_F_GetGeometryRef(OGRFeatureH feature)
     GByte*          OGR_F_GetFieldAsBinary(OGRFeatureH feature, int n, int *s)
-    int             OGR_F_GetFieldAsDateTimeEx(OGRFeatureH feature, int n, int *y, int *m, int *d, int *h, int *m, float *s, int *z)
+    int             OGR_F_GetFieldAsDateTimeEx(OGRFeatureH feature,
+                                               int n,
+                                               int *y,
+                                               int *m,
+                                               int *d,
+                                               int *h,
+                                               int *m,
+                                               float *s,
+                                               int *z)
     double          OGR_F_GetFieldAsDouble(OGRFeatureH feature, int n)
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
     int64_t         OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
     const char*     OGR_F_GetFieldAsString(OGRFeatureH feature, int n)
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)
-    void            OGR_F_SetFieldDateTime(OGRFeatureH feature, int n, int y, int m, int d, int hh, int mm, int ss, int tz)
-    void            OGR_F_SetFieldDouble(OGRFeatureH feature, int n, double value)
-    void            OGR_F_SetFieldInteger(OGRFeatureH feature, int n, int value)
-    void            OGR_F_SetFieldInteger64(OGRFeatureH feature, int n, int64_t value)
-    void            OGR_F_SetFieldString(OGRFeatureH feature, int n, char *value)
-    void            OGR_F_SetFieldBinary(OGRFeatureH feature, int n, int l, unsigned char *value)
-    void            OGR_F_SetFieldNull(OGRFeatureH feature, int n)  # new in GDAL 2.2
-    void            OGR_F_SetFieldDateTimeEx(
-                            OGRFeatureH hFeat,
-                            int iField,
-                            int nYear,
-                            int nMonth,
-                            int nDay,
-                            int nHour,
-                            int nMinute,
-                            float fSecond,
-                            int nTZFlag)
-    OGRErr          OGR_F_SetGeometryDirectly(OGRFeatureH feature, OGRGeometryH geometry)
+
+    void OGR_F_SetFieldDateTime(OGRFeatureH feature,
+                                int n,
+                                int y,
+                                int m,
+                                int d,
+                                int hh,
+                                int mm,
+                                int ss,
+                                int tz)
+    void OGR_F_SetFieldDouble(OGRFeatureH feature, int n, double value)
+    void OGR_F_SetFieldInteger(OGRFeatureH feature, int n, int value)
+    void OGR_F_SetFieldInteger64(OGRFeatureH feature, int n, int64_t value)
+    void OGR_F_SetFieldString(OGRFeatureH feature, int n, char *value)
+    void OGR_F_SetFieldBinary(OGRFeatureH feature, int n, int l, unsigned char *value)
+    void OGR_F_SetFieldNull(OGRFeatureH feature, int n)  # new in GDAL 2.2
+    void OGR_F_SetFieldDateTimeEx(OGRFeatureH hFeat,
+                                  int iField,
+                                  int nYear,
+                                  int nMonth,
+                                  int nDay,
+                                  int nHour,
+                                  int nMinute,
+                                  float fSecond,
+                                  int nTZFlag)
+
+    OGRErr OGR_F_SetGeometryDirectly(OGRFeatureH feature, OGRGeometryH geometry)
 
     OGRFeatureDefnH     OGR_FD_Create(const char *name)
     int                 OGR_FD_GetFieldCount(OGRFeatureDefnH featuredefn)
@@ -298,20 +324,34 @@ cdef extern from "ogr_api.h":
     OGRFieldSubType OGR_Fld_GetSubType(OGRFieldDefnH fielddefn)
     int             OGR_Fld_GetType(OGRFieldDefnH fielddefn)
     int             OGR_Fld_GetWidth(OGRFieldDefnH fielddefn)
-    void            OGR_Fld_Set(OGRFieldDefnH fielddefn, const char *name, int fieldtype, int width, int precision, int justification)
+    void            OGR_Fld_Set(OGRFieldDefnH fielddefn,
+                                const char *name,
+                                int fieldtype,
+                                int width,
+                                int precision,
+                                int justification)
     void            OGR_Fld_SetPrecision(OGRFieldDefnH fielddefn, int n)
     void            OGR_Fld_SetWidth(OGRFieldDefnH fielddefn, int n)
 
     void            OGR_Fld_SetSubType(OGRFieldDefnH fielddefn, OGRFieldSubType subtype)
 
     OGRGeometryH        OGR_G_CreateGeometry(int wkbtypecode)
-    OGRErr              OGR_G_CreateFromWkb(const void *bytes, OGRSpatialReferenceH srs, OGRGeometryH *geometry, int nbytes)
+    OGRErr              OGR_G_CreateFromWkb(const void *bytes,
+                                            OGRSpatialReferenceH srs,
+                                            OGRGeometryH *geometry,
+                                            int nbytes)
     void                OGR_G_DestroyGeometry(OGRGeometryH geometry)
-    void                OGR_G_ExportToWkb(OGRGeometryH geometry, int endianness, unsigned char *buffer)
+    void                OGR_G_ExportToWkb(OGRGeometryH geometry,
+                                          int endianness,
+                                          unsigned char *buffer)
     void                OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
     OGRwkbGeometryType  OGR_G_GetGeometryType(OGRGeometryH)
-    OGRGeometryH        OGR_G_GetLinearGeometry(OGRGeometryH hGeom, double dfMaxAngleStepSizeDegrees, char **papszOptions)
-    OGRErr              OGR_G_ImportFromWkb(OGRGeometryH geometry, const void *bytes, int nbytes)
+    OGRGeometryH        OGR_G_GetLinearGeometry(OGRGeometryH hGeom,
+                                                double dfMaxAngleStepSizeDegrees,
+                                                char **papszOptions)
+    OGRErr              OGR_G_ImportFromWkb(OGRGeometryH geometry,
+                                            const void *bytes,
+                                            int nbytes)
     int                 OGR_G_IsMeasured(OGRGeometryH geometry)
     void                OGR_G_SetMeasured(OGRGeometryH geometry, int isMeasured)
     int                 OGR_G_Is3D(OGRGeometryH geometry)
@@ -326,24 +366,34 @@ cdef extern from "ogr_api.h":
     int                 OGR_GT_IsNonLinear(OGRwkbGeometryType eType)
     OGRwkbGeometryType  OGR_GT_SetModifier(OGRwkbGeometryType eType, int setZ, int setM)
 
-    OGRErr                  OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
-    OGRErr                  OGR_L_CreateField(OGRLayerH layer, OGRFieldDefnH fielddefn, int flexible)
-    const char*             OGR_L_GetName(OGRLayerH layer)
-    const char*             OGR_L_GetFIDColumn(OGRLayerH layer)
-    const char*             OGR_L_GetGeometryColumn(OGRLayerH layer)
-    OGRErr                  OGR_L_GetExtent(OGRLayerH layer, OGREnvelope *psExtent, int bForce)
-    OGRSpatialReferenceH    OGR_L_GetSpatialRef(OGRLayerH layer)
-    int                     OGR_L_TestCapability(OGRLayerH layer, const char *name)
-    OGRFeatureDefnH         OGR_L_GetLayerDefn(OGRLayerH layer)
-    OGRFeatureH             OGR_L_GetNextFeature(OGRLayerH layer)
-    OGRFeatureH             OGR_L_GetFeature(OGRLayerH layer, int nFeatureId)
-    void                    OGR_L_ResetReading(OGRLayerH layer)
-    OGRErr                  OGR_L_SetAttributeFilter(OGRLayerH hLayer, const char* pszQuery)
-    OGRErr                  OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
-    int                     OGR_L_GetFeatureCount(OGRLayerH layer, int m)
-    void                    OGR_L_SetSpatialFilterRect(OGRLayerH layer, double xmin, double ymin, double xmax, double ymax)
-    void                    OGR_L_SetSpatialFilter(OGRLayerH layer, OGRGeometryH geometry)
-    OGRErr                  OGR_L_SetIgnoredFields(OGRLayerH layer, const char** fields)
+    OGRErr              OGR_L_CreateFeature(OGRLayerH layer, OGRFeatureH feature)
+    OGRErr              OGR_L_CreateField(OGRLayerH layer,
+                                          OGRFieldDefnH fielddefn,
+                                          int flexible)
+    const char*         OGR_L_GetName(OGRLayerH layer)
+    const char*         OGR_L_GetFIDColumn(OGRLayerH layer)
+    const char*         OGR_L_GetGeometryColumn(OGRLayerH layer)
+    OGRErr              OGR_L_GetExtent(OGRLayerH layer,
+                                        OGREnvelope *psExtent,
+                                        int bForce)
+
+    OGRSpatialReferenceH OGR_L_GetSpatialRef(OGRLayerH layer)
+    int                  OGR_L_TestCapability(OGRLayerH layer, const char *name)
+    OGRFeatureDefnH      OGR_L_GetLayerDefn(OGRLayerH layer)
+    OGRFeatureH          OGR_L_GetNextFeature(OGRLayerH layer)
+    OGRFeatureH          OGR_L_GetFeature(OGRLayerH layer, int nFeatureId)
+    void                 OGR_L_ResetReading(OGRLayerH layer)
+    OGRErr               OGR_L_SetAttributeFilter(OGRLayerH hLayer,
+                                                  const char* pszQuery)
+    OGRErr               OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
+    int                  OGR_L_GetFeatureCount(OGRLayerH layer, int m)
+    void                 OGR_L_SetSpatialFilterRect(OGRLayerH layer,
+                                                    double xmin,
+                                                    double ymin,
+                                                    double xmax,
+                                                    double ymax)
+    void                 OGR_L_SetSpatialFilter(OGRLayerH layer, OGRGeometryH geometry)
+    OGRErr               OGR_L_SetIgnoredFields(OGRLayerH layer, const char** fields)
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
@@ -360,14 +410,23 @@ cdef extern from "ogr_api.h":
 IF CTE_GDAL_VERSION >= (3, 6, 0):
 
     cdef extern from "ogr_api.h":
-        bint OGR_L_GetArrowStream(OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions)
+        bint OGR_L_GetArrowStream(
+            OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
+        )
 
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
     cdef extern from "ogr_api.h":
-        bint OGR_L_CreateFieldFromArrowSchema(OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions)
-        bint OGR_L_WriteArrowBatch(OGRLayerH hLayer, ArrowSchema *schema, ArrowArray *array, char **papszOptions)
+        bint OGR_L_CreateFieldFromArrowSchema(
+            OGRLayerH hLayer, ArrowSchema *schema, char **papszOptions
+        )
+        bint OGR_L_WriteArrowBatch(
+            OGRLayerH hLayer,
+            ArrowSchema *schema,
+            ArrowArray *array,
+            char **papszOptions,
+        )
 
 cdef extern from "gdal.h":
     ctypedef enum GDALDataType:
@@ -401,14 +460,14 @@ cdef extern from "gdal.h":
                                int nXSize,
                                int nYSize,
                                int nBands,
-                                GDALDataType eBandType,
-                                char ** papszOptions)
+                               GDALDataType eBandType,
+                               char ** papszOptions)
 
     OGRLayerH       GDALDatasetCreateLayer(GDALDatasetH ds,
-                                  const char * pszName,
-                                  OGRSpatialReferenceH hSpatialRef,
-                                  int eType,
-                                  char ** papszOptions)
+                                           const char * pszName,
+                                           OGRSpatialReferenceH hSpatialRef,
+                                           int eType,
+                                           char ** papszOptions)
 
     int             GDALDatasetDeleteLayer(GDALDatasetH hDS, int iLayer)
 
@@ -423,18 +482,21 @@ cdef extern from "gdal.h":
     int             GDALDatasetGetLayerCount(GDALDatasetH ds)
     OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
     OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
-    OGRLayerH       GDALDatasetExecuteSQL(
-                            GDALDatasetH ds,
-                            const char* pszStatement,
-                            OGRGeometryH hSpatialFilter,
-                            const char* pszDialect)
+    OGRLayerH       GDALDatasetExecuteSQL(GDALDatasetH ds,
+                                          const char* pszStatement,
+                                          OGRGeometryH hSpatialFilter,
+                                          const char* pszDialect)
     void            GDALDatasetReleaseResultSet(GDALDatasetH, OGRLayerH)
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
     OGRErr          GDALDatasetRollbackTransaction(GDALDatasetH ds)
     char**          GDALGetMetadata(GDALMajorObjectH obj, const char *pszDomain)
-    const char*     GDALGetMetadataItem(GDALMajorObjectH obj, const char *pszName, const char *pszDomain)
-    OGRErr          GDALSetMetadata(GDALMajorObjectH obj, char **metadata, const char *pszDomain)
+    const char*     GDALGetMetadataItem(GDALMajorObjectH obj,
+                                        const char *pszName,
+                                        const char *pszDomain)
+    OGRErr          GDALSetMetadata(GDALMajorObjectH obj,
+                                    char **metadata,
+                                    const char *pszDomain)
     const char*     GDALVersionInfo(const char *pszRequest)
 
 

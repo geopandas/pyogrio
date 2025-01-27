@@ -43,7 +43,7 @@ GEOMETRY_TYPES = {
     wkbGeometryCollection25D: "GeometryCollection Z",
 }
 
-GEOMETRY_TYPE_CODES = {v:k for k, v in GEOMETRY_TYPES.items()}
+GEOMETRY_TYPE_CODES = {v: k for k, v in GEOMETRY_TYPES.items()}
 
 # add additional aliases from 2.5D format
 GEOMETRY_TYPE_CODES.update({
@@ -80,7 +80,7 @@ cdef str get_geometry_type(void *ogr_layer):
     str
         geometry type
     """
-    cdef void *cogr_featuredef = NULL
+    cdef void *ogr_featuredef = NULL
     cdef OGRwkbGeometryType ogr_type
 
     try:

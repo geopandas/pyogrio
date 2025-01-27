@@ -3,13 +3,13 @@ import sys
 from uuid import uuid4
 import warnings
 
-from pyogrio._err cimport check_int, check_pointer
+from pyogrio._err cimport check_pointer
 from pyogrio._err import CPLE_BaseError, NullPointerError
 from pyogrio.errors import DataSourceError
 
 
 cdef get_string(const char *c_str, str encoding="UTF-8"):
-    """Get Python string from a char *
+    """Get Python string from a char *.
 
     IMPORTANT: the char * must still be freed by the caller.
 
@@ -194,7 +194,9 @@ def has_proj_data():
 
 
 def init_gdal_data():
-    """Set GDAL data search directories in the following precedence:
+    """Set GDAL data search directories.
+
+    They are set in the following precedence:
     - wheel copy of gdal_data
     - default detection by GDAL, including GDAL_DATA (detected automatically by GDAL)
     - other well-known paths under sys.prefix
@@ -207,7 +209,9 @@ def init_gdal_data():
     if os.path.exists(wheel_path):
         set_gdal_config_options({"GDAL_DATA": wheel_path})
         if not has_gdal_data():
-            raise ValueError("Could not correctly detect GDAL data files installed by pyogrio wheel")
+            raise ValueError(
+                "Could not correctly detect GDAL data files installed by pyogrio wheel"
+            )
         return
 
     # GDAL correctly found data files from GDAL_DATA or compiled-in paths
@@ -218,10 +222,17 @@ def init_gdal_data():
     if os.path.exists(wk_path):
         set_gdal_config_options({"GDAL_DATA": wk_path})
         if not has_gdal_data():
-            raise ValueError(f"Found GDAL data directory at {wk_path} but it does not appear to correctly contain GDAL data files")
+            raise ValueError(
+                f"Found GDAL data directory at {wk_path} but it does not appear to "
+                "correctly contain GDAL data files"
+            )
         return
 
-    warnings.warn("Could not detect GDAL data files.  Set GDAL_DATA environment variable to the correct path.", RuntimeWarning)
+    warnings.warn(
+        "Could not detect GDAL data files. Set GDAL_DATA environment variable to the "
+        "correct path.",
+        RuntimeWarning
+    )
 
 
 def init_proj_data():
@@ -239,7 +250,9 @@ def init_proj_data():
         set_proj_search_path(wheel_path)
         # verify that this now resolves
         if not has_proj_data():
-            raise ValueError("Could not correctly detect PROJ data files installed by pyogrio wheel")
+            raise ValueError(
+                "Could not correctly detect PROJ data files installed by pyogrio wheel"
+            )
         return
 
     # PROJ correctly found data files from PROJ_LIB or compiled-in paths
@@ -251,10 +264,15 @@ def init_proj_data():
         set_proj_search_path(wk_path)
         # verify that this now resolves
         if not has_proj_data():
-            raise ValueError(f"Found PROJ data directory at {wk_path} but it does not appear to correctly contain PROJ data files")
+            raise ValueError(
+                f"Found PROJ data directory at {wk_path} but it does not appear to "
+                "correctly contain PROJ data files"
+            )
         return
 
-    warnings.warn("Could not detect PROJ data files.  Set PROJ_LIB environment variable to the correct path.", RuntimeWarning)
+    warnings.warn(
+            "Could not detect PROJ data files. Set PROJ_LIB environment variable to "
+            "the correct path.", RuntimeWarning)
 
 
 def _register_drivers():
@@ -316,7 +334,6 @@ def _get_drivers_for_path(path):
     else:
         ext = None
 
-
     # allow specific drivers to have a .zip extension to match GDAL behavior
     if ext == "zip":
         if path.endswith(".shp.zip"):
@@ -336,7 +353,11 @@ def _get_drivers_for_path(path):
         # extensions is a space-delimited list of supported extensions
         # for driver
         extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
-        if ext is not None and extensions is not None and ext in extensions.lower().split(" "):
+        if (
+            ext is not None
+            and extensions is not None
+            and ext in extensions.lower().split(" ")
+        ):
             drivers.append(name)
         else:
             prefix = _get_driver_metadata_item(name, "DMD_CONNECTION_PREFIX")
