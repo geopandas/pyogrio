@@ -5,6 +5,7 @@
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
+-   Improve support for datetime columns with mixed or naive times (#486).
 
 ### Bug fixes
 
