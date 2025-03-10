@@ -184,7 +184,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.0-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.0-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
