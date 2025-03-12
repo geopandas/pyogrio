@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux_2_28_aarch64:2025-02-06-fa3500c
+FROM quay.io/pypa/manylinux_2_28_aarch64:2025-01-11-3165879
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
