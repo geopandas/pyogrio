@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux2014_x86_64:2025-03-07-52f6849
+FROM quay.io/pypa/manylinux2014_x86_64:2025-02-06-fa3500c
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN yum install -y curl unzip zip tar perl-IPC-Cmd
