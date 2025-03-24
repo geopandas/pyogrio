@@ -16,7 +16,13 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_GE_37,
+    GDAL_GE_352,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1614,6 +1620,8 @@ def test_write_read_mixed_column_values_arrow(tmp_path):
 @pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip"])
 @pytest.mark.requires_arrow_write_api
 def test_write_read_multi_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
     input_gdf = read_dataframe(naturalearth_lowres)
     output_path = tmp_path / f"test{ext}"
 
