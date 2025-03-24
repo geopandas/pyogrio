@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 from pyogrio._vsi import vsimem_rmtree_toplevel as _vsimem_rmtree_toplevel
 
+MULTI_EXTENSIONS = (".gpkg.zip", ".shp.zip")
+
 
 def get_vsi_path_or_buffer(path_or_buffer):
     """Get VSI-prefixed path or bytes buffer depending on type of path_or_buffer.
@@ -72,9 +74,7 @@ def vsi_path(path: Union[str, Path]) -> str:
         # supported by a GDAL driver, return the path as is.
         if not path.split("!")[0].endswith(".zip"):
             return path
-        if path.split("!")[0].endswith(".gpkg.zip"):
-            return path
-        if path.split("!")[0].endswith(".shp.zip"):
+        if path.split("!")[0].endswith(MULTI_EXTENSIONS):
             return path
 
         # prefix then allow to proceed with remaining parsing
@@ -82,7 +82,11 @@ def vsi_path(path: Union[str, Path]) -> str:
 
     path, archive, scheme = _parse_uri(path)
 
-    if scheme or archive or path.endswith(".zip"):
+    if (
+        scheme
+        or archive
+        or (path.endswith(".zip") and not path.endswith(MULTI_EXTENSIONS))
+    ):
         return _construct_vsi_path(path, archive, scheme)
 
     return path
@@ -152,7 +156,10 @@ def _construct_vsi_path(path, archive, scheme) -> str:
     suffix = ""
     schemes = scheme.split("+")
 
-    if "zip" not in schemes and (archive.endswith(".zip") or path.endswith(".zip")):
+    if "zip" not in schemes and (
+        archive.endswith(".zip")
+        or (path.endswith(".zip") and not path.endswith(MULTI_EXTENSIONS))
+    ):
         schemes.insert(0, "zip")
 
     if schemes:

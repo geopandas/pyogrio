@@ -33,10 +33,20 @@ def change_cwd(path):
     [
         # local file paths that should be passed through as is
         ("data.gpkg", "data.gpkg"),
+        ("data.gpkg.zip", "data.gpkg.zip"),
+        ("data.shp.zip", "data.shp.zip"),
         (Path("data.gpkg"), "data.gpkg"),
+        (Path("data.gpkg.zip"), "data.gpkg.zip"),
+        (Path("data.shp.zip"), "data.shp.zip"),
         ("/home/user/data.gpkg", "/home/user/data.gpkg"),
+        ("/home/user/data.gpkg.zip", "/home/user/data.gpkg.zip"),
+        ("/home/user/data.shp.zip", "/home/user/data.shp.zip"),
         (r"C:\User\Documents\data.gpkg", r"C:\User\Documents\data.gpkg"),
+        (r"C:\User\Documents\data.gpkg.zip", r"C:\User\Documents\data.gpkg.zip"),
+        (r"C:\User\Documents\data.shp.zip", r"C:\User\Documents\data.shp.zip"),
         ("file:///home/user/data.gpkg", "/home/user/data.gpkg"),
+        ("file:///home/user/data.gpkg.zip", "/home/user/data.gpkg.zip"),
+        ("file:///home/user/data.shp.zip", "/home/user/data.shp.zip"),
         ("/home/folder # with hash/data.gpkg", "/home/folder # with hash/data.gpkg"),
         # cloud URIs
         ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
