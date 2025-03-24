@@ -108,7 +108,7 @@ def test_detect_write_driver_unsupported(path):
 
 @pytest.mark.parametrize("path", ["test.xml", "test.txt"])
 def test_detect_write_driver_multiple_unsupported(path):
-    with pytest.raises(ValueError, match="multiple drivers are available"):
+    with pytest.raises(ValueError, match="multiple drivers are available "):
         detect_write_driver(path)
 
 
