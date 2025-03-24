@@ -65,7 +65,6 @@ def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     # Test all supported autodetect drivers
     testfile = prepare_testfile(naturalearth_lowres, dst_dir=tmp_path, ext=ext)
 
-    assert testfile.suffix == ext
     assert testfile.exists()
     meta, _, geometry, fields = read(testfile)
 
@@ -702,6 +701,9 @@ def test_write_append(tmp_path, naturalearth_lowres, ext):
 
     if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
         pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    if ext == ".gpkg.zip":
+        pytest.skip("Append to .gpkg.zip is not supported")
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
 

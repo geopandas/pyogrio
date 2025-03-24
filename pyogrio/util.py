@@ -68,7 +68,13 @@ def vsi_path(path: Union[str, Path]) -> str:
     # Windows drive letters (e.g. "C:\") confuse `urlparse` as they look like
     # URL schemes
     if sys.platform == "win32" and re.match("^[a-zA-Z]\\:", path):
+        # If it is not a zip file or it is multi-extension zip file that is directly
+        # supported by a GDAL driver, return the path as is.
         if not path.split("!")[0].endswith(".zip"):
+            return path
+        if path.split("!")[0].endswith(".gpkg.zip"):
+            return path
+        if path.split("!")[0].endswith(".shp.zip"):
             return path
 
         # prefix then allow to proceed with remaining parsing

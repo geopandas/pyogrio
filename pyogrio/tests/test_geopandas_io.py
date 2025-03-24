@@ -1611,6 +1611,26 @@ def test_write_read_mixed_column_values_arrow(tmp_path):
         write_dataframe(test_gdf, output_path, use_arrow=True)
 
 
+@pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_multi_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
+
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert list(geometry_types) == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
+
+    assert_geodataframe_equal(result_gdf, input_gdf, check_index_type=False)
+
+
 @pytest.mark.requires_arrow_write_api
 def test_write_read_null(tmp_path, use_arrow):
     output_path = tmp_path / "test_write_nan.gpkg"
