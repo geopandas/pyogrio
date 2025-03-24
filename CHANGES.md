@@ -5,6 +5,7 @@
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
+-   Add support to read and write .gpkg.zip and .shp.zip (#527).
 
 ### Bug fixes
 
