@@ -8,63 +8,63 @@ from pyogrio.errors import DataLayerError, GeometryError
 # Mapping of OGR integer geometry types to GeoJSON type names.
 
 GEOMETRY_TYPES = {
-    wkbUnknown: 'Unknown',
-    wkbPoint: 'Point',
-    wkbLineString: 'LineString',
-    wkbPolygon: 'Polygon',
-    wkbMultiPoint: 'MultiPoint',
-    wkbMultiLineString: 'MultiLineString',
-    wkbMultiPolygon: 'MultiPolygon',
-    wkbGeometryCollection: 'GeometryCollection',
+    wkbUnknown: "Unknown",
+    wkbPoint: "Point",
+    wkbLineString: "LineString",
+    wkbPolygon: "Polygon",
+    wkbMultiPoint: "MultiPoint",
+    wkbMultiLineString: "MultiLineString",
+    wkbMultiPolygon: "MultiPolygon",
+    wkbGeometryCollection: "GeometryCollection",
     wkbNone: None,
-    wkbLinearRing: 'LinearRing',
+    wkbLinearRing: "LinearRing",
     # WARNING: Measured types are not supported in GEOS and downstream uses
     # these are stripped automatically to their corresponding 2D / 3D types
-    wkbPointM: 'PointM',
-    wkbLineStringM: 'Measured LineString',
-    wkbPolygonM: 'Measured Polygon',
-    wkbMultiPointM: 'Measured MultiPoint',
-    wkbMultiLineStringM: 'Measured MultiLineString',
-    wkbMultiPolygonM: 'Measured MultiPolygon',
-    wkbGeometryCollectionM: 'Measured GeometryCollection',
-    wkbPointZM: 'Measured 3D Point',
-    wkbLineStringZM: 'Measured 3D LineString',
-    wkbPolygonZM: 'Measured 3D Polygon',
-    wkbMultiPointZM: 'Measured 3D MultiPoint',
-    wkbMultiLineStringZM: 'Measured 3D MultiLineString',
-    wkbMultiPolygonZM: 'Measured 3D MultiPolygon',
-    wkbGeometryCollectionZM: 'Measured 3D GeometryCollection',
-    wkbPoint25D: 'Point Z',
-    wkbLineString25D: 'LineString Z',
-    wkbPolygon25D: 'Polygon Z',
-    wkbMultiPoint25D: 'MultiPoint Z',
-    wkbMultiLineString25D: 'MultiLineString Z',
-    wkbMultiPolygon25D: 'MultiPolygon Z',
-    wkbGeometryCollection25D: 'GeometryCollection Z',
+    wkbPointM: "PointM",
+    wkbLineStringM: "Measured LineString",
+    wkbPolygonM: "Measured Polygon",
+    wkbMultiPointM: "Measured MultiPoint",
+    wkbMultiLineStringM: "Measured MultiLineString",
+    wkbMultiPolygonM: "Measured MultiPolygon",
+    wkbGeometryCollectionM: "Measured GeometryCollection",
+    wkbPointZM: "Measured 3D Point",
+    wkbLineStringZM: "Measured 3D LineString",
+    wkbPolygonZM: "Measured 3D Polygon",
+    wkbMultiPointZM: "Measured 3D MultiPoint",
+    wkbMultiLineStringZM: "Measured 3D MultiLineString",
+    wkbMultiPolygonZM: "Measured 3D MultiPolygon",
+    wkbGeometryCollectionZM: "Measured 3D GeometryCollection",
+    wkbPoint25D: "Point Z",
+    wkbLineString25D: "LineString Z",
+    wkbPolygon25D: "Polygon Z",
+    wkbMultiPoint25D: "MultiPoint Z",
+    wkbMultiLineString25D: "MultiLineString Z",
+    wkbMultiPolygon25D: "MultiPolygon Z",
+    wkbGeometryCollection25D: "GeometryCollection Z",
 }
 
-GEOMETRY_TYPE_CODES = {v:k for k, v in GEOMETRY_TYPES.items()}
+GEOMETRY_TYPE_CODES = {v: k for k, v in GEOMETRY_TYPES.items()}
 
 # add additional aliases from 2.5D format
 GEOMETRY_TYPE_CODES.update({
-    '2.5D Point': wkbPoint25D,
-    '2.5D LineString': wkbLineString25D,
-    '2.5D Polygon': wkbPolygon25D,
-    '2.5D MultiPoint': wkbMultiPoint25D,
-    '2.5D MultiLineString': wkbMultiLineString25D,
-    '2.5D MultiPolygon': wkbMultiPolygon25D,
-    '2.5D GeometryCollection': wkbGeometryCollection25D
+    "2.5D Point": wkbPoint25D,
+    "2.5D LineString": wkbLineString25D,
+    "2.5D Polygon": wkbPolygon25D,
+    "2.5D MultiPoint": wkbMultiPoint25D,
+    "2.5D MultiLineString": wkbMultiLineString25D,
+    "2.5D MultiPolygon": wkbMultiPolygon25D,
+    "2.5D GeometryCollection": wkbGeometryCollection25D
 })
 
 # 2.5D also represented using negative numbers not enumerated above
 GEOMETRY_TYPES.update({
-    -2147483647: 'Point Z',
-    -2147483646: 'LineString Z',
-    -2147483645: 'Polygon Z',
-    -2147483644: 'MultiPoint Z',
-    -2147483643: 'MultiLineString Z',
-    -2147483642: 'MultiPolygon Z',
-    -2147483641: 'GeometryCollection Z',
+    -2147483647: "Point Z",
+    -2147483646: "LineString Z",
+    -2147483645: "Polygon Z",
+    -2147483644: "MultiPoint Z",
+    -2147483643: "MultiLineString Z",
+    -2147483642: "MultiPolygon Z",
+    -2147483641: "GeometryCollection Z",
 })
 
 
@@ -80,7 +80,7 @@ cdef str get_geometry_type(void *ogr_layer):
     str
         geometry type
     """
-    cdef void *cogr_featuredef = NULL
+    cdef void *ogr_featuredef = NULL
     cdef OGRwkbGeometryType ogr_type
 
     try:
