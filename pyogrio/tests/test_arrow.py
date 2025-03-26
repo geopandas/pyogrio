@@ -643,6 +643,9 @@ def test_write_append(request, tmp_path, naturalearth_lowres, ext):
             pytest.mark.xfail(reason="Bugs with append when writing Arrow to GeoJSON")
         )
 
+    if ext == ".gpkg.zip":
+        pytest.skip("Append is not supported for .gpkg.zip")
+
     meta, table = read_arrow(naturalearth_lowres)
 
     # coerce output layer to generic Geometry to avoid mixed type errors
