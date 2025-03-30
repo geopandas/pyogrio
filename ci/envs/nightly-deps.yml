@@ -1,6 +1,7 @@
 name: test-nightly-deps
 channels:
   - gdal-master
+  - conda-forge/label/shapely_dev
   - conda-forge
 dependencies:
   - libgdal-core
