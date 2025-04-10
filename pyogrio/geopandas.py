@@ -209,6 +209,9 @@ def read_dataframe(
           warning will be raised.
         - **ignore**: invalid WKB geometries will be returned as ``None``
           without a warning.
+        - **fix**: an effort is made to fix invalid input geometries (currently
+          just unclosed rings). If this is not possible, they are returned as
+          ``None`` without a warning. Requires GEOS >= 3.11.
 
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
