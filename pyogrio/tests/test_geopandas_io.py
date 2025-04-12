@@ -1794,8 +1794,8 @@ def test_write_geometry_z_types_auto(
 )
 @pytest.mark.filterwarnings("ignore:Non closed ring detected:RuntimeWarning")
 def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expected_wkt):
-    # if on_invalid == "fix" and not SHAPELY_GE_21:
-    #    pytest.skip("on_invalid=fix not available for Shapely < 2.1")
+    if on_invalid == "fix" and not SHAPELY_GE_21:
+        pytest.skip("on_invalid=fix not available for Shapely < 2.1")
 
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
