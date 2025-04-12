@@ -211,7 +211,7 @@ def read_dataframe(
           without a warning.
         - **fix**: an effort is made to fix invalid input geometries (currently
           just unclosed rings). If this is not possible, they are returned as
-          ``None`` without a warning. Requires GEOS >= 3.11.
+          ``None`` without a warning. Requires GEOS >= 3.11 and shapely >= 2.1.
 
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
