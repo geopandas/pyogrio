@@ -1588,8 +1588,8 @@ def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
 
 @pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip", ".shz"])
 @pytest.mark.requires_arrow_write_api
-def test_write_read_extra_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
-    """Run a basic read and write test on some extra extensions."""
+def test_write_read_zipped_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    """Run a basic read and write test on some extra (zipped) extensions."""
     if ext == ".gpkg.zip" and not GDAL_GE_37:
         pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
 
