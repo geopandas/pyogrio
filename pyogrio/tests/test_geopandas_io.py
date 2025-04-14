@@ -22,6 +22,7 @@ from pyogrio._compat import (
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    SHAPELY_GE_21,
 )
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
@@ -1803,23 +1804,29 @@ def test_write_geometry_z_types_auto(
 
 
 @pytest.mark.parametrize(
-    "on_invalid, message",
+    "on_invalid, message, expected_wkt",
     [
         (
             "warn",
             "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
-            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+            "Points of LinearRing do not form a closed linestring",
+            None,
         ),
-        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
-        ("ignore", None),
+        ("raise", "Points of LinearRing do not form a closed linestring", None),
+        ("ignore", None, None),
+        ("fix", None, "POLYGON ((0 0, 0 1, 0 0))"),
     ],
 )
-def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
+@pytest.mark.filterwarnings("ignore:Non closed ring detected:RuntimeWarning")
+def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expected_wkt):
+    if on_invalid == "fix" and not SHAPELY_GE_21:
+        pytest.skip("on_invalid=fix not available for Shapely < 2.1")
+
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
     elif on_invalid == "warn":
         handler = pytest.warns(match=message)
-    elif on_invalid == "ignore":
+    elif on_invalid in ("fix", "ignore"):
         handler = contextlib.nullcontext()
     else:
         raise ValueError(f"unknown value for on_invalid: {on_invalid}")
@@ -1833,7 +1840,7 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [ [ [0, 0], [0, 0] ] ]
+                    "coordinates": [ [ [0, 0], [0, 1] ] ]
                 }
             }
         ]
@@ -1849,7 +1856,10 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
             use_arrow=use_arrow,
             on_invalid=on_invalid,
         )
-        df.geometry.isnull().all()
+        if expected_wkt is None:
+            assert df.geometry.iloc[0] is None
+        else:
+            assert df.geometry.iloc[0].wkt == expected_wkt
 
 
 def test_read_multisurface(multisurface_file, use_arrow):
