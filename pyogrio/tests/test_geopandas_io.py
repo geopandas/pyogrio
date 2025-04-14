@@ -16,7 +16,13 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_GE_37,
+    GDAL_GE_352,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1578,6 +1584,30 @@ def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     assert crs["lat_2"] == 51.5
     assert crs["lon_0"] == 4.3
     assert df.crs.equals(expected.crs)
+
+
+@pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip", ".shz"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_zipped_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    """Run a basic read and write test on some extra (zipped) extensions."""
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
+
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert list(geometry_types) == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
+
+    assert_geodataframe_equal(result_gdf, input_gdf, check_index_type=False)
 
 
 def test_write_read_mixed_column_values(tmp_path):

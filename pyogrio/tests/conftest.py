@@ -31,7 +31,10 @@ DRIVERS = {
     ".geojsonl": "GeoJSONSeq",
     ".geojsons": "GeoJSONSeq",
     ".gpkg": "GPKG",
+    ".gpkg.zip": "GPKG",
     ".shp": "ESRI Shapefile",
+    ".shp.zip": "ESRI Shapefile",
+    ".shz": "ESRI Shapefile",
 }
 
 # mapping of driver name to extension
