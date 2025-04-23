@@ -17,7 +17,7 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
 )
-from pyogrio._compat import HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import GDAL_GE_37, HAS_PYARROW, HAS_SHAPELY
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
 from pyogrio.raw import open_arrow, read, write
 from pyogrio.tests.conftest import (
@@ -63,9 +63,10 @@ def test_read(naturalearth_lowres):
 @pytest.mark.parametrize("ext", DRIVERS)
 def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     # Test all supported autodetect drivers
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip not supported for gdal < 3.7.0")
     testfile = prepare_testfile(naturalearth_lowres, dst_dir=tmp_path, ext=ext)
 
-    assert testfile.suffix == ext
     assert testfile.exists()
     meta, _, geometry, fields = read(testfile)
 
@@ -702,6 +703,9 @@ def test_write_append(tmp_path, naturalearth_lowres, ext):
 
     if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
         pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+
+    if ext == ".gpkg.zip":
+        pytest.skip("Append to .gpkg.zip is not supported")
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
 

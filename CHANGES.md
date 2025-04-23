@@ -5,7 +5,9 @@
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
--   Improve support for datetime columns with mixed or naive times (#486).
+-   Improve support for datetime columns (#486).
+-   Add support to read and write ".gpkg.zip" (GDAL >= 3.7), ".shp.zip", and ".shz"
+    files (#527).
 
 ### Bug fixes
 
@@ -14,7 +16,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.2 (#499).
 
 ## 0.10.0 (2024-09-28)
 

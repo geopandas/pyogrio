@@ -16,7 +16,14 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_GE_37,
+    GDAL_GE_352,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+    SHAPELY_GE_21,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1758,6 +1765,30 @@ def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     assert df.crs.equals(expected.crs)
 
 
+@pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip", ".shz"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_zipped_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    """Run a basic read and write test on some extra (zipped) extensions."""
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
+
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert list(geometry_types) == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
+
+    assert_geodataframe_equal(result_gdf, input_gdf, check_index_type=False)
+
+
 def test_write_read_mixed_column_values(tmp_path):
     # use_arrow=True is tested separately below
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
@@ -1951,23 +1982,29 @@ def test_write_geometry_z_types_auto(
 
 
 @pytest.mark.parametrize(
-    "on_invalid, message",
+    "on_invalid, message, expected_wkt",
     [
         (
             "warn",
             "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
-            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+            "Points of LinearRing do not form a closed linestring",
+            None,
         ),
-        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
-        ("ignore", None),
+        ("raise", "Points of LinearRing do not form a closed linestring", None),
+        ("ignore", None, None),
+        ("fix", None, "POLYGON ((0 0, 0 1, 0 0))"),
     ],
 )
-def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
+@pytest.mark.filterwarnings("ignore:Non closed ring detected:RuntimeWarning")
+def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expected_wkt):
+    if on_invalid == "fix" and not SHAPELY_GE_21:
+        pytest.skip("on_invalid=fix not available for Shapely < 2.1")
+
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
     elif on_invalid == "warn":
         handler = pytest.warns(match=message)
-    elif on_invalid == "ignore":
+    elif on_invalid in ("fix", "ignore"):
         handler = contextlib.nullcontext()
     else:
         raise ValueError(f"unknown value for on_invalid: {on_invalid}")
@@ -1981,7 +2018,7 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [ [ [0, 0], [0, 0] ] ]
+                    "coordinates": [ [ [0, 0], [0, 1] ] ]
                 }
             }
         ]
@@ -1997,7 +2034,10 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
             use_arrow=use_arrow,
             on_invalid=on_invalid,
         )
-        df.geometry.isnull().all()
+        if expected_wkt is None:
+            assert df.geometry.iloc[0] is None
+        else:
+            assert df.geometry.iloc[0].wkt == expected_wkt
 
 
 def test_read_multisurface(multisurface_file, use_arrow):
