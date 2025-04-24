@@ -242,7 +242,7 @@ jobs:
         os:
           [
             "ubuntu-latest",
-            "ubuntu-20.04",
+            "ubuntu-22.04",
             "windows-latest",
             "macos-13",
             "macos-latest",
@@ -253,7 +253,7 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
-          - os: "ubuntu-20.04"
+          - os: "ubuntu-22.04"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
