@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.2"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.3"
 
     steps:
       - name: Install packages
@@ -184,7 +184,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.2-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.3-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -202,7 +202,7 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
-          git checkout d24ce43972a16be005ba1458eed67d071d44dc1c
+          git checkout 66c1c9852bb30bd87285e77cc775072046d51fc6
 
       - name: Install GDAL
         env:
@@ -242,7 +242,7 @@ jobs:
         os:
           [
             "ubuntu-latest",
-            "ubuntu-20.04",
+            "ubuntu-22.04",
             "windows-latest",
             "macos-13",
             "macos-latest",
@@ -253,7 +253,7 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
-          - os: "ubuntu-20.04"
+          - os: "ubuntu-22.04"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
