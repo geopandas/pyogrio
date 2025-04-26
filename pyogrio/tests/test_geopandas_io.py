@@ -1168,7 +1168,12 @@ def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
 
     assert filename.exists()
     df = read_dataframe(filename, use_arrow=use_arrow)
-    assert_geodataframe_equal(df, expected)
+
+    # Check result
+    # For older pandas versions, the index is created as Object dtype but read as
+    # RangeIndex, so don't check the index dtype in that case.
+    check_index_type = True if PANDAS_GE_20 else False
+    assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
 def test_write_empty_geometry(tmp_path):
