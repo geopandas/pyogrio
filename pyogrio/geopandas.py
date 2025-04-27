@@ -586,6 +586,15 @@ def write_dataframe(
 
         table = pa.Table.from_pandas(df, preserve_index=False)
 
+        # Null arrow columns are not supported by GDAL, so convert to string
+        for field_index, field in enumerate(table.schema):
+            if field.type == pa.null():
+                table = table.set_column(
+                    field_index,
+                    field.with_type(pa.string()),
+                    table[field_index].cast(pa.string()),
+                )
+
         if geometry_column is not None:
             # ensure that the geometry column is binary (for all-null geometries,
             # this could be a wrong type)

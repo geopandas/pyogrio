@@ -1153,16 +1153,34 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+@pytest.mark.parametrize(
+    "columns, dtype",
+    [
+        ([], None),
+        (["col_int"], np.int64),
+        (["col_float"], np.float64),
+        (["col_object"], object),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
-def test_write_empty_dataframe(tmp_path, ext, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    """Test writing dataframe with no rows.
 
+    With use_arrow, object type columns with no rows are converted to null type columns
+    by pyarrow, but null columns are not supported by GDAL. Added to test fix for #513.
+    """
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
-    df = read_dataframe(filename)
-    assert_geodataframe_equal(df, expected)
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    # Check result
+    # For older pandas versions, the index is created as Object dtype but read as
+    # RangeIndex, so don't check the index dtype in that case.
+    check_index_type = True if PANDAS_GE_20 else False
+    assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
 def test_write_empty_geometry(tmp_path):
@@ -1180,6 +1198,24 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_None_string_column(tmp_path, use_arrow):
+    """Test pandas object columns with all None values.
+
+    With use_arrow, such columns are converted to null type columns by pyarrow, but null
+    columns are not supported by GDAL. Added to test fix for #513.
+    """
+    gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+    assert filename.exists()
+
+    result_gdf = read_dataframe(filename, use_arrow=use_arrow)
+    assert result_gdf.object_col.dtype == object
+    assert_geodataframe_equal(result_gdf, gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
