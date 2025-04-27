@@ -2,9 +2,6 @@ import fnmatch
 from io import BytesIO
 from uuid import uuid4
 
-from libc.stdlib cimport malloc, free
-from libc.string cimport memcpy
-
 from pyogrio._ogr cimport *
 from pyogrio._ogr import _get_driver_metadata_item
 
@@ -21,7 +18,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     (though drivers that create sibling files are not supported for in-memory
     files).
 
-    Caller is responsible for deleting the directory via 
+    Caller is responsible for deleting the directory via
     vsimem_rmtree_toplevel().
 
     Parameters
@@ -42,10 +39,12 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
     # Check for existing bytes
     if path_or_fp.getbuffer().nbytes > 0:
-        raise NotImplementedError("writing to existing in-memory object is not supported")
+        raise NotImplementedError(
+            "writing to existing in-memory object is not supported"
+        )
 
     # Create in-memory directory to contain auxiliary files.
-    # Prefix with "pyogrio_" so it is clear the directory was created by pyogrio. 
+    # Prefix with "pyogrio_" so it is clear the directory was created by pyogrio.
     memfilename = f"pyogrio_{uuid4().hex}"
     VSIMkdir(f"/vsimem/{memfilename}".encode("UTF-8"), 0666)
 
@@ -79,7 +78,7 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     is_zipped = len(bytes_buffer) > 4 and bytes_buffer[:4].startswith(b"PK\x03\x04")
     ext = ".zip" if is_zipped else ""
 
-    # Prefix with "pyogrio_" so it is clear the file was created by pyogrio. 
+    # Prefix with "pyogrio_" so it is clear the file was created by pyogrio.
     path = f"/vsimem/pyogrio_{uuid4().hex}{ext}"
 
     # Create an in-memory object that references bytes_buffer
@@ -227,7 +226,7 @@ def ogr_vsi_listtree(str path, str pattern):
     if not path.endswith("/"):
         path = f"{path}/"
     files = [f"{path}{file}" for file in files]
-    
+
     return files
 
 
@@ -277,7 +276,7 @@ def ogr_vsi_unlink(str path):
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
-    
+
     if not VSIStatL(path_c, &st_buf) == 0:
         raise FileNotFoundError(f"Path does not exist: '{path}'")
 

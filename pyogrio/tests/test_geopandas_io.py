@@ -16,7 +16,14 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_GE_37,
+    GDAL_GE_352,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+    SHAPELY_GE_21,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -1007,6 +1014,48 @@ def test_write_csv_encoding(tmp_path, encoding):
     assert csv_bytes == csv_pyogrio_bytes
 
 
+@pytest.mark.parametrize(
+    "ext, fid_column, fid_param_value",
+    [
+        (".gpkg", "fid", None),
+        (".gpkg", "FID", None),
+        (".sqlite", "ogc_fid", None),
+        (".gpkg", "fid_custom", "fid_custom"),
+        (".gpkg", "FID_custom", "fid_custom"),
+        (".sqlite", "ogc_fid_custom", "ogc_fid_custom"),
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
+    """Test to specify FIDs to save when writing to a file.
+
+    Saving custom FIDs is only supported for formats that actually store the FID, like
+    e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
+
+    Typically, GDAL supports using a custom FID column for these file formats via a
+    `FID` layer creation option, which is also tested here. If `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe`, causing
+    GDAL to use the column name specified for the FID.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    kwargs = {}
+    if fid_param_value is not None:
+        kwargs["fid"] = fid_param_value
+    path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, path, use_arrow=use_arrow, **kwargs)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    # pyogrio always sets "fid" as index name with `fid_as_index`
+    expected_gdf = input_gdf.rename(columns={fid_column: "fid"})
+    assert_geodataframe_equal(output_gdf, expected_gdf)
+
+
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
@@ -1118,16 +1167,34 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+@pytest.mark.parametrize(
+    "columns, dtype",
+    [
+        ([], None),
+        (["col_int"], np.int64),
+        (["col_float"], np.float64),
+        (["col_object"], object),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
-def test_write_empty_dataframe(tmp_path, ext, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    """Test writing dataframe with no rows.
 
+    With use_arrow, object type columns with no rows are converted to null type columns
+    by pyarrow, but null columns are not supported by GDAL. Added to test fix for #513.
+    """
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
-    df = read_dataframe(filename)
-    assert_geodataframe_equal(df, expected)
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    # Check result
+    # For older pandas versions, the index is created as Object dtype but read as
+    # RangeIndex, so don't check the index dtype in that case.
+    check_index_type = True if PANDAS_GE_20 else False
+    assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
 def test_write_empty_geometry(tmp_path):
@@ -1145,6 +1212,24 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_None_string_column(tmp_path, use_arrow):
+    """Test pandas object columns with all None values.
+
+    With use_arrow, such columns are converted to null type columns by pyarrow, but null
+    columns are not supported by GDAL. Added to test fix for #513.
+    """
+    gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+    assert filename.exists()
+
+    result_gdf = read_dataframe(filename, use_arrow=use_arrow)
+    assert result_gdf.object_col.dtype == object
+    assert_geodataframe_equal(result_gdf, gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
@@ -1552,6 +1637,30 @@ def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     assert df.crs.equals(expected.crs)
 
 
+@pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip", ".shz"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_zipped_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    """Run a basic read and write test on some extra (zipped) extensions."""
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
+
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert list(geometry_types) == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
+
+    assert_geodataframe_equal(result_gdf, input_gdf, check_index_type=False)
+
+
 def test_write_read_mixed_column_values(tmp_path):
     # use_arrow=True is tested separately below
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
@@ -1746,23 +1855,29 @@ def test_write_geometry_z_types_auto(
 
 
 @pytest.mark.parametrize(
-    "on_invalid, message",
+    "on_invalid, message, expected_wkt",
     [
         (
             "warn",
             "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
-            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+            "Points of LinearRing do not form a closed linestring",
+            None,
         ),
-        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
-        ("ignore", None),
+        ("raise", "Points of LinearRing do not form a closed linestring", None),
+        ("ignore", None, None),
+        ("fix", None, "POLYGON ((0 0, 0 1, 0 0))"),
     ],
 )
-def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
+@pytest.mark.filterwarnings("ignore:Non closed ring detected:RuntimeWarning")
+def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expected_wkt):
+    if on_invalid == "fix" and not SHAPELY_GE_21:
+        pytest.skip("on_invalid=fix not available for Shapely < 2.1")
+
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
     elif on_invalid == "warn":
         handler = pytest.warns(match=message)
-    elif on_invalid == "ignore":
+    elif on_invalid in ("fix", "ignore"):
         handler = contextlib.nullcontext()
     else:
         raise ValueError(f"unknown value for on_invalid: {on_invalid}")
@@ -1776,7 +1891,7 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [ [ [0, 0], [0, 0] ] ]
+                    "coordinates": [ [ [0, 0], [0, 1] ] ]
                 }
             }
         ]
@@ -1792,7 +1907,10 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
             use_arrow=use_arrow,
             on_invalid=on_invalid,
         )
-        df.geometry.isnull().all()
+        if expected_wkt is None:
+            assert df.geometry.iloc[0] is None
+        else:
+            assert df.geometry.iloc[0].wkt == expected_wkt
 
 
 def test_read_multisurface(multisurface_file, use_arrow):

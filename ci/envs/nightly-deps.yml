@@ -1,16 +1,15 @@
-name: test
+name: test-nightly-deps
 channels:
+  - gdal-master
   - conda-forge
 dependencies:
   - libgdal-core
   - pytest
-  - geopandas-base
   - pip
   - pip:
     - --pre --prefer-binary --index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple --extra-index-url https://pypi.fury.io/arrow-nightlies/ --extra-index-url https://pypi.org/simple
+    - geopandas
     - numpy>=2.0.0.dev
     - shapely
     - pandas
     - pyarrow
-
-

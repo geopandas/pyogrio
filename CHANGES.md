@@ -5,14 +5,19 @@
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
+-   Add support to read and write ".gpkg.zip" (GDAL >= 3.7), ".shp.zip", and ".shz"
+    files (#527).
 
 ### Bug fixes
 
 -   Fix WKB writing on big-endian systems (#497).
+-   Fix writing fids to e.g. GPKG file with `use_arrow` (#511).
+-   Fix error in `write_dataframe` when writing an empty or all-None object
+    column with `use_arrow` (#512).
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.3 (#499).
 
 ## 0.10.0 (2024-09-28)
 

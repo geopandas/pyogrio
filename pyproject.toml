@@ -51,7 +51,7 @@ build-verbosity = 3
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.10.0"
+GDAL_VERSION = "3.10.3"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
@@ -66,7 +66,7 @@ repair-wheel-command = [
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.10.0"
+GDAL_VERSION = "3.10.3"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
@@ -80,10 +80,13 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/x64-windows-dynamic-release"
 GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
-GDAL_VERSION = "3.10.0"
+GDAL_VERSION = "3.10.3"
 PYOGRIO_PACKAGE_DATA = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
 PROJ_LIB = "$VCPKG_INSTALL/share/proj"
+
+[tool.cython-lint]
+ignore = ["E265", "E222"]
 
 [tool.versioneer]
 VCS = "git"
@@ -95,7 +98,7 @@ tag_prefix = "v"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py"]
+extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py", "conf.py", "setup.py"]
 
 [tool.ruff.lint]
 select = [
