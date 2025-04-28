@@ -11,6 +11,7 @@ from pyogrio._compat import (
     PANDAS_GE_20,
     PANDAS_GE_22,
     PANDAS_GE_30,
+    PYARROW_GE_19,
 )
 from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
@@ -299,10 +300,13 @@ def read_dataframe(
         # that accessing table afterwards causes crash, so del table to avoid.
         kwargs = {"self_destruct": True}
         if PANDAS_GE_30:
-            kwargs["types_mapper"] = {
-                pa.string(): pd.StringDtype(na_value=np.nan),
-                pa.large_string(): pd.StringDtype(na_value=np.nan),
-            }.get
+            # starting with pyarrow 19.0, pyarrow will correctly handle this themselves,
+            # so only use types_mapper for older versions
+            if not PYARROW_GE_19:
+                kwargs["types_mapper"] = {
+                    pa.string(): pd.StringDtype(na_value=np.nan),
+                    pa.large_string(): pd.StringDtype(na_value=np.nan),
+                }.get
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
         df = table.to_pandas(**kwargs)

@@ -22,6 +22,7 @@ from pyogrio._compat import (
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    PANDAS_GE_30,
     SHAPELY_GE_21,
 )
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
@@ -1194,6 +1195,10 @@ def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
     # For older pandas versions, the index is created as Object dtype but read as
     # RangeIndex, so don't check the index dtype in that case.
     check_index_type = True if PANDAS_GE_20 else False
+    # with pandas 3+ and reading through arrow, we preserve the string dtype
+    # (no proper dtype inference happens for the empty numpy object dtype arrays)
+    if use_arrow and dtype is object:
+        expected["col_object"] = expected["col_object"].astype("str")
     assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
@@ -1228,7 +1233,11 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert filename.exists()
 
     result_gdf = read_dataframe(filename, use_arrow=use_arrow)
-    assert result_gdf.object_col.dtype == object
+    assert (
+        result_gdf.object_col.dtype == "str" if PANDAS_GE_30 and use_arrow else object
+    )
+    if use_arrow:
+        gdf["object_col"] = gdf["object_col"].astype("str")
     assert_geodataframe_equal(result_gdf, gdf)
 
 
