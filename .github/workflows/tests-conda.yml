@@ -72,4 +72,4 @@ jobs:
         env:
           PANDAS_FUTURE_INFER_STRING: ${{ matrix.pandas_future_infer_string || '0' }}
         run: |
-          pytest -v --color=yes -r s pyogrio/tests
+          pytest -v -s --color=yes -r s pyogrio/tests

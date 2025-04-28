@@ -1951,6 +1951,8 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
+    print(df.values)
+    print(expected.values)
 
     assert_geodataframe_equal(df, expected)
 
