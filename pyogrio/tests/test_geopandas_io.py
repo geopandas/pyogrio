@@ -1236,7 +1236,7 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert (
         result_gdf.object_col.dtype == "str" if PANDAS_GE_30 and use_arrow else object
     )
-    if use_arrow:
+    if PANDAS_GE_30 and use_arrow:
         gdf["object_col"] = gdf["object_col"].astype("str")
     assert_geodataframe_equal(result_gdf, gdf)
 

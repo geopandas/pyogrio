@@ -301,7 +301,7 @@ def read_dataframe(
         kwargs = {"self_destruct": True}
         if PANDAS_GE_30:
             # starting with pyarrow 19.0, pyarrow will correctly handle this themselves,
-            # so only use types_mapper for older versions
+            # so only use types_mapper as workaround for older versions
             if not PYARROW_GE_19:
                 kwargs["types_mapper"] = {
                     pa.string(): pd.StringDtype(na_value=np.nan),
