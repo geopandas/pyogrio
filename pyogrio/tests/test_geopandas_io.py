@@ -1234,11 +1234,11 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert filename.exists()
 
     result_gdf = read_dataframe(filename, use_arrow=use_arrow)
-    assert (
-        result_gdf.object_col.dtype == "str" if PANDAS_GE_30 and use_arrow else object
-    )
     if PANDAS_GE_30 and use_arrow:
+        assert result_gdf.object_col.dtype == "str"
         gdf["object_col"] = gdf["object_col"].astype("str")
+    else:
+        assert result_gdf.object_col.dtype == object
     assert_geodataframe_equal(result_gdf, gdf)
 
 
@@ -1683,6 +1683,7 @@ def test_write_read_mixed_column_values(tmp_path):
     output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
     # mixed values as object dtype are currently written as strings
+    # (but preserving nulls)
     expected = pd.Series(
         [str(value) if value not in (None, np.nan) else None for value in mixed_values],
         name="mixed",
@@ -1953,6 +1954,8 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
         crs="EPSG:4326",
     )
     if GDAL_GE_311 and use_arrow:
+        # GDAL 3.11 started to use json extension type, which is not yet handled
+        # correctly in the arrow->pandas conversion (using object instead of str dtype)
         expected["intermediate_level"] = expected["intermediate_level"].astype(object)
 
     assert_geodataframe_equal(df, expected)

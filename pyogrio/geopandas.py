@@ -65,7 +65,7 @@ def _try_parse_datetime(ser):
         except Exception:
             pass
 
-    if res.dtype.kind == "M":
+    if res.dtype.kind == "M":  # any datetime64
         # GDAL only supports ms precision, convert outputs to match.
         # Pandas 2.0 supports datetime[ms] directly, prior versions only support [ns],
         # Instead, round the values to [ms] precision.
