@@ -306,7 +306,17 @@ def read_dataframe(
                 kwargs["types_mapper"] = {
                     pa.string(): pd.StringDtype(na_value=np.nan),
                     pa.large_string(): pd.StringDtype(na_value=np.nan),
+                    pa.json_(): pd.StringDtype(na_value=np.nan),
                 }.get
+            # TODO enable the below block when upstream issue to accept extension types
+            # is fixed
+            # else:
+            #     # for newer pyarrow, still include mapping for json
+            #     # GDAL 3.11 started to emit this extension type, but pyarrow does not
+            #     # yet support it properly in the conversion to pandas
+            #     kwargs["types_mapper"] = {
+            #         pa.json_(): pd.StringDtype(na_value=np.nan),
+            #     }.get
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
         df = table.to_pandas(**kwargs)

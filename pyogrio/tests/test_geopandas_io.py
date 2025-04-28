@@ -18,6 +18,7 @@ from pyogrio import (
 )
 from pyogrio._compat import (
     GDAL_GE_37,
+    GDAL_GE_311,
     GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
@@ -1951,8 +1952,8 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
-    print(df.values)
-    print(expected.values)
+    if GDAL_GE_311 and use_arrow:
+        expected["intermediate_level"] = expected["intermediate_level"].astype(object)
 
     assert_geodataframe_equal(df, expected)
 
