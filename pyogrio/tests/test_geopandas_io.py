@@ -18,10 +18,12 @@ from pyogrio import (
 )
 from pyogrio._compat import (
     GDAL_GE_37,
+    GDAL_GE_311,
     GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    PANDAS_GE_30,
     SHAPELY_GE_21,
 )
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
@@ -256,6 +258,11 @@ def test_read_layer(tmp_path, use_arrow):
 
     # create a multilayer GPKG
     expected1 = gp.GeoDataFrame(geometry=[Point(0, 0)], crs="EPSG:4326")
+    if use_arrow:
+        # TODO this needs to be fixed on the geopandas side (to ensure the
+        # GeoDataFrame() constructor does this), when use_arrow we already
+        # get columns Index with string dtype
+        expected1.columns = expected1.columns.astype("str")
     write_dataframe(
         expected1,
         filename,
@@ -263,6 +270,8 @@ def test_read_layer(tmp_path, use_arrow):
     )
 
     expected2 = gp.GeoDataFrame(geometry=[Point(1, 1)], crs="EPSG:4326")
+    if use_arrow:
+        expected2.columns = expected2.columns.astype("str")
     write_dataframe(expected2, filename, layer="layer2", append=True)
 
     assert np.array_equal(
@@ -385,7 +394,7 @@ def test_read_null_values(tmp_path, use_arrow):
     df = read_dataframe(filename, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert np.array_equal(df.col.values, expected.col.values)
+    assert df["col"].isna().all()
 
 
 def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
@@ -698,6 +707,13 @@ def test_read_skip_features(naturalearth_lowres_all_ext, use_arrow, skip_feature
     is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
+
+    if skip_features == 200 and not use_arrow:
+        # result is an empty dataframe, so no proper dtype inference happens
+        # for the numpy object dtype arrays
+        df[["continent", "name", "iso_a3"]] = df[
+            ["continent", "name", "iso_a3"]
+        ].astype("str")
 
     assert_geodataframe_equal(
         df,
@@ -1180,6 +1196,10 @@ def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
     # For older pandas versions, the index is created as Object dtype but read as
     # RangeIndex, so don't check the index dtype in that case.
     check_index_type = True if PANDAS_GE_20 else False
+    # with pandas 3+ and reading through arrow, we preserve the string dtype
+    # (no proper dtype inference happens for the empty numpy object dtype arrays)
+    if use_arrow and dtype is object:
+        expected["col_object"] = expected["col_object"].astype("str")
     assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
@@ -1214,7 +1234,11 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert filename.exists()
 
     result_gdf = read_dataframe(filename, use_arrow=use_arrow)
-    assert result_gdf.object_col.dtype == object
+    if PANDAS_GE_30 and use_arrow:
+        assert result_gdf.object_col.dtype == "str"
+        gdf["object_col"] = gdf["object_col"].astype("str")
+    else:
+        assert result_gdf.object_col.dtype == object
     assert_geodataframe_equal(result_gdf, gdf)
 
 
@@ -1658,11 +1682,13 @@ def test_write_read_mixed_column_values(tmp_path):
     write_dataframe(test_gdf, output_path)
     output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
-    for idx, value in enumerate(mixed_values):
-        if value in (None, np.nan):
-            assert output_gdf["mixed"][idx] is None
-        else:
-            assert output_gdf["mixed"][idx] == str(value)
+    # mixed values as object dtype are currently written as strings
+    # (but preserving nulls)
+    expected = pd.Series(
+        [str(value) if value not in (None, np.nan) else None for value in mixed_values],
+        name="mixed",
+    )
+    assert_series_equal(output_gdf["mixed"], expected)
 
 
 @requires_arrow_write_api
@@ -1695,8 +1721,8 @@ def test_write_read_null(tmp_path, use_arrow):
     assert pd.isna(result_gdf["float64"][1])
     assert pd.isna(result_gdf["float64"][2])
     assert result_gdf["object_str"][0] == "test"
-    assert result_gdf["object_str"][1] is None
-    assert result_gdf["object_str"][2] is None
+    assert pd.isna(result_gdf["object_str"][1])
+    assert pd.isna(result_gdf["object_str"][2])
 
 
 @pytest.mark.requires_arrow_write_api
@@ -1927,6 +1953,10 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
+    if GDAL_GE_311 and use_arrow:
+        # GDAL 3.11 started to use json extension type, which is not yet handled
+        # correctly in the arrow->pandas conversion (using object instead of str dtype)
+        expected["intermediate_level"] = expected["intermediate_level"].astype(object)
 
     assert_geodataframe_equal(df, expected)
 
@@ -1972,7 +2002,7 @@ def test_write_nullable_dtypes(tmp_path, use_arrow):
     expected["col2"] = expected["col2"].astype("float64")
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
-    expected["col5"] = expected["col5"].astype(object)
+    expected["col5"] = expected["col5"].astype("str")
     expected.loc[1, "col5"] = None  # pandas converts to pd.NA on line above
     assert_geodataframe_equal(output_gdf, expected)
 

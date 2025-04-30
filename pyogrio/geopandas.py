@@ -5,7 +5,14 @@ import warnings
 
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE_22
+from pyogrio._compat import (
+    HAS_GEOPANDAS,
+    PANDAS_GE_15,
+    PANDAS_GE_20,
+    PANDAS_GE_22,
+    PANDAS_GE_30,
+    PYARROW_GE_19,
+)
 from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -52,13 +59,13 @@ def _try_parse_datetime(ser):
         except Exception:
             res = ser
     # if object dtype, try parse as utc instead
-    if res.dtype == "object":
+    if res.dtype in ("object", "string"):
         try:
             res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
         except Exception:
             pass
 
-    if res.dtype != "object":
+    if res.dtype.kind == "M":  # any datetime64
         # GDAL only supports ms precision, convert outputs to match.
         # Pandas 2.0 supports datetime[ms] directly, prior versions only support [ns],
         # Instead, round the values to [ms] precision.
@@ -285,11 +292,31 @@ def read_dataframe(
     )
 
     if use_arrow:
+        import pyarrow as pa
+
         meta, table = result
 
         # split_blocks and self_destruct decrease memory usage, but have as side effect
         # that accessing table afterwards causes crash, so del table to avoid.
         kwargs = {"self_destruct": True}
+        if PANDAS_GE_30:
+            # starting with pyarrow 19.0, pyarrow will correctly handle this themselves,
+            # so only use types_mapper as workaround for older versions
+            if not PYARROW_GE_19:
+                kwargs["types_mapper"] = {
+                    pa.string(): pd.StringDtype(na_value=np.nan),
+                    pa.large_string(): pd.StringDtype(na_value=np.nan),
+                    pa.json_(): pd.StringDtype(na_value=np.nan),
+                }.get
+            # TODO enable the below block when upstream issue to accept extension types
+            # is fixed
+            # else:
+            #     # for newer pyarrow, still include mapping for json
+            #     # GDAL 3.11 started to emit this extension type, but pyarrow does not
+            #     # yet support it properly in the conversion to pandas
+            #     kwargs["types_mapper"] = {
+            #         pa.json_(): pd.StringDtype(na_value=np.nan),
+            #     }.get
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
         df = table.to_pandas(**kwargs)
