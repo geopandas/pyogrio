@@ -96,7 +96,7 @@ jobs:
 
   build-wheels-linux:
     name: Build wheels on Linux
-    runs-on: "ubuntu-latest"
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -104,10 +104,19 @@ jobs:
           # use manylinux2014 for older glibc platforms until discontinued
           - wheel_name: "pyogrio-wheel-linux-manylinux2014_x86_64"
             container: "ci/manylinux2014_x86_64-vcpkg-gdal.Dockerfile"
+            os: ubuntu-latest
+            arch: x86_64
 
           # use manylinux_2_28 for any platforms with glibc>=2.28
           - wheel_name: "pyogrio-wheel-linux-manylinux_2_28_x86_64"
             container: "ci/manylinux_2_28_x86_64-vcpkg-gdal.Dockerfile"
+            os: ubuntu-latest
+            arch: x86_64
+
+          - wheel_name: "pyogrio-wheel-linux-manylinux_2_28_aarch64"
+            container: "ci/manylinux_2_28_aarch64-vcpkg-gdal.Dockerfile"
+            os: ubuntu-24.04-arm
+            arch: aarch64
 
     steps:
       - name: Checkout
@@ -128,7 +137,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.container }}
-          tags: manylinux-vcpkg-gdal:latest
+          tags: manylinux-${{ matrix.arch }}-vcpkg-gdal:latest
           push: false
           load: true
           cache-from: type=gha
@@ -243,6 +252,7 @@ jobs:
           [
             "ubuntu-latest",
             "ubuntu-22.04",
+            "ubuntu-24.04-arm",
             "windows-latest",
             "macos-13",
             "macos-latest",
@@ -255,6 +265,8 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
           - os: "ubuntu-22.04"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
+          - os: "ubuntu-24.04-arm"
+            artifact: pyogrio-wheel-linux-manylinux_2_28_aarch64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
           - os: "macos-13"
