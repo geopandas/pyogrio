@@ -493,10 +493,17 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
     if use_arrow and naturalearth_lowres_all_ext.suffix == ".gpkg":
         # https://github.com/OSGeo/gdal/issues/8492
         request.node.add_marker(pytest.mark.xfail(reason="GDAL doesn't error for GPGK"))
-    with pytest.raises(ValueError, match="Invalid SQL"):
-        read_dataframe(
-            naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
-        )
+
+    if naturalearth_lowres_all_ext.suffix == ".gpkg" and __gdal_version__ >= (3, 11, 0):
+        with pytest.raises(DataLayerError, match="no such column"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
+    else:
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
 
 
 def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
