@@ -6,7 +6,14 @@ from datetime import datetime
 
 import numpy as np
 
-from pyogrio._compat import HAS_GEOPANDAS, PANDAS_GE_15, PANDAS_GE_20, PANDAS_GE_22
+from pyogrio._compat import (
+    HAS_GEOPANDAS,
+    PANDAS_GE_15,
+    PANDAS_GE_20,
+    PANDAS_GE_22,
+    PANDAS_GE_30,
+    PYARROW_GE_19,
+)
 from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
@@ -54,7 +61,7 @@ def _try_parse_datetime(ser):
         except Exception:
             res = ser
 
-    if res.dtype != "object":
+    if res.dtype.kind == "M":  # any datetime64
         # GDAL only supports ms precision, convert outputs to match.
         # Pandas 2.0 supports datetime[ms] directly, prior versions only support [ns],
         # Instead, round the values to [ms] precision.
@@ -282,14 +289,42 @@ def read_dataframe(
     )
 
     if use_arrow:
+        import pyarrow as pa
+
         meta, table = result
 
         # split_blocks and self_destruct decrease memory usage, but have as side effect
         # that accessing table afterwards causes crash, so del table to avoid.
         kwargs = {"self_destruct": True}
+        if PANDAS_GE_30:
+            # starting with pyarrow 19.0, pyarrow will correctly handle this themselves,
+            # so only use types_mapper as workaround for older versions
+            if not PYARROW_GE_19:
+                kwargs["types_mapper"] = {
+                    pa.string(): pd.StringDtype(na_value=np.nan),
+                    pa.large_string(): pd.StringDtype(na_value=np.nan),
+                    pa.json_(): pd.StringDtype(na_value=np.nan),
+                }.get
+            # TODO enable the below block when upstream issue to accept extension types
+            # is fixed
+            # else:
+            #     # for newer pyarrow, still include mapping for json
+            #     # GDAL 3.11 started to emit this extension type, but pyarrow does not
+            #     # yet support it properly in the conversion to pandas
+            #     kwargs["types_mapper"] = {
+            #         pa.json_(): pd.StringDtype(na_value=np.nan),
+            #     }.get
         if arrow_to_pandas_kwargs is not None:
             kwargs.update(arrow_to_pandas_kwargs)
-        df = table.to_pandas(**kwargs)
+
+        try:
+            df = table.to_pandas(**kwargs)
+        except UnicodeDecodeError as ex:
+            # Arrow does not support reading data in a non-UTF-8 encoding
+            raise DataSourceError(
+                "The file being read is not encoded in UTF-8; please use_arrow=False"
+            ) from ex
+
         del table
 
         # convert datetime columns that were read as string to datetime
@@ -612,6 +647,15 @@ def write_dataframe(
             table = _add_column_metadata(
                 table, column_metadata={datetime_col: {"GDAL:OGR:type": "DateTime"}}
             )
+
+        # Null arrow columns are not supported by GDAL, so convert to string
+        for field_index, field in enumerate(table.schema):
+            if field.type == pa.null():
+                table = table.set_column(
+                    field_index,
+                    field.with_type(pa.string()),
+                    table[field_index].cast(pa.string()),
+                )
 
         if geometry_column is not None:
             # ensure that the geometry column is binary (for all-null geometries,

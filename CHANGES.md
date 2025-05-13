@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.11.0 (TBD)
+## 0.11.0 (2025-05-08)
 
 ### Improvements
 
@@ -8,21 +8,26 @@
 -   Improve support for datetime columns (#486).
 -   Add support to read and write ".gpkg.zip" (GDAL >= 3.7), ".shp.zip", and ".shz"
     files (#527).
+-   Compatibility with the string dtype in the upcoming pandas 3.0 release (#493).
 
 ### Bug fixes
 
 -   Fix WKB writing on big-endian systems (#497).
--   Fix writing fids to e.g. GPKG file with use_arrow (#511).
+-   Fix writing fids to e.g. GPKG file with `use_arrow` (#511).
+-   Fix error in `write_dataframe` when writing an empty or all-None object
+    column with `use_arrow` (#512).
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.2 (#499).
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.3 (#499).
 
 ## 0.10.0 (2024-09-28)
 
 ### Improvements
 
 -   Add support to read, write, list, and remove `/vsimem/` files (#457).
+-   Raise specific error when trying to read non-UTF-8 file with
+    `use_arrow=True` (#490).
 
 ### Bug fixes
 
