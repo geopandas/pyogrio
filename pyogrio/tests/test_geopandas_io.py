@@ -18,10 +18,12 @@ from pyogrio import (
 )
 from pyogrio._compat import (
     GDAL_GE_37,
+    GDAL_GE_311,
     GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    PANDAS_GE_30,
     SHAPELY_GE_21,
 )
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
@@ -101,8 +103,20 @@ def spatialite_available(path):
         return False
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-def test_read_csv_encoding(tmp_path, encoding):
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_pyarrow_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_read_csv_encoding(tmp_path, encoding, arrow):
+    """ "Test reading CSV files with different encodings.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -113,7 +127,7 @@ def test_read_csv_encoding(tmp_path, encoding):
     # Read csv. The data should be read with the same default encoding as the csv file
     # was written in, but should have been converted to utf-8 in the dataframe returned.
     # Hence, the asserts below, with strings in utf-8, be OK.
-    df = read_dataframe(csv_path, encoding=encoding)
+    df = read_dataframe(csv_path, encoding=encoding, use_arrow=arrow)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
@@ -125,19 +139,29 @@ def test_read_csv_encoding(tmp_path, encoding):
     locale.getpreferredencoding().upper() == "UTF-8",
     reason="test requires non-UTF-8 default platform",
 )
-def test_read_csv_platform_encoding(tmp_path):
-    """verify that read defaults to platform encoding; only works on Windows (CP1252)"""
+def test_read_csv_platform_encoding(tmp_path, use_arrow):
+    """Verify that read defaults to platform encoding; only works on Windows (CP1252).
+
+    When use_arrow=True, reading an non-UTF8 fails.
+    """
     csv_path = tmp_path / "test.csv"
     with open(csv_path, "w", encoding=locale.getpreferredencoding()) as csv:
         csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
-    df = read_dataframe(csv_path)
+    if use_arrow:
+        with pytest.raises(
+            DataSourceError,
+            match="; please use_arrow=False",
+        ):
+            df = read_dataframe(csv_path, use_arrow=use_arrow)
+    else:
+        df = read_dataframe(csv_path, use_arrow=use_arrow)
 
-    assert len(df) == 1
-    assert df.columns.tolist() == ["näme", "city"]
-    assert df.city.tolist() == ["Zürich"]
-    assert df.näme.tolist() == ["Wilhelm Röntgen"]
+        assert len(df) == 1
+        assert df.columns.tolist() == ["näme", "city"]
+        assert df.city.tolist() == ["Zürich"]
+        assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
@@ -256,6 +280,11 @@ def test_read_layer(tmp_path, use_arrow):
 
     # create a multilayer GPKG
     expected1 = gp.GeoDataFrame(geometry=[Point(0, 0)], crs="EPSG:4326")
+    if use_arrow:
+        # TODO this needs to be fixed on the geopandas side (to ensure the
+        # GeoDataFrame() constructor does this), when use_arrow we already
+        # get columns Index with string dtype
+        expected1.columns = expected1.columns.astype("str")
     write_dataframe(
         expected1,
         filename,
@@ -263,6 +292,8 @@ def test_read_layer(tmp_path, use_arrow):
     )
 
     expected2 = gp.GeoDataFrame(geometry=[Point(1, 1)], crs="EPSG:4326")
+    if use_arrow:
+        expected2.columns = expected2.columns.astype("str")
     write_dataframe(expected2, filename, layer="layer2", append=True)
 
     assert np.array_equal(
@@ -385,7 +416,7 @@ def test_read_null_values(tmp_path, use_arrow):
     df = read_dataframe(filename, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert np.array_equal(df.col.values, expected.col.values)
+    assert df["col"].isna().all()
 
 
 def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
@@ -462,10 +493,17 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
     if use_arrow and naturalearth_lowres_all_ext.suffix == ".gpkg":
         # https://github.com/OSGeo/gdal/issues/8492
         request.node.add_marker(pytest.mark.xfail(reason="GDAL doesn't error for GPGK"))
-    with pytest.raises(ValueError, match="Invalid SQL"):
-        read_dataframe(
-            naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
-        )
+
+    if naturalearth_lowres_all_ext.suffix == ".gpkg" and __gdal_version__ >= (3, 11, 0):
+        with pytest.raises(DataLayerError, match="no such column"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
+    else:
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
 
 
 def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
@@ -698,6 +736,13 @@ def test_read_skip_features(naturalearth_lowres_all_ext, use_arrow, skip_feature
     is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
+
+    if skip_features == 200 and not use_arrow:
+        # result is an empty dataframe, so no proper dtype inference happens
+        # for the numpy object dtype arrays
+        df[["continent", "name", "iso_a3"]] = df[
+            ["continent", "name", "iso_a3"]
+        ].astype("str")
 
     assert_geodataframe_equal(
         df,
@@ -967,9 +1012,20 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-def test_write_csv_encoding(tmp_path, encoding):
-    """Test if write_dataframe uses the default encoding correctly."""
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_arrow_write_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_write_csv_encoding(tmp_path, encoding, arrow):
+    """Test if write_dataframe uses the default encoding correctly.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -982,7 +1038,7 @@ def test_write_csv_encoding(tmp_path, encoding):
     # same encoding as above.
     df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
     csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
-    write_dataframe(df, csv_pyogrio_path, encoding=encoding)
+    write_dataframe(df, csv_pyogrio_path, encoding=encoding, use_arrow=arrow)
 
     # Check if the text files written both ways can be read again and give same result.
     with open(csv_path, encoding=encoding) as csv:
@@ -1153,16 +1209,38 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+@pytest.mark.parametrize(
+    "columns, dtype",
+    [
+        ([], None),
+        (["col_int"], np.int64),
+        (["col_float"], np.float64),
+        (["col_object"], object),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
-def test_write_empty_dataframe(tmp_path, ext, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    """Test writing dataframe with no rows.
 
+    With use_arrow, object type columns with no rows are converted to null type columns
+    by pyarrow, but null columns are not supported by GDAL. Added to test fix for #513.
+    """
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
-    df = read_dataframe(filename)
-    assert_geodataframe_equal(df, expected)
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    # Check result
+    # For older pandas versions, the index is created as Object dtype but read as
+    # RangeIndex, so don't check the index dtype in that case.
+    check_index_type = True if PANDAS_GE_20 else False
+    # with pandas 3+ and reading through arrow, we preserve the string dtype
+    # (no proper dtype inference happens for the empty numpy object dtype arrays)
+    if use_arrow and dtype is object:
+        expected["col_object"] = expected["col_object"].astype("str")
+    assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
 def test_write_empty_geometry(tmp_path):
@@ -1180,6 +1258,28 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_None_string_column(tmp_path, use_arrow):
+    """Test pandas object columns with all None values.
+
+    With use_arrow, such columns are converted to null type columns by pyarrow, but null
+    columns are not supported by GDAL. Added to test fix for #513.
+    """
+    gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+    assert filename.exists()
+
+    result_gdf = read_dataframe(filename, use_arrow=use_arrow)
+    if PANDAS_GE_30 and use_arrow:
+        assert result_gdf.object_col.dtype == "str"
+        gdf["object_col"] = gdf["object_col"].astype("str")
+    else:
+        assert result_gdf.object_col.dtype == object
+    assert_geodataframe_equal(result_gdf, gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
@@ -1622,11 +1722,13 @@ def test_write_read_mixed_column_values(tmp_path):
     write_dataframe(test_gdf, output_path)
     output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
-    for idx, value in enumerate(mixed_values):
-        if value in (None, np.nan):
-            assert output_gdf["mixed"][idx] is None
-        else:
-            assert output_gdf["mixed"][idx] == str(value)
+    # mixed values as object dtype are currently written as strings
+    # (but preserving nulls)
+    expected = pd.Series(
+        [str(value) if value not in (None, np.nan) else None for value in mixed_values],
+        name="mixed",
+    )
+    assert_series_equal(output_gdf["mixed"], expected)
 
 
 @requires_arrow_write_api
@@ -1659,8 +1761,8 @@ def test_write_read_null(tmp_path, use_arrow):
     assert pd.isna(result_gdf["float64"][1])
     assert pd.isna(result_gdf["float64"][2])
     assert result_gdf["object_str"][0] == "test"
-    assert result_gdf["object_str"][1] is None
-    assert result_gdf["object_str"][2] is None
+    assert pd.isna(result_gdf["object_str"][1])
+    assert pd.isna(result_gdf["object_str"][2])
 
 
 @pytest.mark.requires_arrow_write_api
@@ -1891,6 +1993,10 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
+    if GDAL_GE_311 and use_arrow:
+        # GDAL 3.11 started to use json extension type, which is not yet handled
+        # correctly in the arrow->pandas conversion (using object instead of str dtype)
+        expected["intermediate_level"] = expected["intermediate_level"].astype(object)
 
     assert_geodataframe_equal(df, expected)
 
@@ -1936,7 +2042,7 @@ def test_write_nullable_dtypes(tmp_path, use_arrow):
     expected["col2"] = expected["col2"].astype("float64")
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
-    expected["col5"] = expected["col5"].astype(object)
+    expected["col5"] = expected["col5"].astype("str")
     expected.loc[1, "col5"] = None  # pandas converts to pd.NA on line above
     assert_geodataframe_equal(output_gdf, expected)
 
@@ -2259,7 +2365,10 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
 
     if use_arrow:
         # pyarrow cannot decode column name with incorrect encoding
-        with pytest.raises(UnicodeDecodeError):
+        with pytest.raises(
+            DataSourceError,
+            match="The file being read is not encoded in UTF-8; please use_arrow=False",
+        ):
             read_dataframe(output_path, use_arrow=True)
     else:
         bad = read_dataframe(output_path, use_arrow=False)

@@ -43,7 +43,7 @@ Repository = "https://github.com/geopandas/pyogrio"
 [tool.cibuildwheel]
 skip = ["pp*", "*musllinux*"]
 archs = ["auto64"]
-manylinux-x86_64-image = "manylinux-vcpkg-gdal:latest"
+manylinux-x86_64-image = "manylinux-x86_64-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
 build-verbosity = 3
 
