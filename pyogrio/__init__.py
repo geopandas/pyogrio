@@ -4,7 +4,9 @@ try:
     # we try importing shapely, to ensure it is imported (and it can load its
     # own GEOS copy) before we load GDAL and its linked GEOS
     import shapely
-    import shapely.geos  # noqa: F401
+
+    if shapely.__version__ < "2.0.0":
+        import shapely.geos
 except Exception:
     pass
 
