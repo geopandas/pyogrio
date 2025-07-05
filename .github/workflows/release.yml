@@ -145,18 +145,11 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
-      - name: Upload vcpkg freexl out logs to Github
-        uses: actions/upload-artifact@v3
+      - name: Upload vcpkg freexl build logs to Github
+        uses: actions/upload-artifact@v4
         with:
-          name: vcpkg out logs
-          path: /opt/vcpkg/buildtrees/freexl/autoconf-x64-linux-dynamic-release-out.log
-          retention-days: 10
-
-      - name: Upload vcpkg freexl err logs to Github
-        uses: actions/upload-artifact@v3
-        with:
-          name: vcpkg out logs
-          path: /opt/vcpkg/buildtrees/freexl/autoconf-x64-linux-dynamic-release-err.log
+          name: vcpkg freexl build logs
+          path: /opt/vcpkg/buildtrees/freexl/*.log
           retention-days: 10
 
       - name: Build wheels
