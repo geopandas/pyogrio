@@ -155,7 +155,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Docker logs
+          name: dumped-docker-logs
           path: ./logs/*.*
 
       - name: Upload vcpkg build logs
