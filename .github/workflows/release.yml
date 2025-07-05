@@ -145,11 +145,12 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
-      - name: Upload vcpkg freexl build logs to Github
+      - name: Upload vcpkg build logs
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: vcpkg freexl build logs
-          path: /opt/vcpkg/buildtrees/freexl/*.log
+          name: pyogrio-vcpkg-logs-${{ matrix.wheel_name }}
+          path: /opt/vcpkg/buildtrees/**/*.log"
           retention-days: 10
 
       - name: Build wheels
