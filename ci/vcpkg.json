@@ -3,6 +3,10 @@
     "version": "0.11.0",
     "dependencies": [
         {
+            "name": "libspatialite",
+            "default-features": false
+        },
+        {
             "name": "gdal",
             "default-features": false,
             "features": [
@@ -11,12 +15,9 @@
                 "geos",
                 "iconv",
                 "openssl",
-                "libkml"
+                "libkml",
+                "libspatialite"
             ]
-        },
-        {
-            "name": "libspatialite",
-            "default-features": false
         }
     ],
     "builtin-baseline": "66c1c9852bb30bd87285e77cc775072046d51fc6"
