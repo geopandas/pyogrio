@@ -145,25 +145,12 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
-      - name: Dump docker logs on failure
-        if: failure()
-        uses: jwalton/gh-docker-logs@v2
-        with:
-          dest: './logs'
-
-      - name: Upload logs to GitHub
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dumped-docker-logs
-          path: ./logs/*.*
-
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.wheel_name }}
-          path: "opt/vcpkg/buildtrees/freexl/*.log"
+          path: "opt/vcpkg/**/*autoconf*.log"
           retention-days: 10
 
       - name: Build wheels
