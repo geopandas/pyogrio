@@ -15,8 +15,7 @@
                 "geos",
                 "iconv",
                 "openssl",
-                "libkml",
-                "libspatialite"
+                "libkml"
             ]
         }
     ],
