@@ -12,7 +12,10 @@
                 "iconv",
                 "openssl",
                 "libkml",
-                "libspatialite"
+                {
+                    "name": "libspatialite",
+                    "default-features": false
+                }
             ]
         }
     ],
