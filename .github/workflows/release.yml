@@ -150,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.wheel_name }}
-          path: /opt/vcpkg/buildtrees/**/*.log"
+          path: /opt/vcpkg/buildtrees/**/*.log
           retention-days: 10
 
       - name: Build wheels
