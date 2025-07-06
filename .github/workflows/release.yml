@@ -151,7 +151,7 @@ jobs:
       - name: Copy log files from Docker container
         if: ${{ failure() }}
         run: |
-          docker cp manylinux-${{ matrix.arch }}-vcpkg-gdal:latest:/usr/local/share/vcpkg/buildtrees/libspatialite/*.log" ~
+          docker cp manylinux-${{ matrix.arch }}-vcpkg-gdal:latest:/usr/local/share/vcpkg/buildtrees/libspatialite/*.log ~/
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
