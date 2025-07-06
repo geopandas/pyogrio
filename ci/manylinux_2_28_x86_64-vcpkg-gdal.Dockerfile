@@ -21,7 +21,7 @@ RUN bootstrap-vcpkg.sh && \
 COPY ci/custom-triplets/x64-linux-dynamic-release.cmake /usr/local/share/vcpkg/custom-triplets/x64-linux-dynamic-release.cmake
 COPY ci/vcpkg.json /usr/local/share/vcpkg/
 
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic-release/lib"
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/share/vcpkg/installed/x64-linux-dynamic-release/lib"
 RUN vcpkg install --overlay-triplets=/usr/local/share/vcpkg/custom-triplets \
     --feature-flags="versions,manifests" \
     --x-manifest-root=/usr/local/share/vcpkg \
