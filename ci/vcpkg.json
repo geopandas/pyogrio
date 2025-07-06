@@ -4,7 +4,10 @@
     "dependencies": [
         {
             "name": "libspatialite",
-            "default-features": false
+            "default-features": false,
+            "features": [
+                "rttopo"
+            ]
         },
         {
             "name": "gdal",
