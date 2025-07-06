@@ -148,12 +148,17 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
+      - name: Copy log files from Docker container
+        if: ${{ failure() }}
+        run: |
+          docker cp manylinux-${{ matrix.arch }}-vcpkg-gdal:latest:/usr/local/share/vcpkg/buildtrees/libspatialite/*.log" ~
+
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.wheel_name }}
-          path: ${{ matrix.vcpkg_logs }}
+          path: ~/*.log
           retention-days: 10
 
       - name: Build wheels
