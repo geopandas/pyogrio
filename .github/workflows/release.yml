@@ -152,7 +152,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          pattern: !*.dockerbuild
+          pattern: "!*.dockerbuild"
 
       - name: Display structure of downloaded files
         run: ls -R
