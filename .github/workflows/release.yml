@@ -148,10 +148,14 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
-      - name: Copy log files from Docker container
+      - name: Upload artifacts
         if: ${{ failure() }}
-        run: |
-          docker cp manylinux-${{ matrix.arch }}-vcpkg-gdal-latest:/usr/local/share/vcpkg/buildtrees/libspatialite/*.log ~/
+        uses: actions/upload-artifact@v4
+        with:
+          pattern: !*.dockerbuild
+
+      - name: Display structure of downloaded files
+        run: ls -R
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
