@@ -1734,7 +1734,9 @@ def ogr_open_arrow(
         if skip_features > 0:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
-            apply_skip_features(ogr_layer, skip_features)
+            # use `OGR_L_SetNextByIndex` directly and not `apply_skip_features`
+            # to ignore errors in case skip_features == feature_count
+            OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         if use_pyarrow:
             import pyarrow as pa
