@@ -759,12 +759,22 @@ def test_read_negative_skip_features(naturalearth_lowres, use_arrow):
         read_dataframe(naturalearth_lowres, skip_features=-1, use_arrow=use_arrow)
 
 
+@pytest.mark.parametrize("skip_features", [0, 10, 200])
 @pytest.mark.parametrize("max_features", [10, 100])
-def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features):
+def test_read_max_features(
+    naturalearth_lowres_all_ext, use_arrow, max_features, skip_features
+):
     ext = naturalearth_lowres_all_ext.suffix
-    expected = read_dataframe(naturalearth_lowres_all_ext).iloc[:max_features]
+    expected = (
+        read_dataframe(naturalearth_lowres_all_ext)
+        .iloc[skip_features : skip_features + max_features]
+        .reset_index(drop=True)
+    )
     df = read_dataframe(
-        naturalearth_lowres_all_ext, max_features=max_features, use_arrow=use_arrow
+        naturalearth_lowres_all_ext,
+        skip_features=skip_features,
+        max_features=max_features,
+        use_arrow=use_arrow,
     )
 
     assert len(df) == len(expected)
