@@ -788,7 +788,7 @@ cdef apply_skip_features(OGRLayerH ogr_layer, int skip_features):
         except CPLE_BaseError as exc:
             raise ValueError(str(exc))
 
-        raise ValueError("Applying skip_features raised an error")
+        raise ValueError(f"Applying {skip_features=} raised an error")
 
 
 cdef validate_feature_range(
