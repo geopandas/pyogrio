@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 0.11.1 (2025-08-XX)
+
+### Bug fixes
+
+-   Compatibility with Shapely >= 2.1 to avoid triggering a deprecation warning at
+    import (#542).
+
+
 ## 0.11.0 (2025-05-08)
 
 ### Improvements
