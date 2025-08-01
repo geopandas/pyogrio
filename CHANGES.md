@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 0.11.1 (2025-08-XX)
+
+### Bug fixes
+
+-   Fix reading with a `skip_features` larger than the available number of
+    features to ensure this consistently returns an empty result for all file
+    formats (#550).
+
+
 ## 0.11.0 (2025-05-08)
 
 ### Improvements
