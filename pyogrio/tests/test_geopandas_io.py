@@ -785,6 +785,13 @@ def test_read_max_features(
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
 
+    if len(expected) == 0 and not use_arrow:
+        # for pandas >= 3, the column has string dtype but when reading it as
+        # empty result, it gets inferred as object dtype
+        expected["continent"] = expected["continent"].astype("object")
+        expected["name"] = expected["name"].astype("object")
+        expected["iso_a3"] = expected["iso_a3"].astype("object")
+
     assert_geodataframe_equal(
         df,
         expected,
