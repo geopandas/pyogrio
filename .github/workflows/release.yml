@@ -173,7 +173,7 @@ jobs:
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "windows-2019"
+          - os: "windows-2022"
             triplet: "x64-windows-dynamic-release"
             arch: AMD64
             # windows requires windows-specific paths
