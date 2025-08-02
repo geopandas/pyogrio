@@ -1502,6 +1502,7 @@ def ogr_open_arrow(
     int return_fids=False,
     int batch_size=0,
     use_pyarrow=False,
+    datetime_as_string=False,
 ):
 
     cdef int err = 0
@@ -1722,6 +1723,12 @@ def ogr_open_arrow(
                 "GEOARROW".encode("UTF-8")
             )
 
+        # Read DateTime fields as strings, as the Arrow DateTime column type is
+        # quite limited regarding support for mixed timezones,...
+        IF CTE_GDAL_VERSION >= (3, 11, 0):
+            if datetime_as_string:
+                options = CSLSetNameValue(options, "DATETIME_AS_STRING", "YES")
+
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
 
@@ -1749,6 +1756,7 @@ def ogr_open_arrow(
             "crs": crs,
             "encoding": encoding,
             "fields": fields[:, 2],
+            "dtypes": fields[:, 3],
             "geometry_type": geometry_type,
             "geometry_name": geometry_name,
             "fid_column": fid_column,
