@@ -38,7 +38,7 @@ def _stringify_path(path):
     return path
 
 
-def _try_parse_datetime(ser):
+def _try_parse_datetime(ser, datetimes="UTC"):
     import pandas as pd  # only called when pandas is known to be installed
 
     if PANDAS_GE_22:
@@ -47,6 +47,17 @@ def _try_parse_datetime(ser):
         datetime_kwargs = {"format": "ISO8601", "errors": "ignore"}
     else:
         datetime_kwargs = {"yearfirst": True}
+
+    datetimes = datetimes.upper()
+    if datetimes == "UTC":
+        datetime_kwargs["utc"] = True
+    elif datetimes == "DATETIME":
+        datetime_kwargs["utc"] = False
+    else:
+        raise ValueError(
+            f"Invalid value for 'datetimes': {datetimes!r}. "
+            "Must be 'UTC' or 'DATETIME'."
+        )
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -93,6 +104,7 @@ def read_dataframe(
     use_arrow=None,
     on_invalid="raise",
     arrow_to_pandas_kwargs=None,
+    datetimes="UTC",
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -220,6 +232,18 @@ def read_dataframe(
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
+    datetimes : str, optional (default: "UTC")
+        The way datetime columns are returned. Possible values:
+
+        - **"UTC"**: all datetime columns will be returned as pandas datetime64 columns
+          converted to UTC. Naive datetimes (without timezone information) will be
+          assumed to be in UTC timezone.
+        - **"DATETIME"**: datetimes will be returned in the timezone as they were read
+          from the data source. Columns with values in a single timezone or without
+          timezone information will be returned as pandas datetime64 columns.
+          Columns with mixed timezone data are returned as object columns with
+          pandas.Timestamp values.
+
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
         options will trigger a warning.
@@ -330,7 +354,7 @@ def read_dataframe(
         # convert datetime columns that were read as string to datetime
         for dtype, column in zip(meta["dtypes"], meta["fields"]):
             if dtype is not None and dtype.startswith("datetime"):
-                df[column] = _try_parse_datetime(df[column])
+                df[column] = _try_parse_datetime(df[column], datetimes=datetimes)
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
@@ -363,7 +387,7 @@ def read_dataframe(
     df = pd.DataFrame(data, columns=columns, index=index)
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
-            df[c] = _try_parse_datetime(df[c])
+            df[c] = _try_parse_datetime(df[c], datetimes=datetimes)
 
     if geometry is None or not read_geometry:
         return df
