@@ -1056,8 +1056,8 @@ def test_read_datetime_as_string(datetime_tz_file):
 
     if __gdal_version__ < (3, 7, 0):
         # With GDAL < 3.7, timezone minutes aren't included in the string
-        assert field[0] == "2020-01-01T09:00:00.123-05"
-        assert field[1] == "2020-01-01T10:00:00-05"
+        assert field[0] == "2020/01/01 09:00:00.123-05"
+        assert field[1] == "2020/01/01 10:00:00-05"
     else:
         assert field[0] == "2020-01-01T09:00:00.123-05:00"
         assert field[1] == "2020-01-01T10:00:00-05:00"

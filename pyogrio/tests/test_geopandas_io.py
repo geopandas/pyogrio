@@ -671,9 +671,9 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
                 if pd.notna(x)
                 else None
             )
-        if __gdal_version__ < (3, 7, 0):
-            # With GDAL < 3.7, timezone minutes aren't included in the string
-            exp_df.dates = exp_df.dates.str.slice(0, -3)
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, timezone minutes aren't included in the string
+                exp_df.dates = exp_df.dates.str.slice(0, -3)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
     assert_geodataframe_equal(result, exp_df, check_dtype=False)
@@ -725,8 +725,8 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
         else:
             dates_str = pd.Series(dates_raw, name="dates")
             if __gdal_version__ < (3, 7, 0):
-                # With GDAL < 3.7, timezone minutes aren't included in the string
-                dates_str = dates_str.str.slice(0, -3)
+                # With GDAL < 3.7, datetime ends with +00 for UTC, not Z
+                dates_str = dates_str.str.replace("Z", "+00")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
