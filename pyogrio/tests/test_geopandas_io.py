@@ -344,6 +344,32 @@ def test_read_datetimes_invalid_param(datetime_file, use_arrow):
         read_dataframe(datetime_file, use_arrow=use_arrow, datetimes="INVALID")
 
 
+@pytest.mark.parametrize("datetimes", ["UTC", "DATETIME", "STRING"])
+def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes):
+    """Test writing/reading a column with a datetime far in the past."""
+    df = read_dataframe(
+        geojson_datetime_long_ago, use_arrow=use_arrow, datetimes=datetimes
+    )
+
+    exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+
+    if datetimes == "UTC":
+        pytest.xfail("datetimes of long ago cannot be parsed as UTC")
+        assert is_datetime64_any_dtype(df.datetime_col.dtype)
+        assert_series_equal(df.datetime_col, exp_dates)
+    elif datetimes == "DATETIME":
+        pytest.xfail("datetimes of long ago cannot be parsed as datetime")
+        assert is_datetime64_dtype(df.datetime_col.dtype)
+        if PANDAS_GE_20:
+            exp_dates = pd.to_datetime(exp_dates, format="ISO8601").as_unit("ms")
+        else:
+            exp_dates = pd.to_datetime(exp_dates)
+        assert_series_equal(df.datetime_col, exp_dates)
+    elif datetimes == "STRING":
+        assert is_string_dtype(df.datetime_col.dtype)
+        assert_series_equal(df.datetime_col, exp_dates)
+
+
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
 @pytest.mark.parametrize("datetimes", ["UTC", "DATETIME", "STRING"])
 @pytest.mark.requires_arrow_write_api

@@ -341,6 +341,27 @@ def geojson_bytes(tmp_path):
 
 
 @pytest.fixture(scope="function")
+def geojson_datetime_long_ago(tmp_path):
+    # create GeoJSON file with datetimes from long ago
+    datetime_tz_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { "datetime_col": "1670-01-01T09:00:00" },
+                "geometry": { "type": "Point", "coordinates": [1, 1] }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_datetime_long_ago.geojson"
+    with open(filename, "w") as f:
+        f.write(datetime_tz_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
 def geojson_filelike(tmp_path):
     """Extracts first 3 records from naturalearth_lowres and writes to GeoJSON,
     returning open file handle"""
