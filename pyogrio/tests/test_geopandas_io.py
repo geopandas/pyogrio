@@ -352,12 +352,19 @@ def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes)
     stay strings.
     Reported in https://github.com/geopandas/pyogrio/issues/553.
     """
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        # With use_arrow and GDAL < 3.11, datetimes are converted to python
+        # objects in to_pandas. For a datetime far in the past this gives an
+        # overflow though.
+        pytest.xfail(
+            "datetimes far in the past overflow is use_arrow is used with GDAL < 3.11"
+        )
+
     df = read_dataframe(
         geojson_datetime_long_ago, use_arrow=use_arrow, datetimes=datetimes
     )
 
     exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
-
     if datetimes == "UTC":
         pytest.xfail("datetimes of long ago cannot be parsed as UTC")
         assert is_datetime64_any_dtype(df.datetime_col.dtype)
