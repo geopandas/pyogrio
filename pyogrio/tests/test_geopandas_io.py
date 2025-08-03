@@ -346,7 +346,12 @@ def test_read_datetimes_invalid_param(datetime_file, use_arrow):
 
 @pytest.mark.parametrize("datetimes", ["UTC", "DATETIME", "STRING"])
 def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes):
-    """Test writing/reading a column with a datetime far in the past."""
+    """Test writing/reading a column with a datetime far in the past.
+
+    Dates from before 1678-1-1 aren't parsed correctly by pandas < 3.0, so they
+    stay strings.
+    Reported in https://github.com/geopandas/pyogrio/issues/553.
+    """
     df = read_dataframe(
         geojson_datetime_long_ago, use_arrow=use_arrow, datetimes=datetimes
     )
