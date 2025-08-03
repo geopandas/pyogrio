@@ -362,12 +362,21 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
 
-    if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
+    if (
+        datetimes is not "UTC"
+        and use_arrow
+        and ext == ".gpkg"
+        and __gdal_version__ < (3, 11, 0)
+    ):
         # With GDAL < 3.11 with arrow, columns with naive datetimes are written
         # correctly, but when read they are wrongly interpreted as being in UTC.
         # The reason is complicated, but more info can be found e.g. here:
         # https://github.com/geopandas/pyogrio/issues/487#issuecomment-2423762807
-        assert_series_equal(result.dates, df.dates.dt.tz_localize("UTC"))
+        if datetimes == "DATETIME":
+            assert_series_equal(result.dates, df.dates.dt.tz_localize("UTC"))
+        elif datetimes == "STRING":
+            exp_dates = df.dates.dt.tz_localize("UTC").astype("string")
+            assert_series_equal(result.dates, exp_dates)
         pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
 
     if datetimes == "UTC":
@@ -381,6 +390,8 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
         result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
@@ -436,9 +447,14 @@ def test_write_read_datetime_tz(tmp_path, ext, datetimes, use_arrow):
     elif datetimes == "DATETIME":
         assert_series_equal(result.dates, df.dates, check_index=False)
     elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
         result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
-        assert_series_equal(result.dates, dates_str, check_index=False)
+        assert_series_equal(
+            result.dates, dates_str, check_index=False, check_dtype=False
+        )
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
@@ -467,6 +483,8 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     elif datetimes == "STRING":
         dates_exp = dates_local_offsets_str.str.replace(" ", "T")
         dates_exp = dates_exp.str.replace(".111000", ".111")
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
     df = gp.GeoDataFrame(
         {"dates": dates_local, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
@@ -492,8 +510,11 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     # GDAL tz only encodes offsets, not timezones
     if datetimes == "UTC":
         assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
-    else:
+    elif datetimes in ("DATETIME", "STRING"):
         assert is_object_dtype(result.dates.dtype)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
     assert_series_equal(result.dates, dates_exp)
 
 
@@ -553,6 +574,8 @@ def test_write_read_datetime_tz_mixed_offsets(tmp_path, ext, datetimes, use_arro
             lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else None
         )
         assert_series_equal(result.dates, dates_str)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
@@ -624,6 +647,8 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
         exp_df.dates = df.dates.map(
             lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else None
         ).str.replace(".000", "")
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
     assert_geodataframe_equal(result, exp_df)
 
 
@@ -653,7 +678,12 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
         and __gdal_version__ < (3, 11, 0)
     ):
         # With GDAL < 3.11 with arrow, timezone information is dropped when reading .fgb
-        assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
+        if datetimes == "DATETIME":
+            assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
+        elif datetimes == "STRING":
+            assert is_string_dtype(result.dates.dtype)
+            exp_dates = df.dates.dt.tz_localize(None).astype("string")
+            assert_series_equal(result.dates, exp_dates, check_dtype=False)
         pytest.xfail("UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow")
 
     if datetimes in ("UTC", "DATETIME"):
@@ -664,6 +694,8 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
         result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
 
 def test_read_null_values(tmp_path, use_arrow):
