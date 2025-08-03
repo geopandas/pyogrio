@@ -13,6 +13,7 @@ from pyogrio._compat import (
     PANDAS_GE_22,
     PANDAS_GE_30,
     PYARROW_GE_19,
+    __gdal_version__,
 )
 from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
@@ -41,15 +42,15 @@ def _stringify_path(path):
 def _try_parse_datetime(ser, datetimes="UTC"):
     import pandas as pd  # only called when pandas is known to be installed
 
-    if PANDAS_GE_22:
-        datetime_kwargs = {"format": "ISO8601"}
-    elif PANDAS_GE_20:
-        datetime_kwargs = {"format": "ISO8601", "errors": "ignore"}
-    else:
-        datetime_kwargs = {"yearfirst": True}
-
     datetimes = datetimes.upper()
-    if datetimes == "UTC":
+    datetime_kwargs = {}
+    if datetimes == "STRING":
+        # do not convert to datetime, return as-is
+        if __gdal_version__ < (3, 7, 0):
+            # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
+            ser = ser.str.replace(" ", "T").str.replace("/", "-")
+        return ser
+    elif datetimes == "UTC":
         datetime_kwargs["utc"] = True
     elif datetimes == "DATETIME":
         datetime_kwargs["utc"] = False
@@ -58,6 +59,14 @@ def _try_parse_datetime(ser, datetimes="UTC"):
             f"Invalid value for 'datetimes': {datetimes!r}. "
             "Must be 'UTC' or 'DATETIME'."
         )
+
+    if PANDAS_GE_22:
+        datetime_kwargs["format"] = "ISO8601"
+    elif PANDAS_GE_20:
+        datetime_kwargs["format"] = "ISO8601"
+        datetime_kwargs["errors"] = "ignore"
+    else:
+        datetime_kwargs["yearfirst"] = True
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
@@ -243,6 +252,7 @@ def read_dataframe(
           timezone information will be returned as pandas datetime64 columns.
           Columns with mixed timezone data are returned as object columns with
           pandas.Timestamp values.
+        - **"STRING"**: all datetime columns will be returned as strings.
 
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
