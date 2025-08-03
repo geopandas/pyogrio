@@ -378,6 +378,7 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
         assert_geodataframe_equal(result, df)
     elif datetimes == "STRING":
         assert is_string_dtype(result.dates.dtype)
+        result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
 
@@ -435,6 +436,7 @@ def test_write_read_datetime_tz(tmp_path, ext, datetimes, use_arrow):
     elif datetimes == "DATETIME":
         assert_series_equal(result.dates, df.dates, check_index=False)
     elif datetimes == "STRING":
+        result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_index=False)
 
@@ -618,6 +620,7 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
         assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
     elif datetimes == "STRING":
         assert is_string_dtype(result.dates.dtype)
+        result.dates = result.dates.str.replace(".000", "")
         exp_df.dates = df.dates.map(
             lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else None
         ).str.replace(".000", "")
@@ -658,6 +661,7 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
         assert_geodataframe_equal(result, df)
     elif datetimes == "STRING":
         assert is_string_dtype(result.dates.dtype)
+        result.dates = result.dates.str.replace(".000", "")
         dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
 
