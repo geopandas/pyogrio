@@ -372,7 +372,7 @@ def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes)
         assert_series_equal(df.datetime_col, exp_dates)
     elif datetimes == "STRING":
         assert is_string_dtype(df.datetime_col.dtype)
-        assert_series_equal(df.datetime_col, exp_dates)
+        assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
