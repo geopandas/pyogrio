@@ -41,14 +41,17 @@ def _stringify_path(path):
 
 def _try_parse_datetime(ser, datetimes="UTC"):
     import pandas as pd  # only called when pandas is known to be installed
+    from pandas.api.types import is_string_dtype
 
     datetimes = datetimes.upper()
     datetime_kwargs = {}
     if datetimes == "STRING":
-        # do not convert to datetime, return as-is
+        if not is_string_dtype(ser.dtype):
+            res = ser.astype("string").str.replace(" ", "T")
+            return res
         if __gdal_version__ < (3, 7, 0):
             # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
-            ser = ser.str.replace(" ", "T").str.replace("/", "-")
+            return ser.str.replace(" ", "T").str.replace("/", "-")
         return ser
     elif datetimes == "UTC":
         datetime_kwargs["utc"] = True
