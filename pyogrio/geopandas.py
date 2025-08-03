@@ -610,6 +610,7 @@ def write_dataframe(
             crs = geometry.crs.to_wkt("WKT1_GDAL")
 
     if use_arrow:
+        import pandas as pd  # only called when pandas is known to be installed
         import pyarrow as pa
 
         from pyogrio.raw import write_arrow
@@ -651,13 +652,13 @@ def write_dataframe(
         for name, dtype in df.dtypes.items():
             col = df[name]
             if dtype == "object":
-                # When all non-NA values are Timestamps, treat as datetime column
-                col_na = df[col.notna()][name]
-                if len(col_na) and all(
-                    isinstance(x, (pd.Timestamp, datetime)) for x in col_na
-                ):
-                    df[name] = col.astype("string")
-                    datetime_cols.append(name)
+                # If first non-NA value is a datetime-like object, treat as datetime
+                # column.
+                first_non_na_index = col.first_valid_index()
+                if first_non_na_index is not None:
+                    if isinstance(col[first_non_na_index], (pd.Timestamp, datetime)):
+                        df[name] = col.astype("string")
+                        datetime_cols.append(name)
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # When it is a datetime column with a timezone different than UTC, it
                 # needs to be converted to string, otherwise the timezone info is lost.
