@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.12.0 (????-??-??)
+
+### Improvements
+
+-   Add `datetime` parameter to `read_dateframe` to choose the way datetimecolumns are
+    returned + several fixes when reading and writing datetimes (#486).
+
 ## 0.11.1 (2025-08-XX)
 
 ### Bug fixes
@@ -15,7 +22,6 @@
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
--   Improve support for datetime columns (#486).
 -   Add support to read and write ".gpkg.zip" (GDAL >= 3.7), ".shp.zip", and ".shz"
     files (#527).
 -   Compatibility with the string dtype in the upcoming pandas 3.0 release (#493).

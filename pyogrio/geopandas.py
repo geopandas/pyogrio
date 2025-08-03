@@ -245,20 +245,20 @@ def read_dataframe(
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
     datetimes : str, optional (default: "UTC")
-        The way datetime columns are returned. Possible values:
+        The way datetime columns should be returned. Possible values:
 
-        - **"UTC"**: all datetime columns will be returned as pandas datetime64 columns
-          converted to UTC. Naive datetimes (without timezone information) will be
-          assumed to be in UTC timezone.
-        - **"DATETIME"**: datetimes will be returned in the timezone as they were read
-          from the data source. Columns with values in a single timezone or without
-          timezone information will be returned as pandas datetime64 columns.
-          Columns with mixed timezone data are returned as object columns with
-          pandas.Timestamp values.
-        - **"STRING"**: all datetime columns will be returned as strings.
+        - **"UTC"**: return all datetime columns as pandas datetime64 columns
+          converted to UTC. Naive datetimes (without timezone information) will
+          be assumed to be in UTC timezone.
+        - **"DATETIME"**: return datetimes in the timezone as they were read
+          from the data source. Columns with values in a single timezone or
+          without timezone information will be returned as pandas datetime64
+          columns. Columns with mixed timezone data are returned as object
+          columns with pandas.Timestamp values.
+        - **"STRING"**: return all datetimes as ISO8601 strings.
 
     **kwargs
-        Additional driver-specific dataset open options passed to OGR.  Invalid
+        Additional driver-specific dataset open options passed to OGR. Invalid
         options will trigger a warning.
 
     Returns
