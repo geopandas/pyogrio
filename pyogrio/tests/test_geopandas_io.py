@@ -363,7 +363,7 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
     result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
 
     if (
-        datetimes is not "UTC"
+        datetimes != "UTC"
         and use_arrow
         and ext == ".gpkg"
         and __gdal_version__ < (3, 11, 0)
