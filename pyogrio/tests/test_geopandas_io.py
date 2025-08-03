@@ -562,8 +562,10 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     # GDAL tz only encodes offsets, not timezones
     if datetimes == "UTC":
         assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
-    elif datetimes in ("DATETIME", "STRING"):
+    elif datetimes == "DATETIME":
         assert is_object_dtype(result.dates.dtype)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
