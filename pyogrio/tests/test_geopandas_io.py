@@ -372,10 +372,11 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
         # correctly, but when read they are wrongly interpreted as being in UTC.
         # The reason is complicated, but more info can be found e.g. here:
         # https://github.com/geopandas/pyogrio/issues/487#issuecomment-2423762807
+        exp_dates = df.dates.dt.tz_localize("UTC")
         if datetimes == "DATETIME":
-            assert_series_equal(result.dates, df.dates.dt.tz_localize("UTC"))
+            assert_series_equal(result.dates, exp_dates)
         elif datetimes == "STRING":
-            exp_dates = df.dates.dt.tz_localize("UTC").astype("string")
+            exp_dates = exp_dates.astype("string").str.replace(" ", "T")
             assert_series_equal(result.dates, exp_dates)
         pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
 
@@ -477,16 +478,16 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     dates_local = dates_naive.dt.tz_localize("Australia/Sydney")
     dates_local_offsets_str = dates_local.astype("string").astype("O")
     if datetimes == "UTC":
-        dates_exp = dates_local.dt.tz_convert("UTC")
+        exp_dates = dates_local.dt.tz_convert("UTC")
         if PANDAS_GE_20:
-            dates_exp = dates_exp.dt.as_unit("ms")
+            exp_dates = exp_dates.dt.as_unit("ms")
     elif datetimes == "DATETIME":
-        dates_exp = dates_local_offsets_str.apply(
+        exp_dates = dates_local_offsets_str.apply(
             lambda x: pd.Timestamp(x) if pd.notna(x) else None
         )
     elif datetimes == "STRING":
-        dates_exp = dates_local_offsets_str.str.replace(" ", "T")
-        dates_exp = dates_exp.str.replace(".111000", ".111")
+        exp_dates = dates_local_offsets_str.str.replace(" ", "T")
+        exp_dates = exp_dates.str.replace(".111000", ".111")
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
@@ -504,6 +505,8 @@ def test_write_read_datetime_tz_localized_mixed_offset(
             dates_utc = dates_local.dt.tz_convert("UTC")
             if PANDAS_GE_20:
                 dates_utc = dates_utc.dt.as_unit("ms")
+            if datetimes == "STRING":
+                dates_utc = dates_utc.astype("string").str.replace(" ", "T")
             assert_series_equal(result.dates, dates_utc)
             pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
         elif ext in (".gpkg", ".fgb"):
@@ -519,7 +522,7 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
-    assert_series_equal(result.dates, dates_exp)
+    assert_series_equal(result.dates, exp_dates)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
@@ -553,6 +556,8 @@ def test_write_read_datetime_tz_mixed_offsets(tmp_path, ext, datetimes, use_arro
             df_exp.dates = pd.to_datetime(dates, utc=True)
             if PANDAS_GE_20:
                 df_exp.dates = df_exp.dates.dt.as_unit("ms")
+            if datetimes == "STRING":
+                df_exp.dates = df_exp.dates.astype("string").str.replace(" ", "T")
             assert_geodataframe_equal(result, df_exp)
             pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
         elif ext in (".gpkg", ".fgb"):
@@ -622,11 +627,11 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
 
     # Check result
     if PANDAS_GE_20:
-        dates_exp = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+        exp_dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
     else:
-        dates_exp = pd.to_datetime(dates_raw)
+        exp_dates = pd.to_datetime(dates_raw)
     exp_df = df.copy()
-    exp_df.dates = pd.Series(dates_exp, name="dates")
+    exp_df.dates = pd.Series(exp_dates, name="dates")
 
     # With some older versions, the offset is represented slightly differently
     if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
@@ -649,7 +654,9 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
         assert is_string_dtype(result.dates.dtype)
         exp_df.dates = df.dates.map(
             lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else None
-        ).str.replace(".000", "")
+        )
+        if __gdal_version__ < (3, 11, 0) and use_arrow:
+            exp_df.dates = exp_df.dates.str.replace(".000", "")
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
     assert_geodataframe_equal(result, exp_df, check_dtype=False)
