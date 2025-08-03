@@ -453,6 +453,10 @@ def test_write_read_datetime_tz(tmp_path, ext, datetimes, use_arrow):
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             dates_str = df.dates.astype("string").str.replace(" ", "T")
+        elif __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            dates_str = [x[:-3] for x in dates_raw if x is not None] + [None]
+            dates_str = pd.Series(dates_str, name="dates")
         else:
             dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(
@@ -488,6 +492,9 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     elif datetimes == "STRING":
         exp_dates = dates_local_offsets_str.str.replace(" ", "T")
         exp_dates = exp_dates.str.replace(".111000", ".111")
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            exp_dates = exp_dates.str.slice(0, -3)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
@@ -582,6 +589,9 @@ def test_write_read_datetime_tz_mixed_offsets(tmp_path, ext, datetimes, use_arro
         dates_str = df.dates.map(
             lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else None
         )
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            dates_str = dates_str.str.slice(0, -3)
         assert_series_equal(result.dates, dates_str)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
@@ -661,6 +671,9 @@ def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, dat
                 if pd.notna(x)
                 else None
             )
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            exp_df.dates = exp_df.dates.str.slice(0, -3)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
     assert_geodataframe_equal(result, exp_df, check_dtype=False)
@@ -711,6 +724,9 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
             dates_str = df.dates.astype("string").str.replace(" ", "T")
         else:
             dates_str = pd.Series(dates_raw, name="dates")
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, timezone minutes aren't included in the string
+                dates_str = dates_str.str.slice(0, -3)
         assert_series_equal(result.dates, dates_str, check_dtype=False)
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
