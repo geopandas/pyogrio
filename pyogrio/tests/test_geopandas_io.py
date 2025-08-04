@@ -357,7 +357,7 @@ def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes)
         # objects in to_pandas. For a datetime far in the past this gives an
         # overflow though.
         pytest.xfail(
-            "datetimes far in the past overflow is use_arrow is used with GDAL < 3.11"
+            "datetimes before 1678-1-1 give overflow if arrow is used with GDAL<3.11"
         )
 
     df = read_dataframe(
