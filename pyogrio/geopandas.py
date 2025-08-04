@@ -81,8 +81,14 @@ def _try_parse_datetime(ser, datetimes="UTC"):
         # (can tighten the exception type in future when it does)
         try:
             res = pd.to_datetime(ser, **datetime_kwargs)
-        except Exception:
-            res = ser
+        except ValueError as ex:
+            if "Mixed timezones detected" in str(ex):
+                # Parsing mixed timezones with to_datetime is not supported anymore in
+                # pandas>=3.0, so convert to pd.Timestamp objects manually.
+                # Using 2 times map seems to be the fastest way to do this.
+                res = res.map(datetime.fromisoformat, na_action="ignore").map(
+                    pd.Timestamp, na_action="ignore"
+                )
 
     if res.dtype.kind == "M":  # any datetime64
         # GDAL only supports ms precision, convert outputs to match.
