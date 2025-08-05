@@ -533,7 +533,6 @@ def test_write_read_datetime_tz_localized_mixed_offset(
         if __gdal_version__ < (3, 7, 0):
             # With GDAL < 3.7, timezone minutes aren't included in the string
             exp_dates = exp_dates.str.slice(0, -3)
-        exp_dates[2] = None
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
@@ -554,13 +553,15 @@ def test_write_read_datetime_tz_localized_mixed_offset(
             if datetimes == "STRING":
                 assert is_string_dtype(result.dates.dtype)
                 dates_utc = dates_utc.astype(str).str.replace(" ", "T")
-                dates_utc[2] = pd.NA
-            assert_series_equal(result.dates, dates_utc, check_dtype=False)
+            assert pd.isna(result.dates[2])
+            assert_series_equal(
+                result.dates.head(2), dates_utc.head(2), check_dtype=False
+            )
             pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
         elif ext in (".gpkg", ".fgb"):
             # With GDAL < 3.11 with arrow, datetime columns written as string type
-            dates_local_offsets_str[2] = None
-            assert_series_equal(result.dates, dates_local_offsets_str)
+            assert pd.isna(result.dates[2])
+            assert_series_equal(result.dates.head(2), dates_local_offsets_str.head(2))
             pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
 
     # GDAL tz only encodes offsets, not timezones
@@ -573,7 +574,10 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
-    assert_series_equal(result.dates, exp_dates, check_dtype=False)
+    # Check isna for the third value seperately as depending on versions this is
+    # different + pandas 3.0 assert_series_equal becomes strict about this.
+    assert pd.isna(result.dates[2])
+    assert_series_equal(result.dates.head(2), exp_dates.head(2), check_dtype=False)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
