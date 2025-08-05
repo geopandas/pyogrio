@@ -260,7 +260,8 @@ def read_dataframe(
           from the data source. Columns with values in a single timezone or
           without timezone information will be returned as pandas datetime64
           columns. Columns with mixed timezone data are returned as object
-          columns with pandas.Timestamp values.
+          columns with pandas.Timestamp values. If you want to roundtrip
+          datetimes as good as possible, use this option.
         - **"STRING"**: return all datetimes as ISO8601 strings.
 
     **kwargs
