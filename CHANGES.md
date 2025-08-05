@@ -4,7 +4,7 @@
 
 ### Improvements
 
--   Add `datetime` parameter to `read_dateframe` to choose the way datetime columns are
+-   Add `datetimes` parameter to `read_dateframe` to choose the way datetime columns are
     returned + several fixes when reading and writing datetimes (#486).
 
 ## 0.11.1 (2025-08-02)
