@@ -518,14 +518,14 @@ def test_write_read_datetime_tz_localized_mixed_offset(
     dates_raw = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111", np.nan]
     dates_naive = pd.Series(pd.to_datetime(dates_raw), name="dates")
     dates_local = dates_naive.dt.tz_localize("Australia/Sydney")
-    dates_local_offsets_str = dates_local.astype("string").astype("O")
+    dates_local_offsets_str = dates_local.astype(str)
     if datetimes == "UTC":
         exp_dates = dates_local.dt.tz_convert("UTC")
         if PANDAS_GE_20:
             exp_dates = exp_dates.dt.as_unit("ms")
     elif datetimes == "DATETIME":
         exp_dates = dates_local_offsets_str.apply(
-            lambda x: pd.Timestamp(x) if pd.notna(x) else np.nan
+            lambda x: pd.Timestamp(x) if pd.notna(x) else None
         )
     elif datetimes == "STRING":
         exp_dates = dates_local_offsets_str.str.replace(" ", "T")
@@ -533,6 +533,7 @@ def test_write_read_datetime_tz_localized_mixed_offset(
         if __gdal_version__ < (3, 7, 0):
             # With GDAL < 3.7, timezone minutes aren't included in the string
             exp_dates = exp_dates.str.slice(0, -3)
+        exp_dates[2] = None
     else:
         raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
@@ -551,11 +552,14 @@ def test_write_read_datetime_tz_localized_mixed_offset(
             if PANDAS_GE_20:
                 dates_utc = dates_utc.dt.as_unit("ms")
             if datetimes == "STRING":
-                dates_utc = dates_utc.astype("string").str.replace(" ", "T")
-            assert_series_equal(result.dates, dates_utc)
+                assert is_string_dtype(result.dates.dtype)
+                dates_utc = dates_utc.astype(str).str.replace(" ", "T")
+                dates_utc[2] = pd.NA
+            assert_series_equal(result.dates, dates_utc, check_dtype=False)
             pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
         elif ext in (".gpkg", ".fgb"):
             # With GDAL < 3.11 with arrow, datetime columns written as string type
+            dates_local_offsets_str[2] = None
             assert_series_equal(result.dates, dates_local_offsets_str)
             pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
 
@@ -605,6 +609,7 @@ def test_write_read_datetime_tz_mixed_offsets(tmp_path, ext, datetimes, use_arro
                 df_exp.dates = df_exp.dates.dt.as_unit("ms")
             if datetimes == "STRING":
                 df_exp.dates = df_exp.dates.astype("string").str.replace(" ", "T")
+            df_exp.loc[2, "dates"] = pd.NA
             assert_geodataframe_equal(result, df_exp)
             pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
         elif ext in (".gpkg", ".fgb"):
