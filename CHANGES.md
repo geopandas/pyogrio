@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.0 (yyyy-mm-dd)
+
+### Improvements
+
+-   Return JSON fields as dicts in read_dataframe (#556)
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes
