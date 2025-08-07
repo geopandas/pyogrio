@@ -97,8 +97,11 @@ def _try_parse_datetime(ser, datetimes="UTC"):
                         return ser
                 elif datetimes == "UTC":
                     # Convert mixed timezone datetimes to UTC.
-                    # This happens right after this exception handler.
-                    pass
+                    try:
+                        res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
+                    except Exception as ex:
+                        warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+                        return ser
                 else:
                     warnings.warn(warning.format(message=str(ex)), stacklevel=1)
                     return ser
