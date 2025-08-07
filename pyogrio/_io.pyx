@@ -77,7 +77,7 @@ FIELD_TYPE_NAMES = {
     OFTWideStringList: "OFTWideStringList",  # deprecated, not supported
     OFTBinary: "OFTBinary",                  # Raw Binary data
     OFTDate: "OFTDate",                      # Date
-    OFTTime: "OFTTime",                      # Time, NOTE: not directly supported in numpy
+    OFTTime: "OFTTime",                      # Time: not directly supported in numpy
     OFTDateTime: "OFTDateTime",              # Date and Time
     OFTInteger64: "OFTInteger64",            # Single 64bit integer
     OFTInteger64List: "OFTInteger64List",    # List of 64bit integers, not supported
@@ -1951,7 +1951,9 @@ def ogr_read_info(
 
         fields = get_fields(ogr_layer, encoding)
         ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
-        ogr_subtypes = [FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
 
         meta = {
             "layer_name": get_string(OGR_L_GetName(ogr_layer)),
