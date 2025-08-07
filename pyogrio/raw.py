@@ -171,9 +171,11 @@ def read(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
-            "dtypes": <ndarray of numpy dtypes corresponding to fields>
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
-            "geometry_type": "<geometry type>"
+            "geometry_type": "<geometry type>",
         }
 
     .. _OGRSQL:
@@ -249,9 +251,13 @@ def read_arrow(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
+            "fid_column": "<name of FID column in arrow table>"
         }
 
     """
