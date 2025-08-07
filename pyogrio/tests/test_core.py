@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38, GDAL_GE_352
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_350
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -571,7 +571,7 @@ def test_read_info_jsonfield(nested_geojson_file):
     """Test if JSON fields types are returned correctly."""
     meta = read_info(nested_geojson_file)
     assert meta["ogr_types"] == ["OFTString", "OFTString"]
-    if GDAL_GE_352:
+    if GDAL_GE_350:
         # OFSTJSON is only supported for GDAL >= 3.5
         assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTJSON"]
     else:

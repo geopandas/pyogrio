@@ -19,6 +19,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_GE_350,
     GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
@@ -1999,7 +2000,7 @@ def test_read_multisurface(multisurface_file, use_arrow):
 
 
 @pytest.mark.skipif(
-    not GDAL_GE_352, reason="OFSTJSON subtype only supported for GDAL >= 3.5"
+    not GDAL_GE_350, reason="OFSTJSON subtype only supported for GDAL >= 3.5"
 )
 def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     # by default, nested data are not flattened
