@@ -1998,6 +1998,9 @@ def test_read_multisurface(multisurface_file, use_arrow):
         assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
+@pytest.mark.skipif(
+    not GDAL_GE_352, reason="OFSTJSON subtype only supported for GDAL >= 3.5"
+)
 def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     # by default, nested data are not flattened
     df = read_dataframe(nested_geojson_file, use_arrow=use_arrow)
