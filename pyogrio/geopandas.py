@@ -348,8 +348,11 @@ def read_dataframe(
     gdal_force_2d = False if use_arrow else force_2d
 
     # Always read datetimes as string values to preserve (mixed) timezone info
-    # as numpy does not directly support timezones and arrow datetime columns
-    # don't support mixed timezones.
+    # correctly. If arrow is not used, it is needed because numpy does not
+    # directly support timezones. If arrow is used, needed because datetime
+    # columns don't support mixed timezone offsets + e.g. for .fgb files
+    # timezone info isn't handled correctly even for unique timezone offsets
+    # if datetimes are not read as string.
     result = read_func(
         path_or_buffer,
         layer=layer,
