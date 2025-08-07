@@ -2005,7 +2005,7 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     expected = gp.GeoDataFrame(
         {
             "top_level": ["A"],
-            "intermediate_level": ['{ "bottom_level": "B" }'],
+            "intermediate_level": [{"bottom_level": "B"}],
         },
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",

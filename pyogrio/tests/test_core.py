@@ -567,6 +567,13 @@ def test_read_info_force_total_bounds(
         assert info["total_bounds"] is None
 
 
+def test_read_info_jsonfield(nested_geojson_file):
+    """Test if JSON fields types are returned correctly."""
+    meta = read_info(nested_geojson_file)
+    assert meta["ogr_types"] == ["OFTString", "OFTString"]
+    assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTJSON"]
+
+
 def test_read_info_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
