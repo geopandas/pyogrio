@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_352
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
