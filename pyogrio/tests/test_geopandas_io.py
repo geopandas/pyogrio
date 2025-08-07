@@ -334,9 +334,9 @@ def test_read_datetime(datetime_file, use_arrow):
     df = read_dataframe(datetime_file, use_arrow=use_arrow)
     if PANDAS_GE_20:
         # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.col.dtype.name == "datetime64[ms, UTC]"
+        assert df.col.dtype.name == "datetime64[ms]"
     else:
-        assert df.col.dtype.name == "datetime64[ns, UTC]"
+        assert df.col.dtype.name == "datetime64[ns]"
 
 
 def test_read_datetimes_invalid_param(datetime_file, use_arrow):
@@ -358,6 +358,11 @@ def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes)
         # overflow though.
         pytest.xfail(
             "datetimes before 1678-1-1 give overflow if arrow is used with GDAL<3.11"
+        )
+    if False and not PANDAS_GE_30 and datetimes != "STRING":
+        pytest.xfail(
+            "datetimes before 1678-1-1 are not supported with datetimes='UTC' with "
+            "pandas < 3.0"
         )
 
     df = read_dataframe(
@@ -400,12 +405,7 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
 
-    if (
-        datetimes != "UTC"
-        and use_arrow
-        and ext == ".gpkg"
-        and __gdal_version__ < (3, 11, 0)
-    ):
+    if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
         # With GDAL < 3.11 with arrow, columns with naive datetimes are written
         # correctly, but when read they are wrongly interpreted as being in UTC.
         # The reason is complicated, but more info can be found e.g. here:
@@ -420,7 +420,7 @@ def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
 
     if datetimes == "UTC":
         assert is_datetime64_any_dtype(result.dates.dtype)
-        assert_series_equal(result.dates, df.dates.dt.tz_localize("UTC"))
+        assert_series_equal(result.dates, df.dates)
     elif datetimes == "DATETIME":
         assert is_datetime64_dtype(result.dates.dtype)
         assert_geodataframe_equal(result, df)
@@ -482,9 +482,7 @@ def test_write_read_datetime_tz(tmp_path, ext, datetimes, use_arrow):
 
     assert isinstance(df.dates.dtype, pd.DatetimeTZDtype)
     if datetimes == "UTC":
-        assert_series_equal(
-            result.dates, df.dates.dt.tz_convert("UTC"), check_index=False
-        )
+        assert_series_equal(result.dates, df.dates, check_index=False)
     elif datetimes == "DATETIME":
         assert_series_equal(result.dates, df.dates, check_index=False)
     elif datetimes == "STRING":
@@ -747,14 +745,9 @@ def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
     write_dataframe(df, fpath, use_arrow=use_arrow)
     result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
 
-    if (
-        use_arrow
-        and datetimes != "UTC"
-        and ext == ".fgb"
-        and __gdal_version__ < (3, 11, 0)
-    ):
+    if use_arrow and ext == ".fgb" and __gdal_version__ < (3, 11, 0):
         # With GDAL < 3.11 with arrow, timezone information is dropped when reading .fgb
-        if datetimes == "DATETIME":
+        if datetimes in ("UTC", "DATETIME"):
             assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
         elif datetimes == "STRING":
             assert is_string_dtype(result.dates.dtype)
