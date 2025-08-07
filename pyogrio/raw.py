@@ -693,7 +693,9 @@ def write(
     """
     # remove some unneeded kwargs (e.g. dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
-    kwargs.pop("dtypes", "ogr_types", "ogr_subtypes", None)
+    kwargs.pop("dtypes", None)
+    kwargs.pop("ogr_types", None)
+    kwargs.pop("ogr_subtypes", None)
 
     path, driver = _get_write_path_driver(path, driver, append=append)
 
