@@ -691,9 +691,9 @@ def write(
         options will trigger a warning.
 
     """
-    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # remove some unneeded kwargs (e.g. dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
-    kwargs.pop("dtypes", None)
+    kwargs.pop("dtypes", "ogr_types", "ogr_subtypes", None)
 
     path, driver = _get_write_path_driver(path, driver, append=append)
 
