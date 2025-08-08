@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2019]
+        os: [ubuntu-latest, macos-latest, windows-2022]
         python: ["3.10", "3.11", "3.12", "3.13"]
         env: ["latest"]
         include:
@@ -37,7 +37,7 @@ jobs:
             env: "minimal"
           # environment for older Windows libgdal to make sure gdal_i.lib is
           # properly detected
-          - os: "windows-2019"
+          - os: "windows-2022"
             python: "3.10"
             env: "libgdal3.5.1"
           # environment with nightly wheels

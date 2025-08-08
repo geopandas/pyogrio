@@ -759,12 +759,22 @@ def test_read_negative_skip_features(naturalearth_lowres, use_arrow):
         read_dataframe(naturalearth_lowres, skip_features=-1, use_arrow=use_arrow)
 
 
+@pytest.mark.parametrize("skip_features", [0, 10, 200])
 @pytest.mark.parametrize("max_features", [10, 100])
-def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features):
+def test_read_max_features(
+    naturalearth_lowres_all_ext, use_arrow, max_features, skip_features
+):
     ext = naturalearth_lowres_all_ext.suffix
-    expected = read_dataframe(naturalearth_lowres_all_ext).iloc[:max_features]
+    expected = (
+        read_dataframe(naturalearth_lowres_all_ext)
+        .iloc[skip_features : skip_features + max_features]
+        .reset_index(drop=True)
+    )
     df = read_dataframe(
-        naturalearth_lowres_all_ext, max_features=max_features, use_arrow=use_arrow
+        naturalearth_lowres_all_ext,
+        skip_features=skip_features,
+        max_features=max_features,
+        use_arrow=use_arrow,
     )
 
     assert len(df) == len(expected)
@@ -774,6 +784,13 @@ def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features)
     is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
+
+    if len(expected) == 0 and not use_arrow:
+        # for pandas >= 3, the column has string dtype but when reading it as
+        # empty result, it gets inferred as object dtype
+        expected["continent"] = expected["continent"].astype("object")
+        expected["name"] = expected["name"].astype("object")
+        expected["iso_a3"] = expected["iso_a3"].astype("object")
 
     assert_geodataframe_equal(
         df,

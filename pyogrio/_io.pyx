@@ -771,6 +771,26 @@ cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
     OGR_G_DestroyGeometry(ogr_geometry)
 
 
+cdef apply_skip_features(OGRLayerH ogr_layer, int skip_features):
+    """Applies skip_features to layer.
+
+    Parameters
+    ----------
+    ogr_layer : pointer to open OGR layer
+    wskip_features : int
+    """
+    err = OGR_L_SetNextByIndex(ogr_layer, skip_features)
+    # GDAL can raise an error (depending on the format) for out-of-bound index,
+    # but `validate_feature_range()` should ensure we only pass a valid number
+    if err != OGRERR_NONE:
+        try:
+            check_last_error()
+        except CPLE_BaseError as exc:
+            raise ValueError(str(exc))
+
+        raise ValueError(f"Applying {skip_features=} raised an error")
+
+
 cdef validate_feature_range(
     OGRLayerH ogr_layer, int skip_features=0, int max_features=0
 ):
@@ -793,9 +813,9 @@ cdef validate_feature_range(
         return 0, 0
 
     if skip_features >= feature_count:
-        skip_features = feature_count
+        return 0, 0
 
-    elif max_features == 0:
+    if max_features == 0:
         num_features = feature_count - skip_features
 
     elif max_features > feature_count:
@@ -973,7 +993,7 @@ cdef get_features(
     OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
-        OGR_L_SetNextByIndex(ogr_layer, skip_features)
+        apply_skip_features(ogr_layer, skip_features)
 
     if return_fids:
         fid_data = np.empty(shape=(num_features), dtype=np.int64)
@@ -1148,7 +1168,7 @@ cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
     OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
-        OGR_L_SetNextByIndex(ogr_layer, skip_features)
+        apply_skip_features(ogr_layer, skip_features)
 
     fid_data = np.empty(shape=(num_features), dtype=np.int64)
     fid_view = fid_data[:]
@@ -1668,6 +1688,13 @@ def ogr_open_arrow(
         elif mask is not None:
             apply_geometry_filter(ogr_layer, mask)
 
+        # Limit feature range to available range (cannot use logic of
+        # `validate_feature_range` because max_features is not supported)
+        if skip_features > 0:
+            feature_count = get_feature_count(ogr_layer, 1)
+            if skip_features >= feature_count:
+                skip_features = feature_count
+
         # Limit to specified columns
         if ignored_fields:
             for field in ignored_fields:
@@ -1704,9 +1731,11 @@ def ogr_open_arrow(
         if not OGR_L_GetArrowStream(ogr_layer, stream, options):
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
-        if skip_features:
+        if skip_features > 0:
             # only supported for GDAL >= 3.8.0; have to do this after getting
             # the Arrow stream
+            # use `OGR_L_SetNextByIndex` directly and not `apply_skip_features`
+            # to ignore errors in case skip_features == feature_count
             OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         if use_pyarrow:

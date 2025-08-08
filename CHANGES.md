@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 0.11.1 (2025-08-02)
+
+### Bug fixes
+
+-   Compatibility with Shapely >= 2.1 to avoid triggering a deprecation warning at
+    import (#542).
+-   Fix reading with a `skip_features` larger than the available number of
+    features to ensure this consistently returns an empty result for all file
+    formats (#550).
+
 ## 0.11.0 (2025-05-08)
 
 ### Improvements

@@ -418,7 +418,7 @@ cdef void stacking_error_handler(
 
 @contextlib.contextmanager
 def capture_errors():
-    """A context manager that captures all GDAL non-fatal errors occuring.
+    """A context manager that captures all GDAL non-fatal errors occurring.
 
     It adds all errors to a single stack, so it assumes that no more than one
     GDAL function is called.
