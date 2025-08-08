@@ -4,7 +4,7 @@
 
 ### Packaging
 
--   pyogrio now requires a minimum version of Python >= 3.10 (#).
+-   pyogrio now requires a minimum version of Python >= 3.10 (#557).
 
 ## 0.11.1 (2025-08-02)
 
