@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.0 (xxxx-xx-xx)
+
+### Packaging
+
+-   pyogrio now requires a minimum version of Python >= 3.10 (#557).
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes

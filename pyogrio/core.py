@@ -1,7 +1,6 @@
 """Core functions to interact with OGR data sources."""
 
 from pathlib import Path
-from typing import Optional, Union
 
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
@@ -336,7 +335,7 @@ def get_gdal_data_path():
     return _get_gdal_data_path()
 
 
-def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
+def vsi_listtree(path: str | Path, pattern: str | None = None):
     """Recursively list the contents of a VSI directory.
 
     An fnmatch pattern can be specified to filter the directories/files
@@ -356,7 +355,7 @@ def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
     return ogr_vsi_listtree(path, pattern=pattern)
 
 
-def vsi_rmtree(path: Union[str, Path]):
+def vsi_rmtree(path: str | Path):
     """Recursively remove VSI directory.
 
     Parameters
@@ -371,7 +370,7 @@ def vsi_rmtree(path: Union[str, Path]):
     ogr_vsi_rmtree(path)
 
 
-def vsi_unlink(path: Union[str, Path]):
+def vsi_unlink(path: str | Path):
     """Remove a VSI file.
 
     Parameters
