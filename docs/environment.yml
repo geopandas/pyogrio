@@ -4,7 +4,7 @@ channels:
 dependencies:
   - python==3.10.*
   - gdal
-  - numpy==1.19.*
+  - numpy==1.24.*
   - numpydoc==1.1.*
   - Cython==0.29.*
   - docutils==0.16.*
