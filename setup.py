@@ -20,12 +20,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-MIN_PYTHON_VERSION = (3, 9, 0)
+MIN_PYTHON_VERSION = (3, 10, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.9 is required")
+    raise RuntimeError("Python >= 3.10 is required")
 
 
 def copy_data_tree(datadir, destdir):
