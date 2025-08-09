@@ -49,11 +49,11 @@ log = logging.getLogger(__name__)
 # (index in array is the integer field type)
 FIELD_TYPES = [
     "int32",           # OFTInteger, Simple 32bit integer
-    "list(int32)",     # OFTIntegerList, List of 32bit integers, not supported
+    "list(int32)",     # OFTIntegerList, List of 32bit integers
     "float64",         # OFTReal, Double Precision floating point
-    None,              # OFTRealList, List of doubles, not supported
+    "list(float64)",   # OFTRealList, List of doubles
     "object",          # OFTString, String of UTF-8 chars
-    None,              # OFTStringList, Array of strings, not supported
+    "list(str)",       # OFTStringList, Array of strings
     None,              # OFTWideString, deprecated, not supported
     None,              # OFTWideStringList, deprecated, not supported
     "object",          # OFTBinary, Raw Binary data
@@ -881,6 +881,8 @@ cdef process_fields(
     cdef int ret_length
     cdef int *ints_c
     cdef int64_t *int64s_c
+    cdef double *reals_c
+    cdef char **strings_c
     cdef GByte *bin_value
     cdef int year = 0
     cdef int month = 0
@@ -896,7 +898,6 @@ cdef process_fields(
         data = field_data_view[j]
 
         isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
-        warnings.warn(f"{field_type=}, {isnull=}")
         if isnull:
             if field_type in (OFTInteger, OFTInteger64, OFTReal):
                 # if a boolean or integer type, have to cast to float to hold
@@ -987,6 +988,27 @@ cdef process_fields(
             for j in range(ret_length):
                 int_arr[j] = int64s_c[j]
             data[i] = int_arr
+
+        elif field_type == OFTRealList:
+            reals_c = OGR_F_GetFieldAsDoubleList(ogr_feature, field_index, &ret_length)
+
+            real_arr = np.ndarray(shape=(ret_length,), dtype=np.float64)
+            for j in range(ret_length):
+                real_arr[j] = reals_c[j]
+            data[i] = real_arr
+
+        elif field_type == OFTStringList:
+            strings_c = OGR_F_GetFieldAsStringList(ogr_feature, field_index)
+
+            string_list_index = 0
+            vals = []
+            if strings_c != NULL:
+                while strings_c[string_list_index] != NULL:
+                    val = strings_c[string_list_index]
+                    vals.append(get_string(val, encoding=encoding))
+                    string_list_index += 1
+
+            data[i] = np.array(vals)
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking

@@ -209,27 +209,52 @@ def list_field_values_file(tmp_path):
         "features": [
             {
                 "type": "Feature",
-                "properties": { "int64": 1, "list_int64": [0, 1] },
+                "properties": {
+                    "int64": 1,
+                    "list_int64": [0, 1],
+                    "list_double": [0.0, 1.0],
+                    "list_string": ["string1", "string2"]
+                },
                 "geometry": { "type": "Point", "coordinates": [0, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 2, "list_int64": [2, 3] },
+                "properties": {
+                    "int64": 2,
+                    "list_int64": [2, 3],
+                    "list_double": [2.0, 3.0],
+                    "list_string": ["string3", "string4"]
+                },
                 "geometry": { "type": "Point", "coordinates": [1, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 3, "list_int64": [4, 5] },
+                "properties": {
+                    "int64": 3,
+                    "list_int64": [4, 5],
+                    "list_double": [4.0, 5.0],
+                    "list_string": ["string5", "string6"]
+                },
                 "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 4, "list_int64": [6, 7] },
+                "properties": {
+                    "int64": 4,
+                    "list_int64": [6, 7],
+                    "list_double": [6.0, 7.0],
+                    "list_string": ["string7", "string8"]
+                },
                 "geometry": { "type": "Point", "coordinates": [3, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 5, "list_int64": [8, 9] },
+                "properties": {
+                    "int64": 5,
+                    "list_int64": [8, 9],
+                    "list_double": [8.0, 9.0],
+                    "list_string": ["string9", "string10"]
+                },
                 "geometry": { "type": "Point", "coordinates": [4, 2] }
             }
         ]

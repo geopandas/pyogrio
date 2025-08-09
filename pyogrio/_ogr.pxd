@@ -288,6 +288,9 @@ cdef extern from "ogr_api.h":
                         OGRFeatureH feature, int n, int* pnCount)
     int64_t *       OGR_F_GetFieldAsInteger64List(
                         OGRFeatureH feature, int n, int* pnCount)
+    double *        OGR_F_GetFieldAsDoubleList(
+                        OGRFeatureH feature, int n, int* pnCount)
+    
 
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)
 
