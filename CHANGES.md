@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.0 (yyyy-mm-dd)
+
+### Improvements
+
+-   Add support to read list fields without arrow (#558).
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes
