@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 # (index in array is the integer field type)
 FIELD_TYPES = [
     "int32",           # OFTInteger, Simple 32bit integer
-    None,              # OFTIntegerList, List of 32bit integers, not supported
+    "list(int32)",     # OFTIntegerList, List of 32bit integers, not supported
     "float64",         # OFTReal, Double Precision floating point
     None,              # OFTRealList, List of doubles, not supported
     "object",          # OFTString, String of UTF-8 chars
@@ -61,7 +61,7 @@ FIELD_TYPES = [
     None,              # OFTTime, Time, NOTE: not directly supported in numpy
     "datetime64[ms]",  # OFTDateTime, Date and Time
     "int64",           # OFTInteger64, Single 64bit integer
-    None               # OFTInteger64List, List of 64bit integers, not supported
+    "list(int64)"      # OFTInteger64List, List of 64bit integers, not supported
 ]
 
 FIELD_SUBTYPES = {
@@ -879,6 +879,8 @@ cdef process_fields(
     cdef int success
     cdef int field_index
     cdef int ret_length
+    cdef int *ints_c
+    cdef int64_t *int64s_c
     cdef GByte *bin_value
     cdef int year = 0
     cdef int month = 0
@@ -894,6 +896,7 @@ cdef process_fields(
         data = field_data_view[j]
 
         isnull = OGR_F_IsFieldSetAndNotNull(ogr_feature, field_index) == 0
+        warnings.warn(f"{field_type=}, {isnull=}")
         if isnull:
             if field_type in (OFTInteger, OFTInteger64, OFTReal):
                 # if a boolean or integer type, have to cast to float to hold
@@ -969,6 +972,22 @@ cdef process_fields(
                         year, month, day, hour, minute, second, microsecond
                     ).isoformat()
 
+        elif field_type == OFTIntegerList:
+            ints_c = OGR_F_GetFieldAsIntegerList(ogr_feature, field_index, &ret_length)
+            
+            int_arr = np.ndarray(shape=(ret_length,), dtype=np.int32)
+            for j in range(ret_length):
+                int_arr[j] = ints_c[j]
+            data[i] = int_arr
+        
+        elif field_type == OFTInteger64List:
+            int64s_c = OGR_F_GetFieldAsInteger64List(ogr_feature, field_index, &ret_length)
+
+            int_arr = np.ndarray(shape=(ret_length,), dtype=np.int64)
+            for j in range(ret_length):
+                int_arr[j] = int64s_c[j]
+            data[i] = int_arr
+
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
@@ -1012,16 +1031,16 @@ cdef get_features(
     field_indexes = fields[:, 0]
     field_ogr_types = fields[:, 1]
 
-    field_data = [
-        np.empty(
-            shape=(num_features, ),
-            dtype = (
-                "object"
-                if datetime_as_string and fields[field_index, 3].startswith("datetime")
-                else fields[field_index, 3]
-            )
-        ) for field_index in range(n_fields)
-    ]
+    field_data = []
+    for field_index in range(n_fields):
+        if datetime_as_string and fields[field_index, 3].startswith("datetime"):
+            dtype = "object"
+        elif fields[field_index, 3].startswith("list"):
+            dtype = "object"
+        else:
+            dtype = fields[field_index, 3]
+        
+        field_data.append(np.empty(shape=(num_features, ), dtype=dtype))
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 

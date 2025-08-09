@@ -358,6 +358,13 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
+def test_read_list_types(list_field_values_file, use_arrow):
+    # with arrow, list types are supported
+    result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
+    assert "list_int64" in result.columns
+    assert result["list_int64"][0].tolist() == [0, 1]
+
+
 @pytest.mark.filterwarnings(
     "ignore: Non-conformant content for record 1 in column dates"
 )

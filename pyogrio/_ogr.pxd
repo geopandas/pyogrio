@@ -283,6 +283,12 @@ cdef extern from "ogr_api.h":
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
     int64_t         OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
     const char*     OGR_F_GetFieldAsString(OGRFeatureH feature, int n)
+    char **         OGR_F_GetFieldAsStringList(OGRFeatureH feature, int n)
+    int *           OGR_F_GetFieldAsIntegerList(
+                        OGRFeatureH feature, int n, int* pnCount)
+    int64_t *       OGR_F_GetFieldAsInteger64List(
+                        OGRFeatureH feature, int n, int* pnCount)
+
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)
 
     void OGR_F_SetFieldDateTime(OGRFeatureH feature,
