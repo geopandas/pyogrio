@@ -975,14 +975,15 @@ cdef process_fields(
 
         elif field_type == OFTIntegerList:
             ints_c = OGR_F_GetFieldAsIntegerList(ogr_feature, field_index, &ret_length)
-            
+
             int_arr = np.ndarray(shape=(ret_length,), dtype=np.int32)
             for j in range(ret_length):
                 int_arr[j] = ints_c[j]
             data[i] = int_arr
-        
+
         elif field_type == OFTInteger64List:
-            int64s_c = OGR_F_GetFieldAsInteger64List(ogr_feature, field_index, &ret_length)
+            int64s_c = OGR_F_GetFieldAsInteger64List(
+                           ogr_feature, field_index, &ret_length)
 
             int_arr = np.ndarray(shape=(ret_length,), dtype=np.int64)
             for j in range(ret_length):
@@ -1061,7 +1062,7 @@ cdef get_features(
             dtype = "object"
         else:
             dtype = fields[field_index, 3]
-        
+
         field_data.append(np.empty(shape=(num_features, ), dtype=dtype))
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
