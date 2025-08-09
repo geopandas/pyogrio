@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_311
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -136,11 +136,14 @@ def test_list_drivers():
     for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
         assert name in all_drivers
 
-        expected_capability = "rw"
+        if GDAL_GE_311 and name in ("ESRI Shapefile", "GeoJSON", "GPKG", "OpenFileGDB"):
+            expected_capability = "raw"
+        else:
+            expected_capability = "rw"
         if name == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
             expected_capability = "r"
 
-        assert all_drivers[name] == expected_capability
+        assert all_drivers[name] == expected_capability, f"Error for {name}"
 
     drivers = list_drivers(read=True)
     expected = {k: v for k, v in all_drivers.items() if v.startswith("r")}
