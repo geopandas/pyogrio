@@ -136,7 +136,7 @@ def test_list_drivers():
     for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
         assert name in all_drivers
 
-        if GDAL_GE_311 and name in ("ESRI Shapefile", "GeoJSON", "GPKG", "OpenFileGDB"):
+        if GDAL_GE_311:
             expected_capability = "raw"
         else:
             expected_capability = "rw"
