@@ -2222,6 +2222,7 @@ def test_arrow_bool_exception(tmp_path, ext):
         _ = read_dataframe(filename, use_arrow=True)
 
 
+@pytest.mark.requires_arrow_write_api
 def test_arrow_enable_with_environment_variable(tmp_path):
     """Test if arrow can be enabled via an environment variable."""
     # Latin 1 / Western European
