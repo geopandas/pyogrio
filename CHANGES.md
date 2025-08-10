@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.0 (xxxx-xx-xx)
+
+### Packaging
+
+-   Add libkml driver to the wheels for recent platforms (#561).
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes
