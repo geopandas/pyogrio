@@ -279,7 +279,7 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
     "LIBKML" not in list_drivers(),
     reason="LIBKML driver is not available and is needed to read simpledata",
 )
-def test_read_kml_simpledata(tmp_path):
+def test_read_kml_simpledata(tmp_path, use_arrow):
     """Test reading a KML file with a simpledata element.
 
     Simpledata elements are only read by the LibKML driver, not the KML driver.
@@ -308,7 +308,7 @@ def test_read_kml_simpledata(tmp_path):
     with open(kml_path, "w", encoding="utf-8") as f:
         f.write(kml_data)
 
-    gdf = read_dataframe(kml_path)
+    gdf = read_dataframe(kml_path, use_arrow=use_arrow)
 
     # Check if the simpledata column is present.
     assert "formation" in gdf.columns
