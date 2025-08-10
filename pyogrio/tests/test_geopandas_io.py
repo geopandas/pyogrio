@@ -275,6 +275,40 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
+def test_read_kml_simpledate(tmp_path):
+    """Test reading a KML file with a simpledata element.
+
+    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    """
+    kml_data = """<?xml version="1.0" encoding="utf-8" ?>
+        <kml xmlns="http://www.opengis.net/kml/2.2">
+        <Document id="root_doc">
+            <Schema name="interfaces1" id="interfaces1">
+                <SimpleField name="id" type="float"></SimpleField>
+                <SimpleField name="formation" type="string"></SimpleField>
+            </Schema>
+            <Folder><name>interfaces1</name>
+                <Placemark>
+                    <ExtendedData><SchemaData schemaUrl="#interfaces1">
+                        <SimpleData name="formation">Ton</SimpleData>
+                    </SchemaData></ExtendedData>
+                    <Point><coordinates>19.1501280458077,293.313485355882</coordinates></Point>
+                </Placemark>
+            </Folder>
+        </Document>
+        </kml>
+    """
+    kml_path = tmp_path / "test.kml"
+    with open(kml_path, "w", encoding="utf-8") as f:
+        f.write(kml_data)
+
+    gdf = read_dataframe(kml_path)
+
+    # Check if the simpledata column is present.
+    assert "formation" in gdf.columns
+    assert gdf["formation"].iloc[0] == "Ton"
+
+
 def test_read_layer(tmp_path, use_arrow):
     filename = tmp_path / "test.gpkg"
 
