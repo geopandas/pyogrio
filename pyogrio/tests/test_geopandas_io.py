@@ -280,6 +280,8 @@ def test_read_kml_simpledate(tmp_path):
 
     Simpledata elements are only read by the LibKML driver, not the KML driver.
     """
+    # Reading kml_data from memory doesn't seem to work as it isn't detected as
+    # a KML file by GDAL, so we write it to a file first.
     kml_data = """<?xml version="1.0" encoding="utf-8" ?>
         <kml xmlns="http://www.opengis.net/kml/2.2">
         <Document id="root_doc">
