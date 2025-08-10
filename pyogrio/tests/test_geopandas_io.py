@@ -2481,10 +2481,6 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
 
 @pytest.mark.requires_arrow_write_api
-@pytest.mark.skipif(
-    "LIBKML" not in list_drivers(),
-    reason="append only supported if LIBKML driver is available",
-)
 def test_write_kml_append(tmp_path, use_arrow):
     """Append features to an existing KML file.
 
