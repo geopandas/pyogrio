@@ -275,7 +275,11 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
-def test_read_kml_simpledate(tmp_path):
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read simpledata",
+)
+def test_read_kml_simpledata(tmp_path):
     """Test reading a KML file with a simpledata element.
 
     Simpledata elements are only read by the LibKML driver, not the KML driver.
