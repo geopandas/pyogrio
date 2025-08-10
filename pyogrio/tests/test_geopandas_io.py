@@ -2481,10 +2481,15 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
 
 @pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to append to .kml",
+)
 def test_write_kml_append(tmp_path, use_arrow):
     """Append features to an existing KML file.
 
-    Apparently this is only supported by the LIBKML driver.
+    Appending is only supported by the LIBKML driver, and the driver isn't
+    included in the GDAL ubuntu-small images, so skip if not available.
     """
     points = [Point(10, 20), Point(30, 40), Point(50, 60)]
     gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
