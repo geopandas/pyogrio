@@ -274,6 +274,10 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
 
         elif isinstance(layer, int):
             ogr_layer = check_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
+        else:
+            raise ValueError(
+                f"'layer' parameter must be a str or int, got {type(layer)}"
+                )
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
