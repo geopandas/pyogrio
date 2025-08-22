@@ -237,9 +237,9 @@ def read_info(
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
         A dataset path or URI, raw buffer, or file-like object with a read method.
-    layer : [type], optional
+    layer : str or int, optional
         Name or index of layer in data source.  Reads the first layer by default.
-    encoding : [type], optional (default: None)
+    encoding : str, optional (default: None)
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
