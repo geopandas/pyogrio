@@ -5,9 +5,7 @@
         {
             "name": "gdal",
             "default-features": false,
-            "features": [
-                "recommended-features", "curl", "geos", "iconv", "libkml", "openssl"
-            ]
+            "features": ["recommended-features", "curl", "geos", "iconv", "openssl"]
         }
     ],
     "builtin-baseline": "66c1c9852bb30bd87285e77cc775072046d51fc6"
