@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.12.0 (????-??-??)
+
+### Improvements
+
+-   Add `datetimes` parameter to `read_dataframe` to choose the way datetime columns are
+    returned + several fixes when reading and writing datetimes (#486).
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes
