@@ -100,6 +100,14 @@ def get_gdal_config_option(str name):
     return str_value
 
 
+def ogr_driver_supports_update(driver):
+    # check metadata for driver to see if it supports update
+    if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
+        return True
+
+    return False
+
+
 def ogr_driver_supports_write(driver):
     # check metadata for driver to see if it supports write
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
@@ -125,14 +133,15 @@ def ogr_list_drivers():
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
         name_c = <char *>OGR_Dr_GetName(driver)
-
         name = get_string(name_c)
 
+        capability = "r"
+        IF CTE_GDAL_VERSION >= (3, 11, 0):
+            if ogr_driver_supports_update(name):
+                capability += "a"
         if ogr_driver_supports_write(name):
-            drivers[name] = "rw"
-
-        else:
-            drivers[name] = "r"
+            capability += "w"
+        drivers[name] = capability
 
     return drivers
 
