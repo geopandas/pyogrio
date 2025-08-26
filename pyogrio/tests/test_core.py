@@ -1,3 +1,4 @@
+import sqlite3
 from pathlib import Path
 
 import numpy as np
@@ -450,6 +451,21 @@ def test_read_info(naturalearth_lowres):
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
+
+
+def test_read_info_encoding_sqlite(tmp_path):
+    # Prepare test file
+    test_path = tmp_path / "test.sqlite"
+    conn = sqlite3.connect(test_path)
+    conn.execute("CREATE TABLE test (name TEXT, value INTEGER)")
+    conn.execute("INSERT INTO test (name, value) VALUES (?, ?)", ("foö", 1))
+    conn.execute("INSERT INTO test (name, value) VALUES (?, ?)", ("bÏr", 2))
+    conn.commit()
+    conn.close()
+
+    # Read info
+    info = read_info(test_path)
+    assert info["encoding"].upper() == "UTF-8"
 
 
 @pytest.mark.parametrize(
