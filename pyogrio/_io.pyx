@@ -609,6 +609,10 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
     if driver == "GeoJSONSeq":
         # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
         return "UTF-8"
+    
+    if driver == "SQLite":
+        # In gdal versions < 3.12, OLCStringsAsUTF8 wasn't advertised yet.
+        return "UTF-8"
 
     return locale.getpreferredencoding()
 
