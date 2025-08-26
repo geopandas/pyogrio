@@ -454,7 +454,12 @@ def test_read_info(naturalearth_lowres):
 
 
 def test_read_info_encoding_sqlite(tmp_path):
-    # Prepare test file
+    """SQLite files should report UTF-8 as encoding.
+
+    Otherwise, on windows, decoding from "cp1252" is tried which will give errors for
+    some special characters.
+    """
+    # Prepare sqlite test file
     test_path = tmp_path / "test.sqlite"
     conn = sqlite3.connect(test_path)
     conn.execute("CREATE TABLE test (name TEXT, value INTEGER)")
