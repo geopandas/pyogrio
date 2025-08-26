@@ -453,6 +453,18 @@ def test_read_info(naturalearth_lowres):
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
 
 
+@pytest.mark.parametrize(
+    "naturalearth_lowres",
+    [".shp", ".gpkg", "geojsonl", "geojsons", ".sqlite"],
+    indirect=True,
+)
+def test_read_info_encoding(naturalearth_lowres):
+    meta = read_info(naturalearth_lowres)
+
+    assert meta["layer_name"] == "naturalearth_lowres"
+    assert meta["encoding"].upper() == "UTF-8"
+
+
 def test_read_info_encoding_sqlite(tmp_path):
     """SQLite files should report UTF-8 as encoding.
 
