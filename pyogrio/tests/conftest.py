@@ -10,6 +10,7 @@ from pyogrio import (
     list_drivers,
 )
 from pyogrio._compat import (
+    GDAL_GE_37,
     HAS_ARROW_API,
     HAS_ARROW_WRITE_API,
     HAS_GDAL_GEOS,
@@ -85,6 +86,9 @@ requires_shapely = pytest.mark.skipif(not HAS_SHAPELY, reason="Shapely >= 2.0 re
 
 
 def prepare_testfile(testfile_path, dst_dir, ext):
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
     if ext == testfile_path.suffix:
         return testfile_path
 

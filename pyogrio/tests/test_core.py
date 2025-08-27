@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_37, GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -461,9 +461,6 @@ def test_read_info(naturalearth_lowres):
     "naturalearth_lowres", [*DRIVERS.keys(), ".sqlite"], indirect=True
 )
 def test_read_info_encoding(naturalearth_lowres):
-    if naturalearth_lowres.name.endswith(".gpkg.zip") and not GDAL_GE_37:
-        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
-
     meta = read_info(naturalearth_lowres)
     assert meta["encoding"].upper() == "UTF-8"
 
