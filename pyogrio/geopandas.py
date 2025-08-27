@@ -39,11 +39,16 @@ def _stringify_path(path):
     return path
 
 
-def _try_parse_datetime(ser, datetimes="UTC"):
+def _try_parse_datetime(ser, datetimes):
     import pandas as pd  # only called when pandas is known to be installed
     from pandas.api.types import is_string_dtype
 
     datetimes = datetimes.upper()
+    datetimes_values = [
+        "MIXED_TO_UTC",
+        "MIXED_TO_DATETIME",
+        "STRING",
+    ]
     datetime_kwargs = {}
     if datetimes == "STRING":
         if not is_string_dtype(ser.dtype):
@@ -55,12 +60,12 @@ def _try_parse_datetime(ser, datetimes="UTC"):
             # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
             return ser.str.replace(" ", "T").str.replace("/", "-")
         return ser
-    elif datetimes in ("UTC", "DATETIME"):
+    elif datetimes in datetimes_values:
         pass
     else:
         raise ValueError(
             f"Invalid value for 'datetimes': {datetimes!r}. "
-            "Must be 'UTC', 'DATETIME' or 'STRING'."
+            f"Must be one of {datetimes_values!r}."
         )
 
     if PANDAS_GE_22:
@@ -81,21 +86,25 @@ def _try_parse_datetime(ser, datetimes="UTC"):
         warning = "Error parsing datetimes, original strings are returned: {message}"
         try:
             res = pd.to_datetime(ser, **datetime_kwargs)
+
+            # With pandas < 3.0, mixed timezones were returned as pandas Timestamps, so
+            # convert them to datetime objects.
+            if datetimes == "MIXED_TO_DATETIME" and res.dtype == "object":
+                res = res.map(lambda x: x.to_pydatetime(), na_action="ignore")
+
         except Exception as ex:
             if isinstance(ex, ValueError) and "Mixed timezones detected" in str(ex):
                 # Parsing mixed timezones with to_datetime is not supported
                 # anymore in pandas >= 3.0, leading to a ValueError.
-                if datetimes == "DATETIME":
-                    # Using 2 times map seems to be the fastest way to convert the
-                    # strings to Timestamps.
+                if datetimes == "MIXED_TO_DATETIME":
+                    # Using map seems to be the fastest way to convert the strings to
+                    # datetimes.
                     try:
-                        res = ser.map(datetime.fromisoformat, na_action="ignore").map(
-                            pd.Timestamp, na_action="ignore"
-                        )
+                        res = ser.map(datetime.fromisoformat, na_action="ignore")
                     except Exception as ex:
                         warnings.warn(warning.format(message=str(ex)), stacklevel=1)
                         return ser
-                elif datetimes == "UTC":
+                elif datetimes == "MIXED_TO_UTC":
                     # Convert mixed timezone datetimes to UTC.
                     try:
                         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
@@ -113,7 +122,7 @@ def _try_parse_datetime(ser, datetimes="UTC"):
 
     # For pandas < 3.0, to_datetime converted mixed timezone data to datetime objects.
     # For this datetimes option they should be converted to UTC though...
-    if datetimes == "UTC" and res.dtype in ("object", "string"):
+    if datetimes == "MIXED_TO_UTC" and res.dtype in ("object", "string"):
         try:
             res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
         except Exception as ex:
@@ -151,7 +160,7 @@ def read_dataframe(
     use_arrow=None,
     on_invalid="raise",
     arrow_to_pandas_kwargs=None,
-    datetimes="UTC",
+    datetimes="MIXED_TO_UTC",
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -282,7 +291,7 @@ def read_dataframe(
     datetimes : str, optional (default: "UTC")
         The way datetime columns should be returned. Possible values:
 
-        - **"UTC"**: return all datetime columns as pandas datetime64 columns.
+        - **"MIXED_TO_UTC"**: return all datetime columns as pandas datetime64 columns.
           The data is returned as-is if a column contains only naive datetimes
           (without timezone information), only UTC datetimes, or if all datetimes
           in the column have the same timezone offset.
@@ -290,7 +299,7 @@ def read_dataframe(
           different offsets throughout the year!
           For columns that don't comply to the above, all datetimes are converted
           to UTC. In that case naive datetimes are assumed to be in UTC already.
-        - **"DATETIME"**: return datetimes in the timezone as they were read
+        - **"MIXED_TO_DATETIME"**: return datetimes in the timezone as they were read
           from the data source, even if a column contains mixed timezone offsets.
           Columns will be returned as pandas datetime64 column if a column contains
           only naive datetimes (without timezone information), only UTC datetimes,
@@ -298,7 +307,7 @@ def read_dataframe(
           Note that in timezones with daylight saving time datetimes will have
           different offsets throughout the year!
           Columns that don't comply to the above are returned as object columns with
-          pandas.Timestamp values. If you want to roundtrip datetimes without data
+          python datetime values. If you want to roundtrip datetimes without data
           loss, this is the recommended option.
         - **"STRING"**: return all datetimes as ISO8601 strings.
 
