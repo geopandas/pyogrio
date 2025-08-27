@@ -6,9 +6,8 @@ from packaging.version import Version
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pyogrio._ogr import MULTI_EXTENSIONS
 from pyogrio._vsi import vsimem_rmtree_toplevel as _vsimem_rmtree_toplevel
-
-MULTI_EXTENSIONS = (".gpkg.zip", ".shp.zip")
 
 
 def get_vsi_path_or_buffer(path_or_buffer):

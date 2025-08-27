@@ -6,6 +6,10 @@
 
 -   pyogrio now requires a minimum version of Python >= 3.10 (#557).
 
+### Bug fixes
+
+-   Fix wrong layername when creating .gpkg.zip file (#570).
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes
