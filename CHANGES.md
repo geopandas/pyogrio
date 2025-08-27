@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.0 (yyyy-mm-dd)
+
+### Bug fixes
+
+-   Fix wrong layername when creating .gpkg.zip file (#570)
+
 ## 0.11.1 (2025-08-02)
 
 ### Bug fixes

@@ -24,11 +24,9 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 
 import numpy as np
 
-from pyogrio._ogr cimport *
 from pyogrio._err cimport (
     check_last_error, check_int, check_pointer, ErrorHandler
 )
-from pyogrio._vsi cimport *
 from pyogrio._err import (
     CPLE_AppDefinedError,
     CPLE_BaseError,
@@ -38,6 +36,9 @@ from pyogrio._err import (
     capture_errors,
 )
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
+from pyogrio._ogr cimport *
+from pyogrio._ogr import MULTI_EXTENSIONS
+from pyogrio._vsi cimport *
 from pyogrio.errors import (
     CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
 )
@@ -2236,7 +2237,15 @@ cdef create_ogr_dataset_layer(
     path_exists = os.path.exists(path) if not use_tmp_vsimem else False
 
     if not layer:
-        layer = os.path.splitext(os.path.split(path)[1])[0]
+        # For multi extensions (e.g. ".shp.zip"), strip the full extension
+        for multi_ext in MULTI_EXTENSIONS:
+            if path.endswith(multi_ext):
+                layer = os.path.split(path)[1][:-len(multi_ext)]
+                break
+
+        # If it wasn't a multi-extension, use the file stem
+        if not layer:
+            layer = os.path.splitext(os.path.split(path)[1])[0]
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers
