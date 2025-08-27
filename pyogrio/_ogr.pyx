@@ -7,6 +7,8 @@ from pyogrio._err cimport check_pointer
 from pyogrio._err import CPLE_BaseError, NullPointerError
 from pyogrio.errors import DataSourceError
 
+MULTI_EXTENSIONS = (".gpkg.zip", ".shp.zip")
+
 
 cdef get_string(const char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *.
@@ -336,10 +338,10 @@ def _get_drivers_for_path(path):
 
     # allow specific drivers to have a .zip extension to match GDAL behavior
     if ext == "zip":
-        if path.endswith(".shp.zip"):
-            ext = "shp.zip"
-        elif path.endswith(".gpkg.zip"):
-            ext = "gpkg.zip"
+        for multi_ext in MULTI_EXTENSIONS:
+            if path.endswith(multi_ext):
+                ext = multi_ext[1:]  # strip leading dot
+                break
 
     drivers = []
     for i in range(OGRGetDriverCount()):
