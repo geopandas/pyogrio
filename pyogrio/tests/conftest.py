@@ -104,7 +104,7 @@ def prepare_testfile(testfile_path, dst_dir, ext):
         # allow mixed Polygons/MultiPolygons type
         meta["geometry_type"] = "Unknown"
 
-    elif ext == ".gpkg":
+    elif ext in (".gpkg", ".gpkg.zip"):
         # For .gpkg, spatial_index=False to avoid the rows being reordered
         meta["spatial_index"] = False
         meta["geometry_type"] = "MultiPolygon"

@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   Fix decode error reading an sqlite file on windows (#568).
+-   Fix wrong layername when creating .gpkg.zip file (#570).
 
 ## 0.11.1 (2025-08-02)
 
