@@ -455,7 +455,7 @@ def test_read_info(naturalearth_lowres):
 
 @pytest.mark.parametrize(
     "naturalearth_lowres",
-    [".shp", ".gpkg", "geojsonl", "geojsons", ".sqlite"],
+    [".shp", ".gpkg", ".geojsonl", ".geojsons", ".sqlite"],
     indirect=True,
 )
 def test_read_info_encoding(naturalearth_lowres):
@@ -463,26 +463,6 @@ def test_read_info_encoding(naturalearth_lowres):
 
     assert meta["layer_name"] == "naturalearth_lowres"
     assert meta["encoding"].upper() == "UTF-8"
-
-
-def test_read_info_encoding_sqlite(tmp_path):
-    """SQLite files should report UTF-8 as encoding.
-
-    Otherwise, on windows, decoding from "cp1252" is tried which will give errors for
-    some special characters.
-    """
-    # Prepare sqlite test file
-    test_path = tmp_path / "test.sqlite"
-    conn = sqlite3.connect(test_path)
-    conn.execute("CREATE TABLE test (name TEXT, value INTEGER)")
-    conn.execute("INSERT INTO test (name, value) VALUES (?, ?)", ("foö", 1))
-    conn.execute("INSERT INTO test (name, value) VALUES (?, ?)", ("bÏr", 2))
-    conn.commit()
-    conn.close()
-
-    # Read info
-    info = read_info(test_path)
-    assert info["encoding"].upper() == "UTF-8"
 
 
 @pytest.mark.parametrize(
