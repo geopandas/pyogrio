@@ -87,9 +87,13 @@ def _try_parse_datetime(ser, datetimes):
         try:
             res = pd.to_datetime(ser, **datetime_kwargs)
 
-            # With pandas < 3.0, mixed timezones were returned as pandas Timestamps, so
-            # convert them to datetime objects.
-            if datetimes == "MIXED_TO_DATETIME" and res.dtype == "object":
+            # With pandas >2 and <3, mixed timezones were returned as pandas Timestamps,
+            # so convert them to datetime objects.
+            if (
+                datetimes == "MIXED_TO_DATETIME"
+                and PANDAS_GE_20
+                and res.dtype == "object"
+            ):
                 res = res.map(lambda x: x.to_pydatetime(), na_action="ignore")
 
         except Exception as ex:

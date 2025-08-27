@@ -344,9 +344,7 @@ def test_read_datetimes_invalid_param(datetime_file, use_arrow):
         read_dataframe(datetime_file, use_arrow=use_arrow, datetimes="INVALID")
 
 
-@pytest.mark.parametrize(
-    "datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"]
-)
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
 def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes):
     """Test writing/reading a column with a datetime far in the past.
 
