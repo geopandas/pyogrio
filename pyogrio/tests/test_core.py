@@ -415,7 +415,9 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
         assert array_equal(fids, fids_expected)
 
 
-@pytest.mark.parametrize("naturalearth_lowres", [".shp", ".gpkg"], indirect=True)
+@pytest.mark.parametrize(
+    "naturalearth_lowres", [".shp", ".shp.zip", ".gpkg", ".gpkg.zip"], indirect=True
+)
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
@@ -427,11 +429,12 @@ def test_read_info(naturalearth_lowres):
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["capabilities"]["random_read"] is True
+    # The GPKG test files are created without spatial index
     assert meta["capabilities"]["fast_spatial_filter"] is False
     assert meta["capabilities"]["fast_feature_count"] is True
     assert meta["capabilities"]["fast_total_bounds"] is True
 
-    if naturalearth_lowres.suffix == ".gpkg":
+    if naturalearth_lowres.name.endswith((".gpkg", ".gpkg.zip")):
         assert meta["fid_column"] == "fid"
         assert meta["geometry_name"] == "geom"
         assert meta["geometry_type"] == "MultiPolygon"
@@ -439,7 +442,7 @@ def test_read_info(naturalearth_lowres):
         if GDAL_GE_38:
             # this capability is only True for GPKG if GDAL >= 3.8
             assert meta["capabilities"]["fast_set_next_by_index"] is True
-    elif naturalearth_lowres.suffix == ".shp":
+    elif naturalearth_lowres.name.endswith((".shp", ".shp.zip")):
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
         # geometry_name == "" for formats where geometry column name cannot be

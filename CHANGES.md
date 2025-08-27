@@ -4,7 +4,11 @@
 
 ### Improvements
 
--   Return JSON fields as dicts in `read_dataframe` (#556)
+-   Return JSON fields as dicts in `read_dataframe` (#556).
+
+### Bug fixes
+
+-   Fix wrong layername when creating .gpkg.zip file (#570).
 
 ## 0.11.1 (2025-08-02)
 
