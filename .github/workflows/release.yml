@@ -148,12 +148,6 @@ jobs:
         env:
           BUILDKIT_PROGRESS: plain
 
-      - name: Upload artifacts
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          pattern: "!*.dockerbuild"
-
       - name: Display structure of downloaded files
         run: ls -R
 
