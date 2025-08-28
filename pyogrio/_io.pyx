@@ -991,7 +991,9 @@ cdef process_fields(
         elif field_type == OFTInteger64List:
             # According to GDAL doc, this can return NULL for an empty list, which is a
             # valid result. So don't use check_pointer as it would throw an exception.
-            int64s_c = OGR_F_GetFieldAsInteger64List(ogr_feature, field_index, &ret_length)
+            int64s_c = OGR_F_GetFieldAsInteger64List(
+                ogr_feature, field_index, &ret_length
+            )
 
             int_arr = np.ndarray(shape=(ret_length,), dtype=np.int64)
             for j in range(ret_length):
@@ -1001,7 +1003,9 @@ cdef process_fields(
         elif field_type == OFTRealList:
             # According to GDAL doc, this can return NULL for an empty list, which is a
             # valid result. So don't use check_pointer as it would throw an exception.
-            doubles_c = OGR_F_GetFieldAsDoubleList(ogr_feature, field_index, &ret_length)
+            doubles_c = OGR_F_GetFieldAsDoubleList(
+                ogr_feature, field_index, &ret_length
+            )
 
             double_arr = np.ndarray(shape=(ret_length,), dtype=np.float64)
             for j in range(ret_length):
