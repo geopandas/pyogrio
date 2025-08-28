@@ -611,6 +611,11 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
         return "UTF-8"
 
+    if driver == "SQLite":
+        # TestCapability for OLCStringsAsUTF8 returns False for SQLite in GDAL 3.11.3.
+        # Issue opened: https://github.com/OSGeo/gdal/issues/12962
+        return "UTF-8"
+
     return locale.getpreferredencoding()
 
 
