@@ -33,6 +33,11 @@ jobs:
       image: ${{ matrix.container }}
 
     steps:
+      # sudo apt-get install --reinstall ca-certificates
+      - name: Update certificates packages
+        run: |
+          echo Hello world
+
       - name: Install packages
         run: |
           apt-get update && apt-get install -y build-essential git python3-dev
