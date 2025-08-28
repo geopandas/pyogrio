@@ -378,16 +378,35 @@ def test_read_list_types(list_field_values_file, use_arrow):
     assert result["list_int64"][1].tolist() == [2, 3]
     assert result["list_int64"][2].tolist() == []
     assert result["list_int64"][3] is None
+    assert result["list_int64"][4] is None
     assert "list_double" in result.columns
     assert result["list_double"][0].tolist() == [0.0, 1.0]
     assert result["list_double"][1].tolist() == [2.0, 3.0]
     assert result["list_double"][2].tolist() == []
     assert result["list_double"][3] is None
+    assert result["list_double"][4] is None
     assert "list_string" in result.columns
     assert result["list_string"][0].tolist() == ["string1", "string2"]
-    assert result["list_string"][1].tolist() == ["string3", "string4"]
+    assert result["list_string"][1].tolist() == ["string3", "string4", ""]
     assert result["list_string"][2].tolist() == []
     assert result["list_string"][3] is None
+    assert result["list_string"][4] == [""]
+
+    # Once any row of a column contains a null value in a lists (in the test geojson),
+    # the column isn't recognized as a list anymore and the values are returned as
+    # strings.
+    assert "list_int_with_null" in result.columns
+    assert result["list_int_with_null"][0] == "[ 0, null ]"
+    assert result["list_int_with_null"][1] == "[ 2, 3 ]"
+    assert result["list_int_with_null"][2] == "[ ]"
+    assert result["list_int_with_null"][3] is None
+    assert result["list_int_with_null"][4] is None
+    assert "list_string_with_null" in result.columns
+    assert result["list_string_with_null"][0] == '[ "string1", null ]'
+    assert result["list_string_with_null"][1] == '[ "string3", "string4", "" ]'
+    assert result["list_string_with_null"][2] == "[ ]"
+    assert result["list_string_with_null"][3] is None
+    assert result["list_string_with_null"][4] == '[ "" ]'
 
 
 @pytest.mark.filterwarnings(
