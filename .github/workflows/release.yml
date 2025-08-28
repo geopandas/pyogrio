@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -123,7 +123,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -160,7 +160,7 @@ jobs:
           retention-days: 10
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.1
 
       - uses: actions/upload-artifact@v4
         with:
@@ -187,7 +187,7 @@ jobs:
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
             vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
-          - os: "windows-latest"
+          - os: "windows-2022"
             triplet: "x64-windows-dynamic-release"
             arch: AMD64
             # windows requires windows-specific paths
@@ -196,7 +196,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -243,7 +243,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.3
+        uses: pypa/cibuildwheel@v3.0.1
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -290,7 +290,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
         uses: actions/setup-python@v5
