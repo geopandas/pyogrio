@@ -371,15 +371,23 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
 
 
 def test_read_list_types(list_field_values_file, use_arrow):
-    # with arrow, list types are supported
     result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
 
     assert "list_int64" in result.columns
     assert result["list_int64"][0].tolist() == [0, 1]
+    assert result["list_int64"][1].tolist() == [2, 3]
+    assert result["list_int64"][2].tolist() == []
+    assert result["list_int64"][3] is None
     assert "list_double" in result.columns
     assert result["list_double"][0].tolist() == [0.0, 1.0]
+    assert result["list_double"][1].tolist() == [2.0, 3.0]
+    assert result["list_double"][2].tolist() == []
+    assert result["list_double"][3] is None
     assert "list_string" in result.columns
     assert result["list_string"][0].tolist() == ["string1", "string2"]
+    assert result["list_string"][1].tolist() == ["string3", "string4"]
+    assert result["list_string"][2].tolist() == []
+    assert result["list_string"][3] is None
 
 
 @pytest.mark.filterwarnings(

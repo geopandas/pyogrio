@@ -235,9 +235,9 @@ def list_field_values_file(tmp_path):
                 "type": "Feature",
                 "properties": {
                     "int64": 3,
-                    "list_int64": [4, 5],
-                    "list_double": [4.0, 5.0],
-                    "list_string": ["string5", "string6"]
+                    "list_int64": [],
+                    "list_double": [],
+                    "list_string": []
                 },
                 "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
@@ -245,21 +245,11 @@ def list_field_values_file(tmp_path):
                 "type": "Feature",
                 "properties": {
                     "int64": 4,
-                    "list_int64": [6, 7],
-                    "list_double": [6.0, 7.0],
-                    "list_string": ["string7", "string8"]
+                    "list_int64": null,
+                    "list_double": null,
+                    "list_string": null
                 },
-                "geometry": { "type": "Point", "coordinates": [3, 2] }
-            },
-            {
-                "type": "Feature",
-                "properties": {
-                    "int64": 5,
-                    "list_int64": [8, 9],
-                    "list_double": [8.0, 9.0],
-                    "list_string": ["string9", "string10"]
-                },
-                "geometry": { "type": "Point", "coordinates": [4, 2] }
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
             }
         ]
     }"""
