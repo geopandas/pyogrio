@@ -4,7 +4,6 @@ import re
 import sys
 from packaging.version import Version
 from pathlib import Path
-from typing import Union
 from urllib.parse import urlparse
 
 from pyogrio._ogr import MULTI_EXTENSIONS
@@ -53,7 +52,7 @@ def get_vsi_path_or_buffer(path_or_buffer):
     return vsi_path(str(path_or_buffer))
 
 
-def vsi_path(path: Union[str, Path]) -> str:
+def vsi_path(path: str | Path) -> str:
     """Ensure path is a local path or a GDAL-compatible VSI path."""
     # Convert Path objects to string, but for VSI paths, keep posix style path.
     if isinstance(path, Path):
@@ -236,7 +235,7 @@ def _mask_to_wkb(mask):
     return shapely.to_wkb(mask)
 
 
-def vsimem_rmtree_toplevel(path: Union[str, Path]):
+def vsimem_rmtree_toplevel(path: str | Path):
     """Remove the parent directory of the file path recursively.
 
     This is used for final cleanup of an in-memory dataset, which may have been

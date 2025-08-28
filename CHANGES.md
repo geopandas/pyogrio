@@ -1,10 +1,14 @@
 # CHANGELOG
 
-## 0.12.0 (yyyy-mm-dd)
+## 0.12.0 (xxxx-xx-xx)
+
+### Packaging
+
+-   pyogrio now requires a minimum version of Python >= 3.10 (#557).
 
 ### Bug fixes
 
--   Fix wrong layername when creating .gpkg.zip file (#570)
+-   Fix wrong layername when creating .gpkg.zip file (#570).
 
 ## 0.11.1 (2025-08-02)
 
