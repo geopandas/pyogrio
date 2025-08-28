@@ -882,7 +882,7 @@ cdef process_fields(
     cdef int ret_length
     cdef int *ints_c
     cdef int64_t *int64s_c
-    cdef double *reals_c
+    cdef double *doubles_c
     cdef char **strings_c
     cdef GByte *bin_value
     cdef int year = 0
@@ -975,16 +975,18 @@ cdef process_fields(
                     ).isoformat()
 
         elif field_type == OFTIntegerList:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
             ints_c = OGR_F_GetFieldAsIntegerList(ogr_feature, field_index, &ret_length)
-
             int_arr = np.ndarray(shape=(ret_length,), dtype=np.int32)
             for j in range(ret_length):
                 int_arr[j] = ints_c[j]
             data[i] = int_arr
 
         elif field_type == OFTInteger64List:
-            int64s_c = OGR_F_GetFieldAsInteger64List(
-                           ogr_feature, field_index, &ret_length)
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            int64s_c = OGR_F_GetFieldAsInteger64List(ogr_feature, field_index, &ret_length)
 
             int_arr = np.ndarray(shape=(ret_length,), dtype=np.int64)
             for j in range(ret_length):
@@ -992,19 +994,24 @@ cdef process_fields(
             data[i] = int_arr
 
         elif field_type == OFTRealList:
-            reals_c = OGR_F_GetFieldAsDoubleList(ogr_feature, field_index, &ret_length)
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            doubles_c = OGR_F_GetFieldAsDoubleList(ogr_feature, field_index, &ret_length)
 
-            real_arr = np.ndarray(shape=(ret_length,), dtype=np.float64)
+            double_arr = np.ndarray(shape=(ret_length,), dtype=np.float64)
             for j in range(ret_length):
-                real_arr[j] = reals_c[j]
-            data[i] = real_arr
+                double_arr[j] = doubles_c[j]
+            data[i] = double_arr
 
         elif field_type == OFTStringList:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
             strings_c = OGR_F_GetFieldAsStringList(ogr_feature, field_index)
 
             string_list_index = 0
             vals = []
             if strings_c != NULL:
+                # According to GDAL doc, the list is terminated by a NULL pointer.
                 while strings_c[string_list_index] != NULL:
                     val = strings_c[string_list_index]
                     vals.append(get_string(val, encoding=encoding))
