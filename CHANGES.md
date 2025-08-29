@@ -2,9 +2,10 @@
 
 ## 0.12.0 (yyyy-mm-dd)
 
-### Improvements
+### Potentially breaking changes
 
--   Return JSON fields as dicts in `read_dataframe` (#556).
+-   Return JSON fields (as identified by GDAL) as dicts in `read_dataframe` and listing
+    of GDAL data types and subtypes to `read_info` (#556).
 
 ### Bug fixes
 
