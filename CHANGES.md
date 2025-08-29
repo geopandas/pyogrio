@@ -2,8 +2,14 @@
 
 ## 0.12.0 (yyyy-mm-dd)
 
+### Potentially breaking changes
+
+-   Return JSON fields (as identified by GDAL) as dicts/lists in `read_dataframe`;
+    these were previously returned as strings (#556).
+
 ### Improvements
 
+-   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558).
 
 ### Bug fixes
