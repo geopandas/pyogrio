@@ -2,9 +2,14 @@
 
 ## 0.12.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Add support to read list fields without arrow (#558).
+
 ### Bug fixes
 
--   Fix wrong layername when creating .gpkg.zip file (#570)
+-   Fix decode error reading an sqlite file on windows (#568).
+-   Fix wrong layername when creating .gpkg.zip file (#570).
 
 ## 0.11.1 (2025-08-02)
 

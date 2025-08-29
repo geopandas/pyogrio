@@ -22,7 +22,12 @@ from pyogrio._compat import GDAL_GE_38
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
-from pyogrio.tests.conftest import START_FID, prepare_testfile, requires_shapely
+from pyogrio.tests.conftest import (
+    DRIVERS,
+    START_FID,
+    prepare_testfile,
+    requires_shapely,
+)
 
 import pytest
 
@@ -453,6 +458,14 @@ def test_read_info(naturalearth_lowres):
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
+
+
+@pytest.mark.parametrize(
+    "naturalearth_lowres", [*DRIVERS.keys(), ".sqlite"], indirect=True
+)
+def test_read_info_encoding(naturalearth_lowres):
+    meta = read_info(naturalearth_lowres)
+    assert meta["encoding"].upper() == "UTF-8"
 
 
 @pytest.mark.parametrize(
