@@ -2527,8 +2527,8 @@ def test_write_kml_append(tmp_path, use_arrow):
         use_arrow=use_arrow,
         append=True,
     )
-    # force_2d used to only compare xy geometry as z-dimension is undesirably
-    # introduced when the kml file is over-written.
+    # force_2d is used to only compare the xy dimensions of the geometry, as the LIBKML
+    # driver always adds the z-dimension when the kml file is over-written.
     gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow, force_2d=True)
 
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
