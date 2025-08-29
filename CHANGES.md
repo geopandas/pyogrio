@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## 0.12.0 (xxxx-xx-xx)
+## 0.12.0 (yyyy-mm-dd)
+
+### Bug fixes
+
+-   Fix decode error reading an sqlite file on windows (#568).
+-   Fix wrong layername when creating .gpkg.zip file (#570).
 
 ### Packaging
 
