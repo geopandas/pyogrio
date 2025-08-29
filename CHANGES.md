@@ -2,6 +2,10 @@
 
 ## 0.12.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Add support to read list fields without arrow (#558).
+
 ### Bug fixes
 
 -   Fix decode error reading an sqlite file on windows (#568).

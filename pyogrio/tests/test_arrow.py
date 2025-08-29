@@ -1,7 +1,6 @@
 import contextlib
 import json
 import math
-import os
 import sys
 from io import BytesIO
 from packaging.version import Version
@@ -131,13 +130,6 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
         columns=["geometry"]
     )
     assert_frame_equal(result, expected)
-
-
-def test_read_arrow_nested_types(list_field_values_file):
-    # with arrow, list types are supported
-    result = read_dataframe(list_field_values_file, use_arrow=True)
-    assert "list_int64" in result.columns
-    assert result["list_int64"][0].tolist() == [0, 1]
 
 
 def test_read_arrow_to_pandas_kwargs(no_geometry_file):
@@ -298,29 +290,6 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
 
     _, expected = read_arrow(naturalearth_lowres)
     assert result.equals(expected)
-
-
-@contextlib.contextmanager
-def use_arrow_context():
-    original = os.environ.get("PYOGRIO_USE_ARROW", None)
-    os.environ["PYOGRIO_USE_ARROW"] = "1"
-    yield
-    if original:
-        os.environ["PYOGRIO_USE_ARROW"] = original
-    else:
-        del os.environ["PYOGRIO_USE_ARROW"]
-
-
-def test_enable_with_environment_variable(list_field_values_file):
-    # list types are only supported with arrow, so don't work by default and work
-    # when arrow is enabled through env variable
-    result = read_dataframe(list_field_values_file)
-    assert "list_int64" not in result.columns
-
-    with use_arrow_context():
-        result = read_dataframe(list_field_values_file)
-
-    assert "list_int64" in result.columns
 
 
 @pytest.mark.skipif(

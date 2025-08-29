@@ -213,28 +213,63 @@ def list_field_values_file(tmp_path):
         "features": [
             {
                 "type": "Feature",
-                "properties": { "int64": 1, "list_int64": [0, 1] },
+                "properties": {
+                    "int64": 1,
+                    "list_int64": [0, 1],
+                    "list_double": [0.0, 1.0],
+                    "list_string": ["string1", "string2"],
+                    "list_int_with_null": [0, null],
+                    "list_string_with_null": ["string1", null]
+                },
                 "geometry": { "type": "Point", "coordinates": [0, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 2, "list_int64": [2, 3] },
+                "properties": {
+                    "int64": 2,
+                    "list_int64": [2, 3],
+                    "list_double": [2.0, 3.0],
+                    "list_string": ["string3", "string4", ""],
+                    "list_int_with_null": [2, 3],
+                    "list_string_with_null": ["string3", "string4", ""]
+                },
                 "geometry": { "type": "Point", "coordinates": [1, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 3, "list_int64": [4, 5] },
+                "properties": {
+                    "int64": 3,
+                    "list_int64": [],
+                    "list_double": [],
+                    "list_string": [],
+                    "list_int_with_null": [],
+                    "list_string_with_null": []
+                },
                 "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 4, "list_int64": [6, 7] },
-                "geometry": { "type": "Point", "coordinates": [3, 2] }
+                "properties": {
+                    "int64": 4,
+                    "list_int64": null,
+                    "list_double": null,
+                    "list_string": null,
+                    "list_int_with_null": null,
+                    "list_string_with_null": null
+                },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 5, "list_int64": [8, 9] },
-                "geometry": { "type": "Point", "coordinates": [4, 2] }
+                "properties": {
+                    "int64": 5,
+                    "list_int64": null,
+                    "list_double": null,
+                    "list_string": [""],
+                    "list_int_with_null": null,
+                    "list_string_with_null": [""]
+                },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
             }
         ]
     }"""
