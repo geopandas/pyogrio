@@ -65,11 +65,40 @@ FIELD_TYPES = [
     "list(int64)"      # OFTInteger64List, List of 64bit integers, not supported
 ]
 
+# Mapping of OGR integer field types to OGR type names
+# (index in array is the integer field type)
+FIELD_TYPE_NAMES = {
+    OFTInteger: "OFTInteger",                # Simple 32bit integer
+    OFTIntegerList: "OFTIntegerList",        # List of 32bit integers, not supported
+    OFTReal: "OFTReal",                      # Double Precision floating point
+    OFTRealList: "OFTRealList",              # List of doubles, not supported
+    OFTString: "OFTString",                  # String of UTF-8 chars
+    OFTStringList: "OFTStringList",          # Array of strings, not supported
+    OFTWideString: "OFTWideString",          # deprecated, not supported
+    OFTWideStringList: "OFTWideStringList",  # deprecated, not supported
+    OFTBinary: "OFTBinary",                  # Raw Binary data
+    OFTDate: "OFTDate",                      # Date
+    OFTTime: "OFTTime",                      # Time: not directly supported in numpy
+    OFTDateTime: "OFTDateTime",              # Date and Time
+    OFTInteger64: "OFTInteger64",            # Single 64bit integer
+    OFTInteger64List: "OFTInteger64List",    # List of 64bit integers, not supported
+}
+
 FIELD_SUBTYPES = {
     OFSTNone: None,           # No subtype
     OFSTBoolean: "bool",      # Boolean integer
     OFSTInt16: "int16",       # Signed 16-bit integer
     OFSTFloat32: "float32",   # Single precision (32 bit) floating point
+}
+
+FIELD_SUBTYPE_NAMES = {
+    OFSTNone: "OFSTNone",             # No subtype
+    OFSTBoolean: "OFSTBoolean",       # Boolean integer
+    OFSTInt16: "OFSTInt16",           # Signed 16-bit integer
+    OFSTFloat32: "OFSTFloat32",       # Single precision (32 bit) floating point
+    OFSTJSON: "OFSTJSON",
+    OFSTUUID: "OFSTUUID",
+    OFSTMaxSubType: "OFSTMaxSubType",
 }
 
 # Mapping of numpy ndarray dtypes to (field type, subtype)
@@ -633,8 +662,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     Returns
     -------
-    ndarray(n, 4)
-        array of index, ogr type, name, numpy type
+    ndarray(n, 5)
+        array of index, ogr type, name, numpy type, ogr subtype
     """
     cdef int i
     cdef int field_count
@@ -654,7 +683,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     field_count = OGR_FD_GetFieldCount(ogr_featuredef)
 
-    fields = np.empty(shape=(field_count, 4), dtype=object)
+    fields = np.empty(shape=(field_count, 5), dtype=object)
     fields_view = fields[:, :]
 
     skipped_fields = False
@@ -691,6 +720,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
         fields_view[i, 1] = field_type
         fields_view[i, 2] = field_name
         fields_view[i, 3] = np_type
+        fields_view[i, 4] = field_subtype
 
     if skipped_fields:
         # filter out skipped fields
@@ -1472,11 +1502,18 @@ def ogr_read(
                 datetime_as_string=datetime_as_string
             )
 
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
+
         meta = {
             "crs": crs,
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "geometry_type": geometry_type,
         }
 
@@ -1804,10 +1841,18 @@ def ogr_open_arrow(
         else:
             reader = _ArrowStream(capsule)
 
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
+
         meta = {
             "crs": crs,
             "encoding": encoding,
             "fields": fields[:, 2],
+            "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "geometry_type": geometry_type,
             "geometry_name": geometry_name,
             "fid_column": fid_column,
@@ -1964,6 +2009,10 @@ def ogr_read_info(
             encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
 
         meta = {
             "layer_name": get_string(OGR_L_GetName(ogr_layer)),
@@ -1971,6 +2020,8 @@ def ogr_read_info(
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
             "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
             "geometry_type": get_geometry_type(ogr_layer),
