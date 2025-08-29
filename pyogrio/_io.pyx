@@ -916,7 +916,7 @@ cdef process_fields(
     cdef int field_index
     cdef int ret_length
     cdef int *ints_c
-    cdef int64_t *int64s_c
+    cdef GIntBig *int64s_c
     cdef double *doubles_c
     cdef char **strings_c
     cdef GByte *bin_value
