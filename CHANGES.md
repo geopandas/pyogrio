@@ -4,8 +4,12 @@
 
 ### Potentially breaking changes
 
--   Return JSON fields (as identified by GDAL) as dicts in `read_dataframe` and listing
-    of GDAL data types and subtypes to `read_info` (#556).
+-   Return JSON fields (as identified by GDAL) as dicts in `read_dataframe`;
+    these were previously returned as strings (#556).
+
+### Improvements
+
+-   Add listing of GDAL data types and subtypes to `read_info` (#556).
 
 ### Bug fixes
 
