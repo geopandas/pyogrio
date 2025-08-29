@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.3"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.3"
 
     steps:
       - name: Install packages
@@ -207,7 +207,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.3-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.11.3-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
