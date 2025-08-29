@@ -600,6 +600,11 @@ def test_read_info_unspecified_layer_warning(data_dir):
         read_info(data_dir / "sample.osm.pbf")
 
 
+def test_read_info_invalid_layer(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'layer' parameter must be a str or int"):
+        read_bounds(naturalearth_lowres, layer=["list_arg_is_invalid"])
+
+
 def test_read_info_without_geometry(no_geometry_file):
     assert read_info(no_geometry_file)["total_bounds"] is None
 
