@@ -261,6 +261,8 @@ def read_info(
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,
+                "ogr_types": <ndarray of OGR field types>,
+                "ogr_subtypes": <ndarray of OGR field subtypes>,
                 "encoding": "<encoding>",
                 "fid_column": "<fid column name or "">",
                 "geometry_name": "<geometry column name or "">",
