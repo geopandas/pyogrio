@@ -277,7 +277,7 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 @pytest.mark.skipif(
     "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read simpledata",
+    reason="LIBKML driver is not available and is needed to read simpledata element",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
     """Test reading a KML file with a simpledata element.

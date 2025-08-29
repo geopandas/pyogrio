@@ -4,7 +4,8 @@
 
 ### Packaging
 
--   Add libkml driver to the wheels for recent platforms (#561).
+-   Add libkml driver to the wheels for more recent Linux platforms supported
+    by manylinux_2_28, MacOS, and Windows (#561).
 
 ## 0.11.1 (2025-08-02)
 
