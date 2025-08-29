@@ -185,6 +185,9 @@ cdef extern from "ogr_core.h":
         OFSTBoolean
         OFSTInt16
         OFSTFloat32
+        OFSTJSON
+        OFSTUUID
+        OFSTMaxSubType
 
     ctypedef void* OGRDataSourceH
     ctypedef void* OGRFeatureDefnH
