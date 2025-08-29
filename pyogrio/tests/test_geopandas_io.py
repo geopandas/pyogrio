@@ -399,13 +399,13 @@ def test_read_list_types(list_field_values_file, use_arrow):
     assert result["list_int_with_null"][0] == "[ 0, null ]"
     assert result["list_int_with_null"][1] == "[ 2, 3 ]"
     assert result["list_int_with_null"][2] == "[ ]"
-    assert result["list_int_with_null"][3] is None
-    assert result["list_int_with_null"][4] is None
+    assert pd.isna(result["list_int_with_null"][3])
+    assert pd.isna(result["list_int_with_null"][4])
     assert "list_string_with_null" in result.columns
     assert result["list_string_with_null"][0] == '[ "string1", null ]'
     assert result["list_string_with_null"][1] == '[ "string3", "string4", "" ]'
     assert result["list_string_with_null"][2] == "[ ]"
-    assert result["list_string_with_null"][3] is None
+    assert pd.isna(result["list_string_with_null"][3])
     assert result["list_string_with_null"][4] == '[ "" ]'
 
 
