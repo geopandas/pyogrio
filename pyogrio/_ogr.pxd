@@ -1,5 +1,5 @@
 # Contains declarations against GDAL / OGR API
-from libc.stdint cimport int64_t, int8_t, intmax_t
+from libc.stdint cimport int64_t, int8_t
 from libc.stdio cimport FILE
 
 
@@ -256,6 +256,7 @@ cdef extern from "arrow_bridge.h" nogil:
 
 
 cdef extern from "ogr_api.h":
+    ctypedef signed long long GIntBig
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
 
@@ -286,7 +287,7 @@ cdef extern from "ogr_api.h":
     char **         OGR_F_GetFieldAsStringList(OGRFeatureH feature, int n)
     const int *     OGR_F_GetFieldAsIntegerList(
                         OGRFeatureH feature, int n, int* pnCount)
-    const intmax_t *OGR_F_GetFieldAsInteger64List(
+    const GIntBig * OGR_F_GetFieldAsInteger64List(
                         OGRFeatureH feature, int n, int* pnCount)
     const double *  OGR_F_GetFieldAsDoubleList(
                         OGRFeatureH feature, int n, int* pnCount)
