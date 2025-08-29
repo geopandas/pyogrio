@@ -371,6 +371,9 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
 
 
 def test_read_list_types(list_field_values_file, use_arrow):
+    if not GDAL_GE_352:
+        pytest.xfail(reason="GDAL 3.4.3 didn't handle all list types perfectly")
+
     result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
 
     assert "list_int64" in result.columns
