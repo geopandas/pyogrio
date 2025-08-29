@@ -371,10 +371,12 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
+@pytest.mark.skipif(
+    not GDAL_GE_350,
+    reason="OFSTJSON subtype + some list type situations need GDAL >= 3.5",
+)
 def test_read_list_types(list_field_values_file, use_arrow):
-    if not GDAL_GE_352:
-        pytest.xfail(reason="GDAL 3.4.3 didn't handle all list types perfectly")
-
+    """Test reading a geojson file containing fields with lists."""
     info = read_info(list_field_values_file)
     result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
 
@@ -407,6 +409,8 @@ def test_read_list_types(list_field_values_file, use_arrow):
 
     # Once any row of a column contains a null value in a list (in the test geojson),
     # the column isn't recognized as a list column anymore, but as a JSON column.
+    # Because JSON columns containing JSON Arrays are also parsed to python lists, the
+    # end result is the same...
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
     assert info["ogr_types"][4] == "OFTString"
