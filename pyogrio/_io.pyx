@@ -13,7 +13,7 @@ import sys
 import warnings
 from pathlib import Path
 
-from libc.stdint cimport uint8_t, uintptr_t
+from libc.stdint cimport intmax_t, uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
 from libc.math cimport isnan
@@ -886,7 +886,7 @@ cdef process_fields(
     cdef int field_index
     cdef int ret_length
     cdef int *ints_c
-    cdef int64_t *int64s_c
+    cdef intmax_t *int64s_c
     cdef double *doubles_c
     cdef char **strings_c
     cdef GByte *bin_value
