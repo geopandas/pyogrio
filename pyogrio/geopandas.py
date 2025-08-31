@@ -1,5 +1,6 @@
 """Functions for reading and writing GeoPandas dataframes."""
 
+import json
 import os
 import warnings
 from datetime import datetime
@@ -429,6 +430,9 @@ def read_dataframe(
         for dtype, column in zip(meta["dtypes"], meta["fields"]):
             if dtype is not None and dtype.startswith("datetime"):
                 df[column] = _try_parse_datetime(df[column], datetimes=datetimes)
+        for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+            if ogr_subtype == "OFSTJSON":
+                df[c] = df[c].map(json.loads, na_action="ignore")
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
@@ -462,6 +466,9 @@ def read_dataframe(
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
             df[c] = _try_parse_datetime(df[c], datetimes=datetimes)
+    for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+        if ogr_subtype == "OFSTJSON":
+            df[c] = df[c].map(json.loads, na_action="ignore")
 
     if geometry is None or not read_geometry:
         return df

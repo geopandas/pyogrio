@@ -171,9 +171,11 @@ def read(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
-            "dtypes": <ndarray of numpy dtypes corresponding to fields>
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
-            "geometry_type": "<geometry type>"
+            "geometry_type": "<geometry type>",
         }
 
     .. _OGRSQL:
@@ -250,9 +252,13 @@ def read_arrow(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
+            "fid_column": "<name of FID column in arrow table>"
         }
 
     """
@@ -699,9 +705,11 @@ def write(
         options will trigger a warning.
 
     """
-    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # remove some unneeded kwargs (e.g. dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
     kwargs.pop("dtypes", None)
+    kwargs.pop("ogr_types", None)
+    kwargs.pop("ogr_subtypes", None)
 
     path, driver = _get_write_path_driver(path, driver, append=append)
 

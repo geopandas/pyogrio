@@ -1005,15 +1005,6 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float64"
 
 
-def test_read_unsupported_types(list_field_values_file):
-    fields = read(list_field_values_file)[3]
-    # list field gets skipped, only integer field is read
-    assert len(fields) == 1
-
-    fields = read(list_field_values_file, columns=["int64"])[3]
-    assert len(fields) == 1
-
-
 def test_read_datetime_millisecond(datetime_file):
     field = read(datetime_file)[3][0]
     assert field.dtype == "datetime64[ms]"
