@@ -10,6 +10,7 @@ from pyogrio import (
     list_drivers,
 )
 from pyogrio._compat import (
+    GDAL_GE_37,
     HAS_ARROW_API,
     HAS_ARROW_WRITE_API,
     HAS_GDAL_GEOS,
@@ -85,6 +86,9 @@ requires_shapely = pytest.mark.skipif(not HAS_SHAPELY, reason="Shapely >= 2.0 re
 
 
 def prepare_testfile(testfile_path, dst_dir, ext):
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
     if ext == testfile_path.suffix:
         return testfile_path
 
@@ -100,7 +104,7 @@ def prepare_testfile(testfile_path, dst_dir, ext):
         # allow mixed Polygons/MultiPolygons type
         meta["geometry_type"] = "Unknown"
 
-    elif ext == ".gpkg":
+    elif ext in (".gpkg", ".gpkg.zip"):
         # For .gpkg, spatial_index=False to avoid the rows being reordered
         meta["spatial_index"] = False
         meta["geometry_type"] = "MultiPolygon"
@@ -209,28 +213,63 @@ def list_field_values_file(tmp_path):
         "features": [
             {
                 "type": "Feature",
-                "properties": { "int64": 1, "list_int64": [0, 1] },
+                "properties": {
+                    "int": 1,
+                    "list_int": [0, 1],
+                    "list_double": [0.0, 1.0],
+                    "list_string": ["string1", "string2"],
+                    "list_int_with_null": [0, null],
+                    "list_string_with_null": ["string1", null]
+                },
                 "geometry": { "type": "Point", "coordinates": [0, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 2, "list_int64": [2, 3] },
+                "properties": {
+                    "int": 2,
+                    "list_int": [2, 3],
+                    "list_double": [2.0, 3.0],
+                    "list_string": ["string3", "string4", ""],
+                    "list_int_with_null": [2, 3],
+                    "list_string_with_null": ["string3", "string4", ""]
+                },
                 "geometry": { "type": "Point", "coordinates": [1, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 3, "list_int64": [4, 5] },
+                "properties": {
+                    "int": 3,
+                    "list_int": [],
+                    "list_double": [],
+                    "list_string": [],
+                    "list_int_with_null": [],
+                    "list_string_with_null": []
+                },
                 "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 4, "list_int64": [6, 7] },
-                "geometry": { "type": "Point", "coordinates": [3, 2] }
+                "properties": {
+                    "int": 4,
+                    "list_int": null,
+                    "list_double": null,
+                    "list_string": null,
+                    "list_int_with_null": null,
+                    "list_string_with_null": null
+                },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
             },
             {
                 "type": "Feature",
-                "properties": { "int64": 5, "list_int64": [8, 9] },
-                "geometry": { "type": "Point", "coordinates": [4, 2] }
+                "properties": {
+                    "int": 5,
+                    "list_int": null,
+                    "list_double": null,
+                    "list_string": [""],
+                    "list_int_with_null": null,
+                    "list_string_with_null": [""]
+                },
+                "geometry": { "type": "Point", "coordinates": [2, 2] }
             }
         ]
     }"""
@@ -353,6 +392,34 @@ def geojson_filelike(tmp_path):
 
     with open(filename, "rb") as f:
         yield f
+
+
+@pytest.fixture(scope="function")
+def kml_file(tmp_path):
+    # create KML file
+    kml_data = """<?xml version="1.0" encoding="utf-8" ?>
+        <kml xmlns="http://www.opengis.net/kml/2.2">
+        <Document id="root_doc">
+            <Schema name="interfaces1" id="interfaces1">
+                <SimpleField name="id" type="float"></SimpleField>
+                <SimpleField name="formation" type="string"></SimpleField>
+            </Schema>
+            <Folder><name>interfaces1</name>
+                <Placemark>
+                    <ExtendedData><SchemaData schemaUrl="#interfaces1">
+                        <SimpleData name="formation">Ton</SimpleData>
+                    </SchemaData></ExtendedData>
+                    <Point><coordinates>19.1501280458077,293.313485355882</coordinates></Point>
+                </Placemark>
+            </Folder>
+        </Document>
+        </kml>
+    """
+    filename = tmp_path / "test.kml"
+    with open(filename, "w") as f:
+        _ = f.write(kml_data)
+
+    return filename
 
 
 @pytest.fixture(scope="function")
