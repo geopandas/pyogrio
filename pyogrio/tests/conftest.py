@@ -395,6 +395,34 @@ def geojson_filelike(tmp_path):
 
 
 @pytest.fixture(scope="function")
+def kml_file(tmp_path):
+    # create KML file
+    kml_data = """<?xml version="1.0" encoding="utf-8" ?>
+        <kml xmlns="http://www.opengis.net/kml/2.2">
+        <Document id="root_doc">
+            <Schema name="interfaces1" id="interfaces1">
+                <SimpleField name="id" type="float"></SimpleField>
+                <SimpleField name="formation" type="string"></SimpleField>
+            </Schema>
+            <Folder><name>interfaces1</name>
+                <Placemark>
+                    <ExtendedData><SchemaData schemaUrl="#interfaces1">
+                        <SimpleData name="formation">Ton</SimpleData>
+                    </SchemaData></ExtendedData>
+                    <Point><coordinates>19.1501280458077,293.313485355882</coordinates></Point>
+                </Placemark>
+            </Folder>
+        </Document>
+        </kml>
+    """
+    filename = tmp_path / "test.kml"
+    with open(filename, "w") as f:
+        _ = f.write(kml_data)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
 def nonseekable_bytes(tmp_path):
     # mock a non-seekable byte stream, such as a zstandard handle
     class NonSeekableBytesIO(BytesIO):

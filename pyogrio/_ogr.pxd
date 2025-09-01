@@ -259,6 +259,7 @@ cdef extern from "arrow_bridge.h" nogil:
 
 
 cdef extern from "ogr_api.h":
+    ctypedef signed long long GIntBig
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
 
@@ -287,11 +288,11 @@ cdef extern from "ogr_api.h":
     int64_t         OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
     const char*     OGR_F_GetFieldAsString(OGRFeatureH feature, int n)
     char **         OGR_F_GetFieldAsStringList(OGRFeatureH feature, int n)
-    int *           OGR_F_GetFieldAsIntegerList(
+    const int *     OGR_F_GetFieldAsIntegerList(
                         OGRFeatureH feature, int n, int* pnCount)
-    int64_t *       OGR_F_GetFieldAsInteger64List(
+    const GIntBig * OGR_F_GetFieldAsInteger64List(
                         OGRFeatureH feature, int n, int* pnCount)
-    double *        OGR_F_GetFieldAsDoubleList(
+    const double *  OGR_F_GetFieldAsDoubleList(
                         OGRFeatureH feature, int n, int* pnCount)
 
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)

@@ -288,6 +288,22 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read simpledata element",
+)
+def test_read_kml_simpledata(kml_file, use_arrow):
+    """Test reading a KML file with a simpledata element.
+
+    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    """
+    gdf = read_dataframe(kml_file, use_arrow=use_arrow)
+
+    # Check if the simpledata column is present.
+    assert "formation" in gdf.columns
+    assert gdf["formation"].iloc[0] == "Ton"
+
+
 def test_read_layer(tmp_path, use_arrow):
     filename = tmp_path / "test.gpkg"
 
@@ -2579,27 +2595,43 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
     assert np.array_equal(gdf_in.geometry.values, points)
 
-    if "LIBKML" in list_drivers():
-        # test appending to the existing file only if LIBKML is available
-        # as it appears to fall back on LIBKML driver when appending.
-        points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
-        gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
 
-        write_dataframe(
-            gdf_append,
-            output_path,
-            layer="tmp_layer",
-            driver="KML",
-            use_arrow=use_arrow,
-            append=True,
-        )
-        # force_2d used to only compare xy geometry as z-dimension is undesirably
-        # introduced when the kml file is over-written.
-        gdf_in_appended = read_dataframe(
-            output_path, use_arrow=use_arrow, force_2d=True
-        )
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to append to .kml",
+)
+def test_write_kml_append(tmp_path, use_arrow):
+    """Append features to an existing KML file.
 
-        assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+    Appending is only supported by the LIBKML driver, and the driver isn't
+    included in the GDAL ubuntu-small images, so skip if not available.
+    """
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.kml"
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
+
+    # test appending to the existing file only if LIBKML is available
+    # as it appears to fall back on LIBKML driver when appending.
+    points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="KML",
+        use_arrow=use_arrow,
+        append=True,
+    )
+    # force_2d is used to only compare the xy dimensions of the geometry, as the LIBKML
+    # driver always adds the z-dimension when the kml file is over-written.
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow, force_2d=True)
+
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
 @pytest.mark.requires_arrow_write_api
