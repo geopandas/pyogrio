@@ -347,18 +347,19 @@ cdef OGRLayerH execute_sql(
     -------
     pointer to OGR layer
     """
+    cdef char * sql_c
+    cdef char * sql_dialect_c
 
     try:
         sql_b = sql.encode("utf-8")
         sql_c = sql_b
         if sql_dialect is None:
-            return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
+            with nogil:
+                return GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
 
         sql_dialect_b = sql_dialect.encode("utf-8")
         sql_dialect_c = sql_dialect_b
-        return check_pointer(GDALDatasetExecuteSQL(
-            ogr_dataset, sql_c, NULL, sql_dialect_c)
-        )
+        return GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c)
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:

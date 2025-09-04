@@ -497,7 +497,7 @@ cdef extern from "gdal.h":
     OGRLayerH       GDALDatasetExecuteSQL(GDALDatasetH ds,
                                           const char* pszStatement,
                                           OGRGeometryH hSpatialFilter,
-                                          const char* pszDialect)
+                                          const char* pszDialect) nogil
     void            GDALDatasetReleaseResultSet(GDALDatasetH, OGRLayerH)
     OGRErr          GDALDatasetStartTransaction(GDALDatasetH ds, int bForce)
     OGRErr          GDALDatasetCommitTransaction(GDALDatasetH ds)
