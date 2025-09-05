@@ -11,6 +11,7 @@
 
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558).
+-   Unlock the gil during GDALDatasetExecuteSQL (#572).
 
 ### Bug fixes
 
