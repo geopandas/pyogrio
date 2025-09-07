@@ -387,25 +387,27 @@ cdef extern from "ogr_api.h":
     const char*         OGR_L_GetGeometryColumn(OGRLayerH layer)
     OGRErr              OGR_L_GetExtent(OGRLayerH layer,
                                         OGREnvelope *psExtent,
-                                        int bForce)
+                                        int bForce) nogil
 
-    OGRSpatialReferenceH OGR_L_GetSpatialRef(OGRLayerH layer)
+    OGRSpatialReferenceH OGR_L_GetSpatialRef(OGRLayerH layer) nogil
     int                  OGR_L_TestCapability(OGRLayerH layer, const char *name)
-    OGRFeatureDefnH      OGR_L_GetLayerDefn(OGRLayerH layer)
-    OGRFeatureH          OGR_L_GetNextFeature(OGRLayerH layer)
-    OGRFeatureH          OGR_L_GetFeature(OGRLayerH layer, int nFeatureId)
-    void                 OGR_L_ResetReading(OGRLayerH layer)
+    OGRFeatureDefnH      OGR_L_GetLayerDefn(OGRLayerH layer) nogil
+    OGRFeatureH          OGR_L_GetNextFeature(OGRLayerH layer) nogil
+    OGRFeatureH          OGR_L_GetFeature(OGRLayerH layer, int nFeatureId) nogil
+    void                 OGR_L_ResetReading(OGRLayerH layer) nogil
     OGRErr               OGR_L_SetAttributeFilter(OGRLayerH hLayer,
-                                                  const char* pszQuery)
-    OGRErr               OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex)
-    int                  OGR_L_GetFeatureCount(OGRLayerH layer, int m)
+                                                  const char* pszQuery) nogil
+    OGRErr               OGR_L_SetNextByIndex(OGRLayerH layer, int nIndex) nogil
+    int                  OGR_L_GetFeatureCount(OGRLayerH layer, int m) nogil
     void                 OGR_L_SetSpatialFilterRect(OGRLayerH layer,
                                                     double xmin,
                                                     double ymin,
                                                     double xmax,
-                                                    double ymax)
-    void                 OGR_L_SetSpatialFilter(OGRLayerH layer, OGRGeometryH geometry)
-    OGRErr               OGR_L_SetIgnoredFields(OGRLayerH layer, const char** fields)
+                                                    double ymax) nogil
+    void                 OGR_L_SetSpatialFilter(OGRLayerH layer,
+                                                OGRGeometryH geometry) nogil
+    OGRErr               OGR_L_SetIgnoredFields(OGRLayerH layer,
+                                                const char** fields) nogil
 
     void            OGRSetNonLinearGeometriesEnabledFlag(int bFlag)
     int             OGRGetNonLinearGeometriesEnabledFlag()
@@ -424,7 +426,7 @@ IF CTE_GDAL_VERSION >= (3, 6, 0):
     cdef extern from "ogr_api.h":
         bint OGR_L_GetArrowStream(
             OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
-        )
+        ) nogil
 
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
@@ -483,17 +485,17 @@ cdef extern from "gdal.h":
 
     int             GDALDatasetDeleteLayer(GDALDatasetH hDS, int iLayer)
 
-    GDALDriverH     GDALGetDatasetDriver(GDALDatasetH ds)
+    GDALDriverH     GDALGetDatasetDriver(GDALDatasetH ds) nogil
     GDALDriverH     GDALGetDriverByName(const char * pszName)
     GDALDatasetH    GDALOpenEx(const char * pszFilename,
                                unsigned int nOpenFlags,
                                const char *const *papszAllowedDrivers,
                                const char *const *papszOpenOptions,
-                               const char *const *papszSiblingFiles)
+                               const char *const *papszSiblingFiles) nogil
 
-    int             GDALDatasetGetLayerCount(GDALDatasetH ds)
-    OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer)
-    OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName)
+    int             GDALDatasetGetLayerCount(GDALDatasetH ds) nogil
+    OGRLayerH       GDALDatasetGetLayer(GDALDatasetH ds, int iLayer) nogil
+    OGRLayerH       GDALDatasetGetLayerByName(GDALDatasetH ds, char * pszName) nogil
     OGRLayerH       GDALDatasetExecuteSQL(GDALDatasetH ds,
                                           const char* pszStatement,
                                           OGRGeometryH hSpatialFilter,
