@@ -1076,11 +1076,14 @@ cdef get_features(
     uint8_t return_fids,
     bint datetime_as_string
 ):
-
     cdef OGRFeatureH ogr_feature = NULL
     cdef int n_fields
     cdef int i
     cdef int field_index
+    chunk_size = 50_000
+
+    if num_features >= 0:
+        chunk_size = num_features
 
     # make sure layer is read from beginning
     OGR_L_ResetReading(ogr_layer)
@@ -1089,17 +1092,16 @@ cdef get_features(
         apply_skip_features(ogr_layer, skip_features)
 
     if return_fids:
-        fid_data = np.empty(shape=(num_features), dtype=np.int64)
-        fid_view = fid_data[:]
+        fid_data = [np.empty(shape=(chunk_size, ), dtype=np.int64)]
+        fid_view = fid_data[0][:]
     else:
-        fid_data = None
+        fid_data = [None]
 
     if read_geometry:
-        geometries = np.empty(shape=(num_features, ), dtype="object")
-        geom_view = geometries[:]
-
+        geometries = [np.empty(shape=(chunk_size, ), dtype="object")]
+        geom_view = geometries[0][:]
     else:
-        geometries = None
+        geometries = [None]
 
     n_fields = fields.shape[0]
     field_indexes = fields[:, 0]
@@ -1114,17 +1116,20 @@ cdef get_features(
         else:
             dtype = fields[field_index, 3]
 
-        field_data.append(np.empty(shape=(num_features, ), dtype=dtype))
+        field_data.append([np.empty(shape=(chunk_size, ), dtype=dtype)])
 
-    field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+    field_data_view = [field_data[field_index][0][:] for field_index in range(n_fields)]
 
     if num_features == 0:
-        return fid_data, geometries, field_data
+        field_data = [data_field[0] for data_field in field_data]
+        return fid_data[0], geometries[0], field_data
 
     i = 0
+    i_total = 0
+    chunk_index = 0
     while True:
         try:
-            if num_features > 0 and i == num_features:
+            if num_features > 0 and i_total == num_features:
                 break
 
             try:
@@ -1137,7 +1142,7 @@ cdef get_features(
             except CPLE_BaseError as exc:
                 raise FeatureError(str(exc))
 
-            if i >= num_features:
+            if num_features > 0 and i_total >= num_features:
                 raise FeatureError(
                     "GDAL returned more records than expected based on the count of "
                     "records that may meet your combination of filters against this "
@@ -1145,6 +1150,28 @@ cdef get_features(
                     "(https://github.com/geopandas/pyogrio/issues) to report "
                     "encountering this error."
                 ) from None
+
+            if i_total > 0 and i_total % chunk_size == 0:
+                # need to add a new chunk
+                i = 0
+                chunk_index += 1
+
+                if return_fids:
+                    fid_data.append(np.empty(shape=(chunk_size,), dtype=np.int64))
+                    fid_view = fid_data[chunk_index][:]
+
+                if read_geometry:
+                    geometries.append(np.empty(shape=(chunk_size,), dtype="object"))
+                    geom_view = geometries[chunk_index][:]
+
+                for field_index in range(n_fields):
+                    field_data[field_index].append(
+                        np.empty(
+                            shape=(chunk_size,),
+                            dtype=field_data[field_index][0].dtype,
+                        )
+                    )
+                    field_data_view[field_index] = field_data[field_index][chunk_index][:]
 
             if return_fids:
                 fid_view[i] = OGR_F_GetFID(ogr_feature)
@@ -1157,21 +1184,27 @@ cdef get_features(
                 field_indexes, field_ogr_types, encoding, datetime_as_string
             )
             i += 1
+            i_total += 1
         finally:
             if ogr_feature != NULL:
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
-    # There may be fewer rows available than expected from OGR_L_GetFeatureCount,
-    # such as features with bounding boxes that intersect the bbox
-    # but do not themselves intersect the bbox.
-    # Empty rows are dropped.
-    if i < num_features:
+    # The last check wasn't completely full, so drop empty rows
+    if i < chunk_size:
         if return_fids:
-            fid_data = fid_data[:i]
+            fid_data[chunk_index] = fid_data[chunk_index][:i]
         if read_geometry:
-            geometries = geometries[:i]
-        field_data = [data_field[:i] for data_field in field_data]
+            geometries[chunk_index] = geometries[chunk_index][:i]
+        for data_field in field_data:
+            data_field[chunk_index] = data_field[chunk_index][:i]
+
+    fid_data = np.concatenate(fid_data) if len(fid_data) > 1 else fid_data[0]
+    geometries = np.concatenate(geometries) if len(geometries) > 1 else geometries[0]
+    field_data = [
+        np.concatenate(data_field) if len(data_field) > 1 else data_field[0]
+        for data_field in field_data
+    ]
 
     return fid_data, geometries, field_data
 
@@ -1490,10 +1523,15 @@ def ogr_read(
                 apply_geometry_filter(ogr_layer, mask)
 
             # Limit feature range to available range
-            skip_features, num_features = validate_feature_range(
-                ogr_layer, skip_features, max_features
-            )
-
+            num_features = -1
+            if max_features > 0:
+                num_features = max_features
+            
+            if skip_features > 0:
+                skip_features, num_features = validate_feature_range(
+                    ogr_layer, skip_features, max_features
+                )
+            
             fid_data, geometries, field_data = get_features(
                 ogr_layer,
                 fields,
