@@ -41,7 +41,7 @@ Home = "https://pyogrio.readthedocs.io/"
 Repository = "https://github.com/geopandas/pyogrio"
 
 [tool.cibuildwheel]
-skip = ["pp*", "*musllinux*"]
+skip = ["*musllinux*", "cp314-*", "cp31?t-*"]
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-x86_64-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
