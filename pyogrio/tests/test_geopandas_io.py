@@ -611,6 +611,28 @@ def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
     assert len(df) == 0
 
 
+def test_read_where_dialect(naturalearth_lowres_all_ext, use_arrow):
+    """Test that shows which dialect is used for the where parameter.
+
+    For GPKG/SQLite, the where parameter will be executed as an SQLite WHERE clause,
+    for other formats it will be executed as an OGRSQL WHERE clause.
+    """
+    where = "iso_a3 ILIKE 'CAN'"
+    if naturalearth_lowres_all_ext.suffix == ".gpkg":
+        # ILIKE is not supported in SQLite
+        handler = pytest.raises(Exception)
+    else:
+        # ILIKE is supported in OGRSQL
+        handler = contextlib.nullcontext()
+
+    with handler:
+        df = read_dataframe(
+            naturalearth_lowres_all_ext, use_arrow=use_arrow, where=where
+        )
+        assert len(df) == 1
+        assert df.iloc[0].iso_a3 == "CAN"
+
+
 @pytest.mark.parametrize("bbox", [(1,), (1, 2), (1, 2, 3)])
 def test_read_bbox_invalid(naturalearth_lowres_all_ext, bbox, use_arrow):
     with pytest.raises(ValueError, match="Invalid bbox"):
