@@ -1139,6 +1139,9 @@ cdef get_features(
                 break
 
             except CPLE_BaseError as exc:
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
+
                 raise FeatureError(str(exc))
 
             if num_features > 0 and i_total >= num_features:
