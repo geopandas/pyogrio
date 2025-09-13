@@ -193,6 +193,27 @@ def test_read_dataframe(naturalearth_lowres_all_ext):
     ]
 
 
+def test_read_dataframe_multi_chunks(tmp_path, naturalearth_lowres):
+    """Test reading a file where multiple chunks are used.
+
+    `ogr_read` reads features in chunks of features. Read a suffucient number of
+    featuers in this test so multiple chunks will be used.
+    """
+    # Create test file with enough features to require multiple chunks.
+    # > 3000 features will result in 3 chunks.
+    min_features = 3300
+    df = read_dataframe(naturalearth_lowres)
+    test_path = tmp_path / "test.gpkg"
+    df = pd.concat([df] * (min_features // len(df) + 1), ignore_index=True)
+    df = df.reset_index(drop=True)
+    assert len(df) > min_features
+    write_dataframe(df, test_path)
+
+    # Read the test file and compare to original dataframe
+    result = read_dataframe(test_path, use_arrow=False)
+    assert_geodataframe_equal(result, df)
+
+
 def test_read_dataframe_vsi(naturalearth_lowres_vsi, use_arrow):
     df = read_dataframe(naturalearth_lowres_vsi[1], use_arrow=use_arrow)
     assert len(df) == 177
