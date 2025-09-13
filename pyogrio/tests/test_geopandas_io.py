@@ -2084,7 +2084,7 @@ def test_read_multi_chunks(tmp_path, naturalearth_lowres):
     test_path = tmp_path / "test.gpkg"
     nb_copies = min_features // len(df) + 1
     df_list = [df.copy() for _ in range(nb_copies)]
-    df = pd.concat(df_list, ignore_index=True)
+    df = pd.concat(df_list, ignore_index=True, sort=False)
     df = df.reset_index(drop=True)
     assert len(df) > min_features
     write_dataframe(df, test_path)
