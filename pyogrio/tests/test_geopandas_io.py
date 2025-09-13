@@ -2071,7 +2071,7 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expect
             assert df.geometry.iloc[0].wkt == expected_wkt
 
 
-def test_read_multi_chunks(tmp_path, naturalearth_lowres):
+def test_read_multi_chunks(tmp_path):
     """Test reading a file where multiple chunks are used.
 
     `ogr_read` reads features in chunks of features. Read a suffucient number of
@@ -2079,14 +2079,13 @@ def test_read_multi_chunks(tmp_path, naturalearth_lowres):
     """
     # Create test file with enough features to require multiple chunks.
     # > 3000 features will result in 3 chunks.
-    min_features = 3300
-    df = read_dataframe(naturalearth_lowres)
+    nb_features = 3300
+    df = gp.GeoDataFrame(
+        {"col": [1.0] * nb_features},
+        geometry=[Point(1, 1)] * nb_features,
+        crs="EPSG:4326",
+    )
     test_path = tmp_path / "test.gpkg"
-    nb_copies = min_features // len(df) + 1
-    df_list = [df.copy() for _ in range(nb_copies)]
-    df = pd.concat(df_list, ignore_index=True, sort=False)
-    df = df.reset_index(drop=True)
-    assert len(df) > min_features
     write_dataframe(df, test_path)
 
     # Read the test file and compare to original dataframe
