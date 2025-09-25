@@ -293,7 +293,7 @@ def read_dataframe(
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
-    datetimes : str, optional (default: "UTC")
+    datetimes : str, optional (default: "MIXED_TO_UTC")
         The way datetime columns should be returned. Possible values:
 
         - **"MIXED_TO_UTC"**: return all datetime columns as pandas datetime64 columns.
