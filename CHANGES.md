@@ -22,7 +22,8 @@
 
 -   Add libkml driver to the wheels for more recent Linux platforms supported
     by manylinux_2_28, MacOS, and Windows (#561).
--   pyogrio now requires a minimum version of Python >= 3.10 (#557).
+-   Minimum required Python version is now 3.10 (#557).
+-   Wheels are now available for Python 3.14 (#579).
 
 ## 0.11.1 (2025-08-02)
 
