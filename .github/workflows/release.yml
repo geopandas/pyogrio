@@ -140,7 +140,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.container }}
-          tags: manylinux-${{ matrix.arch }}-vcpkg-gdal-latest
+          tags: manylinux-${{ matrix.arch }}-vcpkg-gdal:latest
           push: false
           load: true
           cache-from: type=gha
