@@ -20,7 +20,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.10.3 to 3.11.4 (#xxx).
+-   The GDAL library included in the wheels is upgraded from 3.10.3 to 3.11.4 (#578).
 -   Add libkml driver to the wheels for more recent Linux platforms supported
     by manylinux_2_28, MacOS, and Windows (#561).
 -   Wheels are now available for Python 3.14.
