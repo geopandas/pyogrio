@@ -1,5 +1,6 @@
 import contextlib
 import locale
+import os
 import warnings
 from datetime import datetime
 from io import BytesIO
@@ -19,6 +20,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_GE_350,
     GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
@@ -91,6 +93,17 @@ def skip_if_no_arrow_write_api(request):
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
         pytest.skip("GDAL>=3.8 required for Arrow write API")
+
+
+@contextlib.contextmanager
+def use_arrow_context():
+    original = os.environ.get("PYOGRIO_USE_ARROW", None)
+    os.environ["PYOGRIO_USE_ARROW"] = "1"
+    yield
+    if original:
+        os.environ["PYOGRIO_USE_ARROW"] = original
+    else:
+        del os.environ["PYOGRIO_USE_ARROW"]
 
 
 def spatialite_available(path):
@@ -275,6 +288,22 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read simpledata element",
+)
+def test_read_kml_simpledata(kml_file, use_arrow):
+    """Test reading a KML file with a simpledata element.
+
+    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    """
+    gdf = read_dataframe(kml_file, use_arrow=use_arrow)
+
+    # Check if the simpledata column is present.
+    assert "formation" in gdf.columns
+    assert gdf["formation"].iloc[0] == "Ton"
+
+
 def test_read_layer(tmp_path, use_arrow):
     filename = tmp_path / "test.gpkg"
 
@@ -356,6 +385,67 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
         # with Arrow, the datetimes are always read as UTC
         expected = expected.dt.tz_convert("UTC")
     assert_series_equal(df_read.datetime_col, expected)
+
+
+@pytest.mark.skipif(
+    not GDAL_GE_350,
+    reason="OFSTJSON subtype + some list type situations need GDAL >= 3.5",
+)
+def test_read_list_types(list_field_values_file, use_arrow):
+    """Test reading a geojson file containing fields with lists."""
+    info = read_info(list_field_values_file)
+    result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
+
+    assert "list_int" in result.columns
+    assert info["fields"][1] == "list_int"
+    assert info["ogr_types"][1] == "OFTIntegerList"
+    assert result["list_int"][0].tolist() == [0, 1]
+    assert result["list_int"][1].tolist() == [2, 3]
+    assert result["list_int"][2].tolist() == []
+    assert result["list_int"][3] is None
+    assert result["list_int"][4] is None
+
+    assert "list_double" in result.columns
+    assert info["fields"][2] == "list_double"
+    assert info["ogr_types"][2] == "OFTRealList"
+    assert result["list_double"][0].tolist() == [0.0, 1.0]
+    assert result["list_double"][1].tolist() == [2.0, 3.0]
+    assert result["list_double"][2].tolist() == []
+    assert result["list_double"][3] is None
+    assert result["list_double"][4] is None
+
+    assert "list_string" in result.columns
+    assert info["fields"][3] == "list_string"
+    assert info["ogr_types"][3] == "OFTStringList"
+    assert result["list_string"][0].tolist() == ["string1", "string2"]
+    assert result["list_string"][1].tolist() == ["string3", "string4", ""]
+    assert result["list_string"][2].tolist() == []
+    assert result["list_string"][3] is None
+    assert result["list_string"][4] == [""]
+
+    # Once any row of a column contains a null value in a list (in the test geojson),
+    # the column isn't recognized as a list column anymore, but as a JSON column.
+    # Because JSON columns containing JSON Arrays are also parsed to python lists, the
+    # end result is the same...
+    assert "list_int_with_null" in result.columns
+    assert info["fields"][4] == "list_int_with_null"
+    assert info["ogr_types"][4] == "OFTString"
+    assert info["ogr_subtypes"][4] == "OFSTJSON"
+    assert result["list_int_with_null"][0] == [0, None]
+    assert result["list_int_with_null"][1] == [2, 3]
+    assert result["list_int_with_null"][2] == []
+    assert pd.isna(result["list_int_with_null"][3])
+    assert pd.isna(result["list_int_with_null"][4])
+
+    assert "list_string_with_null" in result.columns
+    assert info["fields"][5] == "list_string_with_null"
+    assert info["ogr_types"][5] == "OFTString"
+    assert info["ogr_subtypes"][5] == "OFSTJSON"
+    assert result["list_string_with_null"][0] == ["string1", None]
+    assert result["list_string_with_null"][1] == ["string3", "string4", ""]
+    assert result["list_string_with_null"][2] == []
+    assert pd.isna(result["list_string_with_null"][3])
+    assert result["list_string_with_null"][4] == [""]
 
 
 @pytest.mark.filterwarnings(
@@ -1998,6 +2088,9 @@ def test_read_multisurface(multisurface_file, use_arrow):
         assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
+@pytest.mark.skipif(
+    not GDAL_GE_350, reason="OFSTJSON subtype only supported for GDAL >= 3.5"
+)
 def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     # by default, nested data are not flattened
     df = read_dataframe(nested_geojson_file, use_arrow=use_arrow)
@@ -2005,7 +2098,7 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     expected = gp.GeoDataFrame(
         {
             "top_level": ["A"],
-            "intermediate_level": ['{ "bottom_level": "B" }'],
+            "intermediate_level": [{"bottom_level": "B"}],
         },
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
@@ -2196,6 +2289,29 @@ def test_arrow_bool_exception(tmp_path, ext):
 
     else:
         _ = read_dataframe(filename, use_arrow=True)
+
+
+@requires_pyarrow_api
+def test_arrow_enable_with_environment_variable(tmp_path):
+    """Test if arrow can be enabled via an environment variable."""
+    # Latin 1 / Western European
+    encoding = "CP1252"
+    text = "ÿ"
+    test_path = tmp_path / "test.gpkg"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, test_path, encoding=encoding)
+
+    # Without arrow, specifying the encoding is supported
+    result = read_dataframe(test_path, encoding="cp1252")
+    assert result is not None
+
+    # With arrow enabled, specifying the encoding is not supported
+    with use_arrow_context():
+        with pytest.raises(
+            ValueError, match="non-UTF-8 encoding is not supported for Arrow"
+        ):
+            _ = read_dataframe(test_path, encoding="cp1252")
 
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
@@ -2479,27 +2595,43 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
     assert np.array_equal(gdf_in.geometry.values, points)
 
-    if "LIBKML" in list_drivers():
-        # test appending to the existing file only if LIBKML is available
-        # as it appears to fall back on LIBKML driver when appending.
-        points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
-        gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
 
-        write_dataframe(
-            gdf_append,
-            output_path,
-            layer="tmp_layer",
-            driver="KML",
-            use_arrow=use_arrow,
-            append=True,
-        )
-        # force_2d used to only compare xy geometry as z-dimension is undesirably
-        # introduced when the kml file is over-written.
-        gdf_in_appended = read_dataframe(
-            output_path, use_arrow=use_arrow, force_2d=True
-        )
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to append to .kml",
+)
+def test_write_kml_append(tmp_path, use_arrow):
+    """Append features to an existing KML file.
 
-        assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+    Appending is only supported by the LIBKML driver, and the driver isn't
+    included in the GDAL ubuntu-small images, so skip if not available.
+    """
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.kml"
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
+
+    # test appending to the existing file only if LIBKML is available
+    # as it appears to fall back on LIBKML driver when appending.
+    points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="KML",
+        use_arrow=use_arrow,
+        append=True,
+    )
+    # force_2d is used to only compare the xy dimensions of the geometry, as the LIBKML
+    # driver always adds the z-dimension when the kml file is over-written.
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow, force_2d=True)
+
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
 @pytest.mark.requires_arrow_write_api
