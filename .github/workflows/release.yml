@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.3"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.4"
 
     steps:
       - name: Install packages
@@ -193,7 +193,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.3-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.11.4-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -211,7 +211,7 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
-          git checkout 66c1c9852bb30bd87285e77cc775072046d51fc6
+          git checkout da096fdc67db437bee863ae73c4c12e289f82789
 
       - name: Install GDAL
         env:
