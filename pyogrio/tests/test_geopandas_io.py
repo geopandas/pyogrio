@@ -106,11 +106,11 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def test_spatialite_available(path):
+def test_spatialite_available(test_gpkg_nulls):
     """Check if SpatiaLite is available by running a simple SQL query."""
     try:
         _ = read_dataframe(
-            path, sql="select spatialite_version();", sql_dialect="SQLITE"
+            test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
         )
     except Exception as ex:
         raise AssertionError(f"SpatiaLite not available: {ex}")
