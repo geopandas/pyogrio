@@ -165,17 +165,20 @@ jobs:
             triplet: "x64-osx-dynamic-release"
             arch: x86_64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "macos-13"
             triplet: "arm64-osx-dynamic-release"
             arch: arm64
             vcpkg_cache: "/Users/runner/.cache/vcpkg/archives"
+            vcpkg_logs: "/usr/local/share/vcpkg/buildtrees/**/*.log"
 
           - os: "windows-2022"
             triplet: "x64-windows-dynamic-release"
             arch: AMD64
             # windows requires windows-specific paths
             vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
     steps:
       - name: Checkout
@@ -217,6 +220,13 @@ jobs:
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed
           vcpkg list
+
+      - name: Upload vcpkg build logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
+          path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.1.3
