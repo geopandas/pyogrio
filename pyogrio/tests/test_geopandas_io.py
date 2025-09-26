@@ -106,14 +106,18 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def spatialite_available(path):
+@pytest.mark.skipif(
+    not GDAL_GE_350,
+    reason="GDAL Docker images with GDAL < 3.5 don't contain SpatiaLite",
+)
+def test_spatialite_available(test_gpkg_nulls):
+    """Check if SpatiaLite is available by running a simple SQL query."""
     try:
         _ = read_dataframe(
-            path, sql="select spatialite_version();", sql_dialect="SQLITE"
+            test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
         )
-        return True
-    except Exception:
-        return False
+    except Exception as ex:
+        raise AssertionError(f"SpatiaLite not available: {ex}")
 
 
 @pytest.mark.parametrize(
