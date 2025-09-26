@@ -1,6 +1,7 @@
 name: test
 channels:
   - conda-forge
+  - conda-forge/label/python_rc
 dependencies:
   - numpy
   - libgdal-core
