@@ -3,11 +3,11 @@ FROM quay.io/pypa/manylinux_2_28_x86_64:2025.09.19-1
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
 
-RUN git clone https://github.com/Microsoft/vcpkg.git /usr/local/share/vcpkg && \
-    git -C /usr/local/share/vcpkg checkout da096fdc67db437bee863ae73c4c12e289f82789
+RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
+    git -C /opt/vcpkg checkout da096fdc67db437bee863ae73c4c12e289f82789
 
-ENV VCPKG_INSTALLATION_ROOT="/usr/local/share/vcpkg"
-ENV PATH="${PATH}:/usr/local/share/vcpkg"
+ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
+ENV PATH="${PATH}:/opt/vcpkg"
 
 ENV VCPKG_DEFAULT_TRIPLET="x64-linux-dynamic-release"
 
@@ -18,14 +18,14 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate install && \
     vcpkg integrate bash
 
-COPY ci/custom-triplets/x64-linux-dynamic-release.cmake /usr/local/share/vcpkg/custom-triplets/x64-linux-dynamic-release.cmake
-COPY ci/vcpkg.json /usr/local/share/vcpkg/
+COPY ci/custom-triplets/x64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/x64-linux-dynamic-release.cmake
+COPY ci/vcpkg.json opt/vcpkg/
 
-ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/share/vcpkg/installed/x64-linux-dynamic-release/lib"
-RUN vcpkg install --overlay-triplets=/usr/local/share/vcpkg/custom-triplets \
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic-release/lib"
+RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
     --feature-flags="versions,manifests" \
-    --x-manifest-root=/usr/local/share/vcpkg \
-    --x-install-root=/usr/local/share/vcpkg/installed && \
+    --x-manifest-root=opt/vcpkg \
+    --x-install-root=opt/vcpkg/installed && \
     vcpkg list
 
 # setting git safe directory is required for properly building wheels when
