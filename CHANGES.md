@@ -6,6 +6,7 @@
 
 -   Return JSON fields (as identified by GDAL) as dicts/lists in `read_dataframe`;
     these were previously returned as strings (#556).
+-   Drop support for GDAL 3.4 and 3.5 (#).
 
 ### Improvements
 

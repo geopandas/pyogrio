@@ -476,10 +476,6 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
 
 
 @requires_arrow_write_api
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 6, 0),
-    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
-)
 @pytest.mark.parametrize(
     "write_int64",
     [
@@ -961,9 +957,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 @requires_arrow_write_api
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     meta, table = read_arrow(naturalearth_lowres, max_features=1)
 
     buffer = BytesIO()
