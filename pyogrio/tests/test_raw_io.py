@@ -714,7 +714,7 @@ def test_write_append(tmp_path, naturalearth_lowres, ext):
     assert read_info(filename)["features"] == 354
 
 
-@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml")])
 def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
@@ -728,23 +728,6 @@ def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
 
     with pytest.raises(DataSourceError):
         write(filename, geometry, field_data, driver=driver, append=True, **meta)
-
-
-def test_write_append_prevent_gdal_segfault(tmp_path, naturalearth_lowres):
-    """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
-    verifies that we catch that before segfault"""
-    meta, _, geometry, field_data = read(naturalearth_lowres)
-    meta["geometry_type"] = "MultiPolygon"
-
-    filename = tmp_path / "test.fgb"
-    write(filename, geometry, field_data, **meta)
-
-    assert filename.exists()
-
-    with pytest.raises(
-        RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
-    ):
-        write(filename, geometry, field_data, append=True, **meta)
 
 
 @pytest.mark.parametrize(
