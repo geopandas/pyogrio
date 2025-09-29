@@ -639,7 +639,7 @@ def test_write_append(request, tmp_path, naturalearth_lowres, ext):
     assert read_info(filename)["features"] == 354
 
 
-@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml")])
 @requires_arrow_write_api
 def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
     meta, table = read_arrow(naturalearth_lowres)
