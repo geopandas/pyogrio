@@ -1,6 +1,5 @@
 import os
 import sys
-from uuid import uuid4
 import warnings
 
 from pyogrio._err cimport check_pointer
@@ -162,7 +161,7 @@ def get_gdal_data_path():
     """
     cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
     if path_c != NULL:
-        return get_string(path_c).rstrip("header.dxf")
+        return get_string(path_c).replace("header.dxf", "")
     return None
 
 

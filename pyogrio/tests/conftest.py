@@ -65,9 +65,7 @@ def pytest_report_header(config):
 
 
 # marks to skip tests if optional dependecies are not present
-requires_pyarrow_api = pytest.mark.skipif(
-    not HAS_PYARROW, reason="pyarrow required"
-)
+requires_pyarrow_api = pytest.mark.skipif(not HAS_PYARROW, reason="pyarrow required")
 
 requires_pyproj = pytest.mark.skipif(not HAS_PYPROJ, reason="pyproj required")
 
