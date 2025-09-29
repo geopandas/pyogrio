@@ -1620,9 +1620,6 @@ def ogr_open_arrow(
     cdef ArrowArrayStream* stream
     cdef ArrowSchema schema
 
-    IF CTE_GDAL_VERSION < (3, 6, 0):
-        raise RuntimeError("Need GDAL>=3.6 for Arrow support")
-
     if force_2d:
         raise ValueError("forcing 2D is not supported for Arrow")
 

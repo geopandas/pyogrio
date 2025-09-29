@@ -418,14 +418,10 @@ cdef extern from "ogr_api.h":
     const char*     OLCFastGetExtent
     const char*     OLCTransactions
 
-
-IF CTE_GDAL_VERSION >= (3, 6, 0):
-
-    cdef extern from "ogr_api.h":
-        bint OGR_L_GetArrowStream(
-            OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
-        )
-
+cdef extern from "ogr_api.h":
+    bint OGR_L_GetArrowStream(
+        OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
+    )
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
