@@ -1,6 +1,6 @@
 {
     "name": "pyogrio",
-    "version": "0.11.0",
+    "version": "0.12.0",
     "dependencies": [
         {
             "name": "gdal",
@@ -10,5 +10,5 @@
             ]
         }
     ],
-    "builtin-baseline": "66c1c9852bb30bd87285e77cc775072046d51fc6"
+    "builtin-baseline": "da096fdc67db437bee863ae73c4c12e289f82789"
 }
