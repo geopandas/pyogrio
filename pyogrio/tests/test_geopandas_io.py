@@ -112,12 +112,9 @@ def use_arrow_context():
 )
 def test_spatialite_available(test_gpkg_nulls):
     """Check if SpatiaLite is available by running a simple SQL query."""
-    try:
-        _ = read_dataframe(
-            test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
-        )
-    except Exception as ex:
-        raise AssertionError(f"SpatiaLite not available: {ex}")
+    _ = read_dataframe(
+        test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
+    )
 
 
 @pytest.mark.parametrize(
