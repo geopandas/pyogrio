@@ -759,6 +759,15 @@ def test_write_supported(tmp_path, naturalearth_lowres, driver):
     assert filename.exists()
 
 
+def test_write_unsupported(tmp_path, naturalearth_lowres):
+    meta, _, geometry, field_data = read(naturalearth_lowres)
+
+    filename = tmp_path / "test.pbf"
+
+    with pytest.raises(DataSourceError, match="does not support write functionality"):
+        write(filename, geometry, field_data, **meta)
+
+
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
