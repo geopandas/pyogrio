@@ -285,7 +285,7 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Create virtual environment (Linux / MacOS)
         # use uv to create a virtual environment, then add it to environment
