@@ -760,12 +760,13 @@ def test_write_supported(tmp_path, naturalearth_lowres, driver):
 
 
 def test_write_unsupported(tmp_path, naturalearth_lowres):
+    """Test writing using a driver that does not support writing."""
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = tmp_path / "test.pbf"
+    filename = tmp_path / "test.topojson"
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
-        write(filename, geometry, field_data, **meta)
+        write(filename, geometry, field_data, driver="TopoJSON", **meta)
 
 
 def test_write_gdalclose_error(naturalearth_lowres):
