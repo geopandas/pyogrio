@@ -35,6 +35,15 @@ jobs:
         run: |
           apt-get update && apt-get install -y build-essential git python3-dev
 
+      # - name: Install Python
+      #   # the GDAL 3.4 and 3.5 images do have Python 3.8 installed, so have to
+      #   # install a more recent Python version manually
+      #   if: matrix.container == 'osgeo/gdal:ubuntu-small-3.5.3' || matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3'
+      #   run: |
+      #     apt-get update && apt-get install -y software-properties-common
+      #     add-apt-repository -y ppa:deadsnakes/ppa
+      #     apt-get update && apt-get install -y python3.9-dev
+
       - uses: actions/checkout@v5
 
       - name: Install uv
