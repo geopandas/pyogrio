@@ -61,11 +61,8 @@ jobs:
       - name: Install Python Dependencies
         run: |
           uv pip install -e .[dev,test,geopandas]
-
-      - name: Install pyarrow
-        run: |
           uv pip install pyarrow
-
+          
       - name: Test with pytest
         run: |
           pytest --cov=pyogrio --cov-report term-missing pyogrio/tests
