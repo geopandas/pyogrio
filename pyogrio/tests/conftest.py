@@ -11,7 +11,6 @@ from pyogrio import (
 )
 from pyogrio._compat import (
     GDAL_GE_37,
-    HAS_ARROW_API,
     HAS_ARROW_WRITE_API,
     HAS_GDAL_GEOS,
     HAS_PYARROW,
@@ -66,10 +65,7 @@ def pytest_report_header(config):
 
 
 # marks to skip tests if optional dependecies are not present
-requires_arrow_api = pytest.mark.skipif(not HAS_ARROW_API, reason="GDAL>=3.6 required")
-requires_pyarrow_api = pytest.mark.skipif(
-    not HAS_ARROW_API or not HAS_PYARROW, reason="GDAL>=3.6 and pyarrow required"
-)
+requires_pyarrow_api = pytest.mark.skipif(not HAS_PYARROW, reason="pyarrow required")
 
 requires_pyproj = pytest.mark.skipif(not HAS_PYPROJ, reason="pyproj required")
 
