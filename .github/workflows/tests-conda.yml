@@ -33,7 +33,7 @@ jobs:
               geopandas=0.12
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
-            python: "3.9"
+            python: "3.10"
             env: "minimal"
           # environment for older Windows libgdal to make sure gdal_i.lib is
           # properly detected

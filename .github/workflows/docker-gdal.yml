@@ -26,8 +26,8 @@ jobs:
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.10.12
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.6.4" # python 3.10.6
-          - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.9.20 (installed manually)
-          - "osgeo/gdal:ubuntu-small-3.4.3" # python 3.9.20 (installed manually)
+          - "osgeo/gdal:ubuntu-small-3.5.3" # python 3.10 (installed manually)
+          - "osgeo/gdal:ubuntu-small-3.4.3" # python 3.10 (installed manually)
 
     container:
       image: ${{ matrix.container }}
@@ -44,7 +44,7 @@ jobs:
         run: |
           apt-get update && apt-get install -y software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
-          apt-get update && apt-get install -y python3.9-dev
+          apt-get update && apt-get install -y python3.10-dev
 
       - uses: actions/checkout@v5
 
