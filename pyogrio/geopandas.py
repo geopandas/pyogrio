@@ -4,6 +4,7 @@ import json
 import os
 import warnings
 from datetime import datetime
+from typing import Literal, TypeAlias, get_args
 
 import numpy as np
 
@@ -26,6 +27,12 @@ from pyogrio.raw import (
     write,
 )
 
+DateTimeParseTypes: TypeAlias = Literal[
+    "MIXED_TO_UTC",
+    "MIXED_TO_DATETIME",
+    "STRING",
+]
+
 
 def _stringify_path(path):
     """Convert path-like to a string if possible, pass-through other objects."""
@@ -45,11 +52,6 @@ def _try_parse_datetime(ser, datetimes):
     from pandas.api.types import is_string_dtype
 
     datetimes = datetimes.upper()
-    datetimes_values = [
-        "MIXED_TO_UTC",
-        "MIXED_TO_DATETIME",
-        "STRING",
-    ]
     datetime_kwargs = {}
     if datetimes == "STRING":
         if not is_string_dtype(ser.dtype):
@@ -61,12 +63,12 @@ def _try_parse_datetime(ser, datetimes):
             # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
             return ser.str.replace(" ", "T").str.replace("/", "-")
         return ser
-    elif datetimes in datetimes_values:
+    elif datetimes in get_args(DateTimeParseTypes):
         pass
     else:
         raise ValueError(
             f"Invalid value for 'datetimes': {datetimes!r}. "
-            f"Must be one of {datetimes_values!r}."
+            f"Must be one of {DateTimeParseTypes!r}."
         )
 
     if PANDAS_GE_22:
@@ -165,7 +167,7 @@ def read_dataframe(
     use_arrow=None,
     on_invalid="raise",
     arrow_to_pandas_kwargs=None,
-    datetimes="MIXED_TO_UTC",
+    datetimes: DateTimeParseTypes = "MIXED_TO_UTC",
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
