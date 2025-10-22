@@ -26,7 +26,7 @@ Read the documentation for more information:
 
 ## Requirements
 
-Supports Python 3.9 - 3.13 and GDAL 3.4.x - 3.9.x.
+Supports Python 3.10 - 3.14 and GDAL 3.6.x - 3.11.x.
 
 Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
