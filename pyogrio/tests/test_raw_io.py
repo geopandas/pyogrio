@@ -24,7 +24,6 @@ from pyogrio.tests.conftest import (
     DRIVER_EXT,
     DRIVERS,
     prepare_testfile,
-    requires_arrow_api,
     requires_pyarrow_api,
     requires_shapely,
 )
@@ -616,10 +615,6 @@ def test_write_no_geom_no_fields():
         write("test.gpkg", geometry=None, field_data=None, fields=None)
 
 
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 6, 0),
-    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
-)
 @pytest.mark.parametrize(
     "write_int64",
     [
@@ -698,12 +693,6 @@ def test_write_openfilegdb(tmp_path, write_int64):
 
 @pytest.mark.parametrize("ext", DRIVERS)
 def test_write_append(tmp_path, naturalearth_lowres, ext):
-    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
-        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
-
-    if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
-
     if ext == ".gpkg.zip":
         pytest.skip("Append to .gpkg.zip is not supported")
 
@@ -725,11 +714,8 @@ def test_write_append(tmp_path, naturalearth_lowres, ext):
     assert read_info(filename)["features"] == 354
 
 
-@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml")])
 def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
-    if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
-
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     # GML does not support append functionality
@@ -742,27 +728,6 @@ def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
 
     with pytest.raises(DataSourceError):
         write(filename, geometry, field_data, driver=driver, append=True, **meta)
-
-
-@pytest.mark.skipif(
-    __gdal_version__ > (3, 5, 0),
-    reason="segfaults on FlatGeobuf limited to GDAL <= 3.5.0",
-)
-def test_write_append_prevent_gdal_segfault(tmp_path, naturalearth_lowres):
-    """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
-    verifies that we catch that before segfault"""
-    meta, _, geometry, field_data = read(naturalearth_lowres)
-    meta["geometry_type"] = "MultiPolygon"
-
-    filename = tmp_path / "test.fgb"
-    write(filename, geometry, field_data, **meta)
-
-    assert filename.exists()
-
-    with pytest.raises(
-        RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
-    ):
-        write(filename, geometry, field_data, append=True, **meta)
 
 
 @pytest.mark.parametrize(
@@ -794,16 +759,14 @@ def test_write_supported(tmp_path, naturalearth_lowres, driver):
     assert filename.exists()
 
 
-@pytest.mark.skipif(
-    __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
-)
 def test_write_unsupported(tmp_path, naturalearth_lowres):
+    """Test writing using a driver that does not support writing."""
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = tmp_path / "test.gdb"
+    filename = tmp_path / "test.topojson"
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
-        write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+        write(filename, geometry, field_data, driver="TopoJSON", **meta)
 
 
 def test_write_gdalclose_error(naturalearth_lowres):
@@ -1178,9 +1141,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     buffer = BytesIO()
@@ -1482,7 +1442,6 @@ def test_write_with_mask(tmp_path):
         write(filename, geometry, field_data, fields, field_mask, **meta)
 
 
-@requires_arrow_api
 def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we also run
     # it when pyarrow is not installed
@@ -1500,7 +1459,6 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
 
 
 @pytest.mark.skipif(HAS_PYARROW, reason="pyarrow is installed")
-@requires_arrow_api
 def test_open_arrow_error_no_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we run
     # it when pyarrow is not installed

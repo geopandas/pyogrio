@@ -1,10 +1,10 @@
-FROM quay.io/pypa/manylinux_2_28_x86_64:2025-01-11-3165879
+FROM quay.io/pypa/manylinux_2_28_x86_64:2025.09.19-1
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
 RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
 
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
-    git -C /opt/vcpkg checkout 66c1c9852bb30bd87285e77cc775072046d51fc6
+    git -C /opt/vcpkg checkout da096fdc67db437bee863ae73c4c12e289f82789
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"

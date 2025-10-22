@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2022]
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
         env: ["latest"]
         include:
           # environment with lower versions of optional dependencies
@@ -33,13 +33,8 @@ jobs:
               geopandas=0.12
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
-            python: "3.9"
-            env: "minimal"
-          # environment for older Windows libgdal to make sure gdal_i.lib is
-          # properly detected
-          - os: "windows-2022"
             python: "3.10"
-            env: "libgdal3.5.1"
+            env: "minimal"
           # environment with nightly wheels
           - os: "ubuntu-latest"
             python: "3.11"

@@ -705,7 +705,7 @@ def write_dataframe(
         if isinstance(values, pd.api.extensions.ExtensionArray):
             from pandas.arrays import BooleanArray, FloatingArray, IntegerArray
 
-            if isinstance(values, (IntegerArray, FloatingArray, BooleanArray)):
+            if isinstance(values, IntegerArray | FloatingArray | BooleanArray):
                 field_data.append(values._data)
                 field_mask.append(values._mask)
             else:
