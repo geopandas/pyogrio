@@ -832,7 +832,8 @@ def write_dataframe(
             # Column of Timestamp/datetime objects, split in naive datetime and tz.
             col_na = df[col.notna()][name]
             if len(col_na) and all(
-                isinstance(x, (pd.Timestamp, datetime)) for x in col_na
+                isinstance(x, (pd.Timestamp, datetime))  # noqa: UP038
+                for x in col_na
             ):
                 tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
                 gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
