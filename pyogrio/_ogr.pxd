@@ -423,6 +423,14 @@ cdef extern from "ogr_api.h":
         OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
     )
 
+IF CTE_GDAL_VERSION >= (3, 7, 0):
+
+    cdef extern from "ogr_api.h":
+        const char* OGR_F_GetFieldAsISO8601DateTime(
+            OGRFeatureH feature, int n, char** papszOptions
+        )
+
+
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
     cdef extern from "ogr_api.h":

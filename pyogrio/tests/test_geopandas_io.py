@@ -48,6 +48,12 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
+    from pandas.api.types import (
+        is_datetime64_any_dtype,
+        is_datetime64_dtype,
+        is_object_dtype,
+        is_string_dtype,
+    )
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -356,29 +362,9 @@ def test_read_datetime(datetime_file, use_arrow):
         assert df.col.dtype.name == "datetime64[ns]"
 
 
-@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
-@pytest.mark.requires_arrow_write_api
-def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
-    df = read_dataframe(datetime_tz_file)
-    # Make the index non-consecutive to test this case as well. Added for issue
-    # https://github.com/geopandas/pyogrio/issues/324
-    df = df.set_index(np.array([0, 2]))
-    raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
-
-    if PANDAS_GE_20:
-        expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
-    else:
-        expected = pd.to_datetime(raw_expected)
-    expected = pd.Series(expected, name="datetime_col")
-    assert_series_equal(df.datetime_col, expected, check_index=False)
-    # test write and read round trips
-    fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath, use_arrow=use_arrow)
-    df_read = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow:
-        # with Arrow, the datetimes are always read as UTC
-        expected = expected.dt.tz_convert("UTC")
-    assert_series_equal(df_read.datetime_col, expected)
+def test_read_datetimes_invalid_param(datetime_file, use_arrow):
+    with pytest.raises(ValueError, match="Invalid value for 'datetimes'"):
+        read_dataframe(datetime_file, use_arrow=use_arrow, datetimes="INVALID")
 
 
 def test_read_list_types(list_field_values_file, use_arrow):
@@ -451,39 +437,434 @@ def test_write_datetime_mixed_offset(tmp_path, use_arrow):
     if PANDAS_GE_20:
         utc_col = utc_col.dt.as_unit("ms")
 
-    df = gp.GeoDataFrame(
-        {"dates": localised_col, "geometry": [Point(1, 1), Point(1, 1)]},
-        crs="EPSG:4326",
+
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+def test_read_datetime_long_ago(geojson_datetime_long_ago, use_arrow, datetimes):
+    """Test writing/reading a column with a datetime far in the past.
+    Dates from before 1678-1-1 aren't parsed correctly by pandas < 3.0, so they
+    stay strings.
+    Reported in https://github.com/geopandas/pyogrio/issues/553.
+    """
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        # With use_arrow and GDAL < 3.11, datetimes are converted to python
+        # objects in to_pandas. For a datetime far in the past this gives an
+        # overflow though.
+        pytest.xfail(
+            "datetimes before 1678-1-1 give overflow if arrow is used with GDAL<3.11"
+        )
+    if False and not PANDAS_GE_30 and datetimes != "STRING":
+        pytest.xfail(
+            "datetimes before 1678-1-1 are not supported with datetimes='MIXED_TO_UTC' "
+            "with pandas < 3.0"
+        )
+
+    df = read_dataframe(
+        geojson_datetime_long_ago, use_arrow=use_arrow, datetimes=datetimes
     )
-    fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath, use_arrow=use_arrow)
-    result = read_dataframe(fpath, use_arrow=use_arrow)
-    # GDAL tz only encodes offsets, not timezones
-    # check multiple offsets are read as utc datetime instead of string values
-    assert_series_equal(result["dates"], utc_col)
+
+    exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+    if datetimes == "MIXED_TO_UTC":
+        pytest.xfail("datetimes of long ago cannot be parsed as UTC")
+        assert is_datetime64_any_dtype(df.datetime_col.dtype)
+        assert_series_equal(df.datetime_col, exp_dates)
+    elif datetimes == "MIXED_TO_DATETIME":
+        pytest.xfail("datetimes of long ago cannot be parsed as datetime")
+        assert is_datetime64_dtype(df.datetime_col.dtype)
+        if PANDAS_GE_20:
+            exp_dates = pd.to_datetime(exp_dates, format="ISO8601").as_unit("ms")
+        else:
+            exp_dates = pd.to_datetime(exp_dates)
+        assert_series_equal(df.datetime_col, exp_dates)
+    elif datetimes == "STRING":
+        assert is_string_dtype(df.datetime_col.dtype)
+        assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
 
 
-@pytest.mark.filterwarnings(
-    "ignore: Non-conformant content for record 1 in column dates"
-)
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
 @pytest.mark.requires_arrow_write_api
-def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
-    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
+def test_write_read_datetime_no_tz(tmp_path, ext, datetimes, use_arrow):
+    """Test writing/reading a column with naive datetimes (no timezone information)."""
+    dates_raw = ["2020-01-01T09:00:00.123", "2020-01-01T10:00:00", np.nan]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
     else:
         dates = pd.to_datetime(dates_raw)
     df = gp.GeoDataFrame(
-        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, columns with naive datetimes are written
+        # correctly, but when read they are wrongly interpreted as being in UTC.
+        # The reason is complicated, but more info can be found e.g. here:
+        # https://github.com/geopandas/pyogrio/issues/487#issuecomment-2423762807
+        exp_dates = df.dates.dt.tz_localize("UTC")
+        if datetimes == "MIXED_TO_DATETIME":
+            assert_series_equal(result.dates, exp_dates)
+        elif datetimes == "STRING":
+            exp_dates = exp_dates.astype("string").str.replace(" ", "T")
+            assert_series_equal(result.dates, exp_dates)
+        pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
+
+    if datetimes == "MIXED_TO_UTC":
+        assert is_datetime64_any_dtype(result.dates.dtype)
+        assert_series_equal(result.dates, df.dates)
+    elif datetimes == "MIXED_TO_DATETIME":
+        assert is_datetime64_dtype(result.dates.dtype)
+        assert_geodataframe_equal(result, df)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("string").str.replace(" ", "T")
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+        assert_series_equal(result.dates, dates_str, check_dtype=False)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz(tmp_path, ext, datetimes, use_arrow):
+    """Write and read file with all equal timezones.
+
+    This should result in the result being in pandas datetime64 dtype column.
+    """
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
+        # as well as retaining the timezone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+        pytest.xfail("Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow")
+
+    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", np.nan]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+
+    # Make the index non-consecutive to test this case as well. Added for issue
+    # https://github.com/geopandas/pyogrio/issues/324
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3},
+        index=[0, 2, 3],
         crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.gpkg"
+    assert isinstance(df.dates.dtype, pd.DatetimeTZDtype)
+
+    fpath = tmp_path / f"test{ext}"
     write_dataframe(df, fpath, use_arrow=use_arrow)
-    result = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow:
-        # with Arrow, the datetimes are always read as UTC
-        df["dates"] = df["dates"].dt.tz_convert("UTC")
-    assert_geodataframe_equal(df, result)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    # With some older versions, the offset is represented slightly differently
+    if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
+        result.dates = result.dates.astype(df.dates.dtype)
+
+    if use_arrow and ext in (".fgb", ".gpkg") and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, datetime columns are written as string type
+        df_exp = df.copy()
+        df_exp.dates = df_exp[df_exp.dates.notna()].dates.astype(str)
+        assert_series_equal(result.dates, df_exp.dates, check_index=False)
+        pytest.xfail("datetime columns written as string with GDAL < 3.11 via arrow")
+
+    assert isinstance(df.dates.dtype, pd.DatetimeTZDtype)
+    if datetimes == "MIXED_TO_UTC":
+        assert_series_equal(result.dates, df.dates, check_index=False)
+    elif datetimes == "MIXED_TO_DATETIME":
+        assert_series_equal(result.dates, df.dates, check_index=False)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("string").str.replace(" ", "T")
+        elif __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            dates_str = [x[:-3] for x in dates_raw if pd.notna(x)] + [np.nan]
+            dates_str = pd.Series(dates_str, name="dates")
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+        assert_series_equal(
+            result.dates, dates_str, check_index=False, check_dtype=False
+        )
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_localized_mixed_offset(
+    tmp_path, ext, datetimes, use_arrow
+):
+    """Test with localized dates across a different summer/winter timezone offset."""
+    # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
+    dates_raw = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111", np.nan]
+    dates_naive = pd.Series(pd.to_datetime(dates_raw), name="dates")
+    dates_local = dates_naive.dt.tz_localize("Australia/Sydney")
+    dates_local_offsets_str = dates_local.astype(str)
+    if datetimes == "MIXED_TO_UTC":
+        exp_dates = dates_local.dt.tz_convert("UTC")
+        if PANDAS_GE_20:
+            exp_dates = exp_dates.dt.as_unit("ms")
+    elif datetimes == "MIXED_TO_DATETIME":
+        exp_dates = dates_local_offsets_str.apply(
+            lambda x: pd.Timestamp(x) if pd.notna(x) else None
+        )
+    elif datetimes == "STRING":
+        exp_dates = dates_local_offsets_str.str.replace(" ", "T")
+        exp_dates = exp_dates.str.replace(".111000", ".111")
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            exp_dates = exp_dates.str.slice(0, -3)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
+    df = gp.GeoDataFrame(
+        {"dates": dates_local, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        if ext in (".geojson", ".geojsonl"):
+            # With GDAL < 3.11 with arrow, GDAL converts mixed timezone datetimes to UTC
+            # when read as the arrow datetime column type does not support mixed tz.
+            dates_utc = dates_local.dt.tz_convert("UTC")
+            if PANDAS_GE_20:
+                dates_utc = dates_utc.dt.as_unit("ms")
+            if datetimes == "STRING":
+                assert is_string_dtype(result.dates.dtype)
+                dates_utc = dates_utc.astype(str).str.replace(" ", "T")
+            assert pd.isna(result.dates[2])
+            assert_series_equal(
+                result.dates.head(2), dates_utc.head(2), check_dtype=False
+            )
+            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+        elif ext in (".gpkg", ".fgb"):
+            # With GDAL < 3.11 with arrow, datetime columns written as string type
+            assert pd.isna(result.dates[2])
+            assert_series_equal(result.dates.head(2), dates_local_offsets_str.head(2))
+            pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
+
+    # GDAL tz only encodes offsets, not timezones
+    if datetimes == "MIXED_TO_UTC":
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+    elif datetimes == "MIXED_TO_DATETIME":
+        assert is_object_dtype(result.dates.dtype)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
+    # Check isna for the third value seperately as depending on versions this is
+    # different + pandas 3.0 assert_series_equal becomes strict about this.
+    assert pd.isna(result.dates[2])
+    assert_series_equal(result.dates.head(2), exp_dates.head(2), check_dtype=False)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_mixed_offsets(tmp_path, ext, datetimes, use_arrow):
+    """Test with dates with mixed timezone offsets."""
+    # Pandas datetime64 column types doesn't support mixed timezone offsets, so
+    # it needs to be a list of pandas.Timestamp objects instead.
+    dates = [
+        pd.Timestamp("2023-01-01 11:00:01.111+01:00"),
+        pd.Timestamp("2023-06-01 10:00:01.111+05:00"),
+        np.nan,
+    ]
+
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        if ext in (".geojson", ".geojsonl"):
+            # With GDAL < 3.11 with arrow, GDAL converts mixed timezone datetimes to UTC
+            # when read as the arrow datetime column type does not support mixed tz.
+            df_exp = df.copy()
+            df_exp.dates = pd.to_datetime(dates, utc=True)
+            if PANDAS_GE_20:
+                df_exp.dates = df_exp.dates.dt.as_unit("ms")
+            if datetimes == "STRING":
+                df_exp.dates = df_exp.dates.astype("string").str.replace(" ", "T")
+            df_exp.loc[2, "dates"] = pd.NA
+            assert_geodataframe_equal(result, df_exp)
+            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+        elif ext in (".gpkg", ".fgb"):
+            # With arrow and GDAL < 3.11, mixed timezone datetimes are written as string
+            # type columns, so no proper roundtrip possible.
+            df_exp = df.copy()
+            df_exp.dates = df_exp.dates.astype("string").astype("O")
+            assert_geodataframe_equal(result, df_exp)
+            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+
+    if datetimes == "MIXED_TO_UTC":
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+        exp_dates = pd.to_datetime(df.dates, utc=True)
+        if PANDAS_GE_20:
+            exp_dates = exp_dates.dt.as_unit("ms")
+        assert_series_equal(result.dates, exp_dates)
+    elif datetimes == "MIXED_TO_DATETIME":
+        assert is_object_dtype(result.dates.dtype)
+        assert_geodataframe_equal(result, df)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+        dates_str = df.dates.map(
+            lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else np.nan
+        )
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, timezone minutes aren't included in the string
+            dates_str = dates_str.str.slice(0, -3)
+        assert_series_equal(result.dates, dates_str)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize(
+    "dates_raw",
+    [
+        (
+            pd.Timestamp("2020-01-01T09:00:00.123-05:00"),
+            pd.Timestamp("2020-01-01T10:00:00-05:00"),
+            np.nan,
+        ),
+        (
+            datetime.fromisoformat("2020-01-01T09:00:00.123-05:00"),
+            datetime.fromisoformat("2020-01-01T10:00:00-05:00"),
+            np.nan,
+        ),
+    ],
+)
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_objects(tmp_path, dates_raw, ext, use_arrow, datetimes):
+    """Datetime objects with equal offsets are read as datetime64."""
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
+        # as well as retaining the timezone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+        pytest.xfail("Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow")
+
+    dates = pd.Series(dates_raw, dtype="O")
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    # Check result
+    if PANDAS_GE_20:
+        exp_dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        exp_dates = pd.to_datetime(dates_raw)
+    exp_df = df.copy()
+    exp_df.dates = pd.Series(exp_dates, name="dates")
+
+    # With some older versions, the offset is represented slightly differently
+    if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
+        result.dates = result.dates.astype(exp_df.dates.dtype)
+
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        if ext in (".fgb", ".gpkg"):
+            # With GDAL < 3.11 with arrow, datetime columns are written as string type
+            exp2_df = exp_df.copy()
+            exp2_df.dates = exp2_df.dates.astype("string").astype("O")
+            assert_geodataframe_equal(result, exp2_df)
+            pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
+
+    if datetimes == "MIXED_TO_UTC":
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+        exp_df.dates = exp_df.dates.dt.tz_convert("UTC")
+    elif datetimes == "MIXED_TO_DATETIME":
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            # With GDAL < 3.11 with arrow, datetime columns are written as string type
+            exp_df.dates = exp_df.dates.astype("string").str.replace(" ", "T")
+        else:
+            exp_df.dates = df.dates.map(
+                lambda x: x.isoformat(timespec="milliseconds").replace(".000", "")
+                if pd.notna(x)
+                else np.nan
+            )
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, timezone minutes aren't included in the string
+                exp_df.dates = exp_df.dates.str.slice(0, -3)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
+    assert_geodataframe_equal(result, exp_df, check_dtype=False)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_utc(tmp_path, ext, use_arrow, datetimes):
+    """Test writing/reading a column with UTC datetimes."""
+    dates_raw = ["2020-01-01T09:00:00.123Z", "2020-01-01T10:00:00Z", np.nan]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    assert df.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(fpath, use_arrow=use_arrow, datetimes=datetimes)
+
+    if use_arrow and ext == ".fgb" and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, timezone information is dropped when reading .fgb
+        if datetimes in ("MIXED_TO_UTC", "MIXED_TO_DATETIME"):
+            assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
+        elif datetimes == "STRING":
+            assert is_string_dtype(result.dates.dtype)
+            exp_dates = (
+                df.dates.dt.tz_localize(None).astype("string").str.replace(" ", "T")
+            )
+            assert_series_equal(result.dates, exp_dates, check_dtype=False)
+        pytest.xfail("UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow")
+
+    if datetimes in ("MIXED_TO_UTC", "MIXED_TO_DATETIME"):
+        assert result.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
+        assert_geodataframe_equal(result, df)
+    elif datetimes == "STRING":
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("string").str.replace(" ", "T")
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, datetime ends with +00 for UTC, not Z
+                dates_str = dates_str.str.replace("Z", "+00")
+        assert_series_equal(result.dates, dates_str, check_dtype=False)
+    else:
+        raise ValueError(f"Invalid value for 'datetimes': {datetimes!r}.")
 
 
 def test_read_null_values(tmp_path, use_arrow):
