@@ -104,14 +104,11 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def spatialite_available(path):
-    try:
-        _ = read_dataframe(
-            path, sql="select spatialite_version();", sql_dialect="SQLITE"
-        )
-        return True
-    except Exception:
-        return False
+def test_spatialite_available(test_gpkg_nulls):
+    """Check if SpatiaLite is available by running a simple SQL query."""
+    _ = read_dataframe(
+        test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
+    )
 
 
 @pytest.mark.parametrize(
