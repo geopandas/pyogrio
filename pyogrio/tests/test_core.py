@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38, GDAL_GE_350
+from pyogrio._compat import GDAL_GE_38
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -140,11 +140,7 @@ def test_list_drivers():
     # verify that the core drivers are present
     for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
         assert name in all_drivers
-
         expected_capability = "rw"
-        if name == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-            expected_capability = "r"
-
         assert all_drivers[name] == expected_capability
 
     drivers = list_drivers(read=True)
@@ -396,10 +392,6 @@ def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
     assert array_equal(fids, fids_expected)
 
 
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 4, 0),
-    reason="Cannot determine if GEOS is present or absent for GDAL < 3.4",
-)
 def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
     # If GEOS is present and used by GDAL, bbox filter will be based on intersection
     # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
@@ -587,11 +579,7 @@ def test_read_info_jsonfield(nested_geojson_file):
     """Test if JSON fields types are returned correctly."""
     meta = read_info(nested_geojson_file)
     assert meta["ogr_types"] == ["OFTString", "OFTString"]
-    if GDAL_GE_350:
-        # OFSTJSON is only supported for GDAL >= 3.5
-        assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTJSON"]
-    else:
-        assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTNone"]
+    assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTJSON"]
 
 
 def test_read_info_unspecified_layer_warning(data_dir):

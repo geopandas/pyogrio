@@ -4,7 +4,7 @@ import warnings
 from io import BytesIO
 from pathlib import Path
 
-from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
+from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYARROW
 from pyogrio._env import GDALEnv
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
@@ -435,9 +435,6 @@ def open_arrow(
         }
 
     """
-    if not HAS_ARROW_API:
-        raise RuntimeError("GDAL>= 3.6 required to read using arrow")
-
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_open_arrow(
@@ -579,12 +576,6 @@ def _get_write_path_driver(path, driver, append=False):
         raise DataSourceError(
             f"{driver} does not support write functionality in GDAL "
             f"{get_gdal_version_string()}"
-        )
-
-    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
-    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
-        raise RuntimeError(
-            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
         )
 
     return path, driver
