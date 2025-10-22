@@ -1,11 +1,12 @@
 # CHANGELOG
 
-## 0.12.0 (yyyy-mm-dd)
+## 0.12.0 (xxxx-xx-xx)
 
 ### Potentially breaking changes
 
 -   Return JSON fields (as identified by GDAL) as dicts/lists in `read_dataframe`;
     these were previously returned as strings (#556).
+-   Drop support for GDAL 3.4 and 3.5 (#584).
 
 ### Improvements
 
@@ -21,8 +22,11 @@
 
 ### Packaging
 
+-   The GDAL library included in the wheels is upgraded from 3.10.3 to 3.11.4 (#578).
 -   Add libkml driver to the wheels for more recent Linux platforms supported
     by manylinux_2_28, MacOS, and Windows (#561).
+-   Minimum required Python version is now 3.10 (#557).
+-   Wheels are now available for Python 3.14 (#579).
 
 ## 0.11.1 (2025-08-02)
 

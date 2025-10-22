@@ -20,8 +20,6 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
-    GDAL_GE_350,
-    GDAL_GE_352,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -272,10 +270,6 @@ def test_read_force_2d(tmp_path, use_arrow):
     assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.skipif(
-    not GDAL_GE_352,
-    reason="gdal >= 3.5.2 needed to use OGR_GEOJSON_MAX_OBJ_SIZE with a float value",
-)
 def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
     try:
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
@@ -387,10 +381,6 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
-@pytest.mark.skipif(
-    not GDAL_GE_350,
-    reason="OFSTJSON subtype + some list type situations need GDAL >= 3.5",
-)
 def test_read_list_types(list_field_values_file, use_arrow):
     """Test reading a geojson file containing fields with lists."""
     info = read_info(list_field_values_file)
@@ -1439,12 +1429,6 @@ def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres, use
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_append(request, tmp_path, naturalearth_lowres, ext, use_arrow):
-    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
-        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
-
-    if ext in (".geojsonl", ".geojsons") and __gdal_version__ <= (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
-
     if use_arrow and ext.startswith(".geojson"):
         # Bug in GDAL when appending int64 to GeoJSON
         # (https://github.com/OSGeo/gdal/issues/9792)
@@ -2088,9 +2072,6 @@ def test_read_multisurface(multisurface_file, use_arrow):
         assert df.geometry.type.tolist() == ["MultiPolygon"]
 
 
-@pytest.mark.skipif(
-    not GDAL_GE_350, reason="OFSTJSON subtype only supported for GDAL >= 3.5"
-)
 def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     # by default, nested data are not flattened
     df = read_dataframe(nested_geojson_file, use_arrow=use_arrow)
@@ -2358,9 +2339,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     df = read_dataframe(naturalearth_lowres)
 
     buffer = BytesIO()
