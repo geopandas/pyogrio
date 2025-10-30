@@ -109,22 +109,22 @@ def _try_parse_datetime(ser, datetimes):
                     try:
                         res = ser.map(datetime.fromisoformat, na_action="ignore")
                     except Exception as ex:
-                        warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+                        warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                         return ser
                 elif datetimes == "MIXED_TO_UTC":
                     # Convert mixed timezone datetimes to UTC.
                     try:
                         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
                     except Exception as ex:
-                        warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+                        warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                         return ser
                 else:
-                    warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+                    warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                     return ser
             else:
                 # If the error is not related to mixed timezones, log it and return
                 # the original series.
-                warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+                warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                 return ser
 
     # For pandas < 3.0, to_datetime converted mixed timezone data to datetime objects.
@@ -133,7 +133,7 @@ def _try_parse_datetime(ser, datetimes):
         try:
             res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
         except Exception as ex:
-            warnings.warn(warning.format(message=str(ex)), stacklevel=1)
+            warnings.warn(warning.format(message=str(ex)), stacklevel=3)
 
     if res.dtype.kind == "M":  # any datetime64
         # GDAL only supports ms precision, convert outputs to match.
@@ -732,7 +732,7 @@ def write_dataframe(
         # Arrow doesn't support datetime columns with mixed timezones, and GDAL only
         # supports timezone offsets. Hence, to avoid data loss, convert columns that can
         # contain datetime values with different offsets to strings.
-        # Also pass a list of these columns on so GDAL so it can still treat them as
+        # Also pass a list of these columns on to GDAL so it can still treat them as
         # datetime columns when writing the dataset.
         datetime_cols = []
         for name, dtype in df.dtypes.items():
@@ -751,10 +751,12 @@ def write_dataframe(
         table = pa.Table.from_pandas(df, preserve_index=False)
 
         # Add metadata to datetime columns so GDAL knows they are datetimes.
-        for datetime_col in datetime_cols:
-            table = _add_column_metadata(
-                table, column_metadata={datetime_col: {"GDAL:OGR:type": "DateTime"}}
-            )
+        table = _add_column_metadata(
+            table,
+            column_metadata={
+                col: {"GDAL:OGR:type": "DateTime"} for col in datetime_cols
+            },
+        )
 
         # Null arrow columns are not supported by GDAL, so convert to string
         for field_index, field in enumerate(table.schema):
@@ -832,17 +834,11 @@ def write_dataframe(
 
         elif col.dtype == "object":
             # Column of Timestamp/datetime objects, split in naive datetime and tz.
-            col_na = df[col.notna()][name]
-            if len(col_na) and all(
-                isinstance(x, (pd.Timestamp, datetime))  # noqa: UP038
-                for x in col_na
-            ):
-                tz_offset = col.apply(lambda x: None if pd.isna(x) else x.utcoffset())
+            if pd.api.types.infer_dtype(df[name]) == "datetime":
+                tz_offset = col.map(lambda x: x.utcoffset(), na_action="ignore")
                 gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
                 gdal_tz_offsets[name] = gdal_offset_repr.values
-                naive = col.apply(
-                    lambda x: None if pd.isna(x) else x.replace(tzinfo=None)
-                )
+                naive = col.map(lambda x: x.replace(tzinfo=None), na_action="ignore")
                 values = naive.values
 
         if values is None:

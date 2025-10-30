@@ -397,7 +397,7 @@ def open_arrow(
         Protocol to consume the stream of data.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as strings,
-        as arrow doesn't support e.g. mixed timezones.
+        as Arrow doesn't support e.g. mixed timezones.
 
     Examples
     --------
