@@ -47,13 +47,12 @@ def _stringify_path(path):
     return path
 
 
-def _try_parse_datetime(ser, datetimes):
+def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: bool):
     import pandas as pd  # only called when pandas is known to be installed
     from pandas.api.types import is_string_dtype
 
-    datetimes = datetimes.upper()
     datetime_kwargs = {}
-    if datetimes == "STRING":
+    if datetime_as_string:
         if not is_string_dtype(ser.dtype):
             # Support to return datetimes as strings using arrow only available for
             # GDAL >= 3.11, so convert to string here if needed.
@@ -63,13 +62,6 @@ def _try_parse_datetime(ser, datetimes):
             # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
             return ser.str.replace(" ", "T").str.replace("/", "-")
         return ser
-    elif datetimes in get_args(DateTimeParseTypes):
-        pass
-    else:
-        raise ValueError(
-            f"Invalid value for 'datetimes': {datetimes!r}. "
-            f"Must be one of {DateTimeParseTypes!r}."
-        )
 
     if PANDAS_GE_22:
         datetime_kwargs["format"] = "ISO8601"
@@ -92,26 +84,14 @@ def _try_parse_datetime(ser, datetimes):
 
             # With pandas >2 and <3, mixed timezones were returned as pandas Timestamps,
             # so convert them to datetime objects.
-            if (
-                datetimes == "MIXED_TO_DATETIME"
-                and PANDAS_GE_20
-                and res.dtype == "object"
-            ):
+            if not mixed_offsets_as_utc and PANDAS_GE_20 and res.dtype == "object":
                 res = res.map(lambda x: x.to_pydatetime(), na_action="ignore")
 
         except Exception as ex:
             if isinstance(ex, ValueError) and "Mixed timezones detected" in str(ex):
                 # Parsing mixed timezones with to_datetime is not supported
                 # anymore in pandas >= 3.0, leading to a ValueError.
-                if datetimes == "MIXED_TO_DATETIME":
-                    # Using map seems to be the fastest way to convert the strings to
-                    # datetimes.
-                    try:
-                        res = ser.map(datetime.fromisoformat, na_action="ignore")
-                    except Exception as ex:
-                        warnings.warn(warning.format(message=str(ex)), stacklevel=3)
-                        return ser
-                elif datetimes == "MIXED_TO_UTC":
+                if mixed_offsets_as_utc:
                     # Convert mixed timezone datetimes to UTC.
                     try:
                         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
@@ -119,8 +99,14 @@ def _try_parse_datetime(ser, datetimes):
                         warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                         return ser
                 else:
-                    warnings.warn(warning.format(message=str(ex)), stacklevel=3)
-                    return ser
+                    # Using map seems to be the fastest way to convert the strings to
+                    # datetime objects.
+                    try:
+                        res = ser.map(datetime.fromisoformat, na_action="ignore")
+                    except Exception as ex:
+                        warnings.warn(warning.format(message=str(ex)), stacklevel=3)
+                        return ser
+
             else:
                 # If the error is not related to mixed timezones, log it and return
                 # the original series.
@@ -128,8 +114,8 @@ def _try_parse_datetime(ser, datetimes):
                 return ser
 
     # For pandas < 3.0, to_datetime converted mixed timezone data to datetime objects.
-    # For this datetimes option they should be converted to UTC though...
-    if datetimes == "MIXED_TO_UTC" and res.dtype in ("object", "string"):
+    # For mixed_offsets_as_utc they should be converted to UTC though...
+    if mixed_offsets_as_utc and res.dtype in ("object", "string"):
         try:
             res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
         except Exception as ex:
@@ -167,7 +153,8 @@ def read_dataframe(
     use_arrow=None,
     on_invalid="raise",
     arrow_to_pandas_kwargs=None,
-    datetimes: DateTimeParseTypes = "MIXED_TO_UTC",
+    datetime_as_string=False,
+    mixed_offsets_as_utc=True,
     **kwargs,
 ):
     """Read from an OGR data source to a GeoPandas GeoDataFrame or Pandas DataFrame.
@@ -295,28 +282,29 @@ def read_dataframe(
     arrow_to_pandas_kwargs : dict, optional (default: None)
         When `use_arrow` is True, these kwargs will be passed to the `to_pandas`_
         call for the arrow to pandas conversion.
-    datetimes : str, optional (default: "MIXED_TO_UTC")
-        The way datetime columns should be returned. Possible values:
-
-        - **"MIXED_TO_UTC"**: return all datetime columns as pandas datetime64 columns.
-          The data is returned as-is if a column contains only naive datetimes
-          (without timezone information), only UTC datetimes, or if all datetimes
-          in the column have the same timezone offset.
-          Note that in timezones with daylight saving time datetimes will have
-          different offsets throughout the year!
-          For columns that don't comply to the above, all datetimes are converted
-          to UTC. In that case naive datetimes are assumed to be in UTC already.
-        - **"MIXED_TO_DATETIME"**: return datetimes in the timezone as they were read
-          from the data source, even if a column contains mixed timezone offsets.
-          Columns will be returned as pandas datetime64 column if a column contains
-          only naive datetimes (without timezone information), only UTC datetimes,
-          or if all datetimes in the column have the same timezone offset.
-          Note that in timezones with daylight saving time datetimes will have
-          different offsets throughout the year!
-          Columns that don't comply to the above are returned as object columns with
-          python datetime values. If you want to roundtrip datetimes without data
-          loss, this is the recommended option.
-        - **"STRING"**: return all datetimes as ISO8601 strings.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as ISO8601
+        strings and ``mixed_offsets_as_utc`` will be ignored.
+    mixed_offsets_as_utc: bool, optional (default: True)
+        If True, all datetime columns as pandas datetime64 columns. The data is
+        returned as-is if a column contains only naive datetimes (without
+        timezone information), only UTC datetimes, or if all datetimes in the
+        column have the same timezone offset. Note that in timezones with
+        daylight saving time datetimes will have different offsets throughout
+        the year! For columns that don't comply to the above, all datetimes are
+        converted to UTC. In that case naive datetimes are assumed to be in UTC
+        already.
+        If False, datetimes are returned in the timezone as they were read
+        from the data source, even if a column contains mixed timezone offsets.
+        Columns will be returned as pandas datetime64 column if a column
+        contains only naive datetimes (without timezone information), only UTC
+        datetimes, or if all datetimes in the column have the same timezone
+        offset. Note that in timezones with daylight saving time datetimes will
+        have different offsets throughout the year! Columns that don't comply
+        to the above are returned as object columns with python datetime
+        values. If you want to roundtrip datetimes without data loss, this is
+        the recommended option.
+        If ``datetime_as_string`` is True, this option is ignored.
 
     **kwargs
         Additional driver-specific dataset open options passed to OGR. Invalid
@@ -431,7 +419,11 @@ def read_dataframe(
         # convert datetime columns that were read as string to datetime
         for dtype, column in zip(meta["dtypes"], meta["fields"]):
             if dtype is not None and dtype.startswith("datetime"):
-                df[column] = _try_parse_datetime(df[column], datetimes=datetimes)
+                df[column] = _try_parse_datetime(
+                    df[column],
+                    datetime_as_string=datetime_as_string,
+                    mixed_offsets_as_utc=mixed_offsets_as_utc,
+                )
         for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
             if ogr_subtype == "OFSTJSON":
                 df[c] = df[c].map(json.loads, na_action="ignore")
