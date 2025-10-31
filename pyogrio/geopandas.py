@@ -4,7 +4,6 @@ import json
 import os
 import warnings
 from datetime import datetime
-from typing import Literal, TypeAlias
 
 import numpy as np
 
@@ -26,12 +25,6 @@ from pyogrio.raw import (
     read_arrow,
     write,
 )
-
-DateTimeParseTypes: TypeAlias = Literal[
-    "MIXED_TO_UTC",
-    "MIXED_TO_DATETIME",
-    "STRING",
-]
 
 
 def _stringify_path(path):
