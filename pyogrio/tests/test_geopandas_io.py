@@ -687,7 +687,6 @@ def test_write_read_datetime_tz_localized_mixed_offset(
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
-@pytest.mark.parametrize("datetimes", ["MIXED_TO_UTC", "MIXED_TO_DATETIME", "STRING"])
 @pytest.mark.parametrize("datetime_as_string", [False, True])
 @pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
 @pytest.mark.filterwarnings(
