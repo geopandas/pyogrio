@@ -602,8 +602,6 @@ def test_write_read_datetime_tz(
         assert_series_equal(
             result.dates, dates_str, check_index=False, check_dtype=False
         )
-    if mixed_offsets_as_utc:
-        assert_series_equal(result.dates, df.dates, check_index=False)
     else:
         assert_series_equal(result.dates, df.dates, check_index=False)
 
@@ -630,7 +628,7 @@ def test_write_read_datetime_tz_localized_mixed_offset(
         if __gdal_version__ < (3, 7, 0):
             # With GDAL < 3.7, timezone minutes aren't included in the string
             exp_dates = exp_dates.str.slice(0, -3)
-    if mixed_offsets_as_utc:
+    elif mixed_offsets_as_utc:
         exp_dates = dates_local.dt.tz_convert("UTC")
         if PANDAS_GE_20:
             exp_dates = exp_dates.dt.as_unit("ms")
