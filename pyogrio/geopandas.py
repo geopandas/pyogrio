@@ -292,8 +292,8 @@ def read_dataframe(
         column have the same timezone offset. Note that in timezones with
         daylight saving time datetimes will have different offsets throughout
         the year! For columns that don't comply to the above, all datetimes are
-        converted to UTC. In that case naive datetimes are assumed to be in UTC
-        already.
+        converted to UTC. In the case of a mixture of timezone aware and naive
+        datetimes, the naive datetimes are assumed to be in UTC already.
         If False, datetimes are returned in the timezone as they were read
         from the data source, even if a column contains mixed timezone offsets.
         Columns will be returned as pandas datetime64 column if a column
