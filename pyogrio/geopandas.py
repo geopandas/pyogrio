@@ -157,6 +157,17 @@ def read_dataframe(
 
     Requires ``geopandas`` >= 0.8.
 
+    Be careful when reading columns with mixed timezone offsets. By default such columns
+    will be returned as a UTC datetime column, so timezone information will be lost. If
+    you want to preserve the timezone information, you can use `datetime_as_string=True`
+    or `mixed_offsets_as_utc=False`. In this context, it is important to note that GDAL
+    only represents time zones as UTC offsets, whilst pandas uses IANA time zones (via
+    `pytz` or `zoneinfo`). As a result, even if a column in a `DataFrame` contains
+    datetimes in a single timezone, this will often still result in mixed timezone
+    offsets being written for timezones where daylight saving time is used (e.g. +1 and
+    +2 offsets for timezone Europe/Brussels). As stated above, the default behaviour of
+    `pyogrio.read_dataframe()` in this case will be to return the data as UTC.
+
     Parameters
     ----------
     path_or_buffer : pathlib.Path or str, or bytes buffer
@@ -482,6 +493,14 @@ def write_dataframe(
     **kwargs,
 ):
     """Write GeoPandas GeoDataFrame to an OGR file format.
+
+    Object dtype columns containing `datetime` or `pandas.Timestamp` objects will
+    be written as datetime fields, preserving timezone information where possible.
+    It is important to note that GDAL only represents time zones as UTC offsets, whilst
+    pandas uses IANA time zones (via `pytz` or `zoneinfo`). As a result, even if a
+    column in a `DataFrame` contains datetimes in a single timezone, this will often
+    still result in mixed timezone offsets being written for timezones where daylight
+    saving time is used (e.g. +1 and +2 offsets for timezone Europe/Brussels).
 
     Parameters
     ----------
