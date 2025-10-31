@@ -481,13 +481,14 @@ Not all file formats have dedicated support to store datetime data, like ESRI
 Shapefile. For such formats, or if you require precision > ms, a workaround is to
 convert the datetimes to string.
 
-Timezone information is preserved where possible, however GDAL only represents
-time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or
-`zoneinfo`). This means that dataframes with columns containing multiple offsets
-(e.g. when switching from standard time to summer time) will be written correctly,
-but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime
-column, as there is no way to reconstruct the original timezone from the individual
-offsets present.
+Another point of interest is that GDAL only represents time zones as UTC offsets, whilst
+pandas uses IANA time zones (via `pytz` or `zoneinfo`). A result of this is that even if
+a column in a Dataframes contains datetimes in a single timezone, this can still result
+in multiple offsets for timezones where daylight saving time is used.
+Be aware that columns with mixed timezone offsets being read via
+`pyogrio.read_dataframe()` by default will be returned as a UTC datetime column. If you
+want to preserve the timezone information, you can use `datetime_as_string=True`
+or `mixed_offsets_as_utc=False`.
 
 ## Dataset and layer creation options
 
