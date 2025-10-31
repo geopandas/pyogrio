@@ -10,7 +10,7 @@
 
 ### Improvements
 
--   Add `datetimes_as_string` and `mixed_offsets_as_utc` parameters to `read_dataframe`
+-   Add `datetime_as_string` and `mixed_offsets_as_utc` parameters to `read_dataframe`
     to choose the way datetime columns are returned + several fixes when reading and
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).

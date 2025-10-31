@@ -420,9 +420,7 @@ def read_dataframe(
         for dtype, column in zip(meta["dtypes"], meta["fields"]):
             if dtype is not None and dtype.startswith("datetime"):
                 df[column] = _try_parse_datetime(
-                    df[column],
-                    datetime_as_string=datetime_as_string,
-                    mixed_offsets_as_utc=mixed_offsets_as_utc,
+                    df[column], datetime_as_string, mixed_offsets_as_utc
                 )
         for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
             if ogr_subtype == "OFSTJSON":
@@ -459,7 +457,7 @@ def read_dataframe(
     df = pd.DataFrame(data, columns=columns, index=index)
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
-            df[c] = _try_parse_datetime(df[c], datetimes=datetimes)
+            df[c] = _try_parse_datetime(df[c], datetime_as_string, mixed_offsets_as_utc)
     for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
         if ogr_subtype == "OFSTJSON":
             df[c] = df[c].map(json.loads, na_action="ignore")
