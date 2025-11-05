@@ -316,7 +316,7 @@ jobs:
           uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
           if [ ${{ matrix.python-version }} == "3.14t" ]; then
-            uv pip install --pre --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
+            uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
           fi
           uv pip install --no-deps geopandas
           uv pip list
