@@ -257,7 +257,7 @@ jobs:
             "macos-13",
             "macos-latest",
           ]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -313,15 +313,12 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          if [ ${{ matrix.python-version }} != "3.14" ]; then
-            uv pip install -r ci/requirements-wheel-test.txt
-          else
-            uv pip install pytest numpy certifi packaging
-          fi
+          uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} != "3.14" ]; then
-            uv pip install --no-deps geopandas
+          if [ ${{ matrix.python-version }} == "3.14t" ]; then
+            uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
           fi
+          uv pip install --no-deps geopandas
           uv pip list
 
       - name: Run tests
