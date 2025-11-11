@@ -58,7 +58,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-${{ env.GDAL_VERSION }}"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.5"
 
     steps:
       - name: Install packages
