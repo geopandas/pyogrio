@@ -12,5 +12,5 @@
             "features": ["recommended-features", "curl", "geos", "iconv", "libspatialite", "openssl"]
         }
     ],
-    "builtin-baseline": "da096fdc67db437bee863ae73c4c12e289f82789"
+    "builtin-baseline": "17ff26d0566ba0fa05e35c9209e92664adb304e3"
 }
