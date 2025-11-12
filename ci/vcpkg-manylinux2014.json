@@ -3,9 +3,13 @@
     "version": "0.12.0",
     "dependencies": [
         {
+            "name": "libspatialite",
+            "default-features": false
+        },
+        {
             "name": "gdal",
             "default-features": false,
-            "features": ["recommended-features", "curl", "geos", "iconv", "openssl"]
+            "features": ["recommended-features", "curl", "geos", "iconv", "libspatialite", "openssl"]
         }
     ],
     "builtin-baseline": "da096fdc67db437bee863ae73c4c12e289f82789"

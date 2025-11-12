@@ -27,8 +27,12 @@
 -   The GDAL library included in the wheels is upgraded from 3.10.3 to 3.11.4 (#578).
 -   Add libkml driver to the wheels for more recent Linux platforms supported
     by manylinux_2_28, MacOS, and Windows (#561).
+-   Add libspatialite to the wheels (#546).
 -   Minimum required Python version is now 3.10 (#557).
 -   Wheels are now available for Python 3.14 (#579).
+-   Initial support for free-threaded Python builds, with the extension module
+    declaring free-threaded support and wheels for Python 3.13t and 3.14t being
+    built (#562).
 
 ## 0.11.1 (2025-08-02)
 
