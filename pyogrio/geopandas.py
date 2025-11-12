@@ -357,10 +357,10 @@ def read_dataframe(
 
     # Always read datetimes as string values to preserve (mixed) timezone info
     # correctly. If arrow is not used, it is needed because numpy does not
-    # directly support timezones. If arrow is used, needed because datetime
-    # columns don't support mixed timezone offsets + e.g. for .fgb files
-    # timezone info isn't handled correctly even for unique timezone offsets
-    # if datetimes are not read as string.
+    # directly support timezones + performance is also a lot better. If arrow
+    # is used, needed because datetime columns don't support mixed timezone
+    # offsets + e.g. for .fgb files timezone info isn't handled correctly even
+    # for unique timezone offsets if datetimes are not read as string.
     result = read_func(
         path_or_buffer,
         layer=layer,

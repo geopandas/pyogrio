@@ -445,10 +445,11 @@ def test_read_datetime_long_ago(
     """
     xfail_msg = None
     handler = contextlib.nullcontext()
-    if not datetime_as_string and not use_arrow and not PANDAS_GE_30:
-        # When use_arrow is not used and datetimes should not be returned as string,
-        # `pandas.to_datetime` is used to parse the dates. However, when using pandas
-        # < 3.0, this raises "Out of bounds nanosecond timestamp" for very old dates.
+    if not datetime_as_string and not PANDAS_GE_30 and (not use_arrow or GDAL_GE_311):
+        # When datetimes should not be returned as string and arrow is not used or
+        # arrow is used with GDAL >= 3.11, `pandas.to_datetime` is used to parse the
+        # datetimes. However, when using pandas < 3.0, this raises an
+        # "Out of bounds nanosecond timestamp" error for very old dates.
         # As a result, `read_dataframe` gives a warning and the datetimes stay strings.
         handler = pytest.warns(
             UserWarning, match="Error parsing datetimes, original strings are returned"
