@@ -457,6 +457,16 @@ def test_read_datetime_long_ago(
         xfail_msg = (
             "datetimes before 1678-1-1 give overflow with arrow=False and pandas < 3.0"
         )
+    elif not datetime_as_string and use_arrow and not PANDAS_GE_20:
+        # When datetimes should not be returned as string and arrow is used with
+        # pandas < 2.0, an overflow occurs in pyarrow.to_pandas().
+        handler = pytest.raises(
+            Exception,
+            match="Casting from timestamp[ms] to timestamp[ns] would result in out of ",
+        )
+        xfail_msg = (
+            "datetimes before 1678-1-1 give overflow with arrow=True and pandas < 2.0"
+        )
 
     with handler:
         df = read_dataframe(
@@ -466,28 +476,28 @@ def test_read_datetime_long_ago(
             mixed_offsets_as_utc=mixed_offsets_as_utc,
         )
 
-    exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
-    if datetime_as_string:
-        assert is_string_dtype(df.datetime_col.dtype)
-        assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
-    else:
-        # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
-        # expected "ideal" result is the same: a datetime64 without timezone info.
-
-        if xfail_msg is not None:
-            # An xfail is needed: strings are returned because of an overflow.
-            exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+        exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+        if datetime_as_string:
             assert is_string_dtype(df.datetime_col.dtype)
             assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
         else:
-            # With use_arrow or pandas >= 3.0, old datetimes are parsed correctly.
-            assert is_datetime64_dtype(df.datetime_col)
-            assert df.datetime_col.iloc[0] == pd.Timestamp(1670, 1, 1, 9, 0, 0)
-            assert df.datetime_col.iloc[0].unit == "ms"
+            # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
+            # expected "ideal" result is the same: a datetime64 without timezone info.
 
-    if xfail_msg is not None:
-        # The result was not as would be expected by the user, so mark as xfail.
-        pytest.xfail(xfail_msg)
+            if xfail_msg is not None:
+                # An xfail is needed: strings are returned because of an overflow.
+                exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+                assert is_string_dtype(df.datetime_col.dtype)
+                assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
+            else:
+                # With use_arrow or pandas >= 3.0, old datetimes are parsed correctly.
+                assert is_datetime64_dtype(df.datetime_col)
+                assert df.datetime_col.iloc[0] == pd.Timestamp(1670, 1, 1, 9, 0, 0)
+                assert df.datetime_col.iloc[0].unit == "ms"
+
+        if xfail_msg is not None:
+            # The result was not as would be expected by the user, so mark as xfail.
+            pytest.xfail(xfail_msg)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
