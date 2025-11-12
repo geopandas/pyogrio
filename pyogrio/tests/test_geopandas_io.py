@@ -436,49 +436,58 @@ def test_write_datetime_mixed_offset(tmp_path, use_arrow):
 @pytest.mark.parametrize("datetime_as_string", [False, True])
 @pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
 def test_read_datetime_long_ago(
-    geojson_datetime_long_ago, use_arrow, datetime_as_string, mixed_offsets_as_utc
+    geojson_datetime_long_ago, use_arrow, mixed_offsets_as_utc, datetime_as_string
 ):
     """Test writing/reading a column with a datetime far in the past.
     Dates from before 1678-1-1 aren't parsed correctly by pandas < 3.0, so they
     stay strings.
     Reported in https://github.com/geopandas/pyogrio/issues/553.
     """
-    if use_arrow and __gdal_version__ < (3, 11, 0):
-        # With use_arrow and GDAL < 3.11, datetimes are converted to python
-        # objects in to_pandas. For a datetime far in the past this gives an
-        # overflow though.
-        pytest.xfail(
-            "datetimes before 1678-1-1 give overflow if arrow is used with GDAL<3.11"
+    xfail_msg = None
+    if not datetime_as_string and not use_arrow and not PANDAS_GE_30:
+        # When use_arrow is not used and datetimes should not be returned as string,
+        # `pandas.to_datetime` is used to parse the dates. However, when using pandas
+        # < 3.0, this raises "Out of bounds nanosecond timestamp" for very old dates.
+        # As a result, `read_dataframe` gives a warning and the datetimes stay strings.
+        handler = pytest.warns(
+            UserWarning, match="Error parsing datetimes, original strings are returned"
         )
-    if mixed_offsets_as_utc and not PANDAS_GE_30 and not datetime_as_string:
-        pytest.xfail(
-            "datetimes before 1678-1-1 are not supported with mixed_offsets_as_utc "
-            "with pandas < 3.0"
+        xfail_msg = (
+            "datetimes before 1678-1-1 give overflow with arrow=False and pandas < 3.0"
         )
+    else:
+        handler = contextlib.nullcontext()
 
-    df = read_dataframe(
-        geojson_datetime_long_ago,
-        use_arrow=use_arrow,
-        datetime_as_string=datetime_as_string,
-        mixed_offsets_as_utc=mixed_offsets_as_utc,
-    )
+    with handler:
+        df = read_dataframe(
+            geojson_datetime_long_ago,
+            use_arrow=use_arrow,
+            datetime_as_string=datetime_as_string,
+            mixed_offsets_as_utc=mixed_offsets_as_utc,
+        )
 
     exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
     if datetime_as_string:
         assert is_string_dtype(df.datetime_col.dtype)
         assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
-    elif mixed_offsets_as_utc:
-        pytest.xfail("datetimes of long ago cannot be parsed as UTC")
-        assert is_datetime64_any_dtype(df.datetime_col.dtype)
-        assert_series_equal(df.datetime_col, exp_dates)
     else:
-        pytest.xfail("datetimes of long ago cannot be parsed as datetime")
-        assert is_datetime64_dtype(df.datetime_col.dtype)
-        if PANDAS_GE_20:
-            exp_dates = pd.to_datetime(exp_dates, format="ISO8601").as_unit("ms")
+        # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
+        # expected "ideal" result is the same: a datetime64 without timezone info.
+
+        if xfail_msg is not None:
+            # An xfail is needed: strings are returned because of an overflow.
+            exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+            assert is_string_dtype(df.datetime_col.dtype)
+            assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
         else:
-            exp_dates = pd.to_datetime(exp_dates)
-        assert_series_equal(df.datetime_col, exp_dates)
+            # With use_arrow or pandas >= 3.0, old datetimes are parsed correctly.
+            assert is_datetime64_dtype(df.datetime_col)
+            assert df.datetime_col.iloc[0] == pd.Timestamp(1670, 1, 1, 9, 0, 0)
+            assert df.datetime_col.iloc[0].unit == "ms"
+
+    if xfail_msg is not None:
+        # The result was not as would be expected by the user, so mark as xfail.
+        pytest.xfail(xfail_msg)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
