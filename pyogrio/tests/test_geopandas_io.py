@@ -49,12 +49,7 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
-    from pandas.api.types import (
-        is_datetime64_any_dtype,
-        is_datetime64_dtype,
-        is_object_dtype,
-        is_string_dtype,
-    )
+    from pandas.api.types import is_datetime64_dtype, is_object_dtype, is_string_dtype
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -600,9 +595,7 @@ def test_write_read_datetime_tz(
         df_exp.dates = df_exp[df_exp.dates.notna()].dates.astype(str)
         assert_series_equal(result.dates, df_exp.dates, check_index=False)
         pytest.xfail("datetime columns written as string with GDAL < 3.11 via arrow")
-
-    assert isinstance(df.dates.dtype, pd.DatetimeTZDtype)
-    if datetime_as_string:
+    elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             dates_str = df.dates.astype("string").str.replace(" ", "T")
