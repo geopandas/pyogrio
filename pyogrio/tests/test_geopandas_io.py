@@ -444,6 +444,7 @@ def test_read_datetime_long_ago(
     Reported in https://github.com/geopandas/pyogrio/issues/553.
     """
     xfail_msg = None
+    handler = contextlib.nullcontext()
     if not datetime_as_string and not use_arrow and not PANDAS_GE_30:
         # When use_arrow is not used and datetimes should not be returned as string,
         # `pandas.to_datetime` is used to parse the dates. However, when using pandas
@@ -455,8 +456,6 @@ def test_read_datetime_long_ago(
         xfail_msg = (
             "datetimes before 1678-1-1 give overflow with arrow=False and pandas < 3.0"
         )
-    else:
-        handler = contextlib.nullcontext()
 
     with handler:
         df = read_dataframe(
