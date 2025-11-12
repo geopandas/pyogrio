@@ -536,16 +536,13 @@ def test_write_read_datetime_no_tz(
             assert_series_equal(result.dates, exp_dates)
         pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
 
-    if datetime_as_string:
+    elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             dates_str = df.dates.astype("string").str.replace(" ", "T")
         else:
             dates_str = pd.Series(dates_raw, name="dates")
         assert_series_equal(result.dates, dates_str, check_dtype=False)
-    elif mixed_offsets_as_utc:
-        assert is_datetime64_any_dtype(result.dates.dtype)
-        assert_series_equal(result.dates, df.dates)
     else:
         assert is_datetime64_dtype(result.dates.dtype)
         assert_geodataframe_equal(result, df)
