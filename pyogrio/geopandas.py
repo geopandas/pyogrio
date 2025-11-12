@@ -104,6 +104,10 @@ def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: boo
                 # If the error is not related to mixed timezones, log it and return
                 # the original series.
                 warnings.warn(warning.format(message=str(ex)), stacklevel=3)
+                if __gdal_version__ < (3, 7, 0):
+                    # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
+                    return ser.str.replace(" ", "T").str.replace("/", "-")
+
                 return ser
 
     # For pandas < 3.0, to_datetime converted mixed timezone data to datetime objects.

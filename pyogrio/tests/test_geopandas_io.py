@@ -474,19 +474,18 @@ def test_read_datetime_long_ago(
             mixed_offsets_as_utc=mixed_offsets_as_utc,
         )
 
-        exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+        exp_dates_str = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
         if datetime_as_string:
             assert is_string_dtype(df.datetime_col.dtype)
-            assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
+            assert_series_equal(df.datetime_col, exp_dates_str, check_dtype=False)
         else:
             # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
             # expected "ideal" result is the same: a datetime64 without timezone info.
 
             if xfail_msg is not None:
                 # An xfail is needed: strings are returned because of an overflow.
-                exp_dates = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
                 assert is_string_dtype(df.datetime_col.dtype)
-                assert_series_equal(df.datetime_col, exp_dates, check_dtype=False)
+                assert_series_equal(df.datetime_col, exp_dates_str, check_dtype=False)
             else:
                 # With use_arrow or pandas >= 3.0, old datetimes are parsed correctly.
                 assert is_datetime64_dtype(df.datetime_col)
