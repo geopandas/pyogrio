@@ -1,6 +1,7 @@
 import contextlib
 import locale
 import os
+import re
 import warnings
 from datetime import datetime
 from io import BytesIO
@@ -457,12 +458,12 @@ def test_read_datetime_long_ago(
         xfail_msg = (
             "datetimes before 1678-1-1 give overflow with arrow=False and pandas < 3.0"
         )
-    elif not datetime_as_string and use_arrow and not PANDAS_GE_20:
-        # When datetimes should not be returned as string and arrow is used with
-        # pandas < 2.0, an overflow occurs in pyarrow.to_pandas().
+    elif use_arrow and not PANDAS_GE_20 and not GDAL_GE_311:
+        # When arrow is used with pandas < 2.0 and GDAL < 3.11, an overflow occurs in
+        # pyarrow.to_pandas().
         handler = pytest.raises(
             Exception,
-            match="Casting from timestamp[ms] to timestamp[ns] would result in out of ",
+            match=re.escape("Casting from timestamp[ms] to timestamp[ns] would result"),
         )
         xfail_msg = (
             "datetimes before 1678-1-1 give overflow with arrow=True and pandas < 2.0"
