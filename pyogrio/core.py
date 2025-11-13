@@ -1,7 +1,6 @@
 """Core functions to interact with OGR data sources."""
 
 from pathlib import Path
-from typing import Optional, Union
 
 from pyogrio._env import GDALEnv
 from pyogrio.util import (
@@ -247,9 +246,9 @@ def read_info(
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
         A dataset path or URI, raw buffer, or file-like object with a read method.
-    layer : [type], optional
+    layer : str or int, optional
         Name or index of layer in data source.  Reads the first layer by default.
-    encoding : [type], optional (default: None)
+    encoding : str, optional (default: None)
         If present, will be used as the encoding for reading string values from
         the data source, unless encoding can be inferred directly from the data
         source.
@@ -271,6 +270,8 @@ def read_info(
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,
+                "ogr_types": <ndarray of OGR field types>,
+                "ogr_subtypes": <ndarray of OGR field subtypes>,
                 "encoding": "<encoding>",
                 "fid_column": "<fid column name or "">",
                 "geometry_name": "<geometry column name or "">",
@@ -346,7 +347,7 @@ def get_gdal_data_path():
     return _get_gdal_data_path()
 
 
-def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
+def vsi_listtree(path: str | Path, pattern: str | None = None):
     """Recursively list the contents of a VSI directory.
 
     An fnmatch pattern can be specified to filter the directories/files
@@ -366,7 +367,7 @@ def vsi_listtree(path: Union[str, Path], pattern: Optional[str] = None):
     return ogr_vsi_listtree(path, pattern=pattern)
 
 
-def vsi_rmtree(path: Union[str, Path]):
+def vsi_rmtree(path: str | Path):
     """Recursively remove VSI directory.
 
     Parameters
@@ -381,7 +382,7 @@ def vsi_rmtree(path: Union[str, Path]):
     ogr_vsi_rmtree(path)
 
 
-def vsi_unlink(path: Union[str, Path]):
+def vsi_unlink(path: str | Path):
     """Remove a VSI file.
 
     Parameters

@@ -185,6 +185,9 @@ cdef extern from "ogr_core.h":
         OFSTBoolean
         OFSTInt16
         OFSTFloat32
+        OFSTJSON
+        OFSTUUID
+        OFSTMaxSubType
 
     ctypedef void* OGRDataSourceH
     ctypedef void* OGRFeatureDefnH
@@ -256,6 +259,7 @@ cdef extern from "arrow_bridge.h" nogil:
 
 
 cdef extern from "ogr_api.h":
+    ctypedef signed long long GIntBig
     int             OGRGetDriverCount()
     OGRSFDriverH    OGRGetDriver(int)
 
@@ -283,6 +287,14 @@ cdef extern from "ogr_api.h":
     int             OGR_F_GetFieldAsInteger(OGRFeatureH feature, int n)
     int64_t         OGR_F_GetFieldAsInteger64(OGRFeatureH feature, int n)
     const char*     OGR_F_GetFieldAsString(OGRFeatureH feature, int n)
+    char **         OGR_F_GetFieldAsStringList(OGRFeatureH feature, int n)
+    const int *     OGR_F_GetFieldAsIntegerList(
+                        OGRFeatureH feature, int n, int* pnCount)
+    const GIntBig * OGR_F_GetFieldAsInteger64List(
+                        OGRFeatureH feature, int n, int* pnCount)
+    const double *  OGR_F_GetFieldAsDoubleList(
+                        OGRFeatureH feature, int n, int* pnCount)
+
     int             OGR_F_IsFieldSetAndNotNull(OGRFeatureH feature, int n)
 
     void OGR_F_SetFieldDateTime(OGRFeatureH feature,
@@ -406,14 +418,10 @@ cdef extern from "ogr_api.h":
     const char*     OLCFastGetExtent
     const char*     OLCTransactions
 
-
-IF CTE_GDAL_VERSION >= (3, 6, 0):
-
-    cdef extern from "ogr_api.h":
-        bint OGR_L_GetArrowStream(
-            OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
-        )
-
+cdef extern from "ogr_api.h":
+    bint OGR_L_GetArrowStream(
+        OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
+    )
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 

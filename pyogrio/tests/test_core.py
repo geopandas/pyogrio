@@ -22,7 +22,12 @@ from pyogrio._compat import GDAL_GE_38, GDAL_GE_312
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
-from pyogrio.tests.conftest import START_FID, prepare_testfile, requires_shapely
+from pyogrio.tests.conftest import (
+    DRIVERS,
+    START_FID,
+    prepare_testfile,
+    requires_shapely,
+)
 
 import pytest
 
@@ -442,10 +447,6 @@ def test_read_bounds_mask(naturalearth_lowres_all_ext, mask, expected):
     assert array_equal(fids, fids_expected)
 
 
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 4, 0),
-    reason="Cannot determine if GEOS is present or absent for GDAL < 3.4",
-)
 def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_all_ext):
     # If GEOS is present and used by GDAL, bbox filter will be based on intersection
     # of bbox and actual geometries; if GEOS is absent or not used by GDAL, it
@@ -466,7 +467,9 @@ def test_read_bounds_bbox_intersects_vs_envelope_overlaps(naturalearth_lowres_al
         assert array_equal(fids, fids_expected)
 
 
-@pytest.mark.parametrize("naturalearth_lowres", [".shp", ".gpkg"], indirect=True)
+@pytest.mark.parametrize(
+    "naturalearth_lowres", [".shp", ".shp.zip", ".gpkg", ".gpkg.zip"], indirect=True
+)
 def test_read_info(naturalearth_lowres):
     meta = read_info(naturalearth_lowres)
 
@@ -478,11 +481,12 @@ def test_read_info(naturalearth_lowres):
     assert meta["features"] == 177
     assert allclose(meta["total_bounds"], (-180, -90, 180, 83.64513))
     assert meta["capabilities"]["random_read"] is True
+    # The GPKG test files are created without spatial index
     assert meta["capabilities"]["fast_spatial_filter"] is False
     assert meta["capabilities"]["fast_feature_count"] is True
     assert meta["capabilities"]["fast_total_bounds"] is True
 
-    if naturalearth_lowres.suffix == ".gpkg":
+    if naturalearth_lowres.name.endswith((".gpkg", ".gpkg.zip")):
         assert meta["fid_column"] == "fid"
         assert meta["geometry_name"] == "geom"
         assert meta["geometry_type"] == "MultiPolygon"
@@ -490,7 +494,7 @@ def test_read_info(naturalearth_lowres):
         if GDAL_GE_38:
             # this capability is only True for GPKG if GDAL >= 3.8
             assert meta["capabilities"]["fast_set_next_by_index"] is True
-    elif naturalearth_lowres.suffix == ".shp":
+    elif naturalearth_lowres.name.endswith((".shp", ".shp.zip")):
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
         # geometry_name == "" for formats where geometry column name cannot be
@@ -501,6 +505,14 @@ def test_read_info(naturalearth_lowres):
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
         raise ValueError(f"test not implemented for ext {naturalearth_lowres.suffix}")
+
+
+@pytest.mark.parametrize(
+    "naturalearth_lowres", [*DRIVERS.keys(), ".sqlite"], indirect=True
+)
+def test_read_info_encoding(naturalearth_lowres):
+    meta = read_info(naturalearth_lowres)
+    assert meta["encoding"].upper() == "UTF-8"
 
 
 @pytest.mark.parametrize(
@@ -618,10 +630,22 @@ def test_read_info_force_total_bounds(
         assert info["total_bounds"] is None
 
 
+def test_read_info_jsonfield(nested_geojson_file):
+    """Test if JSON fields types are returned correctly."""
+    meta = read_info(nested_geojson_file)
+    assert meta["ogr_types"] == ["OFTString", "OFTString"]
+    assert meta["ogr_subtypes"] == ["OFSTNone", "OFSTJSON"]
+
+
 def test_read_info_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
         read_info(data_dir / "sample.osm.pbf")
+
+
+def test_read_info_invalid_layer(naturalearth_lowres):
+    with pytest.raises(ValueError, match="'layer' parameter must be a str or int"):
+        read_bounds(naturalearth_lowres, layer=["list_arg_is_invalid"])
 
 
 def test_read_info_without_geometry(no_geometry_file):

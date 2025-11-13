@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.x"
 
@@ -42,7 +42,7 @@ jobs:
           python -m pip install build setuptools
           python -m build --sdist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pyogrio-sdist
           path: ./dist/*.tar.gz
@@ -54,7 +54,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.10.3"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.4"
 
     steps:
       - name: Install packages
@@ -73,7 +73,7 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Download sdist from artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: pyogrio-sdist
           path: wheelhouse
@@ -120,7 +120,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -146,9 +146,9 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.1
+        uses: pypa/cibuildwheel@v3.2.1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.wheel_name }}
           path: ./wheelhouse/*.whl
@@ -182,7 +182,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -193,7 +193,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.10.3-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.11.4-cache0
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -211,7 +211,7 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
-          git checkout 66c1c9852bb30bd87285e77cc775072046d51fc6
+          git checkout da096fdc67db437bee863ae73c4c12e289f82789
 
       - name: Install GDAL
         env:
@@ -223,19 +223,19 @@ jobs:
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.0.1
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pyogrio-wheel-${{ matrix.triplet }}
           path: ./wheelhouse/*.whl
@@ -257,7 +257,7 @@ jobs:
             "macos-13",
             "macos-latest",
           ]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -276,16 +276,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
 
       - name: Create virtual environment (Linux / MacOS)
         # use uv to create a virtual environment, then add it to environment
@@ -305,7 +305,7 @@ jobs:
           "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Download wheels from artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: wheelhouse
@@ -313,15 +313,12 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          if [ ${{ matrix.python-version }} != "3.13" ]; then
-            uv pip install -r ci/requirements-wheel-test.txt
-          else
-            uv pip install pytest numpy certifi packaging
-          fi
+          uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} != "3.13" ]; then
-            uv pip install --no-deps geopandas
+          if [ ${{ matrix.python-version }} == "3.14t" ]; then
+            uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
           fi
+          uv pip install --no-deps geopandas
           uv pip list
 
       - name: Run tests
@@ -347,7 +344,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           pattern: pyogrio-*
           path: dist

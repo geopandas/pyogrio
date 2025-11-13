@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Supports Python 3.9 - 3.13 and GDAL 3.4.x - 3.9.x
+Supports Python 3.10 - 3.14 and GDAL 3.6.x - 3.11.x
 
 Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
 
@@ -132,20 +132,20 @@ To build on Windows, you need to provide additional environment variables or
 command-line parameters because the location of the GDAL binaries and headers
 cannot be automatically determined.
 
-Assuming GDAL 3.4.1 is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`,
+Assuming GDAL 3.8.3 is installed to `c:\GDAL`, you can set the `GDAL_INCLUDE_PATH`,
 `GDAL_LIBRARY_PATH` and `GDAL_VERSION` environment variables and build as follows:
 
 ```bash
 set GDAL_INCLUDE_PATH=C:\GDAL\include
 set GDAL_LIBRARY_PATH=C:\GDAL\lib
-set GDAL_VERSION=3.4.1
+set GDAL_VERSION=3.8.3
 python -m pip install --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 Alternatively, you can pass those options also as command-line parameters:
 
 ```bash
-python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --install-option="--gdalversion=3.4.1" --no-deps --force-reinstall --no-use-pep517 -e . -v
+python -m pip install --install-option=build_ext --install-option="-IC:\GDAL\include" --install-option="-lgdal_i" --install-option="-LC:\GDAL\lib" --install-option="--gdalversion=3.8.3" --no-deps --force-reinstall --no-use-pep517 -e . -v
 ```
 
 The location of the GDAL DLLs must be on your system `PATH`.

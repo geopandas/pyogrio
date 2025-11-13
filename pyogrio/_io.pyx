@@ -24,11 +24,9 @@ from cpython.pycapsule cimport PyCapsule_New, PyCapsule_GetPointer
 
 import numpy as np
 
-from pyogrio._ogr cimport *
 from pyogrio._err cimport (
     check_last_error, check_int, check_pointer, ErrorHandler
 )
-from pyogrio._vsi cimport *
 from pyogrio._err import (
     CPLE_AppDefinedError,
     CPLE_BaseError,
@@ -38,6 +36,9 @@ from pyogrio._err import (
     capture_errors,
 )
 from pyogrio._geometry cimport get_geometry_type, get_geometry_type_code
+from pyogrio._ogr cimport *
+from pyogrio._ogr import MULTI_EXTENSIONS
+from pyogrio._vsi cimport *
 from pyogrio.errors import (
     CRSError, DataSourceError, DataLayerError, GeometryError, FieldError, FeatureError
 )
@@ -49,11 +50,11 @@ log = logging.getLogger(__name__)
 # (index in array is the integer field type)
 FIELD_TYPES = [
     "int32",           # OFTInteger, Simple 32bit integer
-    None,              # OFTIntegerList, List of 32bit integers, not supported
+    "list(int32)",     # OFTIntegerList, List of 32bit integers
     "float64",         # OFTReal, Double Precision floating point
-    None,              # OFTRealList, List of doubles, not supported
+    "list(float64)",   # OFTRealList, List of doubles
     "object",          # OFTString, String of UTF-8 chars
-    None,              # OFTStringList, Array of strings, not supported
+    "list(str)",       # OFTStringList, Array of strings
     None,              # OFTWideString, deprecated, not supported
     None,              # OFTWideStringList, deprecated, not supported
     "object",          # OFTBinary, Raw Binary data
@@ -61,14 +62,43 @@ FIELD_TYPES = [
     None,              # OFTTime, Time, NOTE: not directly supported in numpy
     "datetime64[ms]",  # OFTDateTime, Date and Time
     "int64",           # OFTInteger64, Single 64bit integer
-    None               # OFTInteger64List, List of 64bit integers, not supported
+    "list(int64)"      # OFTInteger64List, List of 64bit integers, not supported
 ]
+
+# Mapping of OGR integer field types to OGR type names
+# (index in array is the integer field type)
+FIELD_TYPE_NAMES = {
+    OFTInteger: "OFTInteger",                # Simple 32bit integer
+    OFTIntegerList: "OFTIntegerList",        # List of 32bit integers, not supported
+    OFTReal: "OFTReal",                      # Double Precision floating point
+    OFTRealList: "OFTRealList",              # List of doubles, not supported
+    OFTString: "OFTString",                  # String of UTF-8 chars
+    OFTStringList: "OFTStringList",          # Array of strings, not supported
+    OFTWideString: "OFTWideString",          # deprecated, not supported
+    OFTWideStringList: "OFTWideStringList",  # deprecated, not supported
+    OFTBinary: "OFTBinary",                  # Raw Binary data
+    OFTDate: "OFTDate",                      # Date
+    OFTTime: "OFTTime",                      # Time: not directly supported in numpy
+    OFTDateTime: "OFTDateTime",              # Date and Time
+    OFTInteger64: "OFTInteger64",            # Single 64bit integer
+    OFTInteger64List: "OFTInteger64List",    # List of 64bit integers, not supported
+}
 
 FIELD_SUBTYPES = {
     OFSTNone: None,           # No subtype
     OFSTBoolean: "bool",      # Boolean integer
     OFSTInt16: "int16",       # Signed 16-bit integer
     OFSTFloat32: "float32",   # Single precision (32 bit) floating point
+}
+
+FIELD_SUBTYPE_NAMES = {
+    OFSTNone: "OFSTNone",             # No subtype
+    OFSTBoolean: "OFSTBoolean",       # Boolean integer
+    OFSTInt16: "OFSTInt16",           # Signed 16-bit integer
+    OFSTFloat32: "OFSTFloat32",       # Single precision (32 bit) floating point
+    OFSTJSON: "OFSTJSON",
+    OFSTUUID: "OFSTUUID",
+    OFSTMaxSubType: "OFSTMaxSubType",
 }
 
 # Mapping of numpy ndarray dtypes to (field type, subtype)
@@ -274,6 +304,10 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
 
         elif isinstance(layer, int):
             ogr_layer = check_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
+        else:
+            raise ValueError(
+                f"'layer' parameter must be a str or int, got {type(layer)}"
+            )
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -610,6 +644,11 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
         # In old gdal versions, OLCStringsAsUTF8 wasn't advertised yet.
         return "UTF-8"
 
+    if driver == "SQLite":
+        # TestCapability for OLCStringsAsUTF8 returns False for SQLite in GDAL 3.11.3.
+        # Issue opened: https://github.com/OSGeo/gdal/issues/12962
+        return "UTF-8"
+
     return locale.getpreferredencoding()
 
 
@@ -627,8 +666,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     Returns
     -------
-    ndarray(n, 4)
-        array of index, ogr type, name, numpy type
+    ndarray(n, 5)
+        array of index, ogr type, name, numpy type, ogr subtype
     """
     cdef int i
     cdef int field_count
@@ -648,7 +687,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     field_count = OGR_FD_GetFieldCount(ogr_featuredef)
 
-    fields = np.empty(shape=(field_count, 4), dtype=object)
+    fields = np.empty(shape=(field_count, 5), dtype=object)
     fields_view = fields[:, :]
 
     skipped_fields = False
@@ -685,6 +724,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
         fields_view[i, 1] = field_type
         fields_view[i, 2] = field_name
         fields_view[i, 3] = np_type
+        fields_view[i, 4] = field_subtype
 
     if skipped_fields:
         # filter out skipped fields
@@ -879,6 +919,10 @@ cdef process_fields(
     cdef int success
     cdef int field_index
     cdef int ret_length
+    cdef int *ints_c
+    cdef GIntBig *int64s_c
+    cdef double *doubles_c
+    cdef char **strings_c
     cdef GByte *bin_value
     cdef int year = 0
     cdef int month = 0
@@ -969,6 +1013,55 @@ cdef process_fields(
                         year, month, day, hour, minute, second, microsecond
                     ).isoformat()
 
+        elif field_type == OFTIntegerList:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            ints_c = OGR_F_GetFieldAsIntegerList(ogr_feature, field_index, &ret_length)
+            int_arr = np.ndarray(shape=(ret_length,), dtype=np.int32)
+            for j in range(ret_length):
+                int_arr[j] = ints_c[j]
+            data[i] = int_arr
+
+        elif field_type == OFTInteger64List:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            int64s_c = OGR_F_GetFieldAsInteger64List(
+                ogr_feature, field_index, &ret_length
+            )
+
+            int_arr = np.ndarray(shape=(ret_length,), dtype=np.int64)
+            for j in range(ret_length):
+                int_arr[j] = int64s_c[j]
+            data[i] = int_arr
+
+        elif field_type == OFTRealList:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            doubles_c = OGR_F_GetFieldAsDoubleList(
+                ogr_feature, field_index, &ret_length
+            )
+
+            double_arr = np.ndarray(shape=(ret_length,), dtype=np.float64)
+            for j in range(ret_length):
+                double_arr[j] = doubles_c[j]
+            data[i] = double_arr
+
+        elif field_type == OFTStringList:
+            # According to GDAL doc, this can return NULL for an empty list, which is a
+            # valid result. So don't use check_pointer as it would throw an exception.
+            strings_c = OGR_F_GetFieldAsStringList(ogr_feature, field_index)
+
+            string_list_index = 0
+            vals = []
+            if strings_c != NULL:
+                # According to GDAL doc, the list is terminated by a NULL pointer.
+                while strings_c[string_list_index] != NULL:
+                    val = strings_c[string_list_index]
+                    vals.append(get_string(val, encoding=encoding))
+                    string_list_index += 1
+
+            data[i] = np.array(vals)
+
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
@@ -1012,16 +1105,16 @@ cdef get_features(
     field_indexes = fields[:, 0]
     field_ogr_types = fields[:, 1]
 
-    field_data = [
-        np.empty(
-            shape=(num_features, ),
-            dtype = (
-                "object"
-                if datetime_as_string and fields[field_index, 3].startswith("datetime")
-                else fields[field_index, 3]
-            )
-        ) for field_index in range(n_fields)
-    ]
+    field_data = []
+    for field_index in range(n_fields):
+        if datetime_as_string and fields[field_index, 3].startswith("datetime"):
+            dtype = "object"
+        elif fields[field_index, 3].startswith("list"):
+            dtype = "object"
+        else:
+            dtype = fields[field_index, 3]
+
+        field_data.append(np.empty(shape=(num_features, ), dtype=dtype))
 
     field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
 
@@ -1413,11 +1506,18 @@ def ogr_read(
                 datetime_as_string=datetime_as_string
             )
 
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
+
         meta = {
             "crs": crs,
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "geometry_type": geometry_type,
         }
 
@@ -1519,9 +1619,6 @@ def ogr_open_arrow(
     cdef bint override_shape_encoding = False
     cdef ArrowArrayStream* stream
     cdef ArrowSchema schema
-
-    IF CTE_GDAL_VERSION < (3, 6, 0):
-        raise RuntimeError("Need GDAL>=3.6 for Arrow support")
 
     if force_2d:
         raise ValueError("forcing 2D is not supported for Arrow")
@@ -1745,10 +1842,18 @@ def ogr_open_arrow(
         else:
             reader = _ArrowStream(capsule)
 
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
+
         meta = {
             "crs": crs,
             "encoding": encoding,
             "fields": fields[:, 2],
+            "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "geometry_type": geometry_type,
             "geometry_name": geometry_name,
             "fid_column": fid_column,
@@ -1905,6 +2010,10 @@ def ogr_read_info(
             encoding = encoding or detect_encoding(ogr_dataset, ogr_layer)
 
         fields = get_fields(ogr_layer, encoding)
+        ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
+        ogr_subtypes = [
+            FIELD_SUBTYPE_NAMES.get(field[4], "Unknown") for field in fields
+        ]
 
         meta = {
             "layer_name": get_string(OGR_L_GetName(ogr_layer)),
@@ -1912,6 +2021,8 @@ def ogr_read_info(
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
+            "ogr_types": ogr_types,
+            "ogr_subtypes": ogr_subtypes,
             "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
             "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
             "geometry_type": get_geometry_type(ogr_layer),
@@ -2236,7 +2347,15 @@ cdef create_ogr_dataset_layer(
     path_exists = os.path.exists(path) if not use_tmp_vsimem else False
 
     if not layer:
-        layer = os.path.splitext(os.path.split(path)[1])[0]
+        # For multi extensions (e.g. ".shp.zip"), strip the full extension
+        for multi_ext in MULTI_EXTENSIONS:
+            if path.endswith(multi_ext):
+                layer = os.path.split(path)[1][:-len(multi_ext)]
+                break
+
+        # If it wasn't a multi-extension, use the file stem
+        if not layer:
+            layer = os.path.splitext(os.path.split(path)[1])[0]
 
     # if shapefile, GeoJSON, or FlatGeobuf, always delete first
     # for other types, check if we can create layers

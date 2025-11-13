@@ -1,7 +1,6 @@
 import contextlib
 import json
 import math
-import os
 import sys
 from io import BytesIO
 from packaging.version import Version
@@ -131,13 +130,6 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
         columns=["geometry"]
     )
     assert_frame_equal(result, expected)
-
-
-def test_read_arrow_nested_types(list_field_values_file):
-    # with arrow, list types are supported
-    result = read_dataframe(list_field_values_file, use_arrow=True)
-    assert "list_int64" in result.columns
-    assert result["list_int64"][0].tolist() == [0, 1]
 
 
 def test_read_arrow_to_pandas_kwargs(no_geometry_file):
@@ -298,29 +290,6 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
 
     _, expected = read_arrow(naturalearth_lowres)
     assert result.equals(expected)
-
-
-@contextlib.contextmanager
-def use_arrow_context():
-    original = os.environ.get("PYOGRIO_USE_ARROW", None)
-    os.environ["PYOGRIO_USE_ARROW"] = "1"
-    yield
-    if original:
-        os.environ["PYOGRIO_USE_ARROW"] = original
-    else:
-        del os.environ["PYOGRIO_USE_ARROW"]
-
-
-def test_enable_with_environment_variable(list_field_values_file):
-    # list types are only supported with arrow, so don't work by default and work
-    # when arrow is enabled through env variable
-    result = read_dataframe(list_field_values_file)
-    assert "list_int64" not in result.columns
-
-    with use_arrow_context():
-        result = read_dataframe(list_field_values_file)
-
-    assert "list_int64" in result.columns
 
 
 @pytest.mark.skipif(
@@ -507,10 +476,6 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
 
 
 @requires_arrow_write_api
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 6, 0),
-    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
-)
 @pytest.mark.parametrize(
     "write_int64",
     [
@@ -674,7 +639,7 @@ def test_write_append(request, tmp_path, naturalearth_lowres, ext):
     assert read_info(filename)["features"] == 354
 
 
-@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml")])
 @requires_arrow_write_api
 def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
     meta, table = read_arrow(naturalearth_lowres)
@@ -992,9 +957,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 @requires_arrow_write_api
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     meta, table = read_arrow(naturalearth_lowres, max_features=1)
 
     buffer = BytesIO()
