@@ -41,7 +41,7 @@ with GDALEnv():
     __gdal_geos_version__ = get_gdal_geos_version()
 
 
-def list_drivers(read=False, write=False):
+def list_drivers(read=False, write=False, append=False):
     """List drivers available in GDAL.
 
     Parameters
@@ -50,12 +50,19 @@ def list_drivers(read=False, write=False):
         If True, will only return drivers that are known to support read capabilities.
     write: bool, optional (default: False)
         If True, will only return drivers that are known to support write capabilities.
+    append: bool, optional (default: False)
+        If True, will only return drivers that are known to support append capabilities.
+        .. versionadded:: 0.13.0
 
     Returns
     -------
     dict
-        Mapping of driver name to file mode capabilities: ``"r"``: read, ``"w"``: write.
+        Mapping of driver name to file mode capabilities: ``"r"``: read,
+        ``"a"``: append, ``"w"``: write.
         Drivers that are available but with unknown support are marked with ``"?"``
+
+        .. versionchanged:: 0.13.0
+           Added the ``a`` flag, which is available for GDAL >= 3.11.
 
     """
     drivers = ogr_list_drivers()
@@ -65,6 +72,9 @@ def list_drivers(read=False, write=False):
 
     if write:
         drivers = {k: v for k, v in drivers.items() if v.endswith("w")}
+
+    if append:
+        drivers = {k: v for k, v in drivers.items() if "a" in v}
 
     return drivers
 

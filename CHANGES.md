@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.13.0 (xxxx-xx-xx)
+
+### Improvements
+
+-  Add whether append is supported in `list_drivers` (#559)
+
 ## 0.12.0 (xxxx-xx-xx)
 
 ### Potentially breaking changes
