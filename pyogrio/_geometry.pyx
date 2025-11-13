@@ -96,6 +96,7 @@ cdef str get_geometry_type(void *ogr_layer):
     if ogr_type not in GEOMETRY_TYPES:
         raise GeometryError(f"Geometry type is not supported: {ogr_type}")
 
+    """
     if OGR_GT_HasM(ogr_type):
         original_type = GEOMETRY_TYPES[ogr_type]
 
@@ -107,6 +108,8 @@ cdef str get_geometry_type(void *ogr_layer):
             "Measured (M) geometry types are not supported. "
             f"Original type '{original_type}' "
             f"is converted to '{GEOMETRY_TYPES[ogr_type]}'")
+
+    """
 
     return GEOMETRY_TYPES[ogr_type]
 

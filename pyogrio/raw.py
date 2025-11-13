@@ -54,6 +54,7 @@ def read(
     sql_dialect=None,
     return_fids=False,
     datetime_as_string=False,
+    keep_m=False,
     **kwargs,
 ):
     """Read OGR data source into numpy arrays.
@@ -153,6 +154,8 @@ def read(
         If True, will return datetime dtypes as detected by GDAL as a string
         array (which can be used to extract timezone info), instead of
         a datetime64 array.
+    keep_m : bool, optional (default: False)
+        If True, will keep the M dimension in geometries if present.
 
     **kwargs
         Additional driver-specific dataset open options passed to OGR.  Invalid
@@ -215,6 +218,7 @@ def read(
         return_fids=return_fids,
         dataset_kwargs=dataset_kwargs,
         datetime_as_string=datetime_as_string,
+        keep_m=keep_m,
     )
 
 
@@ -235,6 +239,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    keep_m=False,
     **kwargs,
 ):
     """Read OGR data source into a pyarrow Table.
@@ -309,6 +314,7 @@ def read_arrow(
         skip_features=gdal_skip_features,
         batch_size=batch_size,
         use_pyarrow=True,
+        keep_m=keep_m,
         **kwargs,
     ) as source:
         meta, reader = source
@@ -364,6 +370,7 @@ def open_arrow(
     return_fids=False,
     batch_size=65_536,
     use_pyarrow=False,
+    keep_m=False,
     **kwargs,
 ):
     """Open OGR data source as a stream of Arrow record batches.
@@ -456,6 +463,7 @@ def open_arrow(
         dataset_kwargs=dataset_kwargs,
         batch_size=batch_size,
         use_pyarrow=use_pyarrow,
+        keep_m=keep_m,
     )
 
 
