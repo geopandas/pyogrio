@@ -102,16 +102,18 @@ def get_gdal_config_option(str name):
 
 def ogr_driver_supports_update(driver):
     # check metadata for driver to see if it supports update
-    if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
-        return True
+    IF CTE_GDAL_VERSION >= (3, 11, 0):
+        if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
+            return True
 
     return False
 
 
 def ogr_driver_supports_append(driver):
     # check metadata for driver to see if it supports append
-    if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
-        return True
+    IF CTE_GDAL_VERSION >= (3, 12, 0):
+        if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
+            return True
 
     return False
 
@@ -145,13 +147,11 @@ def ogr_list_drivers():
 
         capability = "r"
 
-        IF CTE_GDAL_VERSION >= (3, 11, 0):
-            if ogr_driver_supports_update(name):
+        if ogr_driver_supports_update(name):
+            capability += "a"
+        else:
+            if ogr_driver_supports_append(name):
                 capability += "a"
-            else:
-                IF CTE_GDAL_VERSION >= (3, 12, 0):
-                    if ogr_driver_supports_append(name):
-                        capability += "a"
     
         if ogr_driver_supports_write(name):
             capability += "w"
