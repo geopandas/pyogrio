@@ -53,14 +53,17 @@ def list_drivers(read=False, write=False, append=False):
         If True, will only return drivers that are known to support write capabilities.
     append: bool, optional (default: False)
         If True, will only return drivers that are known to support append capabilities.
+        .. versionadded:: 0.13.0
 
     Returns
     -------
     dict
         Mapping of driver name to file mode capabilities: ``"r"``: read,
         ``"a"``: append, ``"w"``: write.
-        The flag to indicate append support (``"a"``) is available for GDAL >= 3.11.
         Drivers that are available but with unknown support are marked with ``"?"``
+
+        .. versionchanged:: 0.13.0
+           Added the ``a`` flag, which is available for GDAL >= 3.11.
 
     """
     drivers = ogr_list_drivers()
