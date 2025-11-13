@@ -148,7 +148,7 @@ def ogr_list_drivers():
         else:
             if ogr_driver_supports_append(name):
                 capability += "a"
-    
+
         if ogr_driver_supports_write(name):
             capability += "w"
 
