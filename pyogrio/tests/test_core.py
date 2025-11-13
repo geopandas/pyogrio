@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38, GDAL_GE_311
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_312
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -132,21 +132,61 @@ def test_ogr_driver_supports_write(driver, expected):
 def test_list_drivers():
     all_drivers = list_drivers()
 
-    # verify that the core drivers are present
-    for name in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "GPKG", "OpenFileGDB"):
-        assert name in all_drivers
+    # Expected capabilities based on `fiona.supported_drivers`.
+    expected_drivers: dict[str, str] = {
+        "AeronavFAA": "r",
+        "ARCGEN": "r",
+        "BNA": "rw",
+        "DXF": "rw",
+        "CSV": "raw",
+        "FileGDB": "raw",
+        "OpenFileGDB": "raw",
+        "ESRIJSON": "r",
+        "ESRI Shapefile": "raw",
+        "FlatGeobuf": "rw",  # Changed: "raw" to "rw": append only if no spatial index
+        "GeoJSON": "raw",
+        "GeoJSONSeq": "raw",
+        "GPKG": "raw",
+        "GML": "rw",
+        "GMT": "rw",
+        "OGR_GMT": "rw",
+        "GPX": "rw",
+        "Idrisi": "r",
+        "MapInfo File": "raw",
+        "DGN": "rw",  # Changed: "raw" to "rw": unclear if append is possible
+        "Parquet": "rw",
+        "PCIDSK": "raw",
+        "PDS": "r",
+        "OGR_PDS": "r",
+        "S57": "rw",  # Changed: "r" to "rw": create supported according to GDAL docs
+        "SEGY": "r",
+        "SQLite": "raw",
+        "SUA": "r",
+        "TileDB": "raw",
+        "TopoJSON": "r",
+    }
 
-        if GDAL_GE_311:
-            expected_capability = "raw"
-        else:
-            expected_capability = "rw"
+    # verify that the core drivers are present
+    for name, expected_capability in expected_drivers.items():
+        if name not in all_drivers:
+            print(f"{name} not in list_drivers(), ignore")
+            continue
+
+        if not GDAL_GE_312:
+            expected_capability = expected_capability.replace("a", "")
         if name == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
             expected_capability = "r"
 
-        assert all_drivers[name] == expected_capability, f"Error for {name}"
+        assert all_drivers[name] == expected_capability, (
+            f"Error for {name}: {expected_capability=}, {all_drivers[name]=}"
+        )
 
     drivers = list_drivers(read=True)
     expected = {k: v for k, v in all_drivers.items() if v.startswith("r")}
+    assert len(drivers) == len(expected)
+
+    drivers = list_drivers(append=True)
+    expected = {k: v for k, v in all_drivers.items() if "a" in v}
     assert len(drivers) == len(expected)
 
     drivers = list_drivers(write=True)
@@ -156,6 +196,14 @@ def test_list_drivers():
     drivers = list_drivers(read=True, write=True)
     expected = {
         k: v for k, v in all_drivers.items() if v.startswith("r") and v.endswith("w")
+    }
+    assert len(drivers) == len(expected)
+
+    drivers = list_drivers(read=True, write=True, append=True)
+    expected = {
+        k: v
+        for k, v in all_drivers.items()
+        if v.startswith("r") and v.endswith("w") and "a" in v
     }
     assert len(drivers) == len(expected)
 
