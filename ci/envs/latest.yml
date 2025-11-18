@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - numpy
-  - libgdal-arrow-parquet
+  #- libgdal-arrow-parquet
   - libgdal-core
   - pytest
   - shapely>=2
