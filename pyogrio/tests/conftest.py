@@ -1,6 +1,6 @@
+import shutil
 from io import BytesIO
 from pathlib import Path
-import shutil
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
@@ -306,8 +306,9 @@ def list_field_values_parquet_file(tmp_path):
 
     # The file doesn't exist, so create it
     if pyarrow is None or parquet is None:
-        pytest.skip(
-            "pyarrow with parquet support is required to create Parquet test file"
+        raise RuntimeError(
+            f"test file {fixture_path} does not exist, but creating it requires "
+            "pyarrow with parquet support."
         )
 
     table = pyarrow.table(
@@ -394,8 +395,9 @@ def list_nested_struct_parquet_file(tmp_path):
 
     # The file doesn't exist, so create it in fixture_path and local_path
     if pyarrow is None or parquet is None:
-        pytest.skip(
-            "pyarrow with parquet support is required to create Parquet test file"
+        raise RuntimeError(
+            f"test file {fixture_path} does not exist, but creating it requires "
+            "pyarrow with parquet support."
         )
 
     table = pyarrow.table(
