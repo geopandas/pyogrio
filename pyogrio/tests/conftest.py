@@ -5,8 +5,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 
-import shapely
-
 from pyogrio import (
     __gdal_version_string__,
     __version__,
@@ -34,6 +32,11 @@ try:
     from pyarrow import parquet
 except ImportError:
     parquet = None
+
+try:
+    import shapely
+except ImportError:
+    shapely = None
 
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
@@ -304,11 +307,11 @@ def list_field_values_parquet_file(tmp_path):
         shutil.copy(fixture_path, local_path)
         return local_path
 
-    # The file doesn't exist, so create it
-    if pyarrow is None or parquet is None:
+    # The file doesn't exist, so create it in fixture_path and local_path
+    if pyarrow is None or parquet is None or shapely is None:
         raise RuntimeError(
             f"test file {fixture_path} does not exist, but creating it requires "
-            "pyarrow with parquet support."
+            "pyarrow, pyarrow.parquet and shapely."
         )
 
     table = pyarrow.table(
@@ -394,10 +397,10 @@ def list_nested_struct_parquet_file(tmp_path):
         return local_path
 
     # The file doesn't exist, so create it in fixture_path and local_path
-    if pyarrow is None or parquet is None:
+    if pyarrow is None or parquet is None or shapely is None:
         raise RuntimeError(
             f"test file {fixture_path} does not exist, but creating it requires "
-            "pyarrow with parquet support."
+            "pyarrow, pyarrow.parquet and shapely."
         )
 
     table = pyarrow.table(
