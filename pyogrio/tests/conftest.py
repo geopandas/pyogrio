@@ -290,6 +290,11 @@ def list_field_values_geojson_file(tmp_path):
 
 def list_field_values_parquet_file(tmp_path):
     # create Parquet file with list properties
+    if pyarrow is None or parquet is None:
+        pytest.skip(
+            "pyarrow with parquet support is required to create Parquet test file"
+        )
+
     table = pyarrow.table(
         {
             "geometry": shapely.to_wkb(shapely.points(np.ones((5, 2)))),
@@ -324,8 +329,6 @@ def list_field_values_files(tmp_path, request):
     if request.param == ".geojson":
         return list_field_values_geojson_file(tmp_path)
     elif request.param == ".parquet":
-        if pyarrow is None or parquet is None:
-            pytest.skip("pyarrow with parquet support is required")
         return list_field_values_parquet_file(tmp_path)
 
 
@@ -361,10 +364,12 @@ def nested_geojson_file(tmp_path):
 @pytest.fixture(scope="function")
 def list_nested_struct_parquet_file(tmp_path):
     # create Parquet file with nested struct properties
-    import pyarrow as pa
-    import pyarrow.parquet as pq
+    if pyarrow is None or parquet is None:
+        pytest.skip(
+            "pyarrow with parquet support is required to create Parquet test file"
+        )
 
-    table = pa.table(
+    table = pyarrow.table(
         {
             "geometry": shapely.to_wkb(shapely.points(np.ones((3, 2)))),
             "col_flat": [0, 1, 2],
@@ -374,7 +379,7 @@ def list_nested_struct_parquet_file(tmp_path):
         }
     )
     filename = tmp_path / "test_nested.parquet"
-    pq.write_table(table, filename)
+    parquet.write_table(table, filename)
 
     return filename
 
