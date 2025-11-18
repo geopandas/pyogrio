@@ -331,9 +331,15 @@ def read_dataframe(
 
         del table
 
-        for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+        for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
             if ogr_subtype == "OFSTJSON":
-                df[c] = df[c].map(json.loads, na_action="ignore")
+                # When reading .parquet files with arrow, JSON fields are already
+                # parsed, so only parse if strings.
+                dtype = pd.api.types.infer_dtype(df[c])
+                if dtype == "string":
+                    df[c] = df[c].map(json.loads, na_action="ignore")
+                    # Convert to array to get same result as parquet
+                    df[c] = df[c].map(np.array, na_action="ignore")
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
@@ -367,9 +373,13 @@ def read_dataframe(
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
             df[c] = _try_parse_datetime(df[c])
-    for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+    for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
         if ogr_subtype == "OFSTJSON":
-            df[c] = df[c].map(json.loads, na_action="ignore")
+            dtype = pd.api.types.infer_dtype(df[c])
+            if dtype == "string":
+                df[c] = df[c].map(json.loads, na_action="ignore")
+                # Convert to array to get same result as parquet
+                df[c] = df[c].map(np.array, na_action="ignore")
 
     if geometry is None or not read_geometry:
         return df

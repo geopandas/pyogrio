@@ -3,6 +3,7 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
+import shapely
 
 from pyogrio import (
     __gdal_version_string__,
@@ -201,8 +202,7 @@ def no_geometry_file(tmp_path):
     return filename
 
 
-@pytest.fixture(scope="function")
-def list_field_values_file(tmp_path):
+def list_field_values_geojson_file(tmp_path):
     # Create a GeoJSON file with list values in a property
     list_geojson = """{
         "type": "FeatureCollection",
@@ -277,6 +277,48 @@ def list_field_values_file(tmp_path):
     return filename
 
 
+def list_field_values_parquet_file(tmp_path):
+    # create Parquet file with list properties
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pa.table(
+        {
+            "geometry": shapely.to_wkb(shapely.points(np.ones((5, 2)))),
+            "int": [1, 2, 3, 4, 5],
+            "list_int": [[0, 1], [2, 3], [], None, None],
+            "list_double": [[0.0, 1.0], [2.0, 3.0], [], None, None],
+            "list_string": [
+                ["string1", "string2"],
+                ["string3", "string4", ""],
+                [],
+                None,
+                [""],
+            ],
+            "list_int_with_null": [[0, None], [2, 3], [], None, None],
+            "list_string_with_null": [
+                ["string1", None],
+                ["string3", "string4", ""],
+                [],
+                None,
+                [""],
+            ],
+        }
+    )
+    filename = tmp_path / "test_ogr_types_list.parquet"
+    pq.write_table(table, filename)
+
+    return filename
+
+
+@pytest.fixture(scope="function", params=[".geojson", ".parquet"])
+def list_field_values_files(tmp_path, request):
+    if request.param == ".geojson":
+        return list_field_values_geojson_file(tmp_path)
+    elif request.param == ".parquet":
+        return list_field_values_parquet_file(tmp_path)
+
+
 @pytest.fixture(scope="function")
 def nested_geojson_file(tmp_path):
     # create GeoJSON file with nested properties
@@ -302,6 +344,27 @@ def nested_geojson_file(tmp_path):
     filename = tmp_path / "test_nested.geojson"
     with open(filename, "w") as f:
         _ = f.write(nested_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
+def list_nested_struct_parquet_file(tmp_path):
+    # create Parquet file with nested struct properties
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pa.table(
+        {
+            "geometry": shapely.to_wkb(shapely.points(np.ones((3, 2)))),
+            "col_flat": [0, 1, 2],
+            "col_struct": [{"a": 1, "b": 2}] * 3,
+            "col_nested": [[{"a": 1, "b": 2}] * 2] * 3,
+            "col_list": [[1, 2, 3]] * 3,
+        }
+    )
+    filename = tmp_path / "test_nested.parquet"
+    pq.write_table(table, filename)
 
     return filename
 

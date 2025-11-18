@@ -378,14 +378,15 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
-def test_read_list_types(list_field_values_file, use_arrow):
+def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
-    info = read_info(list_field_values_file)
-    result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
+    info = read_info(list_field_values_files)
+    result = read_dataframe(list_field_values_files, use_arrow=use_arrow)
 
+    suffix = list_field_values_files.suffix
     assert "list_int" in result.columns
     assert info["fields"][1] == "list_int"
-    assert info["ogr_types"][1] == "OFTIntegerList"
+    assert info["ogr_types"][1] in ("OFTIntegerList", "OFTInteger64List")
     assert result["list_int"][0].tolist() == [0, 1]
     assert result["list_int"][1].tolist() == [2, 3]
     assert result["list_int"][2].tolist() == []
@@ -414,25 +415,71 @@ def test_read_list_types(list_field_values_file, use_arrow):
     # the column isn't recognized as a list column anymore, but as a JSON column.
     # Because JSON columns containing JSON Arrays are also parsed to python lists, the
     # end result is the same...
+    exp_type = "OFTString" if suffix == ".geojson" else "OFTInteger64List"
+    exp_subtype = "OFSTJSON" if suffix == ".geojson" else "OFSTNone"
+    if suffix == ".geojson":
+        exp_value = [0, None]
+    elif suffix == ".parquet":
+        exp_value = [0, 0] if not use_arrow else [0.0, np.nan]
+
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
-    assert info["ogr_types"][4] == "OFTString"
-    assert info["ogr_subtypes"][4] == "OFSTJSON"
-    assert result["list_int_with_null"][0] == [0, None]
-    assert result["list_int_with_null"][1] == [2, 3]
-    assert result["list_int_with_null"][2] == []
+    assert info["ogr_types"][4] == exp_type
+    assert info["ogr_subtypes"][4] == exp_subtype
+    assert result["list_int_with_null"][0][0] == exp_value[0]
+    if exp_value[1] == 0:
+        assert result["list_int_with_null"][0][1] == exp_value[1]
+    else:
+        assert pd.isna(result["list_int_with_null"][0][1])
+    assert result["list_int_with_null"][1].tolist() == [2, 3]
+    assert result["list_int_with_null"][2].tolist() == []
     assert pd.isna(result["list_int_with_null"][3])
     assert pd.isna(result["list_int_with_null"][4])
 
+    exp_type = "OFTString" if suffix == ".geojson" else "OFTStringList"
+    exp_subtype = "OFSTJSON" if suffix == ".geojson" else "OFSTNone"
+    exp_value = (
+        ["string1", None] if suffix == ".geojson" or use_arrow else ["string1", ""]
+    )
+
     assert "list_string_with_null" in result.columns
     assert info["fields"][5] == "list_string_with_null"
-    assert info["ogr_types"][5] == "OFTString"
-    assert info["ogr_subtypes"][5] == "OFSTJSON"
-    assert result["list_string_with_null"][0] == ["string1", None]
-    assert result["list_string_with_null"][1] == ["string3", "string4", ""]
-    assert result["list_string_with_null"][2] == []
+    assert info["ogr_types"][5] == exp_type
+    assert info["ogr_subtypes"][5] == exp_subtype
+    assert result["list_string_with_null"][0].tolist() == exp_value
+    assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
+    assert result["list_string_with_null"][2].tolist() == []
     assert pd.isna(result["list_string_with_null"][3])
     assert result["list_string_with_null"][4] == [""]
+
+
+@pytest.mark.requires_arrow_write_api
+def test_read_list_nested_struct_parquet_file(
+    list_nested_struct_parquet_file, use_arrow
+):
+    """Test reading a Parquet file containing nested struct and list types."""
+    result = read_dataframe(list_nested_struct_parquet_file, use_arrow=use_arrow)
+
+    assert "col_flat" in result.columns
+    assert np.array_equal(result["col_flat"].to_numpy(), np.array([0, 1, 2]))
+
+    assert "col_list" in result.columns
+    assert result["col_list"].dtype == object
+    assert result["col_list"][0].tolist() == [1, 2, 3]
+    assert result["col_list"][1].tolist() == [1, 2, 3]
+    assert result["col_list"][2].tolist() == [1, 2, 3]
+
+    assert "col_nested" in result.columns
+    assert result["col_nested"].dtype == object
+    assert result["col_nested"][0].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][1].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][2].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+
+    assert "col_struct" in result.columns
+    assert result["col_struct"].dtype == object
+    assert result["col_struct"][0] == {"a": 1, "b": 2}
+    assert result["col_struct"][1] == {"a": 1, "b": 2}
+    assert result["col_struct"][2] == {"a": 1, "b": 2}
 
 
 @pytest.mark.filterwarnings(
