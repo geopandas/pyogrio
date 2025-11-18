@@ -20,7 +20,6 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
-    GDAL_HAS_PARQUET,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -36,6 +35,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
+    GDAL_HAS_PARQUET,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,

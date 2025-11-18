@@ -5,11 +5,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 
-from pyogrio import (
-    __gdal_version_string__,
-    __version__,
-    list_drivers,
-)
+from pyogrio import __gdal_version_string__, __version__, list_drivers
 from pyogrio._compat import (
     GDAL_GE_37,
     HAS_ARROW_WRITE_API,
@@ -66,6 +62,8 @@ START_FID = {
     ".gpkg": 1,
     ".shp": 0,
 }
+
+GDAL_HAS_PARQUET = "Parquet" in list_drivers()
 
 
 def pytest_report_header(config):
