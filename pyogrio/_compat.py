@@ -9,6 +9,11 @@ except ImportError:
     pyarrow = None
 
 try:
+    from pyarrow import parquet
+except ImportError:
+    parquet = None
+
+try:
     import pyproj
 except ImportError:
     pyproj = None
@@ -31,6 +36,7 @@ except ImportError:
 
 HAS_ARROW_WRITE_API = __gdal_version__ >= (3, 8, 0)
 HAS_PYARROW = pyarrow is not None
+HAS_PYARROW_PARQUET = parquet is not None
 HAS_PYPROJ = pyproj is not None
 PYARROW_GE_19 = pyarrow is not None and Version(pyarrow.__version__) >= Version(
     "19.0.0"

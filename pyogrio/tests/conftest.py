@@ -24,6 +24,16 @@ from pyogrio.raw import read, write
 
 import pytest
 
+try:
+    import pyarrow
+except ImportError:
+    pyarrow = None
+
+try:
+    from pyarrow import parquet
+except ImportError:
+    parquet = None
+
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
 # mapping of driver extension to driver name for well-supported drivers
@@ -280,10 +290,7 @@ def list_field_values_geojson_file(tmp_path):
 
 def list_field_values_parquet_file(tmp_path):
     # create Parquet file with list properties
-    import pyarrow as pa
-    import pyarrow.parquet as pq
-
-    table = pa.table(
+    table = pyarrow.table(
         {
             "geometry": shapely.to_wkb(shapely.points(np.ones((5, 2)))),
             "int": [1, 2, 3, 4, 5],
@@ -307,7 +314,7 @@ def list_field_values_parquet_file(tmp_path):
         }
     )
     filename = tmp_path / "test_ogr_types_list.parquet"
-    pq.write_table(table, filename)
+    parquet.write_table(table, filename)
 
     return filename
 
@@ -317,6 +324,8 @@ def list_field_values_files(tmp_path, request):
     if request.param == ".geojson":
         return list_field_values_geojson_file(tmp_path)
     elif request.param == ".parquet":
+        if pyarrow is None or parquet is None:
+            pytest.skip("pyarrow with parquet support is required")
         return list_field_values_parquet_file(tmp_path)
 
 
