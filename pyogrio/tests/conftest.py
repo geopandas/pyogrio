@@ -1,5 +1,6 @@
 from io import BytesIO
 from pathlib import Path
+import shutil
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
@@ -289,7 +290,21 @@ def list_field_values_geojson_file(tmp_path):
 
 
 def list_field_values_parquet_file(tmp_path):
-    # create Parquet file with list properties
+    """Create a Parquet file in tmp_path with list values in a property.
+
+    Because in the CI environments pyarrow.parquet is typically not available, we save
+    the file in the test data directory instead of always creating it from scratch.
+
+    The code to create it is here though, in case it needs to be recreated later.
+    """
+    # Check if the file already exists in the test data dir
+    fixture_path = _data_dir / "list_field_values_file.parquet"
+    local_path = tmp_path / "list_field_values_file.parquet"
+    if fixture_path.exists():
+        shutil.copy(fixture_path, local_path)
+        return local_path
+
+    # The file doesn't exist, so create it
     if pyarrow is None or parquet is None:
         pytest.skip(
             "pyarrow with parquet support is required to create Parquet test file"
@@ -318,10 +333,10 @@ def list_field_values_parquet_file(tmp_path):
             ],
         }
     )
-    filename = tmp_path / "test_ogr_types_list.parquet"
-    parquet.write_table(table, filename)
+    parquet.write_table(table, fixture_path)
+    shutil.copy(fixture_path, local_path)
 
-    return filename
+    return local_path
 
 
 @pytest.fixture(scope="function", params=[".geojson", ".parquet"])
@@ -363,7 +378,21 @@ def nested_geojson_file(tmp_path):
 
 @pytest.fixture(scope="function")
 def list_nested_struct_parquet_file(tmp_path):
-    # create Parquet file with nested struct properties
+    """Create a Parquet file in tmp_path with nested values in a property.
+
+    Because in the CI environments pyarrow.parquet is typically not available, we save
+    the file in the test data directory instead of always creating it from scratch.
+
+    The code to create it is here though, in case it needs to be recreated later.
+    """
+    # Check if the file already exists in the test data dir
+    fixture_path = _data_dir / "list_nested_struct_file.parquet"
+    local_path = tmp_path / "list_nested_struct_file.parquet"
+    if fixture_path.exists():
+        shutil.copy(fixture_path, local_path)
+        return local_path
+
+    # The file doesn't exist, so create it in fixture_path and local_path
     if pyarrow is None or parquet is None:
         pytest.skip(
             "pyarrow with parquet support is required to create Parquet test file"
@@ -378,10 +407,10 @@ def list_nested_struct_parquet_file(tmp_path):
             "col_list": [[1, 2, 3]] * 3,
         }
     )
-    filename = tmp_path / "test_nested.parquet"
-    parquet.write_table(table, filename)
+    parquet.write_table(table, fixture_path)
+    shutil.copy(fixture_path, local_path)
 
-    return filename
+    return local_path
 
 
 @pytest.fixture(scope="function")
