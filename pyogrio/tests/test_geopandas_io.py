@@ -20,6 +20,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_HAS_PARQUET,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -380,10 +381,17 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
 
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+
     info = read_info(list_field_values_files)
+    suffix = list_field_values_files.suffix
+
     result = read_dataframe(list_field_values_files, use_arrow=use_arrow)
 
-    suffix = list_field_values_files.suffix
+    # Check list_int column
     assert "list_int" in result.columns
     assert info["fields"][1] == "list_int"
     assert info["ogr_types"][1] in ("OFTIntegerList", "OFTInteger64List")
@@ -393,6 +401,7 @@ def test_read_list_types(list_field_values_files, use_arrow):
     assert result["list_int"][3] is None
     assert result["list_int"][4] is None
 
+    # Check list_double column
     assert "list_double" in result.columns
     assert info["fields"][2] == "list_double"
     assert info["ogr_types"][2] == "OFTRealList"
@@ -402,6 +411,7 @@ def test_read_list_types(list_field_values_files, use_arrow):
     assert result["list_double"][3] is None
     assert result["list_double"][4] is None
 
+    # Check list_string column
     assert "list_string" in result.columns
     assert info["fields"][3] == "list_string"
     assert info["ogr_types"][3] == "OFTStringList"
@@ -411,24 +421,28 @@ def test_read_list_types(list_field_values_files, use_arrow):
     assert result["list_string"][3] is None
     assert result["list_string"][4] == [""]
 
-    # Once any row of a column contains a null value in a list (in the test geojson),
-    # the column isn't recognized as a list column anymore, but as a JSON column.
-    # Because JSON columns containing JSON Arrays are also parsed to python lists, the
-    # end result is the same...
-    exp_type = "OFTString" if suffix == ".geojson" else "OFTInteger64List"
-    exp_subtype = "OFSTJSON" if suffix == ".geojson" else "OFSTNone"
+    # Check list_int_with_null column
     if suffix == ".geojson":
-        exp_value = [0, None]
-    elif suffix == ".parquet":
-        exp_value = [0, 0] if not use_arrow else [0.0, np.nan]
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+        exp_list_int_with_null_value = [0, None]
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTInteger64List"
+        exp_subtype = "OFSTNone"
+        exp_list_int_with_null_value = [0, 0] if not use_arrow else [0.0, np.nan]
 
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
     assert info["ogr_types"][4] == exp_type
     assert info["ogr_subtypes"][4] == exp_subtype
-    assert result["list_int_with_null"][0][0] == exp_value[0]
-    if exp_value[1] == 0:
-        assert result["list_int_with_null"][0][1] == exp_value[1]
+    assert result["list_int_with_null"][0][0] == exp_list_int_with_null_value[0]
+    if exp_list_int_with_null_value[1] == 0:
+        assert result["list_int_with_null"][0][1] == exp_list_int_with_null_value[1]
     else:
         assert pd.isna(result["list_int_with_null"][0][1])
     assert result["list_int_with_null"][1].tolist() == [2, 3]
@@ -436,17 +450,30 @@ def test_read_list_types(list_field_values_files, use_arrow):
     assert pd.isna(result["list_int_with_null"][3])
     assert pd.isna(result["list_int_with_null"][4])
 
-    exp_type = "OFTString" if suffix == ".geojson" else "OFTStringList"
-    exp_subtype = "OFSTJSON" if suffix == ".geojson" else "OFSTNone"
-    exp_value = (
-        ["string1", None] if suffix == ".geojson" or use_arrow else ["string1", ""]
-    )
+    # Check list_string_with_null column
+    if suffix == ".geojson":
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+        exp_list_string_with_null_value = ["string1", None]
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTStringList"
+        exp_subtype = "OFSTNone"
+        exp_list_string_with_null_value = (
+            ["string1", ""] if not use_arrow else ["string1", None]
+        )
 
     assert "list_string_with_null" in result.columns
     assert info["fields"][5] == "list_string_with_null"
     assert info["ogr_types"][5] == exp_type
     assert info["ogr_subtypes"][5] == exp_subtype
-    assert result["list_string_with_null"][0].tolist() == exp_value
+    assert (
+        result["list_string_with_null"][0].tolist() == exp_list_string_with_null_value
+    )
     assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
     assert result["list_string_with_null"][2].tolist() == []
     assert pd.isna(result["list_string_with_null"][3])
