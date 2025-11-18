@@ -290,8 +290,8 @@ def list_field_values_geojson_file(tmp_path):
     return filename
 
 
-def list_field_values_parquet_file(tmp_path):
-    """Create a Parquet file in tmp_path with list values in a property.
+def list_field_values_parquet_file():
+    """Return the path to a Parquet file with list values in a property.
 
     Because in the CI environments pyarrow.parquet is typically not available, we save
     the file in the test data directory instead of always creating it from scratch.
@@ -300,10 +300,8 @@ def list_field_values_parquet_file(tmp_path):
     """
     # Check if the file already exists in the test data dir
     fixture_path = _data_dir / "list_field_values_file.parquet"
-    local_path = tmp_path / "list_field_values_file.parquet"
     if fixture_path.exists():
-        shutil.copy(fixture_path, local_path)
-        return local_path
+        return fixture_path
 
     # The file doesn't exist, so create it in fixture_path and local_path
     if pyarrow is None or parquet is None or shapely is None:
@@ -336,9 +334,8 @@ def list_field_values_parquet_file(tmp_path):
         }
     )
     parquet.write_table(table, fixture_path)
-    shutil.copy(fixture_path, local_path)
 
-    return local_path
+    return fixture_path
 
 
 @pytest.fixture(scope="function", params=[".geojson", ".parquet"])
@@ -346,7 +343,7 @@ def list_field_values_files(tmp_path, request):
     if request.param == ".geojson":
         return list_field_values_geojson_file(tmp_path)
     elif request.param == ".parquet":
-        return list_field_values_parquet_file(tmp_path)
+        return list_field_values_parquet_file()
 
 
 @pytest.fixture(scope="function")
@@ -389,10 +386,8 @@ def list_nested_struct_parquet_file(tmp_path):
     """
     # Check if the file already exists in the test data dir
     fixture_path = _data_dir / "list_nested_struct_file.parquet"
-    local_path = tmp_path / "list_nested_struct_file.parquet"
     if fixture_path.exists():
-        shutil.copy(fixture_path, local_path)
-        return local_path
+        return fixture_path
 
     # The file doesn't exist, so create it in fixture_path and local_path
     if pyarrow is None or parquet is None or shapely is None:
@@ -411,9 +406,8 @@ def list_nested_struct_parquet_file(tmp_path):
         }
     )
     parquet.write_table(table, fixture_path)
-    shutil.copy(fixture_path, local_path)
 
-    return local_path
+    return fixture_path
 
 
 @pytest.fixture(scope="function")

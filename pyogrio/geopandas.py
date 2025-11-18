@@ -337,9 +337,13 @@ def read_dataframe(
                 # parsed, so only parse if strings.
                 dtype = pd.api.types.infer_dtype(df[c])
                 if dtype == "string":
-                    df[c] = df[c].map(json.loads, na_action="ignore")
-                    # Convert to array to get same result as parquet
-                    df[c] = df[c].map(np.array, na_action="ignore")
+                    try:
+                        df[c] = df[c].map(json.loads, na_action="ignore")
+                    except Exception:
+                        warnings.warn(
+                            f"Could not parse column '{c}' as JSON; leaving as string",
+                            stacklevel=2,
+                        )
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
@@ -377,9 +381,13 @@ def read_dataframe(
         if ogr_subtype == "OFSTJSON":
             dtype = pd.api.types.infer_dtype(df[c])
             if dtype == "string":
-                df[c] = df[c].map(json.loads, na_action="ignore")
-                # Convert to array to get same result as parquet
-                df[c] = df[c].map(np.array, na_action="ignore")
+                try:
+                    df[c] = df[c].map(json.loads, na_action="ignore")
+                except Exception:
+                    warnings.warn(
+                        f"Could not parse column '{c}' as JSON; leaving as string",
+                        stacklevel=2,
+                    )
 
     if geometry is None or not read_geometry:
         return df

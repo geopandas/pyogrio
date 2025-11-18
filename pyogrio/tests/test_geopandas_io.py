@@ -434,19 +434,32 @@ def test_read_list_types(list_field_values_files, use_arrow):
         # For .parquet files, the list column is preserved as a list column.
         exp_type = "OFTInteger64List"
         exp_subtype = "OFSTNone"
-        exp_list_int_with_null_value = [0, 0] if not use_arrow else [0.0, np.nan]
+        if use_arrow:
+            exp_list_int_with_null_value = [0.0, np.nan]
+        else:
+            exp_list_int_with_null_value = [0, 0]
+            # xfail: when reading a list of int with None values without Arrow from a
+            # .parquet file, the None values become 0, which is wrong.
 
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
     assert info["ogr_types"][4] == exp_type
     assert info["ogr_subtypes"][4] == exp_subtype
-    assert result["list_int_with_null"][0][0] == exp_list_int_with_null_value[0]
+    assert result["list_int_with_null"][0][0] == 0
     if exp_list_int_with_null_value[1] == 0:
         assert result["list_int_with_null"][0][1] == exp_list_int_with_null_value[1]
     else:
         assert pd.isna(result["list_int_with_null"][0][1])
-    assert result["list_int_with_null"][1].tolist() == [2, 3]
-    assert result["list_int_with_null"][2].tolist() == []
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_int_with_null"][1] == [2, 3]
+        assert result["list_int_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        assert result["list_int_with_null"][1].tolist() == [2, 3]
+        assert result["list_int_with_null"][2].tolist() == []
+
     assert pd.isna(result["list_int_with_null"][3])
     assert pd.isna(result["list_int_with_null"][4])
 
@@ -458,24 +471,29 @@ def test_read_list_types(list_field_values_files, use_arrow):
         # the end result is the same...
         exp_type = "OFTString"
         exp_subtype = "OFSTJSON"
-        exp_list_string_with_null_value = ["string1", None]
     else:
         # For .parquet files, the list column is preserved as a list column.
         exp_type = "OFTStringList"
         exp_subtype = "OFSTNone"
-        exp_list_string_with_null_value = (
-            ["string1", ""] if not use_arrow else ["string1", None]
-        )
 
     assert "list_string_with_null" in result.columns
     assert info["fields"][5] == "list_string_with_null"
     assert info["ogr_types"][5] == exp_type
     assert info["ogr_subtypes"][5] == exp_subtype
-    assert (
-        result["list_string_with_null"][0].tolist() == exp_list_string_with_null_value
-    )
-    assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
-    assert result["list_string_with_null"][2].tolist() == []
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_string_with_null"][0] == ["string1", None]
+        assert result["list_string_with_null"][1] == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        # When use_arrow=False, the None becomes an empty string, which is wrong.
+        exp_value = ["string1", ""] if not use_arrow else ["string1", None]
+        assert result["list_string_with_null"][0].tolist() == exp_value
+        assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2].tolist() == []
+
     assert pd.isna(result["list_string_with_null"][3])
     assert result["list_string_with_null"][4] == [""]
 
