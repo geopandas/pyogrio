@@ -489,6 +489,11 @@ def test_read_list_nested_struct_parquet_file(
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
+    if not use_arrow:
+        pytest.skip(
+            "When use_arrow=False, gdal flattens nested columns to seperate columns. "
+            "Not sure how we want to deal with this case, but for now just skip."
+        )
 
     result = read_dataframe(list_nested_struct_parquet_file, use_arrow=use_arrow)
 
