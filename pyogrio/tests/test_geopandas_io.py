@@ -485,6 +485,11 @@ def test_read_list_nested_struct_parquet_file(
     list_nested_struct_parquet_file, use_arrow
 ):
     """Test reading a Parquet file containing nested struct and list types."""
+    if not GDAL_HAS_PARQUET:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+
     result = read_dataframe(list_nested_struct_parquet_file, use_arrow=use_arrow)
 
     assert "col_flat" in result.columns
