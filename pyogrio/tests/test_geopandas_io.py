@@ -2646,6 +2646,7 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
+@pytest.mark.requires_arrow_write_api
 def test_write_openfilegdb_overwrite_corrupt(tmp_path, use_arrow):
     """Test to overwriting an existing corrupt OpenFileGDB.
 
