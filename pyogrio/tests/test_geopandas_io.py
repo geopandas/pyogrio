@@ -35,7 +35,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    GDAL_HAS_PARQUET,
+    GDAL_HAS_PARQUET_DRIVER,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -2592,7 +2592,7 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
 
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
-    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET:
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
@@ -2710,14 +2710,13 @@ def test_read_list_types(list_field_values_files, use_arrow):
 
 
 @pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
 def test_read_list_nested_struct_parquet_file(
     list_nested_struct_parquet_file, use_arrow
 ):
     """Test reading a Parquet file containing nested struct and list types."""
-    if not GDAL_HAS_PARQUET:
-        pytest.skip(
-            "Skipping test for parquet as the GDAL Parquet driver is not available"
-        )
     if not use_arrow:
         pytest.skip(
             "When use_arrow=False, gdal flattens nested columns to seperate columns. "
