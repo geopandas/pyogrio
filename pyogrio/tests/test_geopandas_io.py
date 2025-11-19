@@ -112,6 +112,29 @@ def test_spatialite_available(test_gpkg_nulls):
     )
 
 
+@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
+def test_read_arrow_dtypes(tmp_path):
+    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
+    # column can be converted with from_wkb in case of missing values
+    pytest.importorskip("pyarrow")
+    filename = tmp_path / "test.gpkg"
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
+    )
+    write_dataframe(df, filename)
+
+    result = read_dataframe(
+        filename,
+        use_arrow=True,
+        arrow_to_pandas_kwargs={
+            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
+        },
+    )
+    assert isinstance(result["col"].dtype, pd.ArrowDtype)
+    result["col"] = result["col"].astype("float64")
+    assert_geodataframe_equal(result, df)
+
+
 @pytest.mark.parametrize(
     "encoding, arrow",
     [
@@ -379,10 +402,9 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
-'''
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
-    if list_field_values_files.suffix == ".parquet" and "Parquet" not in list_drivers():
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET:
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
@@ -504,7 +526,7 @@ def test_read_list_nested_struct_parquet_file(
     list_nested_struct_parquet_file, use_arrow
 ):
     """Test reading a Parquet file containing nested struct and list types."""
-    if "Parquet" not in list_drivers():
+    if not GDAL_HAS_PARQUET:
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
@@ -536,7 +558,6 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][0] == {"a": 1, "b": 2}
     assert result["col_struct"][1] == {"a": 1, "b": 2}
     assert result["col_struct"][2] == {"a": 1, "b": 2}
-'''
 
 
 @pytest.mark.filterwarnings(
@@ -2292,29 +2313,6 @@ def test_metadata_unsupported(tmp_path, naturalearth_lowres, metadata_type, use_
     metadata_key = "layer_metadata" if metadata_type == "metadata" else metadata_type
 
     assert read_info(filename)[metadata_key] is None
-
-
-@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
-def test_read_dataframe_arrow_dtypes(tmp_path):
-    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
-    # column can be converted with from_wkb in case of missing values
-    pytest.importorskip("pyarrow")
-    filename = tmp_path / "test.gpkg"
-    df = gp.GeoDataFrame(
-        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
-    )
-    write_dataframe(df, filename)
-
-    result = read_dataframe(
-        filename,
-        use_arrow=True,
-        arrow_to_pandas_kwargs={
-            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
-        },
-    )
-    assert isinstance(result["col"].dtype, pd.ArrowDtype)
-    result["col"] = result["col"].astype("float64")
-    assert_geodataframe_equal(result, df)
 
 
 @requires_pyarrow_api
