@@ -402,7 +402,6 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
-'''
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
     if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET:
@@ -559,7 +558,6 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][0] == {"a": 1, "b": 2}
     assert result["col_struct"][1] == {"a": 1, "b": 2}
     assert result["col_struct"][2] == {"a": 1, "b": 2}
-'''
 
 
 @pytest.mark.filterwarnings(
