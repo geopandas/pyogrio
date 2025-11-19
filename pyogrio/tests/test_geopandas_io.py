@@ -2644,3 +2644,29 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
 
     gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+def test_write_openfilegdb_overwrite_corrupt(tmp_path, use_arrow):
+    """Test to overwriting an existing corrupt OpenFileGDB.
+
+    Test added in context of https://github.com/geopandas/pyogrio/issues/598
+    """
+    # Create a corrupt OpenFileGDB file. An empty directory suffices.
+    test_path = tmp_path / "test.gdb"
+    test_path.mkdir()
+
+    # Overwrite the corrupt OpenFileGDB
+    gdf = gp.GeoDataFrame(
+        {"id": [1.0, 2.0, 3.0]},
+        geometry=[shapely.Point(x, x) for x in range(3)],
+        crs="EPSG:4326",
+    )
+    write_dataframe(
+        gdf, test_path, layer="test_layer", driver="OpenFileGDB", use_arrow=use_arrow
+    )
+
+    # Read back and verify it was (over)written correctly
+    assert test_path.exists()
+    assert test_path.is_dir()
+    read_gdf = read_dataframe(test_path, use_arrow=use_arrow)
+    assert_geodataframe_equal(gdf, read_gdf)

@@ -9,6 +9,7 @@ import locale
 import logging
 import math
 import os
+import shutil
 import sys
 import warnings
 from pathlib import Path
@@ -2391,7 +2392,15 @@ cdef create_ogr_dataset_layer(
                 raise exc
 
             # otherwise create from scratch
-            os.unlink(path)
+            if (
+                driver == "OpenFileGDB"
+                and os.path.isdir(path)
+                and os.path.splitext(path)[1] == ".gdb"
+            ):
+                # An FileGDB "file" is a directory instead of a file, so use rmtree
+                shutil.rmtree(path)
+            else:
+                os.unlink(path)
 
             ogr_dataset = NULL
 
