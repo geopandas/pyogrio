@@ -20,21 +20,6 @@ from pyogrio.raw import read, write
 
 import pytest
 
-try:
-    import pyarrow
-except ImportError:
-    pyarrow = None
-
-try:
-    from pyarrow import parquet
-except ImportError:
-    parquet = None
-
-try:
-    import shapely
-except ImportError:
-    shapely = None
-
 _data_dir = Path(__file__).parent.resolve() / "fixtures"
 
 # mapping of driver extension to driver name for well-supported drivers
@@ -305,10 +290,14 @@ def list_field_values_parquet_file():
         return fixture_path
 
     # The file doesn't exist, so create it in fixture_path and local_path
-    if pyarrow is None or parquet is None or shapely is None:
+    try:
+        import pyarrow
+        from pyarrow import parquet
+
+        import shapely
+    except ImportError as ex:
         raise RuntimeError(
-            f"test file {fixture_path} does not exist, but creating it requires "
-            "pyarrow, pyarrow.parquet and shapely."
+            f"test file {fixture_path} does not exist, but error importing: {ex}."
         )
 
     table = pyarrow.table(
@@ -391,10 +380,14 @@ def list_nested_struct_parquet_file(tmp_path):
         return fixture_path
 
     # The file doesn't exist, so create it in fixture_path and local_path
-    if pyarrow is None or parquet is None or shapely is None:
+    try:
+        import pyarrow
+        from pyarrow import parquet
+
+        import shapely
+    except ImportError as ex:
         raise RuntimeError(
-            f"test file {fixture_path} does not exist, but creating it requires "
-            "pyarrow, pyarrow.parquet and shapely."
+            f"test file {fixture_path} does not exist, but error importing: {ex}."
         )
 
     table = pyarrow.table(
