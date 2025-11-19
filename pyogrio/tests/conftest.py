@@ -291,8 +291,8 @@ def list_field_values_parquet_file():
 
     # The file doesn't exist, so create it in fixture_path and local_path
     try:
-        import pyarrow
-        from pyarrow import parquet
+        import pyarrow as pa
+        from pyarrow import parquet as pq
 
         import shapely
     except ImportError as ex:
@@ -300,7 +300,7 @@ def list_field_values_parquet_file():
             f"test file {fixture_path} does not exist, but error importing: {ex}."
         )
 
-    table = pyarrow.table(
+    table = pa.table(
         {
             "geometry": shapely.to_wkb(shapely.points(np.ones((5, 2)))),
             "int": [1, 2, 3, 4, 5],
@@ -323,7 +323,7 @@ def list_field_values_parquet_file():
             ],
         }
     )
-    parquet.write_table(table, fixture_path)
+    pq.write_table(table, fixture_path)
 
     return fixture_path
 
@@ -381,8 +381,8 @@ def list_nested_struct_parquet_file(tmp_path):
 
     # The file doesn't exist, so create it in fixture_path and local_path
     try:
-        import pyarrow
-        from pyarrow import parquet
+        import pyarrow as pa
+        from pyarrow import parquet as pq
 
         import shapely
     except ImportError as ex:
@@ -390,7 +390,7 @@ def list_nested_struct_parquet_file(tmp_path):
             f"test file {fixture_path} does not exist, but error importing: {ex}."
         )
 
-    table = pyarrow.table(
+    table = pa.table(
         {
             "geometry": shapely.to_wkb(shapely.points(np.ones((3, 2)))),
             "col_flat": [0, 1, 2],
@@ -399,7 +399,7 @@ def list_nested_struct_parquet_file(tmp_path):
             "col_list": [[1, 2, 3]] * 3,
         }
     )
-    parquet.write_table(table, fixture_path)
+    pq.write_table(table, fixture_path)
 
     return fixture_path
 
