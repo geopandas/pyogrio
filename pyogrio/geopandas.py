@@ -24,11 +24,6 @@ from pyogrio.raw import (
     write,
 )
 
-try:
-    import pyarrow as pa
-except ImportError:
-    pa = None
-
 
 def _stringify_path(path):
     """Convert path-like to a string if possible, pass-through other objects."""
@@ -298,7 +293,7 @@ def read_dataframe(
     )
 
     if use_arrow:
-        # import pyarrow as pa
+        import pyarrow as pa
 
         meta, table = result
 
@@ -615,7 +610,7 @@ def write_dataframe(
             crs = geometry.crs.to_wkt("WKT1_GDAL")
 
     if use_arrow:
-        # import pyarrow as pa
+        import pyarrow as pa
 
         from pyogrio.raw import write_arrow
 
