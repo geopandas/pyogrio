@@ -51,6 +51,8 @@ START_FID = {
     ".shp": 0,
 }
 
+GDAL_HAS_PARQUET_DRIVER = "Parquet" in list_drivers()
+
 
 def pytest_report_header(config):
     drivers = ", ".join(

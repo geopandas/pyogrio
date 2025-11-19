@@ -8,6 +8,7 @@ import numpy as np
 
 from pyogrio._compat import (
     HAS_GEOPANDAS,
+    HAS_PYARROW,
     PANDAS_GE_15,
     PANDAS_GE_20,
     PANDAS_GE_22,
@@ -346,8 +347,18 @@ def read_dataframe(
         elif geometry_name in df.columns:
             wkb_values = df.pop(geometry_name)
             if PANDAS_GE_15 and wkb_values.dtype != object:
-                # for example ArrowDtype will otherwise create numpy array with pd.NA
-                wkb_values = wkb_values.to_numpy(na_value=None)
+                if (
+                    HAS_PYARROW
+                    and isinstance(wkb_values.dtype, pd.ArrowDtype)
+                    and isinstance(wkb_values.dtype.pyarrow_dtype, pa.BaseExtensionType)
+                ):
+                    # handle BaseExtensionType(extension<geoarrow.wkb>)
+                    wkb_values = pa.array(wkb_values.array).to_numpy(
+                        zero_copy_only=False
+                    )
+                else:
+                    # for example ArrowDtype will otherwise give numpy array with pd.NA
+                    wkb_values = wkb_values.to_numpy(na_value=None)
             df["geometry"] = shapely.from_wkb(wkb_values, on_invalid=on_invalid)
             if force_2d:
                 df["geometry"] = shapely.force_2d(df["geometry"])
