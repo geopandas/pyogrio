@@ -289,7 +289,8 @@ def list_field_values_parquet_file():
     if fixture_path.exists():
         return fixture_path
 
-    # The file doesn't exist, so create it in fixture_path and local_path
+    """
+    # The file doesn't exist, so create it
     try:
         import pyarrow as pa
         from pyarrow import parquet as pq
@@ -326,6 +327,7 @@ def list_field_values_parquet_file():
     pq.write_table(table, fixture_path)
 
     return fixture_path
+    """
 
 
 @pytest.fixture(scope="function", params=[".geojson", ".parquet"])
@@ -379,7 +381,8 @@ def list_nested_struct_parquet_file(tmp_path):
     if fixture_path.exists():
         return fixture_path
 
-    # The file doesn't exist, so create it in fixture_path and local_path
+    """
+    # The file doesn't exist, so create it
     try:
         import pyarrow as pa
         from pyarrow import parquet as pq
@@ -402,6 +405,7 @@ def list_nested_struct_parquet_file(tmp_path):
     pq.write_table(table, fixture_path)
 
     return fixture_path
+    """
 
 
 @pytest.fixture(scope="function")
