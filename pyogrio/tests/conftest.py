@@ -1,4 +1,5 @@
-import shutil
+"""Module with helper functions, fixtures, and common test data for pyogrio tests."""
+
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
