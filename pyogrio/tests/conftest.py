@@ -49,7 +49,7 @@ START_FID = {
     ".shp": 0,
 }
 
-GDAL_HAS_PARQUET = "Parquet" in list_drivers()
+# GDAL_HAS_PARQUET = "Parquet" in list_drivers()
 
 
 def pytest_report_header(config):

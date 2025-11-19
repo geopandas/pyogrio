@@ -35,7 +35,6 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
-    GDAL_HAS_PARQUET,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -381,7 +380,7 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
 
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
-    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET:
+    if list_field_values_files.suffix == ".parquet" and "Parquet" not in list_drivers():
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
@@ -503,7 +502,7 @@ def test_read_list_nested_struct_parquet_file(
     list_nested_struct_parquet_file, use_arrow
 ):
     """Test reading a Parquet file containing nested struct and list types."""
-    if not GDAL_HAS_PARQUET:
+    if "Parquet" not in list_drivers():
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
