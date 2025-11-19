@@ -35,6 +35,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
+    GDAL_HAS_PARQUET,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
