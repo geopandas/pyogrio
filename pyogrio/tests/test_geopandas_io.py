@@ -112,29 +112,6 @@ def test_spatialite_available(test_gpkg_nulls):
     )
 
 
-@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
-def test_read_arrow_dtypes(tmp_path):
-    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
-    # column can be converted with from_wkb in case of missing values
-    pytest.importorskip("pyarrow")
-    filename = tmp_path / "test.gpkg"
-    df = gp.GeoDataFrame(
-        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
-    )
-    write_dataframe(df, filename)
-
-    result = read_dataframe(
-        filename,
-        use_arrow=True,
-        arrow_to_pandas_kwargs={
-            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
-        },
-    )
-    assert isinstance(result["col"].dtype, pd.ArrowDtype)
-    result["col"] = result["col"].astype("float64")
-    assert_geodataframe_equal(result, df)
-
-
 @pytest.mark.parametrize(
     "encoding, arrow",
     [
@@ -2157,6 +2134,29 @@ def test_metadata_unsupported(tmp_path, naturalearth_lowres, metadata_type, use_
     assert read_info(filename)[metadata_key] is None
 
 
+@pytest.mark.skipif(not PANDAS_GE_15, reason="ArrowDtype requires pandas 1.5+")
+def test_read_dataframe_arrow_dtypes(tmp_path):
+    # https://github.com/geopandas/pyogrio/issues/319 - ensure arrow binary
+    # column can be converted with from_wkb in case of missing values
+    pytest.importorskip("pyarrow")
+    filename = tmp_path / "test.gpkg"
+    df = gp.GeoDataFrame(
+        {"col": [1.0, 2.0]}, geometry=[Point(1, 1), None], crs="EPSG:4326"
+    )
+    write_dataframe(df, filename)
+
+    result = read_dataframe(
+        filename,
+        use_arrow=True,
+        arrow_to_pandas_kwargs={
+            "types_mapper": lambda pa_dtype: pd.ArrowDtype(pa_dtype)
+        },
+    )
+    assert isinstance(result["col"].dtype, pd.ArrowDtype)
+    result["col"] = result["col"].astype("float64")
+    assert_geodataframe_equal(result, df)
+
+
 @requires_pyarrow_api
 @pytest.mark.skipif(
     __gdal_version__ < (3, 8, 3), reason="Arrow bool value bug fixed in GDAL >= 3.8.3"
@@ -2553,43 +2553,6 @@ def test_write_kml_append(tmp_path, use_arrow):
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
-@pytest.mark.requires_arrow_write_api
-def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
-    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
-    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
-    output_path = tmp_path / "test.geojson"
-    write_dataframe(
-        gdf,
-        output_path,
-        layer="tmp_layer",
-        driver="GeoJSON",
-        RFC7946=True,
-        use_arrow=use_arrow,
-    )
-
-    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
-
-    assert np.array_equal(gdf_in.geometry.values, points)
-
-    # test appending to the existing file
-
-    points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
-    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
-
-    write_dataframe(
-        gdf_append,
-        output_path,
-        layer="tmp_layer",
-        driver="GeoJSON",
-        RFC7946=True,
-        use_arrow=use_arrow,
-        append=True,
-    )
-
-    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
-    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
-
-
 def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
     if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
@@ -2745,3 +2708,40 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][0] == {"a": 1, "b": 2}
     assert result["col_struct"][1] == {"a": 1, "b": 2}
     assert result["col_struct"][2] == {"a": 1, "b": 2}
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.geojson"
+    write_dataframe(
+        gdf,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+    )
+
+    gdf_in = read_dataframe(output_path, use_arrow=use_arrow)
+
+    assert np.array_equal(gdf_in.geometry.values, points)
+
+    # test appending to the existing file
+
+    points_append = [Point(70, 80), Point(90, 100), Point(110, 120)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="GeoJSON",
+        RFC7946=True,
+        use_arrow=use_arrow,
+        append=True,
+    )
+
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
