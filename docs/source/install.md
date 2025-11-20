@@ -46,11 +46,12 @@ most likely due to the installation process falling back to installing from the
 source distribution because the available wheels are not compatible with your
 platform.
 
-Note that the GDAL version included in the wheels is not always the latest version.
-Use {attr}`pyogrio.__gdal_version_string__` to get the GDAL version included.
-The wheels also include only the core GDAL drivers (GeoJSON, ESRI Shapefile, GPKG,
-FGB, OpenFileGDB, etc). You can use {func}`pyogrio.list_drivers()` to list the
-included drivers.
+Note that the GDAL version included in the binary wheels is not always the latest
+version and is likely to be a different version than the system GDAL. Please use
+{attr}`pyogrio.__gdal_version_string__` to get the GDAL version being used by pyogrio.
+The wheels include the most common GDAL vector drivers (GeoJSON, ESRI Shapefile,
+GPKG, FGB, OpenFileGDB, etc), but not all drivers. Use {func}`pyogrio.list_drivers()`
+to list the drivers available in pyogrio.
 
 If you need drivers that are not included, or if you need `pyogrio` to use a newer
 version of GDAL, it is recommended to use conda-forge to install pyogrio as
