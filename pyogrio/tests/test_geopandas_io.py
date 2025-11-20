@@ -788,12 +788,6 @@ def test_write_read_datetime_tz_objects(
     tmp_path, dates_raw, ext, use_arrow, datetime_as_string, mixed_offsets_as_utc
 ):
     """Datetime objects with equal offsets are read as datetime64."""
-    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
-        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
-        # as well as retaining the timezone.
-        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
-        pytest.xfail("Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow")
-
     dates = pd.Series(dates_raw, dtype="O")
     df = gp.GeoDataFrame(
         {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
@@ -820,12 +814,24 @@ def test_write_read_datetime_tz_objects(
     if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
         result.dates = result.dates.astype(exp_df.dates.dtype)
 
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the timezone offset was applied to the datetime
+        # as well as retaining the timezone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+
+        # Add 5 hours to the expected datetimes to match the wrong result.
+        exp_df.dates = exp_df.dates + pd.Timedelta(hours=5)
+        if datetime_as_string:
+            exp_df.dates = exp_df.dates.astype("string").str.replace(" ", "T")
+        assert_geodataframe_equal(result, exp_df)
+        # XFAIL: Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow
+        return
+
     if use_arrow and __gdal_version__ < (3, 11, 0):
         if ext in (".fgb", ".gpkg"):
             # With GDAL < 3.11 with arrow, datetime columns are written as string type
-            exp2_df = exp_df.copy()
-            exp2_df.dates = exp2_df.dates.astype("string").astype("O")
-            assert_geodataframe_equal(result, exp2_df)
+            exp_df.dates = exp_df.dates.astype("string").astype("O")
+            assert_geodataframe_equal(result, exp_df)
             # XFAIL: datetime columns written as string with GDAL < 3.11 + arrow
             return
 
