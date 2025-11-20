@@ -5,7 +5,7 @@ dependencies:
   - python=3.13
   - libgdal-core
   - numpy
-  - numpydoc
+  - numpydoc=1.9
   - docutils
   - myst-parser
   - pip

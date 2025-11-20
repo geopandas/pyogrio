@@ -10,13 +10,13 @@ from pyogrio.util import (
 )
 
 __gdal_version__ = None
-"""The GDAL version used by pyogrio as a tuple of integers."""
+"""The GDAL version used by pyogrio (`tuple of int`)."""
 
 __gdal_version_string__ = None
-"""The GDAL version used by pyogrio as a string."""
+"""The GDAL version used by pyogrio (`str`)."""
 
 __gdal_geos_version__ = None
-"""The version of GEOS used by GDAL as a tuple of integers."""
+"""The version of GEOS used by GDAL (`tuple of int`)."""
 
 with GDALEnv():
     from pyogrio._err import _register_error_handler
