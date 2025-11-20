@@ -436,7 +436,6 @@ def test_read_datetime_long_ago(
     stay strings.
     Reported in https://github.com/geopandas/pyogrio/issues/553.
     """
-    xfail_msg = None
     handler = contextlib.nullcontext()
     if not datetime_as_string and not PANDAS_GE_30 and (not use_arrow or GDAL_GE_311):
         # When datetimes should not be returned as string and arrow is not used or
@@ -447,9 +446,8 @@ def test_read_datetime_long_ago(
         handler = pytest.warns(
             UserWarning, match="Error parsing datetimes, original strings are returned"
         )
-        xfail_msg = (
-            "datetimes before 1678-1-1 give overflow with arrow=False and pandas < 3.0"
-        )
+        overflow_occured = True
+        # XFAIL: datetimes before 1678-1-1 give overflow with arrow=False and pandas<3.0
     elif use_arrow and not PANDAS_GE_20 and not GDAL_GE_311:
         # When arrow is used with pandas < 2.0 and GDAL < 3.11, an overflow occurs in
         # pyarrow.to_pandas().
@@ -457,9 +455,8 @@ def test_read_datetime_long_ago(
             Exception,
             match=re.escape("Casting from timestamp[ms] to timestamp[ns] would result"),
         )
-        xfail_msg = (
-            "datetimes before 1678-1-1 give overflow with arrow=True and pandas < 2.0"
-        )
+        overflow_occured = False
+        # XFAIL: datetimes before 1678-1-1 give overflow with arrow=True and pandas<2.0
 
     with handler:
         df = read_dataframe(
@@ -477,8 +474,8 @@ def test_read_datetime_long_ago(
             # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
             # expected "ideal" result is the same: a datetime64 without timezone info.
 
-            if xfail_msg is not None:
-                # An xfail is needed: strings are returned because of an overflow.
+            if overflow_occured:
+                # Strings are returned because of an overflow.
                 assert is_string_dtype(df.datetime_col.dtype)
                 assert_series_equal(df.datetime_col, exp_dates_str, check_dtype=False)
             else:
@@ -486,10 +483,6 @@ def test_read_datetime_long_ago(
                 assert is_datetime64_dtype(df.datetime_col)
                 assert df.datetime_col.iloc[0] == pd.Timestamp(1670, 1, 1, 9, 0, 0)
                 assert df.datetime_col.iloc[0].unit == "ms"
-
-        if xfail_msg is not None:
-            # The result was not as would be expected by the user, so mark as xfail.
-            pytest.xfail(xfail_msg)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
@@ -529,7 +522,7 @@ def test_write_read_datetime_no_tz(
             assert_series_equal(result.dates, exp_dates)
         elif not mixed_offsets_as_utc:
             assert_series_equal(result.dates, exp_dates)
-        pytest.xfail("naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow")
+        # XFAIL: naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow
 
     elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
@@ -594,7 +587,7 @@ def test_write_read_datetime_tz(
         df_exp = df.copy()
         df_exp.dates = df_exp[df_exp.dates.notna()].dates.astype(str)
         assert_series_equal(result.dates, df_exp.dates, check_index=False)
-        pytest.xfail("datetime columns written as string with GDAL < 3.11 via arrow")
+        # XFAIL: datetime columns written as string with GDAL < 3.11 via arrow
     elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
@@ -669,12 +662,15 @@ def test_write_read_datetime_tz_localized_mixed_offset(
             assert_series_equal(
                 result.dates.head(2), dates_utc.head(2), check_dtype=False
             )
-            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
+
         elif ext in (".gpkg", ".fgb"):
             # With GDAL < 3.11 with arrow, datetime columns written as string type
             assert pd.isna(result.dates[2])
             assert_series_equal(result.dates.head(2), dates_local_offsets_str.head(2))
-            pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
+            # XFAIL: datetime columns written as string with GDAL < 3.11 + arrow
+            return
 
     # GDAL tz only encodes offsets, not timezones
     if datetime_as_string:
@@ -733,14 +729,17 @@ def test_write_read_datetime_tz_mixed_offsets(
                 df_exp.dates = df_exp.dates.astype("string").str.replace(" ", "T")
             df_exp.loc[2, "dates"] = pd.NA
             assert_geodataframe_equal(result, df_exp)
-            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
+
         elif ext in (".gpkg", ".fgb"):
             # With arrow and GDAL < 3.11, mixed timezone datetimes are written as string
             # type columns, so no proper roundtrip possible.
             df_exp = df.copy()
             df_exp.dates = df_exp.dates.astype("string").astype("O")
             assert_geodataframe_equal(result, df_exp)
-            pytest.xfail("mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow")
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
 
     if datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
@@ -826,7 +825,8 @@ def test_write_read_datetime_tz_objects(
             exp2_df = exp_df.copy()
             exp2_df.dates = exp2_df.dates.astype("string").astype("O")
             assert_geodataframe_equal(result, exp2_df)
-            pytest.xfail("datetime columns written as string with GDAL < 3.11 + arrow")
+            # XFAIL: datetime columns written as string with GDAL < 3.11 + arrow
+            return
 
     if datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
@@ -888,9 +888,8 @@ def test_write_read_datetime_utc(
             assert_series_equal(result.dates, exp_dates, check_dtype=False)
         else:
             assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
-        pytest.xfail("UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow")
-
-    if datetime_as_string:
+        # XFAIL: UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow
+    elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             dates_str = df.dates.astype("string").str.replace(" ", "T")
