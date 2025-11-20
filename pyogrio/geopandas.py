@@ -9,6 +9,7 @@ import numpy as np
 
 from pyogrio._compat import (
     HAS_GEOPANDAS,
+    HAS_PYARROW,
     PANDAS_GE_15,
     PANDAS_GE_20,
     PANDAS_GE_22,
@@ -430,9 +431,19 @@ def read_dataframe(
                 df[column] = _try_parse_datetime(
                     df[column], datetime_as_string, mixed_offsets_as_utc
                 )
-        for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+        for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
             if ogr_subtype == "OFSTJSON":
-                df[c] = df[c].map(json.loads, na_action="ignore")
+                # When reading .parquet files with arrow, JSON fields are already
+                # parsed, so only parse if strings.
+                dtype = pd.api.types.infer_dtype(df[c])
+                if dtype == "string":
+                    try:
+                        df[c] = df[c].map(json.loads, na_action="ignore")
+                    except Exception:
+                        warnings.warn(
+                            f"Could not parse column '{c}' as JSON; leaving as string",
+                            stacklevel=2,
+                        )
 
         if fid_as_index:
             df = df.set_index(meta["fid_column"])
@@ -445,8 +456,18 @@ def read_dataframe(
         elif geometry_name in df.columns:
             wkb_values = df.pop(geometry_name)
             if PANDAS_GE_15 and wkb_values.dtype != object:
-                # for example ArrowDtype will otherwise create numpy array with pd.NA
-                wkb_values = wkb_values.to_numpy(na_value=None)
+                if (
+                    HAS_PYARROW
+                    and isinstance(wkb_values.dtype, pd.ArrowDtype)
+                    and isinstance(wkb_values.dtype.pyarrow_dtype, pa.BaseExtensionType)
+                ):
+                    # handle BaseExtensionType(extension<geoarrow.wkb>)
+                    wkb_values = pa.array(wkb_values.array).to_numpy(
+                        zero_copy_only=False
+                    )
+                else:
+                    # for example ArrowDtype will otherwise give numpy array with pd.NA
+                    wkb_values = wkb_values.to_numpy(na_value=None)
             df["geometry"] = shapely.from_wkb(wkb_values, on_invalid=on_invalid)
             if force_2d:
                 df["geometry"] = shapely.force_2d(df["geometry"])
@@ -466,9 +487,17 @@ def read_dataframe(
     for dtype, c in zip(meta["dtypes"], df.columns):
         if dtype.startswith("datetime"):
             df[c] = _try_parse_datetime(df[c], datetime_as_string, mixed_offsets_as_utc)
-    for ogr_subtype, c in zip(meta["ogr_subtypes"], df.columns):
+    for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
         if ogr_subtype == "OFSTJSON":
-            df[c] = df[c].map(json.loads, na_action="ignore")
+            dtype = pd.api.types.infer_dtype(df[c])
+            if dtype == "string":
+                try:
+                    df[c] = df[c].map(json.loads, na_action="ignore")
+                except Exception:
+                    warnings.warn(
+                        f"Could not parse column '{c}' as JSON; leaving as string",
+                        stacklevel=2,
+                    )
 
     if geometry is None or not read_geometry:
         return df

@@ -14,13 +14,15 @@
     to choose the way datetime columns are returned + several fixes when reading and
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
--   Add support to read list fields without arrow (#558).
+-   Add support to read list fields without arrow (#558, #597).
 
 ### Bug fixes
 
 -   Fix decode error reading an sqlite file on windows (#568).
 -   Fix wrong layername when creating .gpkg.zip file (#570).
 -   Fix segfault on providing an invalid value for `layer` in `read_info` (#564).
+-   Fix error when reading data with ``use_arrow=True`` after having used the
+    Parquet driver with GDAL>=3.12 (#601).
 
 ### Packaging
 
