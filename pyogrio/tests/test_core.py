@@ -14,6 +14,7 @@ from pyogrio import (
     read_bounds,
     read_info,
     set_gdal_config_options,
+    vsi_curl_clear_cache,
     vsi_listtree,
     vsi_rmtree,
     vsi_unlink,
@@ -700,3 +701,14 @@ def test_vsimem_unlink_error(naturalearth_lowres_vsimem):
 
     with pytest.raises(FileNotFoundError, match="Path does not exist"):
         vsi_unlink("/vsimem/non-existent.gpkg")
+
+
+def test_vsi_curl_clear_cache_empty_default():
+    # Validate call doesn't raise any error when no prefix is used
+    vsi_curl_clear_cache()
+
+
+def test_vsi_curl_clear_cache():
+    # Validate call doesn't raise any error when prefix/path is used
+    vsi_curl_clear_cache("http://example.com/prefix")
+    vsi_curl_clear_cache(Path("s3://abc"))

@@ -7,6 +7,7 @@ from pyogrio.util import (
     _mask_to_wkb,
     _preprocess_options_key_value,
     get_vsi_path_or_buffer,
+    vsi_path,
 )
 
 with GDALEnv():
@@ -26,6 +27,8 @@ with GDALEnv():
         set_gdal_config_options as _set_gdal_config_options,
     )
     from pyogrio._vsi import (
+        ogr_vsi_curl_clear_all_cache,
+        ogr_vsi_curl_clear_cache,
         ogr_vsi_listtree,
         ogr_vsi_rmtree,
         ogr_vsi_unlink,
@@ -385,3 +388,19 @@ def vsi_unlink(path: str | Path):
         path = path.as_posix()
 
     ogr_vsi_unlink(path)
+
+
+def vsi_curl_clear_cache(prefix: str | Path = ""):
+    """Clean local cache associated with /vsicurl/.
+
+    Parameters
+    ----------
+    prefix : str
+        Filename or prefix to clear associated cache. If not specified clear all cache.
+
+    """
+    if prefix == "":
+        ogr_vsi_curl_clear_all_cache()
+    else:
+        vsi_prefix = vsi_path(prefix)
+        ogr_vsi_curl_clear_cache(vsi_prefix)
