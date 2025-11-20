@@ -36,12 +36,14 @@ with GDALEnv():
     _register_drivers()
     _register_error_handler()
 
-    """The GDAL version used as a tuple of integers."""
     __gdal_version__ = get_gdal_version()
-    """The GDAL version used as a string."""
+    """The GDAL version used by pyogrio as a tuple of integers."""
+
     __gdal_version_string__ = get_gdal_version_string()
-    """The GEOS version in included in GDAL as a tuple of integers."""
+    """The GDAL version used by pyogrio as a string."""
+
     __gdal_geos_version__ = get_gdal_geos_version()
+    """The version of GEOS used by GDAL as a tuple of integers."""
 
 
 def list_drivers(read=False, write=False):
