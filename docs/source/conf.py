@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx_rtd_theme",
     "myst_parser",
+    "sphinx.ext.napoleon",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
