@@ -3,7 +3,6 @@ channels:
   - conda-forge
 dependencies:
   - numpy
-  - libgdal-arrow-parquet
   - libgdal-core
   - libgdal-arrow-parquet
   - pytest
