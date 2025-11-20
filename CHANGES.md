@@ -11,7 +11,7 @@
 ### Improvements
 
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
--   Add support to read list fields without arrow (#558).
+-   Add support to read list fields without arrow (#558, #597).
 
 ### Bug fixes
 
@@ -19,6 +19,8 @@
 -   Fix wrong layername when creating .gpkg.zip file (#570).
 -   Fix segfault on providing an invalid value for `layer` in `read_info` (#564).
 -   Fix overwriting a corrupt fileGDB directory (#600).
+-   Fix error when reading data with ``use_arrow=True`` after having used the
+    Parquet driver with GDAL>=3.12 (#601).
 
 ### Packaging
 

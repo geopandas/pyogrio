@@ -4,6 +4,7 @@ channels:
 dependencies:
   - numpy
   - libgdal-core
+  - libgdal-arrow-parquet
   - pytest
   - shapely>=2
   - geopandas-base
