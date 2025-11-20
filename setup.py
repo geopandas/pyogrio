@@ -169,7 +169,7 @@ else:
             Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
             Extension("pyogrio._vsi", ["pyogrio/_vsi.pyx"], **ext_options),
         ],
-        compiler_directives={"language_level": "3"},
+        compiler_directives={"language_level": "3", "freethreading_compatible": True},
         compile_time_env=compile_time_env,
     )
 

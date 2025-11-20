@@ -35,6 +35,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
+    GDAL_HAS_PARQUET_DRIVER,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -104,14 +105,11 @@ def use_arrow_context():
         del os.environ["PYOGRIO_USE_ARROW"]
 
 
-def spatialite_available(path):
-    try:
-        _ = read_dataframe(
-            path, sql="select spatialite_version();", sql_dialect="SQLITE"
-        )
-        return True
-    except Exception:
-        return False
+def test_spatialite_available(test_gpkg_nulls):
+    """Check if SpatiaLite is available by running a simple SQL query."""
+    _ = read_dataframe(
+        test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
+    )
 
 
 @pytest.mark.parametrize(
@@ -381,20 +379,29 @@ def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
     assert_series_equal(df_read.datetime_col, expected)
 
 
-def test_read_list_types(list_field_values_file, use_arrow):
+def test_read_list_types(list_field_values_files, use_arrow):
     """Test reading a geojson file containing fields with lists."""
-    info = read_info(list_field_values_file)
-    result = read_dataframe(list_field_values_file, use_arrow=use_arrow)
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
 
+    info = read_info(list_field_values_files)
+    suffix = list_field_values_files.suffix
+
+    result = read_dataframe(list_field_values_files, use_arrow=use_arrow)
+
+    # Check list_int column
     assert "list_int" in result.columns
     assert info["fields"][1] == "list_int"
-    assert info["ogr_types"][1] == "OFTIntegerList"
+    assert info["ogr_types"][1] in ("OFTIntegerList", "OFTInteger64List")
     assert result["list_int"][0].tolist() == [0, 1]
     assert result["list_int"][1].tolist() == [2, 3]
     assert result["list_int"][2].tolist() == []
     assert result["list_int"][3] is None
     assert result["list_int"][4] is None
 
+    # Check list_double column
     assert "list_double" in result.columns
     assert info["fields"][2] == "list_double"
     assert info["ogr_types"][2] == "OFTRealList"
@@ -404,6 +411,7 @@ def test_read_list_types(list_field_values_file, use_arrow):
     assert result["list_double"][3] is None
     assert result["list_double"][4] is None
 
+    # Check list_string column
     assert "list_string" in result.columns
     assert info["fields"][3] == "list_string"
     assert info["ogr_types"][3] == "OFTStringList"
@@ -413,29 +421,120 @@ def test_read_list_types(list_field_values_file, use_arrow):
     assert result["list_string"][3] is None
     assert result["list_string"][4] == [""]
 
-    # Once any row of a column contains a null value in a list (in the test geojson),
-    # the column isn't recognized as a list column anymore, but as a JSON column.
-    # Because JSON columns containing JSON Arrays are also parsed to python lists, the
-    # end result is the same...
+    # Check list_int_with_null column
+    if suffix == ".geojson":
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+        exp_list_int_with_null_value = [0, None]
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTInteger64List"
+        exp_subtype = "OFSTNone"
+        if use_arrow:
+            exp_list_int_with_null_value = [0.0, np.nan]
+        else:
+            exp_list_int_with_null_value = [0, 0]
+            # xfail: when reading a list of int with None values without Arrow from a
+            # .parquet file, the None values become 0, which is wrong.
+            # https://github.com/OSGeo/gdal/issues/13448
+
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
-    assert info["ogr_types"][4] == "OFTString"
-    assert info["ogr_subtypes"][4] == "OFSTJSON"
-    assert result["list_int_with_null"][0] == [0, None]
-    assert result["list_int_with_null"][1] == [2, 3]
-    assert result["list_int_with_null"][2] == []
+    assert info["ogr_types"][4] == exp_type
+    assert info["ogr_subtypes"][4] == exp_subtype
+    assert result["list_int_with_null"][0][0] == 0
+    if exp_list_int_with_null_value[1] == 0:
+        assert result["list_int_with_null"][0][1] == exp_list_int_with_null_value[1]
+    else:
+        assert pd.isna(result["list_int_with_null"][0][1])
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_int_with_null"][1] == [2, 3]
+        assert result["list_int_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        assert result["list_int_with_null"][1].tolist() == [2, 3]
+        assert result["list_int_with_null"][2].tolist() == []
+
     assert pd.isna(result["list_int_with_null"][3])
     assert pd.isna(result["list_int_with_null"][4])
 
+    # Check list_string_with_null column
+    if suffix == ".geojson":
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTStringList"
+        exp_subtype = "OFSTNone"
+
     assert "list_string_with_null" in result.columns
     assert info["fields"][5] == "list_string_with_null"
-    assert info["ogr_types"][5] == "OFTString"
-    assert info["ogr_subtypes"][5] == "OFSTJSON"
-    assert result["list_string_with_null"][0] == ["string1", None]
-    assert result["list_string_with_null"][1] == ["string3", "string4", ""]
-    assert result["list_string_with_null"][2] == []
+    assert info["ogr_types"][5] == exp_type
+    assert info["ogr_subtypes"][5] == exp_subtype
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_string_with_null"][0] == ["string1", None]
+        assert result["list_string_with_null"][1] == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        # When use_arrow=False, the None becomes an empty string, which is wrong.
+        exp_value = ["string1", ""] if not use_arrow else ["string1", None]
+        assert result["list_string_with_null"][0].tolist() == exp_value
+        assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2].tolist() == []
+
     assert pd.isna(result["list_string_with_null"][3])
     assert result["list_string_with_null"][4] == [""]
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_read_list_nested_struct_parquet_file(
+    list_nested_struct_parquet_file, use_arrow
+):
+    """Test reading a Parquet file containing nested struct and list types."""
+    if not use_arrow:
+        pytest.skip(
+            "When use_arrow=False, gdal flattens nested columns to seperate columns. "
+            "Not sure how we want to deal with this case, but for now just skip."
+        )
+
+    result = read_dataframe(list_nested_struct_parquet_file, use_arrow=use_arrow)
+
+    assert "col_flat" in result.columns
+    assert np.array_equal(result["col_flat"].to_numpy(), np.array([0, 1, 2]))
+
+    assert "col_list" in result.columns
+    assert result["col_list"].dtype == object
+    assert result["col_list"][0].tolist() == [1, 2, 3]
+    assert result["col_list"][1].tolist() == [1, 2, 3]
+    assert result["col_list"][2].tolist() == [1, 2, 3]
+
+    assert "col_nested" in result.columns
+    assert result["col_nested"].dtype == object
+    assert result["col_nested"][0].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][1].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][2].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+
+    assert "col_struct" in result.columns
+    assert result["col_struct"].dtype == object
+    assert result["col_struct"][0] == {"a": 1, "b": 2}
+    assert result["col_struct"][1] == {"a": 1, "b": 2}
+    assert result["col_struct"][2] == {"a": 1, "b": 2}
 
 
 @pytest.mark.filterwarnings(
@@ -2647,3 +2746,21 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
 
     gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+@pytest.mark.requires_arrow_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_parquet_driver(tmp_path, use_arrow):
+    """
+    Simple test verifying the Parquet driver works if available
+    """
+    gdf = gp.GeoDataFrame(
+        {"col": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        crs="EPSG:4326",
+    )
+    output_path = tmp_path / "test.parquet"
+    write_dataframe(gdf, output_path, use_arrow=use_arrow)
+    result = read_dataframe(output_path, use_arrow=use_arrow)
+    assert_geodataframe_equal(result, gdf)
