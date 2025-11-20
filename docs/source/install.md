@@ -47,7 +47,7 @@ source distribution because the available wheels are not compatible with your
 platform.
 
 Note that the GDAL version included in the wheels is not always the latest version.
-Use {func}`pyogrio.__gdal_version_string__` to get the GDAL version included.
+Use {attr}`pyogrio.__gdal_version_string__` to get the GDAL version included.
 The wheels also include only the core GDAL drivers (GeoJSON, ESRI Shapefile, GPKG,
 FGB, OpenFileGDB, etc). You can use {func}`pyogrio.list_drivers()` to list the
 included drivers.
