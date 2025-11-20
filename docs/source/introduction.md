@@ -213,7 +213,7 @@ Note: the `bbox` values must be in the same CRS as the dataset.
 Note: if GEOS is present and used by GDAL, only geometries that intersect `bbox`
 will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect this bbox will be returned.
-`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+{func}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
 ## Filter records by a geometry
 
@@ -239,7 +239,7 @@ need to convert it to a Shapely geometry before using `mask`.
 Note: if GEOS is present and used by GDAL, only geometries that intersect `mask`
 will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect the bounding box of `mask` will be returned.
-`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+{func}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
 ## Execute a sql query
 
@@ -496,7 +496,7 @@ offsets present.
 It is possible to use dataset and layer creation options available for a given
 driver in GDAL (see the relevant
 [GDAL driver page](https://gdal.org/drivers/vector/index.html)). These
-can be passed in as additional `kwargs` to {func}`~write_dataframe` or using
+can be passed in as additional `kwargs` to {func}`~pyogrio.write_dataframe` or using
 dictionaries for dataset or layer-level options.
 
 Where possible, Pyogrio uses the metadata of the driver to determine if a
