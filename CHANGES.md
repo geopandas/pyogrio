@@ -18,6 +18,8 @@
 -   Fix decode error reading an sqlite file on windows (#568).
 -   Fix wrong layername when creating .gpkg.zip file (#570).
 -   Fix segfault on providing an invalid value for `layer` in `read_info` (#564).
+-   Fix error when reading data with ``use_arrow=True`` after having used the
+    Parquet driver with GDAL>=3.12 (#601).
 
 ### Packaging
 

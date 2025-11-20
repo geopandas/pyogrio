@@ -2745,3 +2745,21 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
 
     gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+@pytest.mark.requires_arrow_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_parquet_driver(tmp_path, use_arrow):
+    """
+    Simple test verifying the Parquet driver works if available
+    """
+    gdf = gp.GeoDataFrame(
+        {"col": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        crs="EPSG:4326",
+    )
+    output_path = tmp_path / "test.parquet"
+    write_dataframe(gdf, output_path, use_arrow=use_arrow)
+    result = read_dataframe(output_path, use_arrow=use_arrow)
+    assert_geodataframe_equal(result, gdf)
