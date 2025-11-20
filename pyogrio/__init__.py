@@ -31,7 +31,6 @@ from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write_arrow
 
 __version__ = get_versions()["version"]
-"""The version of pyogrio as a string."""
 
 del get_versions
 
