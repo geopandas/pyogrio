@@ -1,3 +1,5 @@
+.. currentmodule:: pyogrio
+
 API reference
 =============
 
