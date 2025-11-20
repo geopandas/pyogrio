@@ -437,6 +437,7 @@ def test_read_datetime_long_ago(
     Reported in https://github.com/geopandas/pyogrio/issues/553.
     """
     handler = contextlib.nullcontext()
+    overflow_occured = False
     if not datetime_as_string and not PANDAS_GE_30 and (not use_arrow or GDAL_GE_311):
         # When datetimes should not be returned as string and arrow is not used or
         # arrow is used with GDAL >= 3.11, `pandas.to_datetime` is used to parse the
@@ -455,7 +456,7 @@ def test_read_datetime_long_ago(
             Exception,
             match=re.escape("Casting from timestamp[ms] to timestamp[ns] would result"),
         )
-        overflow_occured = False
+        overflow_occured = True
         # XFAIL: datetimes before 1678-1-1 give overflow with arrow=True and pandas<2.0
 
     with handler:
