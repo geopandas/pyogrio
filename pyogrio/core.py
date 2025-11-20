@@ -9,6 +9,14 @@ from pyogrio.util import (
     get_vsi_path_or_buffer,
 )
 
+# Define version variables here already with docstrings for Sphinx
+#: The GDAL version used as a tuple of integers.
+__gdal_version__ = None
+#: The GDAL version used as a string.
+__gdal_version_string__ = None
+#: The GEOS version in included in GDAL as a tuple of integers.
+__gdal_geos_version__ = None
+
 with GDALEnv():
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
@@ -36,11 +44,8 @@ with GDALEnv():
     _register_drivers()
     _register_error_handler()
 
-    #: The GDAL version used as a tuple of integers.
     __gdal_version__ = get_gdal_version()
-    #: The GDAL version used as a string.
     __gdal_version_string__ = get_gdal_version_string()
-    #: The GEOS version in included in GDAL as a tuple of integers.
     __gdal_geos_version__ = get_gdal_geos_version()
 
 
