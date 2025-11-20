@@ -12,6 +12,7 @@ Core
 .. py:attribute:: __version__
 .. py:attribute:: __gdal_version__
 .. py:attribute:: __gdal_version_string__
+.. py:attribute:: __gdal_geos_version__
 
 GeoPandas integration
 ---------------------
