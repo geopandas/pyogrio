@@ -6,7 +6,10 @@ Core
 
 .. automodule:: pyogrio
    :members: list_drivers, detect_write_driver, list_layers, read_bounds, read_info, set_gdal_config_options, get_gdal_config_option, vsi_listtree, vsi_rmtree, vsi_unlink
-   :undoc-members: __version__, __gdal_version__, __gdal_version_string__
+
+.. autoproperty:: pyogrio.__version__
+.. autoproperty:: pyogrio.__gdal_version__
+.. autoproperty:: pyogrio.__gdal_version_string__
 
 GeoPandas integration
 ---------------------
