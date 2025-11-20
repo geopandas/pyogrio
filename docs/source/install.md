@@ -2,12 +2,10 @@
 
 ## Requirements
 
-Supports Python 3.10 - 3.14 and GDAL 3.6.x - 3.11.x
-
-Reading to GeoDataFrames requires `geopandas>=0.12` with `shapely>=2`.
-
-Additionally, installing `pyarrow` in combination with GDAL 3.6+ enables
-a further speed-up when specifying `use_arrow=True`.
+- Python >= 3.10
+- GDAL >= 3.6
+- Reading to GeoDataFrames requires `geopandas>=0.12` and `shapely>=2`. Additionally,
+  installing `pyarrow` enables a further speed-up when specifying `use_arrow=True`.
 
 ## Installation
 
@@ -49,9 +47,9 @@ source distribution because the available wheels are not compatible with your
 platform.
 
 The binary wheels available on PyPI include the core GDAL drivers (GeoJSON,
-ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc) but do not include more advanced
-drivers such as LIBKML and Spatialite. If you need such drivers, we recommend
-that you use conda-forge to install pyogrio as explained above.
+ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc). You can use :meth:`~list_drivers`
+to list the included drivers. If you need drivers that are not included, we
+recommend that you use conda-forge to install pyogrio as explained above.
 
 ### Troubleshooting installation errors
 
