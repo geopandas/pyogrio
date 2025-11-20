@@ -11,7 +11,7 @@
 ### Improvements
 
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
--   Add support to read list fields without arrow (#558).
+-   Add support to read list fields without arrow (#558, #597).
 
 ### Bug fixes
 

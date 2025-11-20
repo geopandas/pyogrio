@@ -1,14 +1,12 @@
+"""Module with helper functions, fixtures, and common test data for pyogrio tests."""
+
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import numpy as np
 
-from pyogrio import (
-    __gdal_version_string__,
-    __version__,
-    list_drivers,
-)
+from pyogrio import __gdal_version_string__, __version__, list_drivers
 from pyogrio._compat import (
     GDAL_GE_37,
     HAS_ARROW_WRITE_API,
@@ -203,8 +201,7 @@ def no_geometry_file(tmp_path):
     return filename
 
 
-@pytest.fixture(scope="function")
-def list_field_values_file(tmp_path):
+def list_field_values_geojson_file(tmp_path):
     # Create a GeoJSON file with list values in a property
     list_geojson = """{
         "type": "FeatureCollection",
@@ -279,6 +276,66 @@ def list_field_values_file(tmp_path):
     return filename
 
 
+def list_field_values_parquet_file():
+    """Return the path to a Parquet file with list values in a property.
+
+    Because in the CI environments pyarrow.parquet is typically not available, we save
+    the file in the test data directory instead of always creating it from scratch.
+
+    The code to create it is here though, in case it needs to be recreated later.
+    """
+    # Check if the file already exists in the test data dir
+    fixture_path = _data_dir / "list_field_values_file.parquet"
+    if fixture_path.exists():
+        return fixture_path
+
+    # The file doesn't exist, so create it
+    try:
+        import pyarrow as pa
+        from pyarrow import parquet as pq
+
+        import shapely
+    except ImportError as ex:
+        raise RuntimeError(
+            f"test file {fixture_path} does not exist, but error importing: {ex}."
+        )
+
+    table = pa.table(
+        {
+            "geometry": shapely.to_wkb(shapely.points(np.ones((5, 2)))),
+            "int": [1, 2, 3, 4, 5],
+            "list_int": [[0, 1], [2, 3], [], None, None],
+            "list_double": [[0.0, 1.0], [2.0, 3.0], [], None, None],
+            "list_string": [
+                ["string1", "string2"],
+                ["string3", "string4", ""],
+                [],
+                None,
+                [""],
+            ],
+            "list_int_with_null": [[0, None], [2, 3], [], None, None],
+            "list_string_with_null": [
+                ["string1", None],
+                ["string3", "string4", ""],
+                [],
+                None,
+                [""],
+            ],
+        }
+    )
+    pq.write_table(table, fixture_path)
+
+    return fixture_path
+
+
+@pytest.fixture(scope="function", params=[".geojson", ".parquet"])
+def list_field_values_files(tmp_path, request):
+    if request.param == ".geojson":
+        return list_field_values_geojson_file(tmp_path)
+    elif request.param == ".parquet":
+        return list_field_values_parquet_file()
+
+
 @pytest.fixture(scope="function")
 def nested_geojson_file(tmp_path):
     # create GeoJSON file with nested properties
@@ -306,6 +363,45 @@ def nested_geojson_file(tmp_path):
         _ = f.write(nested_geojson)
 
     return filename
+
+
+@pytest.fixture(scope="function")
+def list_nested_struct_parquet_file(tmp_path):
+    """Create a Parquet file in tmp_path with nested values in a property.
+
+    Because in the CI environments pyarrow.parquet is typically not available, we save
+    the file in the test data directory instead of always creating it from scratch.
+
+    The code to create it is here though, in case it needs to be recreated later.
+    """
+    # Check if the file already exists in the test data dir
+    fixture_path = _data_dir / "list_nested_struct_file.parquet"
+    if fixture_path.exists():
+        return fixture_path
+
+    # The file doesn't exist, so create it
+    try:
+        import pyarrow as pa
+        from pyarrow import parquet as pq
+
+        import shapely
+    except ImportError as ex:
+        raise RuntimeError(
+            f"test file {fixture_path} does not exist, but error importing: {ex}."
+        )
+
+    table = pa.table(
+        {
+            "geometry": shapely.to_wkb(shapely.points(np.ones((3, 2)))),
+            "col_flat": [0, 1, 2],
+            "col_struct": [{"a": 1, "b": 2}] * 3,
+            "col_nested": [[{"a": 1, "b": 2}] * 2] * 3,
+            "col_list": [[1, 2, 3]] * 3,
+        }
+    )
+    pq.write_table(table, fixture_path)
+
+    return fixture_path
 
 
 @pytest.fixture(scope="function")
