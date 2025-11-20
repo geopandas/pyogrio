@@ -9,15 +9,6 @@ from pyogrio.util import (
     get_vsi_path_or_buffer,
 )
 
-__gdal_version__ = None
-"""The GDAL version used by pyogrio (`tuple` of `int`)."""
-
-__gdal_version_string__ = None
-"""The GDAL version used by pyogrio (`str`)."""
-
-__gdal_geos_version__ = None
-"""The version of GEOS used by GDAL (`tuple` of `int`)."""
-
 with GDALEnv():
     from pyogrio._err import _register_error_handler
     from pyogrio._io import ogr_list_layers, ogr_read_bounds, ogr_read_info
@@ -45,9 +36,27 @@ with GDALEnv():
     _register_drivers()
     _register_error_handler()
 
-    __gdal_version__ = get_gdal_version()
-    __gdal_version_string__ = get_gdal_version_string()
-    __gdal_geos_version__ = get_gdal_geos_version()
+    _gdal_version = get_gdal_version()
+    _gdal_version_string = get_gdal_version_string()
+    _gdal_geos_version = get_gdal_geos_version()
+
+
+@property
+def __gdal_version__():
+    """The GDAL version used by pyogrio (`tuple` of `int`)."""
+    return _gdal_version
+
+
+@property
+def __gdal_version_string__():
+    """The GDAL version used by pyogrio (`str`)."""
+    return _gdal_version_string
+
+
+@property
+def __gdal_geos_version__():
+    """The version of GEOS used by GDAL (`tuple` of `int`)."""
+    return _gdal_geos_version
 
 
 def list_drivers(read=False, write=False):
