@@ -36,7 +36,6 @@ with GDALEnv():
     _register_drivers()
     _register_error_handler()
 
-    # Define version variables here already with docstrings for Sphinx
     """The GDAL version used as a tuple of integers."""
     __gdal_version__ = get_gdal_version()
     """The GDAL version used as a string."""
