@@ -315,10 +315,13 @@ jobs:
         run: |
           uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} == "3.14t" ]; then
-            uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
+          # TMP avoid installing nightly pandas given pandas <-> geopandas compatibility issues
+          # if [ ${{ matrix.python-version }} == "3.14t" ]; then
+          #   uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
+          # fi
+          if [ ${{ matrix.python-version }} != "3.14t" ]; then
+              uv pip install --no-deps geopandas
           fi
-          uv pip install --no-deps geopandas
           uv pip list
 
       - name: Run tests
