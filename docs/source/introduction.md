@@ -10,7 +10,7 @@ You can display the GDAL version that Pyogrio was compiled against by
 
 ## List available drivers
 
-Use {func}`pyogrio.list_drivers()` to list all available drivers in your installation
+Use {func}`~pyogrio.list_drivers()` to list all available drivers in your installation
 of GDAL. However, just because a driver is listed does not mean that it is
 currently compatible with Pyogrio.
 
@@ -53,7 +53,7 @@ The following drivers are known to be well-supported and tested in Pyogrio:
 
 ## List available layers
 
-To list layers available in a data source, use {func}`pyogrio.list_layers()`:
+To list layers available in a data source, use {func}`~pyogrio.list_layers()`:
 
 ```python
 >>> from pyogrio import list_layers
@@ -69,7 +69,7 @@ be nonspatial. In this case, the geometry type will be `None`.
 ## Read basic information about a data layer
 
 To list information about a data layer in a data source, use 
-{func}`pyogrio.read_info()`. You can specify the name of the layer or its index
+{func}`~pyogrio.read_info()`. You can specify the name of the layer or its index
 (0-based) within the data source. By default, this reads from the first layer.
 
 ```python
@@ -102,7 +102,7 @@ To read from a layer using name or index (the following are equivalent):
 
 ## Read a data layer into a GeoPandas GeoDataFrame
 
-To read all features from a spatial data layer, use {func}`pyogrio.read_dataframe()`.
+To read all features from a spatial data layer, use {func}`~pyogrio.read_dataframe()`.
 By default, this operates on the first layer unless `layer` is specified using layer
 name or index.
 
@@ -346,7 +346,8 @@ or a DBF file, directly into a Pandas `DataFrame`.
 ## Read feature bounds
 
 You can read the bounds of all or a subset of features in the dataset in order
-to create a spatial index of features without reading all underlying geometries.
+to create a spatial index of features without reading all underlying geometries
+with {func}`~pyogrio.read_bounds()`.
 This is typically 2-3x faster than reading full feature data, but the main
 benefit is to avoid reading all feature data into memory for very large datasets.
 
@@ -369,7 +370,7 @@ This function supports options to subset features from the dataset:
 
 ## Write a GeoPandas GeoDataFrame
 
-You can write a `GeoDataFrame` `df` to a file as with {func}`pyogrio.write_dataframe()`:
+You can write a `GeoDataFrame` `df` to a file with {func}`~pyogrio.write_dataframe()`:
 
 ```python
 >>> from pyogrio import write_dataframe
@@ -473,7 +474,7 @@ You can also read from a URL with this syntax:
 
 GDAL only supports datetimes at a millisecond resolution. Reading data will thus
 give at most millisecond resolution (`datetime64[ms]` data type). With pandas 2.0
-`pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]`
+{func}`~pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]`
 correspondingly. For previous versions of pandas, `datetime64[ns]` is used as
 ms precision was not supported. When writing, only precision up to
 ms is retained.
@@ -486,7 +487,7 @@ Timezone information is preserved where possible, however GDAL only represents
 time zones as UTC offsets, whilst pandas uses IANA time zones (via `pytz` or
 `zoneinfo`). This means that dataframes with columns containing multiple offsets
 (e.g. when switching from standard time to summer time) will be written correctly,
-but when read via `pyogrio.read_dataframe()` will be returned as a UTC datetime
+but when read via {func}`~pyogrio.read_dataframe()` will be returned as a UTC datetime
 column, as there is no way to reconstruct the original timezone from the individual
 offsets present.
 
@@ -495,7 +496,7 @@ offsets present.
 It is possible to use dataset and layer creation options available for a given
 driver in GDAL (see the relevant
 [GDAL driver page](https://gdal.org/drivers/vector/index.html)). These
-can be passed in as additional `kwargs` to `write_dataframe` or using
+can be passed in as additional `kwargs` to {func}`~write_dataframe` or using
 dictionaries for dataset or layer-level options.
 
 Where possible, Pyogrio uses the metadata of the driver to determine if a
