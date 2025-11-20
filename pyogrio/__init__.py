@@ -30,8 +30,9 @@ from pyogrio.core import (
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write_arrow
 
-"""The version of pyogrio as a string."""
 __version__ = get_versions()["version"]
+"""The version of pyogrio as a string."""
+
 del get_versions
 
 __all__ = [
