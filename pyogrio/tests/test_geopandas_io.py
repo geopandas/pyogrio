@@ -440,6 +440,7 @@ def test_read_list_types(list_field_values_files, use_arrow):
             exp_list_int_with_null_value = [0, 0]
             # xfail: when reading a list of int with None values without Arrow from a
             # .parquet file, the None values become 0, which is wrong.
+            # https://github.com/OSGeo/gdal/issues/13448
 
     assert "list_int_with_null" in result.columns
     assert info["fields"][4] == "list_int_with_null"
