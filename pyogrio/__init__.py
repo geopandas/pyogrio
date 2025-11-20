@@ -1,4 +1,4 @@
-"""Vectorized vector I/O using OGR."""
+"""Bulk-oriented vector I/O using OGR."""
 
 try:
     # we try importing shapely, to ensure it is imported (and it can load its
@@ -30,6 +30,7 @@ from pyogrio.core import (
 from pyogrio.geopandas import read_dataframe, write_dataframe
 from pyogrio.raw import open_arrow, read_arrow, write_arrow
 
+"""The version of pyogrio as a string."""
 __version__ = get_versions()["version"]
 del get_versions
 
