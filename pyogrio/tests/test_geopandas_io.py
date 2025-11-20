@@ -820,7 +820,7 @@ def test_write_read_datetime_tz_objects(
         # This was fixed in https://github.com/OSGeo/gdal/pull/11049
 
         # Add 5 hours to the expected datetimes to match the wrong result.
-        exp_df.dates = exp_df.dates + pd.Timedelta(hours=5)
+        exp_df.dates = exp_df.dates - pd.Timedelta(hours=5, unit="ms")
         if datetime_as_string:
             exp_df.dates = exp_df.dates.astype("string").str.replace(" ", "T")
         assert_geodataframe_equal(result, exp_df)
