@@ -42,7 +42,7 @@ jobs:
           python -m pip install build setuptools
           python -m build --sdist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pyogrio-sdist
           path: ./dist/*.tar.gz
@@ -73,7 +73,7 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Download sdist from artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: pyogrio-sdist
           path: wheelhouse
@@ -148,7 +148,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.wheel_name }}
           path: ./wheelhouse/*.whl
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
           path: ${{ matrix.vcpkg_logs }}
@@ -235,7 +235,7 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: pyogrio-wheel-${{ matrix.triplet }}
           path: ./wheelhouse/*.whl
@@ -257,7 +257,7 @@ jobs:
             "macos-13",
             "macos-latest",
           ]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -305,7 +305,7 @@ jobs:
           "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Download wheels from artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: ${{ matrix.artifact }}
           path: wheelhouse
@@ -313,14 +313,14 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          if [ ${{ matrix.python-version }} != "3.14" ]; then
-            uv pip install -r ci/requirements-wheel-test.txt
-          else
-            uv pip install pytest numpy certifi packaging
-          fi
+          uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          if [ ${{ matrix.python-version }} != "3.14" ]; then
-            uv pip install --no-deps geopandas
+          # TMP avoid installing nightly pandas given pandas <-> geopandas compatibility issues
+          # if [ ${{ matrix.python-version }} == "3.14t" ]; then
+          #   uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
+          # fi
+          if [ ${{ matrix.python-version }} != "3.14t" ]; then
+              uv pip install --no-deps geopandas
           fi
           uv pip list
 
@@ -347,7 +347,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           pattern: pyogrio-*
           path: dist

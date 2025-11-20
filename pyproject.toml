@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools",
-    "Cython>=0.29",
+    "Cython>=3.1",
     "versioneer[toml]==0.28",
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
@@ -26,12 +26,13 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: GIS",
+    "Programming Language :: Python :: Free Threading :: 2 - Beta",
 ]
 requires-python = ">=3.10"
 dependencies = ["certifi", "numpy", "packaging"]
 
 [project.optional-dependencies]
-dev = ["cython"]
+dev = ["cython>=3.1"]
 test = ["pytest", "pytest-cov"]
 benchmark = ["pytest-benchmark"]
 geopandas = ["geopandas"]
@@ -41,11 +42,12 @@ Home = "https://pyogrio.readthedocs.io/"
 Repository = "https://github.com/geopandas/pyogrio"
 
 [tool.cibuildwheel]
-skip = ["*musllinux*", "cp31?t-*"]
+skip = ["*musllinux*"]
 archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-x86_64-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
 build-verbosity = 3
+enable = ["cpython-freethreading"]
 
 [tool.cibuildwheel.linux.environment]
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
