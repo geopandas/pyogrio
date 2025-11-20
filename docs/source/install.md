@@ -46,11 +46,15 @@ most likely due to the installation process falling back to installing from the
 source distribution because the available wheels are not compatible with your
 platform.
 
-The binary wheels available on PyPI include the core GDAL drivers (GeoJSON,
-ESRI Shapefile, GPKG, FGB, OpenFileGDB, etc). You can use
-{func}`pyogrio.list_drivers()` to list the included drivers. If you need drivers
-that are not included, we recommend that you use conda-forge to install pyogrio
-as explained above.
+Note that the GDAL version included in the wheels is not always the latest version.
+Use {func}`pyogrio.__gdal_version_string__` to get the GDAL version included.
+The wheels also include only the core GDAL drivers (GeoJSON, ESRI Shapefile, GPKG,
+FGB, OpenFileGDB, etc). You can use {func}`pyogrio.list_drivers()` to list the
+included drivers.
+
+If you need drivers that are not included, or if you need `pyogrio` to use a newer
+version of GDAL, it is recommended to use conda-forge to install pyogrio as
+explained above.
 
 ### Troubleshooting installation errors
 
