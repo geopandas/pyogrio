@@ -36,13 +36,8 @@ with GDALEnv():
     _register_drivers()
     _register_error_handler()
 
-    #: The GDAL version used by pyogrio (`tuple` of `int`).
     __gdal_version__ = get_gdal_version()
-
-    #: The GDAL version used by pyogrio (`str`).
     __gdal_version_string__ = get_gdal_version_string()
-
-    #: The version of GEOS used by GDAL (`tuple` of `int`).
     __gdal_geos_version__ = get_gdal_geos_version()
 
 
