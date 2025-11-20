@@ -390,7 +390,7 @@ def vsi_unlink(path: str | Path):
     ogr_vsi_unlink(path)
 
 
-def vsi_curl_clear_cache(prefix: str | Path = ""):
+def vsi_curl_clear_cache(prefix: str = ""):
     """Clean local cache associated with /vsicurl/.
 
     Parameters

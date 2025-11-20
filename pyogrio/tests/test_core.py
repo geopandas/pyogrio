@@ -711,4 +711,3 @@ def test_vsi_curl_clear_cache_empty_default():
 def test_vsi_curl_clear_cache():
     # Validate call doesn't raise any error when prefix/path is used
     vsi_curl_clear_cache("http://example.com/prefix")
-    vsi_curl_clear_cache(Path("s3://abc"))
