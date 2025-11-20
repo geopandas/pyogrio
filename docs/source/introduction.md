@@ -10,7 +10,7 @@ You can display the GDAL version that Pyogrio was compiled against by
 
 ## List available drivers
 
-Use `pyogrio.list_drivers()` to list all available drivers in your installation
+Use {func}`pyogrio.list_drivers()` to list all available drivers in your installation
 of GDAL. However, just because a driver is listed does not mean that it is
 currently compatible with Pyogrio.
 
@@ -53,7 +53,7 @@ The following drivers are known to be well-supported and tested in Pyogrio:
 
 ## List available layers
 
-To list layers available in a data source:
+To list layers available in a data source, use {func}`pyogrio.list_layers()`:
 
 ```python
 >>> from pyogrio import list_layers
@@ -68,9 +68,9 @@ be nonspatial. In this case, the geometry type will be `None`.
 
 ## Read basic information about a data layer
 
-To list information about a data layer in a data source, use the name of the layer
-or its index (0-based) within the data source. By default, this reads from the
-first layer.
+To list information about a data layer in a data source, use 
+{func}`pyogrio.read_info()`. You can specify the name of the layer or its index
+(0-based) within the data source. By default, this reads from the first layer.
 
 ```python
 >>> from pyogrio import read_info
@@ -102,8 +102,9 @@ To read from a layer using name or index (the following are equivalent):
 
 ## Read a data layer into a GeoPandas GeoDataFrame
 
-To read all features from a spatial data layer. By default, this operates on
-the first layer unless `layer` is specified using layer name or index.
+To read all features from a spatial data layer, use {func}`pyogrio.read_dataframe()`.
+By default, this operates on the first layer unless `layer` is specified using layer
+name or index.
 
 ```python
 >>> from pyogrio import read_dataframe
@@ -368,7 +369,7 @@ This function supports options to subset features from the dataset:
 
 ## Write a GeoPandas GeoDataFrame
 
-You can write a `GeoDataFrame` `df` to a file as follows:
+You can write a `GeoDataFrame` `df` to a file as with {func}`pyogrio.write_dataframe()`:
 
 ```python
 >>> from pyogrio import write_dataframe
