@@ -5,11 +5,12 @@ channels:
 dependencies:
   - libgdal-core
   - pytest
+  - pandas
   - pip
   - pip:
     - --pre --prefer-binary --index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple --extra-index-url https://pypi.fury.io/arrow-nightlies/ --extra-index-url https://pypi.org/simple
     - geopandas
     - numpy>=2.0.0.dev
     - shapely
-    - pandas
+    # - pandas
     - pyarrow
