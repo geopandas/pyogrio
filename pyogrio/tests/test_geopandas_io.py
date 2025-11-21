@@ -919,9 +919,7 @@ def test_write_read_datetime_tz_objects(
     )
 
     # With some older versions, the offset is represented slightly differently
-    if not PANDAS_GE_20 and result.dates.dtype.name.endswith(
-        ", pytz.FixedOffset(-300)]"
-    ):
+    if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
         result["dates"] = result.dates.astype(exp_df.dates.dtype)
 
     if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
@@ -969,10 +967,7 @@ def test_write_read_datetime_tz_objects(
     elif mixed_offsets_as_utc:
         # the offsets are all -05:00, so the result retains the offset and not UTC
         assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
-        if PANDAS_GE_20:
-            assert str(result.dates.dtype.tz) == "UTC-05:00"
-        else:
-            assert str(result.dates.dtype.tz) in ("UTC-05:00", "pytz.FixedOffset(-300)")
+        assert str(result.dates.dtype.tz) in ("UTC-05:00", "pytz.FixedOffset(-300)")
     else:
         assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
 
