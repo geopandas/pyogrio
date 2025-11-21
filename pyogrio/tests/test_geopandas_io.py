@@ -24,6 +24,7 @@ from pyogrio._compat import (
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    PANDAS_GE_23,
     PANDAS_GE_30,
     SHAPELY_GE_21,
 )
@@ -1918,7 +1919,9 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert filename.exists()
 
     result_gdf = read_dataframe(filename, use_arrow=use_arrow)
-    if PANDAS_GE_30 and use_arrow:
+    if (
+        PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+    ) and use_arrow:
         assert result_gdf.object_col.dtype == "str"
         gdf["object_col"] = gdf["object_col"].astype("str")
     else:
