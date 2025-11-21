@@ -50,7 +50,12 @@ def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: boo
         if not is_string_dtype(ser.dtype):
             # Support to return datetimes as strings using arrow only available for
             # GDAL >= 3.11, so convert to string here if needed.
-            res = ser.astype("string").str.replace(" ", "T")
+            if PANDAS_GE_30:
+                res = ser.astype("str")
+            else:
+                # astype("str") also stringifies missing values in pandas < 3
+                res = ser.map(str, na_action="ignore")
+            res = res.str.replace(" ", "T")
             return res
         if __gdal_version__ < (3, 7, 0):
             # GDAL < 3.7 doesn't return datetimes in ISO8601 format, so fix that
