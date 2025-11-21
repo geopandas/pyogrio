@@ -914,11 +914,6 @@ def test_write_read_datetime_tz_objects(
     exp_df = df.copy()
     exp_df["dates"] = pd.Series(exp_dates, name="dates")
 
-    exp_dates_str = pd.Series(
-        ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00.000-05:00", np.nan],
-        name="dates",
-    )
-
     # With some older versions, the offset is represented slightly differently
     if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
         result["dates"] = result.dates.astype(exp_df.dates.dtype)
@@ -959,9 +954,17 @@ def test_write_read_datetime_tz_objects(
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             # With GDAL < 3.11 with arrow, datetime columns are written as string type
-            exp_df["dates"] = exp_dates_str
+            exp_df["dates"] = pd.Series(
+                [
+                    "2020-01-01T09:00:00.123000-05:00",
+                    "2020-01-01T10:00:00-05:00",
+                    np.nan,
+                ]
+            )
         else:
-            exp_df["dates"] = exp_dates_str.str.replace(".000", "")
+            exp_df["dates"] = pd.Series(
+                ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", np.nan]
+            )
             if __gdal_version__ < (3, 7, 0):
                 # With GDAL < 3.7, timezone minutes aren't included in the string
                 exp_df["dates"] = exp_df.dates.str.slice(0, -3)
