@@ -16,9 +16,9 @@ Pyogrio is fast because it uses pre-compiled bindings for GDAL/OGR to read and
 write the data records in bulk. This approach avoids multiple steps of
 converting to and from Python data types within Python, so performance becomes
 primarily limited by the underlying I/O speed of data source drivers in
-GDAL/OGR.
+GDAL/OGR. 
 
-We have seen \>5-10x speedups reading files and \>5-20x speedups writing files
+We have seen \>5-100x speedups reading files and \>5-20x speedups writing files
 compared to using row-per-row approaches (e.g. Fiona).
 
 ```{toctree}
