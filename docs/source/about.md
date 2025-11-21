@@ -17,9 +17,10 @@ performance boost, especially when reading large files.
 
 All records are read into memory in bulk. This is very fast, but can give memory
 issues when reading very large data sources. To solve this, Pyogrio exposes
-several options offered by GDAL to filter the data efficiently while being read.
+several options offered by GDAL to filter the data while being read.
 Some examples are a filter on a `bbox`, use `skip_features` / `max_features`,
-using a `sql` statement, etc.
+using a `sql` statement, etc. The performance of the filtering depends on the
+file format being read, e.g. the availability of (spatial) indexes, etc.
 
 When writing, the entire `GeoDataFrame` is written at once, but it is possible
 to append data to an existing data source.
