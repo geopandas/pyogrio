@@ -165,6 +165,9 @@ def read_dataframe(
     If the data source does not have a geometry column or ``read_geometry`` is False,
     a DataFrame will be returned.
 
+    If you read data with datetime columns containing timezone information, check out
+    the notes below.
+
     Requires ``geopandas`` >= 0.8.
 
     Parameters
@@ -320,16 +323,15 @@ def read_dataframe(
 
     Notes
     -----
-    Be careful when reading columns with mixed timezone offsets. By default such columns
-    will be returned as a UTC datetime column, so timezone information will be lost. If
-    you want to preserve the timezone information, you can use `datetime_as_string=True`
-    or `mixed_offsets_as_utc=False`. In this context, it is important to note that GDAL
-    only represents time zones as UTC offsets, whilst pandas uses IANA time zones (via
-    `pytz` or `zoneinfo`). As a result, even if a column in a `DataFrame` contains
+    When you use datetime date with timezone information, it is important to note that
+    GDAL only represents time zones as UTC offsets, whilst pandas uses IANA time zones
+    (via `pytz` or `zoneinfo`). As a result, even if a column in a `DataFrame` contains
     datetimes in a single timezone, this will often still result in mixed timezone
-    offsets being written for timezones where daylight saving time is used (e.g. +1 and
-    +2 offsets for timezone Europe/Brussels). As stated above, the default behaviour of
-    `pyogrio.read_dataframe()` in this case will be to return the data as UTC.
+    offsets being written for timezones where daylight saving time is used (e.g. +1
+    and +2 offsets for timezone Europe/Brussels). Because the default behaviour of
+    `pyogrio.read_dataframe()` is to convert mixed timezone datetime columns to UTC,
+    the timezone information will be "lost". If you want to preserve the timezone
+    information, you can use `datetime_as_string=True` or `mixed_offsets_as_utc=False`.
 
     .. _OGRSQL:
 
