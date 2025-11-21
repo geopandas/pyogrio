@@ -2,17 +2,18 @@
 
 ## How it works
 
-The default mode in Pyogrio uses a numpy-oriented approach in Cython to read
+The "standard" mode in Pyogrio uses a numpy-oriented approach in Cython to read
 information about data sources and records from spatial data layers. Geometries
 are extracted from the data layer as Well-Known Binary (WKB) objects and fields
 (attributes) are read into numpy arrays of the appropriate data type. These are
 then converted to a GeoPandas `GeoDataFrame`.
 
-When `use_arrow=True` is used, Pyogrio uses the Arrow Stream interface of GDAL,
-which reads the data to the [Apache Arrow](https://arrow.apache.org/) memory
-format. Pyogrio then converts the data to a `GeoDataFrame`. Because this code
-path is even more optimized, also in GDAL, using `use_arrow=True` can give
-a significant performance boost, especially when reading large files.
+When the "Arrow" mode is used, (`use_arrow=True`), Pyogrio uses the Arrow Stream
+interface of GDAL, which reads the data to the
+[Apache Arrow](https://arrow.apache.org/) memory format. After reading the data,
+Pyogrio converts the data to a `GeoDataFrame`. Because this code path is even
+more optimized, also in GDAL, using `use_arrow=True` can give a significant
+performance boost, especially when reading large files.
 
 All records are read into memory in bulk. This is very fast, but can give memory
 issues when reading very large data sources. To solve this, Pyogrio exposes
