@@ -699,7 +699,8 @@ def test_write_read_datetime_tz(
     elif datetime_as_string:
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
-            dates_str = df.dates.astype("string").str.replace(" ", "T")
+            dates_str = df.dates.astype("str").str.replace(" ", "T")
+            dates_str.iloc[2] = np.nan
         elif __gdal_version__ < (3, 7, 0):
             # With GDAL < 3.7, timezone minutes aren't included in the string
             dates_str = [x[:-3] for x in dates_raw if pd.notna(x)] + [np.nan]
