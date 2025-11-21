@@ -63,6 +63,8 @@ cdef extern from "cpl_vsi.h" nogil:
     int         VSIFCloseL(VSILFILE *fp)
     int         VSIFFlushL(VSILFILE *fp)
     int         VSIUnlink(const char *path)
+    void        VSICurlPartialClearCache(const char *prefix)
+    void        VSICurlClearCache()
 
     VSILFILE*       VSIFileFromMemBuffer(const char *path,
                                          void *data,
