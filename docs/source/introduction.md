@@ -486,12 +486,12 @@ note that GDAL only represents time zones as UTC offsets, whilst pandas uses
 IANA time zones (via `pytz` or `zoneinfo`). As a result, even if a column in a
 DataFrame contains datetimes in a single time zone, this will often still result
 in mixed time zone offsets being written for time zones where daylight saving
-time is used (e.g. +01:00 and +02:00 offsets for timezone Europe/Brussels). When
-roundtripping through GDAL, the information about the original time zone is
-lost, only the offsets can be preserved. By default, `pyogrio.read_dataframe()`
-will convert columns with mixed offsets to UTC to return a datetime64 column. If
-you want to preserve the original offsets, you can use `datetime_as_string=True`
-or `mixed_offsets_as_utc=False`.
+time is used (e.g. +01:00 and +02:00 offsets for time zone Europe/Brussels).
+When roundtripping through GDAL, the information about the original time zone
+is lost, only the offsets can be preserved. By default,
+{func}`pyogrio.read_dataframe()` will convert columns with mixed offsets to UTC
+to return a datetime64 column. If you want to preserve the original offsets,
+you can use `datetime_as_string=True` or `mixed_offsets_as_utc=False`.
 
 ## Dataset and layer creation options
 

@@ -1827,7 +1827,7 @@ def ogr_open_arrow(
             )
 
         # Read DateTime fields as strings, as the Arrow DateTime column type is
-        # quite limited regarding support for mixed timezones,...
+        # quite limited regarding support for mixed time zones,...
         IF CTE_GDAL_VERSION >= (3, 11, 0):
             if datetime_as_string:
                 options = CSLSetNameValue(options, "DATETIME_AS_STRING", "YES")

@@ -151,7 +151,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as a string
-        array (which can be used to extract timezone info), instead of
+        array (which can be used to extract time zone info), instead of
         a datetime64 array.
 
     **kwargs
@@ -397,7 +397,7 @@ def open_arrow(
         Protocol to consume the stream of data.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as strings,
-        as Arrow doesn't support e.g. mixed timezones.
+        as Arrow doesn't support e.g. mixed time zones.
 
     Examples
     --------
@@ -693,7 +693,7 @@ def write(
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     gdal_tz_offsets : dict, optional (default: None)
-        Used to handle GDAL timezone offsets for each field contained in dict.
+        Used to handle GDAL time zone offsets for each field contained in dict.
     **kwargs
         Additional driver-specific dataset creation options passed to OGR. Invalid
         options will trigger a warning.

@@ -80,17 +80,17 @@ def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: boo
         try:
             res = pd.to_datetime(ser, **datetime_kwargs)
 
-            # With pandas >2 and <3, mixed timezones were returned as pandas Timestamps,
-            # so convert them to datetime objects.
+            # With pandas >2 and <3, mixed time zones were returned as pandas
+            # Timestamps, so convert them to datetime objects.
             if not mixed_offsets_as_utc and PANDAS_GE_20 and res.dtype == "object":
                 res = res.map(lambda x: x.to_pydatetime(), na_action="ignore")
 
         except Exception as ex:
             if isinstance(ex, ValueError) and "Mixed timezones detected" in str(ex):
-                # Parsing mixed timezones with to_datetime is not supported
+                # Parsing mixed time zones with to_datetime is not supported
                 # anymore in pandas >= 3.0, leading to a ValueError.
                 if mixed_offsets_as_utc:
-                    # Convert mixed timezone datetimes to UTC.
+                    # Convert mixed time zone datetimes to UTC.
                     try:
                         res = pd.to_datetime(ser, utc=True, **datetime_kwargs)
                     except Exception as ex:
@@ -106,7 +106,7 @@ def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: boo
                         return ser
 
             else:
-                # If the error is not related to mixed timezones, log it and return
+                # If the error is not related to mixed time zones, log it and return
                 # the original series.
                 warnings.warn(warning.format(message=str(ex)), stacklevel=3)
                 if __gdal_version__ < (3, 7, 0):
@@ -115,7 +115,7 @@ def _try_parse_datetime(ser, datetime_as_string: bool, mixed_offsets_as_utc: boo
 
                 return ser
 
-    # For pandas < 3.0, to_datetime converted mixed timezone data to datetime objects.
+    # For pandas < 3.0, to_datetime converted mixed time zone data to datetime objects.
     # For mixed_offsets_as_utc they should be converted to UTC though...
     if mixed_offsets_as_utc and res.dtype in ("object", "string"):
         try:
@@ -294,7 +294,7 @@ def read_dataframe(
         By default, datetime columns are read as the pandas datetime64 dtype.
         This can represent the data as-is in the case that the column contains
         only naive datetimes (without time zone information), only UTC datetimes,
-        or if all datetimes in the column have the same timezone offset. Note
+        or if all datetimes in the column have the same time zone offset. Note
         that in time zones with daylight saving time, datetimes will have
         different offsets throughout the year!
 
@@ -329,7 +329,7 @@ def read_dataframe(
     IANA time zones (via `pytz` or `zoneinfo`). As a result, even if a column in a
     DataFrame contains datetimes in a single time zone, this will often still result
     in mixed time zone offsets being written for time zones where daylight saving
-    time is used (e.g. +01:00 and +02:00 offsets for timezone Europe/Brussels). When
+    time is used (e.g. +01:00 and +02:00 offsets for time zone Europe/Brussels). When
     roundtripping through GDAL, the information about the original time zone is
     lost, only the offsets can be preserved. By default, `pyogrio.read_dataframe()`
     will convert columns with mixed offsets to UTC to return a datetime64 column. If
@@ -373,12 +373,12 @@ def read_dataframe(
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
 
-    # Always read datetimes as string values to preserve (mixed) timezone info
+    # Always read datetimes as string values to preserve (mixed) time zone info
     # correctly. If arrow is not used, it is needed because numpy does not
-    # directly support timezones + performance is also a lot better. If arrow
-    # is used, needed because datetime columns don't support mixed timezone
-    # offsets + e.g. for .fgb files timezone info isn't handled correctly even
-    # for unique timezone offsets if datetimes are not read as string.
+    # directly support time zones + performance is also a lot better. If arrow
+    # is used, needed because datetime columns don't support mixed time zone
+    # offsets + e.g. for .fgb files time zone info isn't handled correctly even
+    # for unique time zone offsets if datetimes are not read as string.
     result = read_func(
         path_or_buffer,
         layer=layer,
@@ -636,7 +636,7 @@ def write_dataframe(
     IANA time zones (via `pytz` or `zoneinfo`). As a result, even if a column in a
     DataFrame contains datetimes in a single time zone, this will often still result
     in mixed time zone offsets being written for time zones where daylight saving
-    time is used (e.g. +01:00 and +02:00 offsets for timezone Europe/Brussels).
+    time is used (e.g. +01:00 and +02:00 offsets for time zone Europe/Brussels).
 
     Object dtype columns containing `datetime` or `pandas.Timestamp` objects will
     also be written as datetime fields, preserving time zone information where possible.
@@ -781,9 +781,9 @@ def write_dataframe(
             df = pd.DataFrame(df, copy=False)
             df[geometry_column] = geometry
 
-        # Arrow doesn't support datetime columns with mixed timezones, and GDAL only
-        # supports timezone offsets. Hence, to avoid data loss, convert columns that can
-        # contain datetime values with different offsets to strings.
+        # Arrow doesn't support datetime columns with mixed time zones, and GDAL only
+        # supports time zone offsets. Hence, to avoid data loss, convert columns that
+        # can contain datetime values with different offsets to strings.
         # Also pass a list of these columns on to GDAL so it can still treat them as
         # datetime columns when writing the dataset.
         datetime_cols = []
@@ -795,7 +795,7 @@ def write_dataframe(
                     datetime_cols.append(name)
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
-                # A pd.datetime64 column with a timezone different than UTC can contain
+                # A pd.datetime64 column with a time zone different than UTC can contain
                 # data with different offsets because of summer/winter time.
                 df[name] = df[name].astype("string")
                 datetime_cols.append(name)
@@ -870,13 +870,13 @@ def write_dataframe(
         values = None
 
         if isinstance(col.dtype, pd.DatetimeTZDtype):
-            # Deal with datetimes with timezones by passing down timezone separately
+            # Deal with datetimes with time zones by passing down time zone separately
             # pass down naive datetime
             naive = col.dt.tz_localize(None)
             values = naive.values
             # compute offset relative to UTC explicitly
             tz_offset = naive - col.dt.tz_convert("UTC").dt.tz_localize(None)
-            # Convert to GDAL timezone offset representation.
+            # Convert to GDAL time zone offset representation.
             # GMT is represented as 100 and offsets are represented by adding /
             # subtracting 1 for every 15 minutes different from GMT.
             # https://gdal.org/development/rfc/rfc56_millisecond_precision.html#core-changes

@@ -186,7 +186,7 @@
 
 ### Improvements
 
--   Support reading and writing datetimes with timezones (#253).
+-   Support reading and writing datetimes with time zones (#253).
 -   Support writing dataframes without geometry column (#267).
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant

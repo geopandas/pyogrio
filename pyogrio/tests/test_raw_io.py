@@ -1001,7 +1001,7 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
 def test_read_datetime_as_string(datetime_tz_file):
     field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
-    # timezone is ignored in numpy layer
+    # time zone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 

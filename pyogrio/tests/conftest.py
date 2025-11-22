@@ -432,7 +432,7 @@ def datetime_file(tmp_path):
 
 @pytest.fixture(scope="function")
 def datetime_tz_file(tmp_path):
-    # create GeoJSON file with datetimes with timezone
+    # create GeoJSON file with datetimes with time zone
     datetime_tz_geojson = """{
         "type": "FeatureCollection",
         "features": [
