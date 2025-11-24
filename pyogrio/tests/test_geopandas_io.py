@@ -20,6 +20,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GEOS_GE_312,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -1207,6 +1208,18 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert len(df) == 1
     assert len(df.columns) == 4
     assert df.iloc[0].geometry.area > area_canada
+
+
+def test_read_zm(line_zm_file, use_arrow):
+    df = read_dataframe(line_zm_file, use_arrow=use_arrow)
+
+    if SHAPELY_GE_21 and GEOS_GE_312:
+        assert df.geometry.iloc[0].has_z
+        assert df.geometry.iloc[0].has_m
+        assert df.geometry.iloc[0].wkt.startswith("LINESTRING ZM (")
+    else:
+        assert df.geometry.iloc[0].has_z
+        assert df.geometry.iloc[0].wkt.startswith("LINESTRING Z (")
 
 
 @pytest.mark.parametrize(

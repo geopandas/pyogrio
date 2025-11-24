@@ -866,7 +866,9 @@ cdef validate_feature_range(
 
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
-cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d):
+cdef process_geometry(
+    OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d, uint8_t keep_m
+):
 
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRwkbGeometryType ogr_geometry_type
@@ -883,8 +885,9 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
             ogr_geometry_type = OGR_G_GetGeometryType(ogr_geometry)
 
             # if geometry has M values, these need to be removed first
-            if (OGR_G_IsMeasured(ogr_geometry)):
-                OGR_G_SetMeasured(ogr_geometry, 0)
+            if not keep_m:
+                if (OGR_G_IsMeasured(ogr_geometry)):
+                    OGR_G_SetMeasured(ogr_geometry, 0)
 
             if force_2d and OGR_G_Is3D(ogr_geometry):
                 OGR_G_Set3D(ogr_geometry, 0)
@@ -1074,7 +1077,8 @@ cdef get_features(
     int skip_features,
     int num_features,
     uint8_t return_fids,
-    bint datetime_as_string
+    bint datetime_as_string,
+    bint keep_m,
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -1150,7 +1154,7 @@ cdef get_features(
                 fid_view[i] = OGR_F_GetFID(ogr_feature)
 
             if read_geometry:
-                process_geometry(ogr_feature, i, geom_view, force_2d)
+                process_geometry(ogr_feature, i, geom_view, force_2d, keep_m)
 
             process_fields(
                 ogr_feature, i, n_fields, field_data, field_data_view,
@@ -1185,7 +1189,8 @@ cdef get_features_by_fid(
     encoding,
     uint8_t read_geometry,
     uint8_t force_2d,
-    bint datetime_as_string
+    bint datetime_as_string,
+    bint keep_m,
 ):
 
     cdef OGRFeatureH ogr_feature = NULL
@@ -1235,7 +1240,7 @@ cdef get_features_by_fid(
                 raise FeatureError(str(exc))
 
             if read_geometry:
-                process_geometry(ogr_feature, i, geom_view, force_2d)
+                process_geometry(ogr_feature, i, geom_view, force_2d, keep_m)
 
             process_fields(
                 ogr_feature, i, n_fields, field_data, field_data_view,
@@ -1337,6 +1342,7 @@ def ogr_read(
     str sql_dialect=None,
     int return_fids=False,
     bint datetime_as_string=False,
+    bint keep_m=False,
 ):
 
     cdef int err = 0
@@ -1470,6 +1476,7 @@ def ogr_read(
                 read_geometry=read_geometry and geometry_type is not None,
                 force_2d=force_2d,
                 datetime_as_string=datetime_as_string,
+                keep_m=keep_m,
             )
 
             # bypass reading fids since these should match fids used for read
@@ -1503,7 +1510,8 @@ def ogr_read(
                 skip_features=skip_features,
                 num_features=num_features,
                 return_fids=return_fids,
-                datetime_as_string=datetime_as_string
+                datetime_as_string=datetime_as_string,
+                keep_m=keep_m,
             )
 
         ogr_types = [FIELD_TYPE_NAMES.get(field[1], "Unknown") for field in fields]
@@ -1602,6 +1610,7 @@ def ogr_open_arrow(
     int return_fids=False,
     int batch_size=0,
     use_pyarrow=False,
+    bint keep_m=False,
 ):
 
     cdef int err = 0

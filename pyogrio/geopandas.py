@@ -7,6 +7,7 @@ import warnings
 import numpy as np
 
 from pyogrio._compat import (
+    GEOS_GE_312,
     HAS_GEOPANDAS,
     HAS_PYARROW,
     PANDAS_GE_15,
@@ -14,6 +15,7 @@ from pyogrio._compat import (
     PANDAS_GE_22,
     PANDAS_GE_30,
     PYARROW_GE_19,
+    SHAPELY_GE_21,
 )
 from pyogrio.errors import DataSourceError
 from pyogrio.raw import (
@@ -269,6 +271,8 @@ def read_dataframe(
 
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
+    keep_m = True if SHAPELY_GE_21 and GEOS_GE_312 else False
+    keep_m = True
     if not use_arrow:
         # For arrow, datetimes are read as is.
         # For numpy IO, datetimes are read as string values to preserve timezone info
@@ -290,6 +294,7 @@ def read_dataframe(
         sql=sql,
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
+        keep_m=keep_m,
         **kwargs,
     )
 
