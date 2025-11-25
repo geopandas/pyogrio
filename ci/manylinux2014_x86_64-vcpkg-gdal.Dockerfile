@@ -6,8 +6,9 @@ RUN yum install -y curl unzip zip tar perl-IPC-Cmd
 # require python >= 3.7 (python 3.6 is default on base image) for meson
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
+ARG VCPKG_GDAL_COMMIT
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
-    git -C /opt/vcpkg checkout da096fdc67db437bee863ae73c4c12e289f82789
+    git -C /opt/vcpkg checkout ${VCPKG_GDAL_COMMIT}
 
 ENV VCPKG_INSTALLATION_ROOT="/opt/vcpkg"
 ENV PATH="${PATH}:/opt/vcpkg"
