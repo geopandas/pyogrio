@@ -151,7 +151,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as a string
-        array (which can be used to extract timezone info), instead of
+        array (which can be used to extract time zone info), instead of
         a datetime64 array.
 
     **kwargs
@@ -235,6 +235,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Read OGR data source into a pyarrow Table.
@@ -309,6 +310,7 @@ def read_arrow(
         skip_features=gdal_skip_features,
         batch_size=batch_size,
         use_pyarrow=True,
+        datetime_as_string=datetime_as_string,
         **kwargs,
     ) as source:
         meta, reader = source
@@ -364,6 +366,7 @@ def open_arrow(
     return_fids=False,
     batch_size=65_536,
     use_pyarrow=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Open OGR data source as a stream of Arrow record batches.
@@ -392,6 +395,9 @@ def open_arrow(
         ArrowStream object. In the default case, this stream object needs
         to be passed to another library supporting the Arrow PyCapsule
         Protocol to consume the stream of data.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as strings,
+        as Arrow doesn't support e.g. mixed time zones.
 
     Examples
     --------
@@ -429,9 +435,13 @@ def open_arrow(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
+            "fid_column": "<name of FID column in arrow table>"
         }
 
     """
@@ -456,6 +466,7 @@ def open_arrow(
         dataset_kwargs=dataset_kwargs,
         batch_size=batch_size,
         use_pyarrow=use_pyarrow,
+        datetime_as_string=datetime_as_string,
     )
 
 
@@ -682,7 +693,7 @@ def write(
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     gdal_tz_offsets : dict, optional (default: None)
-        Used to handle GDAL timezone offsets for each field contained in dict.
+        Used to handle GDAL time zone offsets for each field contained in dict.
     **kwargs
         Additional driver-specific dataset creation options passed to OGR. Invalid
         options will trigger a warning.

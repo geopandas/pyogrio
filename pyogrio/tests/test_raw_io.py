@@ -1001,15 +1001,20 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
 def test_read_datetime_as_string(datetime_tz_file):
     field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
-    # timezone is ignored in numpy layer
+    # time zone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
     field = read(datetime_tz_file, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
-    # GDAL doesn't return strings in ISO format (yet)
-    assert field[0] == "2020/01/01 09:00:00.123-05"
-    assert field[1] == "2020/01/01 10:00:00-05"
+
+    if __gdal_version__ < (3, 7, 0):
+        # With GDAL < 3.7, datetimes are not returned as ISO8601 strings
+        assert field[0] == "2020/01/01 09:00:00.123-05"
+        assert field[1] == "2020/01/01 10:00:00-05"
+    else:
+        assert field[0] == "2020-01-01T09:00:00.123-05:00"
+        assert field[1] == "2020-01-01T10:00:00-05:00"
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
