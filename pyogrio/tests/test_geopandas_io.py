@@ -492,8 +492,14 @@ def test_read_list_types_columns(request, list_field_values_files, use_arrow, co
         pytest.skip(
             "Skipping test for parquet as the GDAL Parquet driver is not available"
         )
-    if use_arrow and columns is not None and len(columns) == 2:
-        # This gives following error, not sure why:
+    if (
+        use_arrow
+        and columns
+        and len(columns) == 2
+        and list_field_values_files.suffix == ".parquet"
+    ):
+        # This gives following error, not sure why. Opened an issue for followup:
+        # https://github.com/geopandas/pyogrio/issues/XXX
         error_msg = (
             "This fails with 'pyarrow.lib.ArrowInvalid: ArrowArray struct has "
             "1 children, expected 0 for type extension<geoarrow.wkb>'"
