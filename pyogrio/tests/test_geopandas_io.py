@@ -348,13 +348,21 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
         read_dataframe(naturalearth_lowres_all_ext, layer="wrong", use_arrow=use_arrow)
 
 
-def test_read_datetime(datetime_file, use_arrow):
-    df = read_dataframe(datetime_file, use_arrow=use_arrow)
-    if PANDAS_GE_20:
-        # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.col.dtype.name == "datetime64[ms]"
+@pytest.mark.parametrize("columns", [None, [], ["col"]])
+def test_read_datetime_columns(datetime_file, columns, use_arrow):
+    df = read_dataframe(datetime_file, columns=columns, use_arrow=use_arrow)
+
+    # Check result
+    if columns is None or "col" in columns:
+        assert "col" in df.columns
+        assert is_datetime64_dtype(df.col.dtype)
+        if PANDAS_GE_20:
+            # starting with pandas 2.0, it preserves the passed datetime resolution
+            assert df.col.dtype.name == "datetime64[ms]"
+        else:
+            assert df.col.dtype.name == "datetime64[ns]"
     else:
-        assert df.col.dtype.name == "datetime64[ns]"
+        assert len(df.columns) == 1  # only geometry
 
 
 def test_read_list_types(list_field_values_files, use_arrow):
@@ -475,6 +483,30 @@ def test_read_list_types(list_field_values_files, use_arrow):
 
     assert pd.isna(result["list_string_with_null"][3])
     assert result["list_string_with_null"][4] == [""]
+
+
+@pytest.mark.parametrize("columns", [None, [], ["list_int", "list_string"]])
+def test_read_list_types_columns(request, list_field_values_files, use_arrow, columns):
+    """Test reading a geojson file containing fields with lists."""
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+    if use_arrow and columns is not None and len(columns) == 2:
+        # This gives following error, not sure why:
+        error_msg = (
+            "This fails with 'pyarrow.lib.ArrowInvalid: ArrowArray struct has "
+            "1 children, expected 0 for type extension<geoarrow.wkb>'"
+        )
+        request.node.add_marker(pytest.mark.xfail(reason=error_msg))
+
+    result = read_dataframe(
+        list_field_values_files, use_arrow=use_arrow, columns=columns
+    )
+
+    # Check result
+    exp_columns = 7 if columns is None else len(columns) + 1  # +1 for geometry
+    assert len(result.columns) == exp_columns
 
 
 @pytest.mark.requires_arrow_write_api
@@ -3200,7 +3232,7 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
-@pytest.mark.requires_arrow_api
+@pytest.mark.requires_arrow_write_api
 @pytest.mark.skipif(
     not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
 )
