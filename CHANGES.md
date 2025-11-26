@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.12.1 (????-??-??)
+
+### Bug fixes
+
+-   Fix error in `read_dataframe` when `use_arrow=True` and `columns` is used to filter
+    out columns of some specific types (#611)
+
 ## 0.12.0 (2025-11-26)
 
 ### Potentially breaking changes
