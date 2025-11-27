@@ -23,7 +23,6 @@ from pyogrio._compat import (
     GDAL_GE_311,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
-    NUMPY_GE_20,
     PANDAS_GE_15,
     PANDAS_GE_23,
     PANDAS_GE_30,
@@ -546,10 +545,7 @@ def test_read_many_data_types_geojson_file(many_data_types_geojson_file, use_arr
     if use_arrow:
         assert "date_col" in result.columns
         assert is_datetime64_dtype(result["date_col"].dtype)
-        if NUMPY_GE_20:
-            assert result["date_col"].to_list() == [np.datetime64("2020-01-01")]
-        else:
-            assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
+        assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
     assert "time_col" in result.columns
     assert is_object_dtype(result["time_col"].dtype)
