@@ -976,8 +976,7 @@ cdef process_fields(
             bin_value = OGR_F_GetFieldAsBinary(ogr_feature, field_index, &ret_length)
             data[i] = bin_value[:ret_length]
 
-        elif field_type == OFTDateTime or field_type == OFTDate or field_type == OFTTime:
-
+        elif field_type in (OFTDateTime, OFTDate, OFTTime):
             if field_type == OFTDateTime and datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
                 IF CTE_GDAL_VERSION >= (3, 7, 0):
@@ -1018,7 +1017,7 @@ cdef process_fields(
                     data[i] = datetime.datetime(
                         year, month, day, hour, minute, second, microsecond
                     ).isoformat()
-                
+
                 elif field_type == OFTTime:
                     data[i] = datetime.time(hour, minute, second, microsecond)
 
