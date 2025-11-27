@@ -551,8 +551,6 @@ def test_read_many_data_types_geojson_file(many_data_types_geojson_file, use_arr
         else:
             assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
-    # Time columns are ignored without arrow:
-    # Reported in https://github.com/geopandas/pyogrio/issues/615
     assert "time_col" in result.columns
     assert is_object_dtype(result["time_col"].dtype)
     assert result["time_col"].to_list() == [time(12, 0, 0)]
