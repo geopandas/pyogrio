@@ -1,6 +1,8 @@
 from packaging.version import Version
 
 from pyogrio.core import __gdal_geos_version__, __gdal_version__
+import numpy as np
+
 
 # detect optional dependencies
 try:
@@ -37,6 +39,8 @@ PYARROW_GE_19 = pyarrow is not None and Version(pyarrow.__version__) >= Version(
 )
 
 HAS_GEOPANDAS = geopandas is not None
+
+NUMPY_GE_20 = Version(np.__version__) >= Version("2.0.0")
 
 PANDAS_GE_15 = pandas is not None and Version(pandas.__version__) >= Version("1.5.0")
 PANDAS_GE_20 = pandas is not None and Version(pandas.__version__) >= Version("2.0.0")
