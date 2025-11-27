@@ -23,7 +23,6 @@ from pyogrio._compat import (
     GDAL_GE_311,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
-    NUMPY_GE_20,
     PANDAS_GE_15,
     PANDAS_GE_23,
     PANDAS_GE_30,
