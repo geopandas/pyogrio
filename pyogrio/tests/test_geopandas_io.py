@@ -3,7 +3,7 @@ import locale
 import os
 import re
 import warnings
-from datetime import datetime
+from datetime import datetime, time
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -23,6 +23,7 @@ from pyogrio._compat import (
     GDAL_GE_311,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
+    NUMPY_GE_20,
     PANDAS_GE_15,
     PANDAS_GE_23,
     PANDAS_GE_30,
@@ -51,7 +52,14 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
-    from pandas.api.types import is_datetime64_dtype, is_object_dtype, is_string_dtype
+    from pandas.api.types import (
+        is_bool_dtype,
+        is_datetime64_dtype,
+        is_float_dtype,
+        is_integer_dtype,
+        is_object_dtype,
+        is_string_dtype,
+    )
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -513,6 +521,57 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][0] == {"a": 1, "b": 2}
     assert result["col_struct"][1] == {"a": 1, "b": 2}
     assert result["col_struct"][2] == {"a": 1, "b": 2}
+
+
+def test_read_many_data_types_geojson_file(many_data_types_geojson_file, use_arrow):
+    """Test reading a GeoJSON file containing many data types."""
+    result = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+
+    assert "int_col" in result.columns
+    assert is_integer_dtype(result["int_col"].dtype)
+    assert result["int_col"].to_list() == [1]
+
+    assert "float_col" in result.columns
+    assert is_float_dtype(result["float_col"].dtype)
+    assert result["float_col"].to_list() == [1.5]
+
+    assert "str_col" in result.columns
+    assert is_string_dtype(result["str_col"].dtype)
+    assert result["str_col"].to_list() == ["string"]
+
+    assert "bool_col" in result.columns
+    assert is_bool_dtype(result["bool_col"].dtype)
+    assert result["bool_col"].to_list() == [True]
+
+    if use_arrow:
+        assert "date_col" in result.columns
+        assert is_datetime64_dtype(result["date_col"].dtype)
+        if NUMPY_GE_20:
+            assert result["date_col"].to_list() == [np.datetime64("2020-01-01")]
+        else:
+            assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
+
+    # Time columns are ignored without arrow:
+    # Reported in https://github.com/geopandas/pyogrio/issues/615
+    assert "time_col" in result.columns
+    assert is_object_dtype(result["time_col"].dtype)
+    assert result["time_col"].to_list() == [time(12, 0, 0)]
+
+    assert "datetime_col" in result.columns
+    assert is_datetime64_dtype(result["datetime_col"].dtype)
+    assert result["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
+
+    assert "list_int_col" in result.columns
+    assert is_object_dtype(result["list_int_col"].dtype)
+    assert result["list_int_col"][0].tolist() == [1, 2, 3]
+
+    assert "list_str_col" in result.columns
+    assert is_object_dtype(result["list_str_col"].dtype)
+    assert result["list_str_col"][0].tolist() == ["a", "b", "c"]
+
+    assert "list_mixed_col" in result.columns
+    assert is_object_dtype(result["list_mixed_col"].dtype)
+    assert result["list_mixed_col"][0] == [1, "a", None, True]
 
 
 @pytest.mark.filterwarnings(
@@ -3200,7 +3259,7 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
-@pytest.mark.requires_arrow_api
+@pytest.mark.requires_arrow_write_api
 @pytest.mark.skipif(
     not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
 )
