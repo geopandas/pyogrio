@@ -59,7 +59,7 @@ FIELD_TYPES = [
     None,              # OFTWideStringList, deprecated, not supported
     "object",          # OFTBinary, Raw Binary data
     "datetime64[D]",   # OFTDate, Date
-    None,              # OFTTime, Time, NOTE: not directly supported in numpy
+    "object",          # OFTTime, Time, NOTE: not directly supported in numpy
     "datetime64[ms]",  # OFTDateTime, Date and Time
     "int64",           # OFTInteger64, Single 64bit integer
     "list(int64)"      # OFTInteger64List, List of 64bit integers, not supported
@@ -976,7 +976,7 @@ cdef process_fields(
             bin_value = OGR_F_GetFieldAsBinary(ogr_feature, field_index, &ret_length)
             data[i] = bin_value[:ret_length]
 
-        elif field_type == OFTDateTime or field_type == OFTDate:
+        elif field_type == OFTDateTime or field_type == OFTDate or field_type == OFTTime:
 
             if datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
@@ -1018,6 +1018,9 @@ cdef process_fields(
                     data[i] = datetime.datetime(
                         year, month, day, hour, minute, second, microsecond
                     ).isoformat()
+                
+                elif field_type == OFTTime:
+                    data[i] = datetime.time(hour, minute, second, microsecond)
 
         elif field_type == OFTIntegerList:
             # According to GDAL doc, this can return NULL for an empty list, which is a
