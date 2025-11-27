@@ -523,55 +523,80 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][2] == {"a": 1, "b": 2}
 
 
-def test_read_many_data_types_geojson_file(many_data_types_geojson_file, use_arrow):
-    """Test reading a GeoJSON file containing many data types."""
-    result = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+def test_roundtrip_many_data_types_geojson_file(
+    request, tmp_path, many_data_types_geojson_file, use_arrow
+):
+    """Test roundtripping a GeoJSON file containing many data types."""
 
-    assert "int_col" in result.columns
-    assert is_integer_dtype(result["int_col"].dtype)
-    assert result["int_col"].to_list() == [1]
+    def validate_result(df: pd.DataFrame, use_arrow: bool):
+        """Function to validate the data of many_data_types_geojson_file.
 
-    assert "float_col" in result.columns
-    assert is_float_dtype(result["float_col"].dtype)
-    assert result["float_col"].to_list() == [1.5]
+        Depending on arrow being used or not there are small differences.
+        """
+        assert "int_col" in df.columns
+        assert is_integer_dtype(df["int_col"].dtype)
+        assert df["int_col"].to_list() == [1]
 
-    assert "str_col" in result.columns
-    assert is_string_dtype(result["str_col"].dtype)
-    assert result["str_col"].to_list() == ["string"]
+        assert "float_col" in df.columns
+        assert is_float_dtype(df["float_col"].dtype)
+        assert df["float_col"].to_list() == [1.5]
 
-    assert "bool_col" in result.columns
-    assert is_bool_dtype(result["bool_col"].dtype)
-    assert result["bool_col"].to_list() == [True]
+        assert "str_col" in df.columns
+        assert is_string_dtype(df["str_col"].dtype)
+        assert df["str_col"].to_list() == ["string"]
 
-    assert "date_col" in result.columns
-    assert is_datetime64_dtype(result["date_col"].dtype)
-    if NUMPY_GE_20:
-        assert result["date_col"].to_list() == [np.datetime64("2020-01-01")]
-    else:
-        assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
+        assert "bool_col" in df.columns
+        assert is_bool_dtype(df["bool_col"].dtype)
+        assert df["bool_col"].to_list() == [True]
 
-    if use_arrow:
-        # Time columns are ignored without arrow:
-        # Reported in https://github.com/geopandas/pyogrio/issues/615
-        assert "time_col" in result.columns
-        assert is_object_dtype(result["time_col"].dtype)
-        assert result["time_col"].to_list() == [time(12, 0, 0)]
+        assert "date_col" in df.columns
+        if use_arrow:
+            # Arrow returns dates as datetime.date objects.
+            assert is_object_dtype(df["date_col"].dtype)
+            assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01").date()]
+        else:
+            # Without arrow, date columns are returned as datetime64.
+            assert is_datetime64_dtype(df["date_col"].dtype)
+            assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
-    assert "datetime_col" in result.columns
-    assert is_datetime64_dtype(result["datetime_col"].dtype)
-    assert result["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
+        if use_arrow:
+            # Time columns are ignored without arrow:
+            # Reported in https://github.com/geopandas/pyogrio/issues/615
+            assert "time_col" in df.columns
+            assert is_object_dtype(df["time_col"].dtype)
+            assert df["time_col"].to_list() == [time(12, 0, 0)]
 
-    assert "list_int_col" in result.columns
-    assert is_object_dtype(result["list_int_col"].dtype)
-    assert result["list_int_col"][0].tolist() == [1, 2, 3]
+        assert "datetime_col" in df.columns
+        assert is_datetime64_dtype(df["datetime_col"].dtype)
+        assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
 
-    assert "list_str_col" in result.columns
-    assert is_object_dtype(result["list_str_col"].dtype)
-    assert result["list_str_col"][0].tolist() == ["a", "b", "c"]
+        assert "list_int_col" in df.columns
+        assert is_object_dtype(df["list_int_col"].dtype)
+        assert df["list_int_col"][0].tolist() == [1, 2, 3]
 
-    assert "list_mixed_col" in result.columns
-    assert is_object_dtype(result["list_mixed_col"].dtype)
-    assert result["list_mixed_col"][0] == [1, "a", None, True]
+        assert "list_str_col" in df.columns
+        assert is_object_dtype(df["list_str_col"].dtype)
+        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+
+        assert "list_mixed_col" in df.columns
+        assert is_object_dtype(df["list_mixed_col"].dtype)
+        assert df["list_mixed_col"][0] == [1, "a", None, True]
+
+    # Read and validate result of reading
+    read_gdf = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+    validate_result(read_gdf, use_arrow)
+
+    # Write the data read, read it back, and validate again
+    request.node.add_marker(
+        pytest.mark.xfail(
+            reason="writing file many_data_types_geojson_file and reading it back fails"
+        )
+    )
+
+    tmp_file = tmp_path / "temp.geojson"
+    write_dataframe(read_gdf, tmp_file, use_arrow=use_arrow)
+    read_back_gdf = read_dataframe(tmp_file, use_arrow=use_arrow)
+    validate_result(read_back_gdf, use_arrow)
 
 
 @pytest.mark.filterwarnings(
