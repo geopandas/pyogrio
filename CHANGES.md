@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.1 (????-??-??)
+
+## Bug fixes
+
+-   Fix Time type columns being skipped when reading with `arrow=False` (#617)
+
 ## 0.12.0 (2025-11-26)
 
 ### Potentially breaking changes
