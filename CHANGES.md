@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.1 (????-??-??)
+
+### Bug fixes
+
+-   Fix date columns staying empty without use_arrow (#616)
+
 ## 0.12.0 (2025-11-26)
 
 ### Potentially breaking changes
