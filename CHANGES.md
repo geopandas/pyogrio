@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+-   Fix regression in reading date columns (#616)
 -   Fix error in `read_dataframe` when `use_arrow=True` and `columns` is used to filter
     out columns of some specific types (#611)
 
