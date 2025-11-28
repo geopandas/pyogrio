@@ -522,50 +522,67 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][2] == {"a": 1, "b": 2}
 
 
-def test_read_many_data_types_geojson_file(many_data_types_geojson_file, use_arrow):
-    """Test reading a GeoJSON file containing many data types."""
-    result = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+def test_read_many_data_types_geojson_file(
+    request, tmp_path, many_data_types_geojson_file, use_arrow
+):
+    """Test roundtripping a GeoJSON file containing many data types."""
 
-    assert "int_col" in result.columns
-    assert is_integer_dtype(result["int_col"].dtype)
-    assert result["int_col"].to_list() == [1]
+    def validate_result(df: pd.DataFrame, use_arrow: bool):
+        """Validate the dataframe read from the many data types geojson file."""
+        assert "int_col" in df.columns
+        assert is_integer_dtype(df["int_col"].dtype)
+        assert df["int_col"].to_list() == [1]
 
-    assert "float_col" in result.columns
-    assert is_float_dtype(result["float_col"].dtype)
-    assert result["float_col"].to_list() == [1.5]
+        assert "float_col" in df.columns
+        assert is_float_dtype(df["float_col"].dtype)
+        assert df["float_col"].to_list() == [1.5]
 
-    assert "str_col" in result.columns
-    assert is_string_dtype(result["str_col"].dtype)
-    assert result["str_col"].to_list() == ["string"]
+        assert "str_col" in df.columns
+        assert is_string_dtype(df["str_col"].dtype)
+        assert df["str_col"].to_list() == ["string"]
 
-    assert "bool_col" in result.columns
-    assert is_bool_dtype(result["bool_col"].dtype)
-    assert result["bool_col"].to_list() == [True]
+        assert "bool_col" in df.columns
+        assert is_bool_dtype(df["bool_col"].dtype)
+        assert df["bool_col"].to_list() == [True]
 
-    if use_arrow:
-        assert "date_col" in result.columns
-        assert is_datetime64_dtype(result["date_col"].dtype)
-        assert result["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
+        if use_arrow:
+            assert "date_col" in df.columns
+            assert is_datetime64_dtype(df["date_col"].dtype)
+            assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
-    assert "time_col" in result.columns
-    assert is_object_dtype(result["time_col"].dtype)
-    assert result["time_col"].to_list() == [time(12, 0, 0)]
+        assert "time_col" in df.columns
+        assert is_object_dtype(df["time_col"].dtype)
+        assert df["time_col"].to_list() == [time(12, 0, 0)]
 
-    assert "datetime_col" in result.columns
-    assert is_datetime64_dtype(result["datetime_col"].dtype)
-    assert result["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
+        assert "datetime_col" in df.columns
+        assert is_datetime64_dtype(df["datetime_col"].dtype)
+        assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
 
-    assert "list_int_col" in result.columns
-    assert is_object_dtype(result["list_int_col"].dtype)
-    assert result["list_int_col"][0].tolist() == [1, 2, 3]
+        assert "list_int_col" in df.columns
+        assert is_object_dtype(df["list_int_col"].dtype)
+        assert df["list_int_col"][0].tolist() == [1, 2, 3]
 
-    assert "list_str_col" in result.columns
-    assert is_object_dtype(result["list_str_col"].dtype)
-    assert result["list_str_col"][0].tolist() == ["a", "b", "c"]
+        assert "list_str_col" in df.columns
+        assert is_object_dtype(df["list_str_col"].dtype)
+        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
 
-    assert "list_mixed_col" in result.columns
-    assert is_object_dtype(result["list_mixed_col"].dtype)
-    assert result["list_mixed_col"][0] == [1, "a", None, True]
+        assert "list_mixed_col" in df.columns
+        assert is_object_dtype(df["list_mixed_col"].dtype)
+        assert df["list_mixed_col"][0] == [1, "a", None, True]
+
+    read_gdf = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+    validate_result(read_gdf, use_arrow)
+
+    # Roundtrip gives issues, to be further checked
+    request.node.add_marker(
+        pytest.mark.xfail(
+            reason="writing and reading many_data_types_geojson_file again fails"
+        )
+    )
+    write_path = tmp_path / "many_data_types_copy.geojson"
+    write_dataframe(read_gdf, write_path, use_arrow=use_arrow)
+    read_back_gdf = read_dataframe(write_path, use_arrow=use_arrow)
+    validate_result(read_back_gdf, use_arrow)
 
 
 @pytest.mark.filterwarnings(
