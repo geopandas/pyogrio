@@ -522,6 +522,7 @@ def test_read_list_nested_struct_parquet_file(
     assert result["col_struct"][2] == {"a": 1, "b": 2}
 
 
+@pytest.mark.requires_arrow_write_api
 def test_roundtrip_many_data_types_geojson_file(
     request, tmp_path, many_data_types_geojson_file, use_arrow
 ):
