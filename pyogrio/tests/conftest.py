@@ -337,6 +337,42 @@ def list_field_values_files(tmp_path, request):
 
 
 @pytest.fixture(scope="function")
+def many_data_types_geojson_file(tmp_path):
+    # create GeoJSON file with properties of many data types
+    many_types_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "int_col": 1,
+                    "float_col": 1.5,
+                    "str_col": "string",
+                    "bool_col": true,
+                    "null_col": null,
+                    "date_col": "2020-01-01",
+                    "time_col": "12:00:00",
+                    "datetime_col": "2020-01-01T12:00:00",
+                    "list_int_col": [1, 2, 3],
+                    "list_str_col": ["a", "b", "c"],
+                    "list_mixed_col": [1, "a", null, true]
+                }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_many_data_types.geojson"
+    with open(filename, "w") as f:
+        _ = f.write(many_types_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
 def nested_geojson_file(tmp_path):
     # create GeoJSON file with nested properties
     nested_geojson = """{

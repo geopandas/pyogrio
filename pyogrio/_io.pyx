@@ -978,7 +978,7 @@ cdef process_fields(
 
         elif field_type == OFTDateTime or field_type == OFTDate:
 
-            if datetime_as_string:
+            if field_type == OFTDateTime and datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
                 IF CTE_GDAL_VERSION >= (3, 7, 0):
                     data[i] = get_string(

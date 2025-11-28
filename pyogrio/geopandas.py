@@ -440,7 +440,12 @@ def read_dataframe(
 
         # convert datetime columns that were read as string to datetime
         for dtype, column in zip(meta["dtypes"], meta["fields"]):
-            if dtype is not None and dtype.startswith("datetime"):
+            # With arrow, date columns are returned as datetime.date objects.
+            if (
+                dtype is not None
+                and dtype.startswith("datetime")
+                and dtype != "datetime64[D]"
+            ):
                 df[column] = _try_parse_datetime(
                     df[column], datetime_as_string, mixed_offsets_as_utc
                 )

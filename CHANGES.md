@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.12.1 (????-??-??)
+
+### Bug fixes
+
+-   Fix regression in reading date columns (#616)
+
 ## 0.12.0 (2025-11-26)
 
 ### Potentially breaking changes
