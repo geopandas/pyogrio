@@ -1449,7 +1449,7 @@ def ogr_read(
 
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
-            idx = np.intersect1d(fields[:, 2], columns, return_indices=True)[1]
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
             fields = fields[idx, :]
 
         if not read_geometry and bbox is None and mask is None:
@@ -1724,7 +1724,7 @@ def ogr_open_arrow(
             ignored_fields = list(set(fields[:, 2]) - set(columns))
 
             # Find index of each field in columns, and only keep those
-            idx = np.intersect1d(fields[:, 2], columns, return_indices=True)[1]
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
             fields = fields[idx, :]
 
         if not read_geometry:

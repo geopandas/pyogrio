@@ -227,6 +227,30 @@ def test_open_arrow_batch_size(naturalearth_lowres):
         assert len(tables[0]) == batch_size, "First table should match the batch size"
 
 
+@pytest.mark.parametrize(
+    "descr, columns, exp_columns",
+    [
+        ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
+        ("case_sensitive", ["NAME", "NAME_LONG"], []),
+        ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
+        ("keep_original_order", ["pop_est", "continent"], ["pop_est", "continent"]),
+    ],
+)
+def test_open_arrow_columns(naturalearth_lowres, descr, columns, exp_columns):
+    with open_arrow(naturalearth_lowres, columns=columns) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyogrio._io._ArrowStream)
+
+        result = pyarrow.table(reader)
+
+    # Check metadata
+    assert np.array_equal(meta["fields"], exp_columns), f"Failed for {descr}"
+
+    # Check columns in table
+    exp_columns_with_geom = exp_columns + ["wkb_geometry"]
+    assert result.column_names == exp_columns_with_geom, f"Failed for {descr}"
+
+
 @pytest.mark.skipif(
     __gdal_version__ >= (3, 8, 0),
     reason="skip_features supported by Arrow stream API for GDAL>=3.8.0",
