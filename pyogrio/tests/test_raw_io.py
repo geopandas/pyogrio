@@ -155,19 +155,20 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
         )
 
 
-def test_read_columns(naturalearth_lowres):
-    columns = ["NAME", "NAME_LONG"]
-    meta, _, geometry, fields = read(
+@pytest.mark.parametrize(
+    "descr, columns, exp_columns",
+    [
+        ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
+        ("case_sensitive", ["NAME"], []),
+        ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
+        ("keep_original_order", ["continent", "pop_est"], ["pop_est", "continent"]),
+    ],
+)
+def test_read_columns(naturalearth_lowres, descr, columns, exp_columns):
+    meta, _fids, _geometry, _fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False
     )
-    array_equal(meta["fields"], columns)
-
-    # Repeats should be dropped
-    columns = ["NAME", "NAME_LONG", "NAME"]
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=columns, read_geometry=False
-    )
-    array_equal(meta["fields"], columns[:2])
+    assert array_equal(meta["fields"], exp_columns), f"Failed for {descr}"
 
 
 @pytest.mark.parametrize("skip_features", [10, 200])
