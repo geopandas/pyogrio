@@ -1449,7 +1449,7 @@ def ogr_read(
 
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
-            idx = np.intersect1d(fields[:, 2], columns, return_indices=True)[1]
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
             fields = fields[idx, :]
 
         if not read_geometry and bbox is None and mask is None:
@@ -1722,6 +1722,11 @@ def ogr_open_arrow(
         if columns is not None:
             # Fields are matched exactly by name, duplicates are dropped.
             ignored_fields = list(set(fields[:, 2]) - set(columns))
+
+            # Find index of each field in columns, and only keep those
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
+            fields = fields[idx, :]
+
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
 
@@ -1731,9 +1736,8 @@ def ogr_open_arrow(
 
             driver = get_driver(ogr_dataset)
             if driver in {"FlatGeobuf", "GPKG"}:
-                ignored = set(ignored_fields)
-                for f in fields:
-                    if f[2] not in ignored and f[3] == "bool":
+                for field in fields:
+                    if field[3] == "bool":  # numpy type is bool
                         raise RuntimeError(
                             "GDAL < 3.8.3 does not correctly read boolean data values "
                             "using the Arrow API. Do not use read_arrow() / "

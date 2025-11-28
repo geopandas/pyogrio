@@ -246,7 +246,7 @@ def read_arrow(
     -------
     (dict, pyarrow.Table)
 
-        Returns a tuple of meta information about the data source in a dict,
+        Returns a tuple of meta information about the returned data in a dict,
         and a pyarrow Table with data.
 
         Meta is: {
