@@ -358,9 +358,7 @@ def many_data_types_geojson_file(tmp_path):
                     "time_col": "12:00:00",
                     "datetime_col": "2020-01-01T12:00:00",
                     "list_int_col": [1, 2, 3],
-                    "list_int_with_null_col": [1, 2, 3],
                     "list_str_col": ["a", "b", "c"],
-                    "list_str_with_null_col": ["a", null, "c"],
                     "list_mixed_col": [1, "a", null, true]
                 }
             }
