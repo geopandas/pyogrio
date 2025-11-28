@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
--   Fix some regressions for date columns (#616)
+-   Fix regression in reading date columns (#616)
 
 ## 0.12.0 (2025-11-26)
 
