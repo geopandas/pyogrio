@@ -231,9 +231,9 @@ def test_open_arrow_batch_size(naturalearth_lowres):
     "descr, columns, exp_columns",
     [
         ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
-        ("case_sensitive", ["NAME", "NAME_LONG"], []),
+        ("case_sensitive", ["NAME"], []),
         ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
-        ("keep_original_order", ["pop_est", "continent"], ["pop_est", "continent"]),
+        ("keep_original_order", ["continent", "pop_est"], ["pop_est", "continent"]),
     ],
 )
 def test_open_arrow_columns(naturalearth_lowres, descr, columns, exp_columns):
