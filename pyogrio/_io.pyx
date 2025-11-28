@@ -1012,7 +1012,7 @@ cdef process_fields(
                     data[i] = np.datetime64("NaT")
 
                 elif field_type == OFTDate:
-                    data[i] = np.datetime64(f"{year:04d}-{month:02d}-{day:02d}", "D")
+                    data[i] = datetime.date(year, month, day).isoformat()
 
                 elif field_type == OFTDateTime:
                     data[i] = datetime.datetime(
