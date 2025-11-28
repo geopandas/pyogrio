@@ -439,12 +439,17 @@ def read_dataframe(
         del table
 
         # convert datetime columns that were read as string to datetime
-        for dtype, column in zip(meta["dtypes"], meta["fields"]):
-            if dtype is not None and dtype.startswith("datetime"):
+        for dtype, column in zip(meta["dtypes"], meta["fields"], strict=True):
+            if (
+                dtype is not None
+                and dtype.startswith("datetime")
+                # With arrow, date columns are returned as datetime.date objects
+                and dtype != "datetime64[D]"
+            ):
                 df[column] = _try_parse_datetime(
                     df[column], datetime_as_string, mixed_offsets_as_utc
                 )
-        for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
+        for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"], strict=True):
             if ogr_subtype == "OFSTJSON":
                 # When reading .parquet files with arrow, JSON fields are already
                 # parsed, so only parse if strings.
@@ -497,10 +502,10 @@ def read_dataframe(
     else:
         index = None
     df = pd.DataFrame(data, columns=columns, index=index)
-    for dtype, c in zip(meta["dtypes"], df.columns):
+    for dtype, c in zip(meta["dtypes"], meta["fields"], strict=True):
         if dtype.startswith("datetime"):
             df[c] = _try_parse_datetime(df[c], datetime_as_string, mixed_offsets_as_utc)
-    for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"]):
+    for ogr_subtype, c in zip(meta["ogr_subtypes"], meta["fields"], strict=True):
         if ogr_subtype == "OFSTJSON":
             dtype = pd.api.types.infer_dtype(df[c])
             if dtype == "string":
