@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
--   Fix date columns staying empty without use_arrow (#616)
+-   Fix some regressions for date columns (#616)
 
 ## 0.12.0 (2025-11-26)
 
