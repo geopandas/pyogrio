@@ -109,8 +109,7 @@ class CPLE_AWSError(CPLE_BaseError):
 
 
 class NullPointerError(CPLE_BaseError):
-    """An NULL pointer was returned by a GDAL function.
-    """
+    """An NULL pointer was returned by a GDAL function."""
     pass
 
 
