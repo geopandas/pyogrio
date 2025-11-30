@@ -24,7 +24,11 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     Parameters
     ----------
     path_or_fp : str or io.BytesIO object
+        Path or BytesIO object that you would like to write to. If a BytesIO
+        object is passed, a temporary in-memory vsimem file will be created for you
+        to write to.
     driver : str
+        OGR driver name to be used for writing.
 
     Returns
     -------
@@ -60,7 +64,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
 
 cdef str read_buffer_to_vsimem(bytes bytes_buffer):
-    """ Wrap the bytes (zero-copy) into an in-memory dataset
+    """Wrap the bytes (zero-copy) into an in-memory dataset.
 
     If the first 4 bytes indicate the bytes are a zip file, the returned path
     will be prefixed with /vsizip/ and suffixed with .zip to enable proper
@@ -72,6 +76,13 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     Parameters
     ----------
     bytes_buffer : bytes
+        Bytes to write to in-memory file
+
+    Returns
+    -------
+    str
+        Path to the in-memory file.
+
     """
     cdef int num_bytes = len(bytes_buffer)
 
@@ -101,7 +112,7 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
 
 
 cdef read_vsimem_to_buffer(str path, object out_buffer):
-    """Copy bytes from in-memory file to buffer
+    """Copy bytes from in-memory file to buffer.
 
     This will automatically unlink the in-memory file pointed to by path; caller
     is still responsible for calling vsimem_rmtree_toplevel() to cleanup any
@@ -111,9 +122,10 @@ cdef read_vsimem_to_buffer(str path, object out_buffer):
     -----------
     path : str
         path to in-memory file
-    buffer : BytesIO object
-    """
+    out_buffer : BytesIO object
+        buffer to write bytes to
 
+    """
     cdef unsigned char *vsi_buffer = NULL
     cdef vsi_l_offset vsi_buffer_size = 0
 
