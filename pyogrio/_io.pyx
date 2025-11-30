@@ -250,6 +250,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     -------
     GDALDatasetH
         The open OGR dataset
+
     """
     cdef void *ogr_dataset = NULL
     cdef ErrorHandler errors
@@ -385,6 +386,7 @@ cdef OGRLayerH execute_sql(
     -------
     OGRLayerH
         The resulting OGR layer
+
     """
     try:
         sql_b = sql.encode("utf-8")

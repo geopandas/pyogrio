@@ -151,6 +151,7 @@ def ogr_driver_supports_write(driver):
     -------
     bool
         True if driver supports writing/creation of new files, False otherwise.
+
     """
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
         return True
@@ -229,6 +230,7 @@ def has_gdal_data():
     -------
     bool
         True if GDAL data files are correctly found, False otherwise.
+
     """
     if CPLFindFile("gdal", "header.dxf") != NULL:
         return True
