@@ -286,3 +286,31 @@ def ogr_vsi_unlink(str path):
     errcode = VSIUnlink(path_c)
     if errcode != 0:
         raise OSError(f"Error removing '{path}': {errcode=}")
+
+
+def ogr_vsi_curl_clear_all_cache():
+    """Clean local cache associated with /vsicurl/.
+
+    """
+
+    VSICurlClearCache()
+
+
+def ogr_vsi_curl_clear_cache(str prefix):
+    """Clean local cache associated with /vsicurl/.
+
+    Parameters
+    ----------
+    prefix : str
+        Filename or prefix to clear associated cache.
+
+    """
+    cdef const char *prefix_c
+
+    try:
+        prefix_b = prefix.encode("UTF-8")
+    except UnicodeDecodeError:
+        prefix_b = prefix
+    prefix_c = prefix_b
+
+    VSICurlPartialClearCache(prefix_c)
