@@ -1070,7 +1070,7 @@ def test_write_float_nan_null(tmp_path, dtype):
     with open(filename) as f:
         content = f.read()
     if GDAL_GE_313:
-        assert '"properties": {}' in content
+        assert '"properties":{}' in content
     else:
         assert '"properties": { }' in content
 
