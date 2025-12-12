@@ -2071,6 +2071,9 @@ def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
     The categorical data type is not preserved when written to any of the tested file
     formats, but the data itself should be preserved.
     """
+    if ext in [".geojson", ".geojsonl"] and len(categorical_data) == 0:
+        pytest.skip("Writing an empty dataframe to json formats doesn't roundtrip.")
+
     original_gdf = gp.GeoDataFrame(
         {
             "cat_col": categorical_data,
@@ -2082,15 +2085,20 @@ def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
     category_gdf = original_gdf.astype({"cat_col": "category"})
 
     path = tmp_path / f"test_{use_arrow}{ext}"
-    write_dataframe(
-        category_gdf, path, layer="my_layer", driver="GPKG", use_arrow=use_arrow
-    )
+    write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
 
     # Read the data back
     result = read_dataframe(path, use_arrow=use_arrow)
     assert "cat_col" in result.columns
-    # Category dtype is not preserved when data is written to the formats tested.
-    assert_geodataframe_equal(result, original_gdf)
+
+    # Category dtype is not preserved when data is written to the formats tested, so use
+    # the original dataframe for comparison.
+    expected_gdf = original_gdf.copy()
+    if ext in [".geojson", ".geojsonl"] and is_integer_dtype(expected_gdf["cat_col"]):
+        # GeoJSON ints are read as int32
+        expected_gdf["cat_col"] = expected_gdf["cat_col"].astype(np.int32)
+
+    assert_geodataframe_equal(result, expected_gdf)
 
 
 @pytest.mark.requires_arrow_write_api
@@ -2106,9 +2114,7 @@ def test_write_read_category_str_empty(tmp_path, use_arrow):
     category_gdf = str_gdf.astype({"cat_col": "category"})
 
     path = tmp_path / f"test_{use_arrow}.gpkg"
-    write_dataframe(
-        category_gdf, path, layer="my_layer", driver="GPKG", use_arrow=use_arrow
-    )
+    write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
 
     # Read the data back
     result = read_dataframe(path, use_arrow=use_arrow)
