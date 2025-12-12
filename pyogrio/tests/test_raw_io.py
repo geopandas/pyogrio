@@ -1089,7 +1089,7 @@ def test_write_float_nan_null(tmp_path, dtype):
     if GDAL_GE_313:
         assert '{"col":NaN}' in content
     else:
-        assert ' {"col": NaN }' in content
+        assert '{ "col": NaN }' in content
 
 
 @requires_pyarrow_api
