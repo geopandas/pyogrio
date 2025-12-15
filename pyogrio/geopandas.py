@@ -815,13 +815,25 @@ def write_dataframe(
             },
         )
 
-        # Null arrow columns are not supported by GDAL, so convert to string
+        # The arrow null type is not supported by GDAL
         for field_index, field in enumerate(table.schema):
-            if field.type == pa.null():
+            if pa.types.is_null(field.type):
+                # Null arrow column: convert to string
                 table = table.set_column(
                     field_index,
                     field.with_type(pa.string()),
                     table[field_index].cast(pa.string()),
+                )
+            elif pa.types.is_dictionary(field.type) and pa.types.is_null(
+                field.type.value_type
+            ):
+                # A dictionary type with null values: convert to dictionary of strings
+                table = table.set_column(
+                    field_index,
+                    field.with_type(pa.dictionary(field.type.index_type, pa.string())),
+                    table[field_index].cast(
+                        pa.dictionary(field.type.index_type, pa.string())
+                    ),
                 )
 
         if geometry_column is not None:
