@@ -17,7 +17,7 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
 )
-from pyogrio._compat import GDAL_GE_37, HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import GDAL_GE_37, GDAL_GE_313, HAS_PYARROW, HAS_SHAPELY
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
 from pyogrio.raw import open_arrow, read, write
 from pyogrio.tests.conftest import (
@@ -1054,7 +1054,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     write(filename, geometry, field_data, fields, **meta)
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": null }' in content
+    if GDAL_GE_313:
+        assert '{"col":null}' in content
+    else:
+        assert '{ "col": null }' in content
 
     # set to False
     # by default, GDAL will skip the property for GeoJSON if the value is NaN
@@ -1066,7 +1069,10 @@ def test_write_float_nan_null(tmp_path, dtype):
         write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
     with open(filename) as f:
         content = f.read()
-    assert '"properties": { }' in content
+    if GDAL_GE_313:
+        assert '"properties":{}' in content
+    else:
+        assert '"properties": { }' in content
 
     # but can instruct GDAL to write NaN to json
     write(
@@ -1080,7 +1086,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     )
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": NaN }' in content
+    if GDAL_GE_313:
+        assert '{"col":NaN}' in content
+    else:
+        assert '{ "col": NaN }' in content
 
 
 @requires_pyarrow_api
