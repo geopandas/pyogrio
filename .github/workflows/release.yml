@@ -201,6 +201,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew reinstall automake
+          brew install libtool
           echo $(which aclocal)
 
       - name: Checkout specific version of vcpkg
