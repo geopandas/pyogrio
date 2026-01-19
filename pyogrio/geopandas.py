@@ -793,9 +793,15 @@ def write_dataframe(
         # datetime columns when writing the dataset.
         datetime_cols = []
         for name, dtype in df.dtypes.items():
+            if geometry_column is not None and name == geometry_column:
+                continue
             if dtype == "object":
                 # An object column with datetimes can contain multiple offsets.
-                if pd.api.types.infer_dtype(df[name]) == "datetime":
+                inferred_dtype = pd.api.types.infer_dtype(df[name])
+                if inferred_dtype == "mixed":
+                    # mixed is an unknown object column, convert to string
+                    df[name] = df[name].astype("string")
+                elif inferred_dtype == "datetime":
                     df[name] = df[name].astype("string")
                     datetime_cols.append(name)
 

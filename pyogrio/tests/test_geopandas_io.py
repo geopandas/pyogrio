@@ -3,8 +3,9 @@ import locale
 import os
 import re
 import warnings
-from datetime import datetime
+from datetime import date, datetime
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -2537,6 +2538,35 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][0] == "test"
     assert pd.isna(result_gdf["object_str"][1])
     assert pd.isna(result_gdf["object_str"][2])
+
+
+@pytest.mark.parametrize(
+    "object_column_data",
+    [
+        ["test1", "test2"],
+        [Path("test1"), Path("test2")],
+        [date(2020, 1, 1), date(2021, 2, 2)],
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_object_column(tmp_path, use_arrow, object_column_data):
+    output_path = tmp_path / "test_write_object.gpkg"
+    geom = shapely.Point(0, 0)
+    test_data = {
+        "geometry": [geom, geom],
+        "object_column": object_column_data,
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
+
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
+
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+    if isinstance(object_column_data[0], date):
+        expected_data = object_column_data
+    else:
+        expected_data = [str(value) for value in object_column_data]
+    assert list(result_gdf["object_column"]) == expected_data
 
 
 @pytest.mark.requires_arrow_write_api
