@@ -813,7 +813,7 @@ def write_dataframe(
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # A pd.datetime64 column with a time zone different than UTC can contain
                 # data with different offsets because of summer/winter time.
-                df[name] = df[name].astype("str")
+                df[name] = df[name].astype("string")
                 datetime_cols.append(name)
 
         table = pa.Table.from_pandas(df, preserve_index=False)
