@@ -2598,7 +2598,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
 
     if object_col_data in (["a", np.nan], ["a", None]):
         expected_dtype = str_dtype
-        expected_data = ["a", np.nan] if PANDAS_GE_30 else ["a", None]
+        expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
 
     # In other cases, the object_col is written and read back as strings
     if expected_dtype is None:
