@@ -2572,7 +2572,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         # With arrow, some object types get a more specific treatment
         if isinstance(object_col_data[0], date):
             # datetime.date objects are read back as datetime64 with arrow
-            expected_dtype = "M8[ms]"
+            expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
             expected_data = [
                 pd.Timestamp(value.year, value.month, value.day)
                 for value in object_col_data
@@ -2600,7 +2600,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         expected_dtype = "object"
         expected_data = [str(value) for value in object_col_data]
 
-    assert result_gdf["object_col"].dtype == expected_dtype
+    assert result_gdf["object_col"].dtype.name == expected_dtype
     assert list(result_gdf["object_col"]) == expected_data
 
 
