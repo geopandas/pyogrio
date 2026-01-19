@@ -807,7 +807,7 @@ def write_dataframe(
                     if not isinstance(df[name].dropna().iloc[0], list | np.ndarray):
                         df[name] = df[name].astype("str")
                 elif inferred_dtype == "datetime":
-                    df[name] = df[name].astype("str")
+                    df[name] = df[name].astype("string")
                     datetime_cols.append(name)
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":

@@ -2585,6 +2585,11 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
             # Decimal objects are read back as decimal objects with arrow
             expected_dtype = "float64"
             expected_data = object_col_data
+        elif isinstance(object_col_data[0], list):
+            # lists retained with arrow
+            expected_dtype = "object"
+            expected_data = object_col_data
+
     if object_col_data in (["a", np.nan], ["a", None]):
         # With or without arrow, mix of str and nan is read back with nan as None
         expected_dtype = "object"
