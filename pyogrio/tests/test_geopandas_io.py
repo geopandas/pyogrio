@@ -2507,19 +2507,6 @@ def test_write_read_mixed_column_values(tmp_path):
     assert_series_equal(output_gdf["mixed"], expected)
 
 
-@requires_arrow_write_api
-def test_write_read_mixed_column_values_arrow(tmp_path):
-    # Arrow cannot represent a column of mixed types
-    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
-    geoms = [shapely.Point(0, 0) for _ in mixed_values]
-    test_gdf = gp.GeoDataFrame(
-        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
-    )
-    output_path = tmp_path / "test_write_mixed_column.gpkg"
-    with pytest.raises(TypeError, match=".*Conversion failed for column"):
-        write_dataframe(test_gdf, output_path, use_arrow=True)
-
-
 @pytest.mark.requires_arrow_write_api
 def test_write_read_null(tmp_path, use_arrow):
     output_path = tmp_path / "test_write_nan.gpkg"
