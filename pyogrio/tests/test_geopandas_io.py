@@ -2558,7 +2558,9 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
 
     # Verify that object_col is actually inferred as object dtype for this test.
-    assert test_gdf["object_col"].dtype == "object"
+    str_dtype = "str" if PANDAS_GE_30 else "object"
+    input_dtype = str_dtype if isinstance(object_col_data[0], str) else "object"
+    assert test_gdf["object_col"].dtype == input_dtype
 
     write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
 
@@ -2592,12 +2594,12 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
 
     if object_col_data in (["a", np.nan], ["a", None]):
         # With or without arrow, mix of str and nan is read back with nan as None
-        expected_dtype = "object"
+        expected_dtype = str_dtype
         expected_data = ["a", None]
 
     # In other cases, the object_col is written and read back as strings
     if expected_dtype is None:
-        expected_dtype = "object"
+        expected_dtype = str_dtype
         expected_data = [str(value) for value in object_col_data]
 
     assert result_gdf["object_col"].dtype.name == expected_dtype
