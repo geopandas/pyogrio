@@ -798,7 +798,7 @@ def write_dataframe(
             if dtype == "object":
                 # An object column with datetimes can contain multiple offsets.
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
-                if inferred_dtype == "mixed":
+                if inferred_dtype in {"mixed", "mixed-integer", "mixed-integer-float"}:
                     # mixed is an unknown object column, convert to string
                     df[name] = df[name].astype("string")
                 elif inferred_dtype == "datetime":
