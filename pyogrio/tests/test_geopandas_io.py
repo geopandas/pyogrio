@@ -2558,7 +2558,11 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
 
     # Verify that object_col is actually inferred as object dtype for this test.
-    str_dtype = "str" if PANDAS_GE_30 else "object"
+    str_dtype = (
+        "str"
+        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+        else "object"
+    )
     input_dtype = str_dtype if isinstance(object_col_data[0], str) else "object"
     assert test_gdf["object_col"].dtype.name == input_dtype
 
