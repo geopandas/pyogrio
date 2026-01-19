@@ -2536,7 +2536,7 @@ def test_write_read_null(tmp_path, use_arrow):
         [date(2020, 1, 1), date(2021, 2, 2)],
         [b"foo", b"bar"],
         [[123, 321], [123, 321]],
-        ["foo", 123],
+        [123, "foo"],
         [Decimal(1), Decimal(2)],
         ["a", np.nan],
         ["a", None],
@@ -2597,9 +2597,8 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
             expected_data = object_col_data
 
     if object_col_data in (["a", np.nan], ["a", None]):
-        # With or without arrow, mix of str and nan is read back with nan as None
         expected_dtype = str_dtype
-        expected_data = ["a", None]
+        expected_data = ["a", np.nan] if PANDAS_GE_30 else ["a", None]
 
     # In other cases, the object_col is written and read back as strings
     if expected_dtype is None:
