@@ -2560,7 +2560,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     # Verify that object_col is actually inferred as object dtype for this test.
     str_dtype = "str" if PANDAS_GE_30 else "object"
     input_dtype = str_dtype if isinstance(object_col_data[0], str) else "object"
-    assert test_gdf["object_col"].dtype == input_dtype
+    assert test_gdf["object_col"].dtype.name == input_dtype
 
     write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
 
