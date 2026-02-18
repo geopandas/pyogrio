@@ -755,6 +755,8 @@ def write_dataframe(
 
         from pyogrio.raw import write_arrow
 
+        df = df.copy(deep=False)
+
         if geometry_column is not None:
             # Convert to multi type
             if promote_to_multi:
@@ -780,7 +782,6 @@ def write_dataframe(
                     )
 
             geometry = to_wkb(geometry.values)
-            df = df.copy(deep=False)
             # convert to plain DataFrame to avoid warning from geopandas about
             # writing non-geometries to the geometry column
             df = pd.DataFrame(df, copy=False)
