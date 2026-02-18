@@ -797,24 +797,25 @@ def write_dataframe(
             if geometry_column is not None and name == geometry_column:
                 continue
             if dtype == "object":
-                # An object column with datetimes can contain multiple offsets.
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
-                if inferred_dtype in {"mixed-integer", "mixed-integer-float"}:
-                    # just convert these mixed columns to string
+                if inferred_dtype == "datetime":
+                    # The arrow timestamp type doesn't support mixed time zone offsets,
+                    # so convert to string to avoid data loss and pass on to GDAL
+                    # that it is a datetime so GDAL can preserve the type information.
                     df[name] = df[name].astype("str")
-                elif inferred_dtype == "mixed":
-                    # mixed is an unknown object column... if it isn't a list, convert
-                    # to string
-                    if not isinstance(df[name].dropna().iloc[0], list | np.ndarray):
-                        df[name] = df[name].astype("str")
-                elif inferred_dtype == "datetime":
-                    df[name] = df[name].astype("string")
                     datetime_cols.append(name)
+                else:
+                    # Check if pyarrow can handle the data in the column. If not,
+                    # convert it to string and save it like that.
+                    try:
+                        _ = pa.Schema.from_pandas(df[[name]])
+                    except pa.ArrowInvalid:
+                        df[name] = df[name].astype("str")
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # A pd.datetime64 column with a time zone different than UTC can contain
                 # data with different offsets because of summer/winter time.
-                df[name] = df[name].astype("string")
+                df[name] = df[name].astype("str")
                 datetime_cols.append(name)
 
         table = pa.Table.from_pandas(df, preserve_index=False)
