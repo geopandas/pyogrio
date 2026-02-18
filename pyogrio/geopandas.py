@@ -799,6 +799,7 @@ def write_dataframe(
             if dtype == "object":
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
                 if inferred_dtype == "string":
+                    # The column already contains strings, so no need to convert.
                     continue
                 elif inferred_dtype == "datetime":
                     # The arrow timestamp type doesn't support mixed time zone offsets,
