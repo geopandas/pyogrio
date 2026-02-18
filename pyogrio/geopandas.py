@@ -802,7 +802,7 @@ def write_dataframe(
                     # The arrow timestamp type doesn't support mixed time zone offsets,
                     # so convert to string to avoid data loss and pass on to GDAL
                     # that it is a datetime so GDAL can preserve the type information.
-                    df[name] = df[name].astype("str")
+                    df[name] = df[name].astype("string")
                     datetime_cols.append(name)
                 else:
                     # Check if pyarrow can handle the data in the column. If not,
