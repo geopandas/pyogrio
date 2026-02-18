@@ -975,6 +975,8 @@ def test_write_read_datetime_tz_mixed_offsets(
             # string type columns, so no proper roundtrip possible.
             df_exp = df.copy()
             df_exp.dates = df_exp.dates.astype("str")
+            if not PANDAS_GE_30:
+                df_exp.loc[2, "dates"] = None
             assert_geodataframe_equal(result, df_exp)
             # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
             return
