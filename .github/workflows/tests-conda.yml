@@ -39,7 +39,6 @@ jobs:
           - os: "ubuntu-latest"
             python: "3.11"
             env: "nightly-deps"
-            pandas_future_infer_string: "1"
 
     steps:
       - name: Checkout repo
@@ -64,7 +63,5 @@ jobs:
         run: pip install -e .
 
       - name: Test
-        env:
-          PANDAS_FUTURE_INFER_STRING: ${{ matrix.pandas_future_infer_string || '0' }}
         run: |
           pytest -v --color=yes -r s pyogrio/tests
