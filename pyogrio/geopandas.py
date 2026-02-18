@@ -800,7 +800,7 @@ def write_dataframe(
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
                 if inferred_dtype == "string":
                     continue
-                if inferred_dtype == "datetime":
+                elif inferred_dtype == "datetime":
                     # The arrow timestamp type doesn't support mixed time zone offsets,
                     # so convert to string to avoid data loss and pass on to GDAL
                     # that it is a datetime so GDAL can preserve the type information.
