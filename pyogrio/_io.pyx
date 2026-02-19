@@ -978,12 +978,18 @@ cdef process_fields(
 
         elif field_type == OFTDateTime or field_type == OFTDate:
 
-            if datetime_as_string:
+            if field_type == OFTDateTime and datetime_as_string:
                 # defer datetime parsing to user/ pandas layer
-                # Update to OGR_F_GetFieldAsISO8601DateTime when GDAL 3.7+ only
-                data[i] = get_string(
-                    OGR_F_GetFieldAsString(ogr_feature, field_index), encoding=encoding
-                )
+                IF CTE_GDAL_VERSION >= (3, 7, 0):
+                    data[i] = get_string(
+                        OGR_F_GetFieldAsISO8601DateTime(ogr_feature, field_index, NULL),
+                        encoding=encoding,
+                    )
+                ELSE:
+                    data[i] = get_string(
+                        OGR_F_GetFieldAsString(ogr_feature, field_index),
+                        encoding=encoding,
+                    )
             else:
                 success = OGR_F_GetFieldAsDateTimeEx(
                     ogr_feature,
@@ -1443,7 +1449,7 @@ def ogr_read(
 
             # Fields are matched exactly by name, duplicates are dropped.
             # Find index of each field into fields
-            idx = np.intersect1d(fields[:, 2], columns, return_indices=True)[1]
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
             fields = fields[idx, :]
 
         if not read_geometry and bbox is None and mask is None:
@@ -1602,6 +1608,7 @@ def ogr_open_arrow(
     int return_fids=False,
     int batch_size=0,
     use_pyarrow=False,
+    datetime_as_string=False,
 ):
 
     cdef int err = 0
@@ -1715,6 +1722,11 @@ def ogr_open_arrow(
         if columns is not None:
             # Fields are matched exactly by name, duplicates are dropped.
             ignored_fields = list(set(fields[:, 2]) - set(columns))
+
+            # Find index of each field in columns, and only keep those
+            idx = np.sort(np.intersect1d(fields[:, 2], columns, return_indices=True)[1])
+            fields = fields[idx, :]
+
         if not read_geometry:
             ignored_fields.append("OGR_GEOMETRY")
 
@@ -1724,9 +1736,8 @@ def ogr_open_arrow(
 
             driver = get_driver(ogr_dataset)
             if driver in {"FlatGeobuf", "GPKG"}:
-                ignored = set(ignored_fields)
-                for f in fields:
-                    if f[2] not in ignored and f[3] == "bool":
+                for field in fields:
+                    if field[3] == "bool":  # numpy type is bool
                         raise RuntimeError(
                             "GDAL < 3.8.3 does not correctly read boolean data values "
                             "using the Arrow API. Do not use read_arrow() / "
@@ -1818,6 +1829,12 @@ def ogr_open_arrow(
                 "GEOMETRY_METADATA_ENCODING",
                 "GEOARROW".encode("UTF-8")
             )
+
+        # Read DateTime fields as strings, as the Arrow DateTime column type is
+        # quite limited regarding support for mixed time zones,...
+        IF CTE_GDAL_VERSION >= (3, 11, 0):
+            if datetime_as_string:
+                options = CSLSetNameValue(options, "DATETIME_AS_STRING", "YES")
 
         # make sure layer is read from beginning
         OGR_L_ResetReading(ogr_layer)
