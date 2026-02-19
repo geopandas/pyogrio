@@ -1017,7 +1017,7 @@ def test_write_read_datetime_tz_mixed_offsets(
     ],
 )
 @pytest.mark.requires_arrow_write_api
-@pytest.skipif(
+@pytest.mark.skipif(
     not GDAL_GE_311,
     reason="before GDAL 3.11, datetimes weren't handled as well",
 )
