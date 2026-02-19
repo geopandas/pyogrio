@@ -56,6 +56,17 @@ def test_read_arrow(naturalearth_lowres_all_ext):
     assert_geodataframe_equal(result, expected, check_less_precise=check_less_precise)
 
 
+@pytest.mark.parametrize("columns", [None, [], ["continent"], ["iso_a3", "pop_est"]])
+def test_read_arrow_columns(naturalearth_lowres, columns):
+    meta, _table = read_arrow(naturalearth_lowres, columns=columns)
+    assert meta["fields"] is not None
+    if columns is None:
+        expected_fields = ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]
+    else:
+        expected_fields = columns
+    assert sorted(meta["fields"]) == sorted(expected_fields)
+
+
 def test_read_arrow_unspecified_layer_warning(data_dir):
     """Reading a multi-layer file without specifying a layer gives a warning."""
     with pytest.warns(UserWarning, match="More than one layer found "):
@@ -107,7 +118,7 @@ def test_read_arrow_skip_features_max_features(
     assert len(table) == expected
 
 
-def test_read_arrow_fid(naturalearth_lowres_all_ext):
+def test_read_df_arrow_fid(naturalearth_lowres_all_ext):
     kwargs = {"use_arrow": True, "where": "fid >= 2 AND fid <= 3"}
 
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=False, **kwargs)
@@ -117,12 +128,12 @@ def test_read_arrow_fid(naturalearth_lowres_all_ext):
     assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
 
 
-def test_read_arrow_columns(naturalearth_lowres):
+def test_read_df_arrow_columns(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, columns=["continent"])
     assert result.columns.tolist() == ["continent", "geometry"]
 
 
-def test_read_arrow_ignore_geometry(naturalearth_lowres):
+def test_read_df_arrow_ignore_geometry(naturalearth_lowres):
     result = read_dataframe(naturalearth_lowres, use_arrow=True, read_geometry=False)
     assert type(result) is pd.DataFrame
 
@@ -132,7 +143,7 @@ def test_read_arrow_ignore_geometry(naturalearth_lowres):
     assert_frame_equal(result, expected)
 
 
-def test_read_arrow_to_pandas_kwargs(no_geometry_file):
+def test_read_df_arrow_to_pandas_kwargs(no_geometry_file):
     # with arrow, list types are supported
     arrow_to_pandas_kwargs = {"strings_to_categorical": True}
     df = read_dataframe(
@@ -214,6 +225,30 @@ def test_open_arrow_batch_size(naturalearth_lowres):
 
         assert count == 2, "Should be two batches given the batch_size parameter"
         assert len(tables[0]) == batch_size, "First table should match the batch size"
+
+
+@pytest.mark.parametrize(
+    "descr, columns, exp_columns",
+    [
+        ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
+        ("case_sensitive", ["NAME"], []),
+        ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
+        ("keep_original_order", ["continent", "pop_est"], ["pop_est", "continent"]),
+    ],
+)
+def test_open_arrow_columns(naturalearth_lowres, descr, columns, exp_columns):
+    with open_arrow(naturalearth_lowres, columns=columns) as (meta, reader):
+        assert isinstance(meta, dict)
+        assert isinstance(reader, pyogrio._io._ArrowStream)
+
+        result = pyarrow.table(reader)
+
+    # Check metadata
+    assert np.array_equal(meta["fields"], exp_columns), f"Failed for {descr}"
+
+    # Check columns in table
+    exp_columns_with_geom = exp_columns + ["wkb_geometry"]
+    assert result.column_names == exp_columns_with_geom, f"Failed for {descr}"
 
 
 @pytest.mark.skipif(
