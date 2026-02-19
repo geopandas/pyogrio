@@ -44,7 +44,7 @@ jobs:
       #     add-apt-repository -y ppa:deadsnakes/ppa
       #     apt-get update && apt-get install -y python3.9-dev
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7

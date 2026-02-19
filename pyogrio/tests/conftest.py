@@ -337,6 +337,42 @@ def list_field_values_files(tmp_path, request):
 
 
 @pytest.fixture(scope="function")
+def many_data_types_geojson_file(tmp_path):
+    # create GeoJSON file with properties of many data types
+    many_types_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [0, 0]
+                },
+                "properties": {
+                    "int_col": 1,
+                    "float_col": 1.5,
+                    "str_col": "string",
+                    "bool_col": true,
+                    "null_col": null,
+                    "date_col": "2020-01-01",
+                    "time_col": "12:00:00",
+                    "datetime_col": "2020-01-01T12:00:00",
+                    "list_int_col": [1, 2, 3],
+                    "list_str_col": ["a", "b", "c"],
+                    "list_mixed_col": [1, "a", null, true]
+                }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_many_data_types.geojson"
+    with open(filename, "w") as f:
+        _ = f.write(many_types_geojson)
+
+    return filename
+
+
+@pytest.fixture(scope="function")
 def nested_geojson_file(tmp_path):
     # create GeoJSON file with nested properties
     nested_geojson = """{
@@ -432,7 +468,7 @@ def datetime_file(tmp_path):
 
 @pytest.fixture(scope="function")
 def datetime_tz_file(tmp_path):
-    # create GeoJSON file with datetimes with timezone
+    # create GeoJSON file with datetimes with time zone
     datetime_tz_geojson = """{
         "type": "FeatureCollection",
         "features": [
@@ -471,6 +507,27 @@ def geojson_bytes(tmp_path):
         bytes_buffer = f.read()
 
     return bytes_buffer
+
+
+@pytest.fixture(scope="function")
+def geojson_datetime_long_ago(tmp_path):
+    # create GeoJSON file with datetimes from long ago
+    datetime_tz_geojson = """{
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "properties": { "datetime_col": "1670-01-01T09:00:00" },
+                "geometry": { "type": "Point", "coordinates": [1, 1] }
+            }
+        ]
+    }"""
+
+    filename = tmp_path / "test_datetime_long_ago.geojson"
+    with open(filename, "w") as f:
+        f.write(datetime_tz_geojson)
+
+    return filename
 
 
 @pytest.fixture(scope="function")
