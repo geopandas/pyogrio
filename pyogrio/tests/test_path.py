@@ -114,6 +114,8 @@ def test_vsi_path_unknown():
     "path, expected",
     [
         (r"\\server\!test\example.shp", r"\\server\!test\example.shp"),
+        (r"\\server\!test\example.shp.zip", r"\\server\!test\example.shp.zip"),
+        (r"\\server\!test\example.zip", r"\\server\!test\example.zip"),
     ],
 )
 @pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows specific test")
