@@ -67,7 +67,9 @@ def vsi_path(path: str | Path) -> str:
 
     # Windows drive letters (e.g. "C:\") confuse `urlparse` as they look like
     # URL schemes
-    if sys.platform == "win32" and re.match("^[a-zA-Z]\\:", path):
+    if sys.platform == "win32" and (
+        re.match("^[a-zA-Z]\\:", path) or path.startswith(r"\\")
+    ):
         # If it is not a zip file or it is multi-extension zip file that is directly
         # supported by a GDAL driver, return the path as is.
         if not path.split("!")[0].endswith(".zip"):
