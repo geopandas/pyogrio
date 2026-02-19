@@ -4,7 +4,7 @@
 
 ### Bug fixes
 
--   Fix wrong handling of some windows network paths (#).
+-   Fix wrong handling of some windows network paths (#635).
 
 ## 0.12.1 (2025-11-28)
 
