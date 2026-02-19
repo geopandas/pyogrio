@@ -42,7 +42,7 @@ jobs:
           python -m pip install build setuptools
           python -m build --sdist
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: pyogrio-sdist
           path: ./dist/*.tar.gz
@@ -73,7 +73,7 @@ jobs:
           echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Download sdist from artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: pyogrio-sdist
           path: wheelhouse
@@ -148,7 +148,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.wheel_name }}
           path: ./wheelhouse/*.whl
@@ -187,7 +187,7 @@ jobs:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: vcpkgcache
         with:
           path: |
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload vcpkg build logs
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: pyogrio-vcpkg-logs-${{ matrix.triplet }}
           path: ${{ matrix.vcpkg_logs }}
@@ -235,7 +235,7 @@ jobs:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
           CIBW_ARCHS: ${{ matrix.arch }}
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         with:
           name: pyogrio-wheel-${{ matrix.triplet }}
           path: ./wheelhouse/*.whl
@@ -305,7 +305,7 @@ jobs:
           "$PWD/.venv/Scripts" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Download wheels from artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: wheelhouse
@@ -347,7 +347,7 @@ jobs:
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
 
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           pattern: pyogrio-*
           path: dist
