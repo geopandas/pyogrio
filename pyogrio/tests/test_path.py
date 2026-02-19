@@ -118,7 +118,7 @@ def test_vsi_path_unknown():
         (r"\\server\!test\example.zip", r"\\server\!test\example.zip"),
     ],
 )
-@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows specific test")
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows specific paths")
 def test_vsi_path_windows(path, expected):
     """Test for some specific Windows paths that only pass on Windows."""
     assert vsi_path(path) == expected
