@@ -4,8 +4,9 @@
 
 ### Bug fixes
 
--   Fix error in `write_dataframe` with `use_arrow=False` when writing a column with a
-    mix of datetimes with and without time zones (#).
+-   Fix error in `write_dataframe` with `use_arrow=False` when writing a column with
+    datetimes without any time zone offsets or with a mix of offsets and no offsets
+    (#634).
 
 ## 0.12.1 (2025-11-28)
 
