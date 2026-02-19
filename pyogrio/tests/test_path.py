@@ -1,5 +1,6 @@
 import contextlib
 import os
+import sys
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -48,7 +49,6 @@ def change_cwd(path):
         ("file:///home/user/data.gpkg.zip", "/home/user/data.gpkg.zip"),
         ("file:///home/user/data.shp.zip", "/home/user/data.shp.zip"),
         ("/home/folder # with hash/data.gpkg", "/home/folder # with hash/data.gpkg"),
-        (r"\\server\!test\example.shp", r"\\server\!test\example.shp"),
         # cloud URIs
         ("https://testing/data.gpkg", "/vsicurl/https://testing/data.gpkg"),
         ("s3://testing/data.gpkg", "/vsis3/testing/data.gpkg"),
@@ -108,6 +108,18 @@ def test_vsi_path(path, expected):
 def test_vsi_path_unknown():
     # unrecognized URI gets passed through as is
     assert vsi_path("s4://test/data.geojson") == "s4://test/data.geojson"
+
+
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        (r"\\server\!test\example.shp", r"\\server\!test\example.shp"),
+    ],
+)
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows specific test")
+def test_vsi_path_windows(path, expected):
+    """Test for some specific Windows paths that only pass on Windows."""
+    assert vsi_path(path) == expected
 
 
 def test_vsi_handling_read_functions(naturalearth_lowres_vsi):
