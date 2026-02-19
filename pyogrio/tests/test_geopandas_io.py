@@ -1001,6 +1001,38 @@ def test_write_read_datetime_tz_mixed_offsets(
         assert_geodataframe_equal(result, df)
 
 
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_mixed_offsets_None(tmp_path, use_arrow):
+    """Test with dates with mixed time zone offsets where some offsets are None.
+
+    When datetimes with a mix of having a time zone offsets and some without an offset
+    were written without arrow, this gave the following error:
+        `ValueError: cannot convert float NaN to integer`
+    """
+    # Pandas datetime64 column types doesn't support mixed time zone offsets, so
+    # it needs to be a list of pandas.Timestamp objects instead.
+    dates = [
+        pd.Timestamp("2023-01-01 11:00:01.111+01:00"),
+        pd.Timestamp("2023-06-01 10:00:01.111+05:00"),
+        pd.Timestamp("2023-06-01 10:00:01.111"),
+        np.nan,
+    ]
+
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * len(dates)}, crs="EPSG:4326"
+    )
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=False,
+        mixed_offsets_as_utc=False,
+    )
+
+    assert_geodataframe_equal(result, df)
+
+
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
 @pytest.mark.parametrize(
     "dates_raw",
