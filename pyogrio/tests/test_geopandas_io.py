@@ -2110,10 +2110,13 @@ def test_write_read_category_str_empty(tmp_path, use_arrow):
     This specific test was added because such columns gave an error with arrow, as
     reported in this issue: https://github.com/geopandas/pyogrio/issues/620.
     """
-    str_gdf = gp.GeoDataFrame(
+    # With pandas 3, and with use_arrow, the resulting empty dataframe read has string
+    # dtype for cat_col, for all other cases it will be object.
+    exp_dtype = "str" if PANDAS_GE_30 and use_arrow else object
+    exp_gdf = gp.GeoDataFrame(
         {"cat_col": [], "geometry": []}, geometry="geometry", crs="EPSG:4326"
-    ).astype({"cat_col": "str"})
-    category_gdf = str_gdf.astype({"cat_col": "category"})
+    ).astype({"cat_col": exp_dtype})
+    category_gdf = exp_gdf.astype({"cat_col": "category"})
 
     path = tmp_path / f"test_{use_arrow}.gpkg"
     write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
@@ -2122,7 +2125,7 @@ def test_write_read_category_str_empty(tmp_path, use_arrow):
     result = read_dataframe(path, use_arrow=use_arrow)
     assert "cat_col" in result.columns
     # Category dtype is not preserved when data is written to the formats tested.
-    assert_geodataframe_equal(result, str_gdf)
+    assert_geodataframe_equal(result, exp_gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
