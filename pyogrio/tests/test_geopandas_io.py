@@ -1045,12 +1045,13 @@ def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
         exp_df.dates = pd.to_datetime(exp_df.dates, utc=False)
         if PANDAS_GE_20:
             exp_df.dates = exp_df.dates.dt.as_unit("ms")
-        if not PANDAS_GE_30:
-            exp_df.loc[2, "dates"] = None
+        if not GDAL_GE_311 and use_arrow:
+            # Older versions of GDAL with arrow didn't handle datetimes properly
+            exp_df.dates = exp_df.dates.astype("str")
+            result.dates = result.dates.str.slice(0, -3)
 
-    if not GDAL_GE_311 and use_arrow:
-        # Older versions of GDAL with arrow didn't handle datetimes properly
-        exp_df.dates = exp_df.dates.astype("str")
+    if not PANDAS_GE_30:
+        exp_df.loc[2, "dates"] = None
 
     assert_geodataframe_equal(result, exp_df)
 
