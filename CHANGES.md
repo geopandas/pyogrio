@@ -23,6 +23,7 @@
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558, #597).
+-   Unlock the gil during GDAL functions that can take significant time (#572).
 
 ### Bug fixes
 
