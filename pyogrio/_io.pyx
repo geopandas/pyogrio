@@ -2786,6 +2786,8 @@ def ogr_write(
                         tz_array = gdal_tz_offsets.get(fields[field_idx], None)
                         if tz_array is None:
                             gdal_tz = 0
+                        elif np.isnan(tz_array[i]):
+                            gdal_tz = 0
                         else:
                             gdal_tz = tz_array[i]
                         OGR_F_SetFieldDateTimeEx(

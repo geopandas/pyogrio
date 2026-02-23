@@ -3,7 +3,7 @@ import locale
 import os
 import re
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from zipfile import ZipFile
 
@@ -999,6 +999,61 @@ def test_write_read_datetime_tz_mixed_offsets(
     else:
         assert is_object_dtype(result.dates.dtype)
         assert_geodataframe_equal(result, df)
+
+
+@pytest.mark.parametrize(
+    "dates",
+    [
+        [
+            datetime(2023, 1, 1, 11, 0, 1, 111000),
+            datetime(2023, 6, 1, 10, 0, 1, 111000),
+            np.nan,
+        ],
+        [
+            datetime(2023, 1, 1, 11, 0, 1, 111000, tzinfo=timezone(timedelta(hours=1))),
+            datetime(2023, 6, 1, 10, 0, 1, 111000),
+            np.nan,
+        ],
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    not GDAL_GE_311,
+    reason="before GDAL 3.11, datetimes weren't handled as well",
+)
+def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
+    """Test writing a column with datetimes with and without time zone offsets.
+
+    Two types of errors occured:
+      - For datetimes without any offset, when written without arrow:
+        `TypeError: Invalid dtype float64 for __floordiv__`
+      - For datetimes with a mix of having a time zone offset and without, when written
+        without arrow: `ValueError: cannot convert float NaN to integer`
+    """
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * len(dates)},
+        crs="EPSG:4326",
+        dtype=object,
+    )
+    fpath = tmp_path / "test.gpkg"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=False,
+        mixed_offsets_as_utc=False,
+    )
+
+    exp_df = df.copy()
+    if dates[0].tzinfo is None:
+        exp_df.dates = pd.to_datetime(exp_df.dates, utc=False)
+        if PANDAS_GE_20:
+            exp_df.dates = exp_df.dates.dt.as_unit("ms")
+
+    if not PANDAS_GE_30:
+        exp_df.loc[2, "dates"] = None
+
+    assert_geodataframe_equal(result, exp_df)
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
