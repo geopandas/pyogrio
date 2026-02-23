@@ -15,7 +15,7 @@ encountered, the following occurs:
 Note: detection of NULL or otherwise unset field values is limited to the subset
 of records that are read from the data layer, which means that reading different
 subsets of records may yield different data types for the same columns. You
-can use {func}`~pyogrio.read_info()` to determine the original data types of each
+can use {func}`~pyogrio.read_info` to determine the original data types of each
 column.
 
 ## No support for measured geometries
