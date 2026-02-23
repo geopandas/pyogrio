@@ -213,7 +213,7 @@ Note: the `bbox` values must be in the same CRS as the dataset.
 Note: if GEOS is present and used by GDAL, only geometries that intersect `bbox`
 will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect this bbox will be returned.
-{func}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+{attr}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
 ## Filter records by a geometry
 
@@ -239,7 +239,7 @@ need to convert it to a Shapely geometry before using `mask`.
 Note: if GEOS is present and used by GDAL, only geometries that intersect `mask`
 will be returned; if GEOS is not available or not used by GDAL, all geometries
 with bounding boxes that intersect the bounding box of `mask` will be returned.
-{func}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
+{attr}`pyogrio.__gdal_geos_version__` will be `None` if GEOS is not detected.
 
 ## Execute a sql query
 
