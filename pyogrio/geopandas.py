@@ -755,6 +755,8 @@ def write_dataframe(
 
         from pyogrio.raw import write_arrow
 
+        df = df.copy(deep=False)
+
         if geometry_column is not None:
             # Convert to multi type
             if promote_to_multi:
@@ -780,7 +782,6 @@ def write_dataframe(
                     )
 
             geometry = to_wkb(geometry.values)
-            df = df.copy(deep=False)
             # convert to plain DataFrame to avoid warning from geopandas about
             # writing non-geometries to the geometry column
             df = pd.DataFrame(df, copy=False)
@@ -793,11 +794,26 @@ def write_dataframe(
         # datetime columns when writing the dataset.
         datetime_cols = []
         for name, dtype in df.dtypes.items():
+            if geometry_column is not None and name == geometry_column:
+                continue
             if dtype == "object":
-                # An object column with datetimes can contain multiple offsets.
-                if pd.api.types.infer_dtype(df[name]) == "datetime":
+                inferred_dtype = pd.api.types.infer_dtype(df[name])
+                if inferred_dtype == "string":
+                    # The column already contains strings, so no need to convert.
+                    continue
+                elif inferred_dtype == "datetime":
+                    # The arrow timestamp type doesn't support mixed time zone offsets,
+                    # so convert to string to avoid data loss and pass on to GDAL
+                    # that it is a datetime so GDAL can preserve the type information.
                     df[name] = df[name].astype("string")
                     datetime_cols.append(name)
+                else:
+                    # Check if pyarrow can handle the data in the column. If not,
+                    # convert it to string and save it like that.
+                    try:
+                        _ = pa.Schema.from_pandas(df[[name]])
+                    except pa.ArrowInvalid:
+                        df[name] = df[name].astype("str")
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # A pd.datetime64 column with a time zone different than UTC can contain

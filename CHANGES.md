@@ -1,12 +1,18 @@
 # CHANGELOG
 
+## 0.12.2 (????-??-??)
+
+### Bug fixes
+
+-   Fix writing non-string object columns with arrow (#630).
+
 ## 0.12.1 (2025-11-28)
 
 ### Bug fixes
 
--   Fix regression in reading date columns (#616)
--   Fix regression in `read_dataframe` when `use_arrow=True` and `columns` is used to filter
-    out columns of some specific types (#611)
+-   Fix regression in reading date columns (#616).
+-   Fix regression in `read_dataframe` when `use_arrow=True` and `columns` is used to
+    filter out columns of some specific types (#611).
 
 ## 0.12.0 (2025-11-26)
 
