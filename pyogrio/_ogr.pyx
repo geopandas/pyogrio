@@ -17,11 +17,14 @@ cdef get_string(const char *c_str, str encoding="UTF-8"):
     Parameters
     ----------
     c_str : char *
+        C string to convert
     encoding : str, optional (default: UTF-8)
+        Encoding to use for decoding bytes to string.
 
     Returns
     -------
     Python string
+
     """
     cdef bytes py_str
 
@@ -30,7 +33,14 @@ cdef get_string(const char *c_str, str encoding="UTF-8"):
 
 
 def get_gdal_version():
-    """Convert GDAL version number into tuple of (major, minor, revision)"""
+    """Get GDAL version as tuple.
+
+    Returns
+    -------
+    tuple
+        A tuple of (major, minor, revision) version numbers.
+
+    """
     version = int(GDALVersionInfo("VERSION_NUM"))
     major = version // 1000000
     minor = (version - (major * 1000000)) // 10000
@@ -39,6 +49,7 @@ def get_gdal_version():
 
 
 def get_gdal_version_string():
+    """Get GDAL version string."""
     cdef const char* version = GDALVersionInfo("RELEASE_NAME")
     return get_string(version)
 
@@ -48,6 +59,15 @@ cdef extern from "ogr_api.h":
 
 
 def get_gdal_geos_version():
+    """Get the version of the GEOS library used by GDAL.
+
+    Returns
+    -------
+    tuple or None
+        A tuple of (major, minor, revision) version numbers if GEOS is available,
+        or None if GEOS is not available.
+
+    """
     cdef int major, minor, revision
 
     if not OGRGetGEOSVersion(&major, &minor, &revision):
@@ -56,6 +76,14 @@ def get_gdal_geos_version():
 
 
 def set_gdal_config_options(dict options):
+    """Set multiple GDAL configuration options.
+
+    Parameters
+    ----------
+    options : dict
+        Dictionary of configuration options to set.
+
+    """
     for name, value in options.items():
         name_b = name.encode("utf-8")
         name_c = name_b
@@ -76,6 +104,19 @@ def set_gdal_config_options(dict options):
 
 
 def get_gdal_config_option(str name):
+    """Get the value of a GDAL configuration option.
+
+    Parameters
+    ----------
+    name : str
+        Name of the configuration option.
+
+    Returns
+    -------
+    The value of the configuration option, which can be an int, bool, str, or None if
+    the option is not set.
+
+    """
     name_b = name.encode("utf-8")
     name_c = name_b
     value = CPLGetConfigOption(<const char*>name_c, NULL)
@@ -97,7 +138,21 @@ def get_gdal_config_option(str name):
 
 
 def ogr_driver_supports_write(driver):
-    # check metadata for driver to see if it supports write
+    """Check if driver supports writing/creation of new files.
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports writing/creation of new files, False otherwise.
+
+    """
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
         return True
 
@@ -105,7 +160,21 @@ def ogr_driver_supports_write(driver):
 
 
 def ogr_driver_supports_vsi(driver):
-    # check metadata for driver to see if it supports write
+    """Check if driver supports virtual system interface (VSI).
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports  (VSI), False otherwise.
+
+    """
     if _get_driver_metadata_item(driver, "DCAP_VIRTUALIO") == "YES":
         return True
 
@@ -113,6 +182,15 @@ def ogr_driver_supports_vsi(driver):
 
 
 def ogr_list_drivers():
+    """List all available OGR drivers with read/write mode.
+
+    Returns
+    -------
+    dict
+        Dictionary with the driver name as key and the supported modes as value
+        ("r" or "rw")
+
+    """
     cdef OGRSFDriverH driver = NULL
     cdef int i
     cdef char *name_c
@@ -147,8 +225,13 @@ def has_gdal_data():
     """Verify that GDAL library data files are correctly found.
 
     Adapted from Fiona (_env.pyx).
-    """
 
+    Returns
+    -------
+    bool
+        True if GDAL data files are correctly found, False otherwise.
+
+    """
     if CPLFindFile("gdal", "header.dxf") != NULL:
         return True
 
@@ -156,9 +239,7 @@ def has_gdal_data():
 
 
 def get_gdal_data_path():
-    """
-    Get the path to the directory GDAL uses to read data files.
-    """
+    """Get the path to the directory GDAL uses to read data files."""
     cdef const char *path_c = CPLFindFile("gdal", "header.dxf")
     if path_c != NULL:
         return get_string(path_c).replace("header.dxf", "")
@@ -175,6 +256,7 @@ def has_proj_data():
         that data files are correctly loaded.
 
     Adapted from Fiona (_env.pyx).
+
     """
     cdef OGRSpatialReferenceH srs = OSRNewSpatialReference(NULL)
 
@@ -198,8 +280,8 @@ def init_gdal_data():
     - other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
-    """
 
+    """
     # wheels are packaged to include GDAL data files at pyogrio/gdal_data
     wheel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "gdal_data"))
     if os.path.exists(wheel_path):

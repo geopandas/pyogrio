@@ -1,7 +1,6 @@
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
-"""IO support for OGR vector data sources
-"""
+"""IO support for OGR vector data sources."""
 
 import contextlib
 import datetime
@@ -62,18 +61,18 @@ FIELD_TYPES = [
     None,              # OFTTime, Time, NOTE: not directly supported in numpy
     "datetime64[ms]",  # OFTDateTime, Date and Time
     "int64",           # OFTInteger64, Single 64bit integer
-    "list(int64)"      # OFTInteger64List, List of 64bit integers, not supported
+    "list(int64)"      # OFTInteger64List, List of 64bit integers
 ]
 
 # Mapping of OGR integer field types to OGR type names
 # (index in array is the integer field type)
 FIELD_TYPE_NAMES = {
     OFTInteger: "OFTInteger",                # Simple 32bit integer
-    OFTIntegerList: "OFTIntegerList",        # List of 32bit integers, not supported
+    OFTIntegerList: "OFTIntegerList",        # List of 32bit integers
     OFTReal: "OFTReal",                      # Double Precision floating point
-    OFTRealList: "OFTRealList",              # List of doubles, not supported
+    OFTRealList: "OFTRealList",              # List of doubles
     OFTString: "OFTString",                  # String of UTF-8 chars
-    OFTStringList: "OFTStringList",          # Array of strings, not supported
+    OFTStringList: "OFTStringList",          # Array of strings
     OFTWideString: "OFTWideString",          # deprecated, not supported
     OFTWideStringList: "OFTWideStringList",  # deprecated, not supported
     OFTBinary: "OFTBinary",                  # Raw Binary data
@@ -81,7 +80,7 @@ FIELD_TYPE_NAMES = {
     OFTTime: "OFTTime",                      # Time: not directly supported in numpy
     OFTDateTime: "OFTDateTime",              # Date and Time
     OFTInteger64: "OFTInteger64",            # Single 64bit integer
-    OFTInteger64List: "OFTInteger64List",    # List of 64bit integers, not supported
+    OFTInteger64List: "OFTInteger64List",    # List of 64bit integers
 }
 
 FIELD_SUBTYPES = {
@@ -96,8 +95,8 @@ FIELD_SUBTYPE_NAMES = {
     OFSTBoolean: "OFSTBoolean",       # Boolean integer
     OFSTInt16: "OFSTInt16",           # Signed 16-bit integer
     OFSTFloat32: "OFSTFloat32",       # Single precision (32 bit) floating point
-    OFSTJSON: "OFSTJSON",
-    OFSTUUID: "OFSTUUID",
+    OFSTJSON: "OFSTJSON",             # String with JSON content
+    OFSTUUID: "OFSTUUID",             # String with a UUID
     OFSTMaxSubType: "OFSTMaxSubType",
 }
 
@@ -130,6 +129,16 @@ DTYPE_OGR_FIELD_TYPES = {
 
 
 cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
+    """Start a transaction on the dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : OGRDataSourceH
+        The open OGR dataset
+    force : bool
+        True to force transaction even if driver does not support it
+
+    """
     cdef int err = GDALDatasetStartTransaction(ogr_dataset, force)
     if err == OGRERR_FAILURE:
         raise DataSourceError("Failed to start transaction")
@@ -138,6 +147,14 @@ cdef int start_transaction(OGRDataSourceH ogr_dataset, int force) except 1:
 
 
 cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
+    """Commit a transaction on the dataset.
+
+    Parameters
+    ----------
+    ogr_dataset : pointer
+        The open OGR dataset
+
+    """
     cdef int err = GDALDatasetCommitTransaction(ogr_dataset)
     if err == OGRERR_FAILURE:
         raise DataSourceError("Failed to commit transaction")
@@ -155,16 +172,18 @@ cdef int commit_transaction(OGRDataSourceH ogr_dataset) except 1:
 
 
 cdef char** dict_to_options(object values):
-    """Convert a python dictionary into name / value pairs (stored in a char**)
+    """Convert a python dictionary into name / value pairs (stored in a char**).
 
     Parameters
     ----------
     values: dict
-        all keys and values must be strings
+        All keys and values must be strings
 
     Returns
     -------
     char**
+        The name / value pairs as char**
+
     """
     cdef char **options = NULL
 
@@ -180,18 +199,21 @@ cdef char** dict_to_options(object values):
 
 
 cdef const char* override_threadlocal_config_option(str key, str value):
-    """Set the CPLSetThreadLocalConfigOption for key=value
+    """Set the CPLSetThreadLocalConfigOption for key=value.
 
     Parameters
     ----------
     key : str
+        The key to set
     value : str
+        The value to set for the key
 
     Returns
     -------
     const char*
-        value previously set for key, so that it can be later restored.  Caller
+        Value previously set for key, so that it can be later restored. Caller
         is responsible for freeing this via CPLFree() if not NULL.
+
     """
 
     key_b = key.encode("UTF-8")
@@ -213,16 +235,22 @@ cdef const char* override_threadlocal_config_option(str key, str value):
 
 
 cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
-    """Open an existing OGR data source
+    """Open an existing OGR data source.
 
     Parameters
     ----------
     path_c : char *
-        input path, including an in-memory path (/vsimem/...)
+        Input path, including an in-memory path (/vsimem/...)
     mode : int
-        set to 1 to allow updating data source
+        Set to 1 to allow updating data source
     options : char **, optional
-        dataset open options
+        Dataset open options
+
+    Returns
+    -------
+    GDALDatasetH
+        The open OGR dataset
+
     """
     cdef void *ogr_dataset = NULL
     cdef ErrorHandler errors
@@ -264,7 +292,14 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
 
 cdef ogr_close(GDALDatasetH ogr_dataset):
     """Close the dataset and raise exception if that fails.
+
     NOTE: some drivers only raise errors on write when calling GDALClose()
+
+    Parameters
+    ----------
+    ogr_dataset : pointer
+        The open OGR dataset
+
     """
     if ogr_dataset != NULL:
         IF CTE_GDAL_VERSION >= (3, 7, 0):
@@ -286,13 +321,16 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
+    ogr_dataset : GDALDatasetH
+        The open OGR dataset
     layer : str or int
-        name or index of layer
+        Name or index of layer
 
     Returns
     -------
-    pointer to OGR layer
+    OGRLayerH
+        The OGR layer
+
     """
     cdef OGRLayerH ogr_layer = NULL
 
@@ -337,7 +375,8 @@ cdef OGRLayerH execute_sql(
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
+    ogr_dataset : GDALDatasetH
+        The open OGR dataset to execute the SQL on
     sql : str
         The sql statement to execute
     sql_dialect : str, optional (default: None)
@@ -345,9 +384,10 @@ cdef OGRLayerH execute_sql(
 
     Returns
     -------
-    pointer to OGR layer
-    """
+    OGRLayerH
+        The resulting OGR layer
 
+    """
     try:
         sql_b = sql.encode("utf-8")
         sql_c = sql_b
@@ -373,7 +413,8 @@ cdef str get_crs(OGRLayerH ogr_layer):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : OGRLayerH
+        The open OGR layer to get the CRS from
 
     Returns
     -------
@@ -425,10 +466,18 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
+    ogr_dataset : pointer
+        The open OGR dataset to get the driver for
+
+    Raises
+    ------
+    DataLayerError: if the driver of the dataset could not be detemined
+
     Returns
     -------
     str or None
+        The name of the driver
+
     """
     cdef void *ogr_driver
 
@@ -453,7 +502,8 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : pointer
+        The open OGR layer
     force : bool
         True if the feature count should be computed even if it is expensive
 
@@ -461,8 +511,8 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
     -------
     int
         count of features
-    """
 
+    """
     cdef OGRFeatureH ogr_feature = NULL
     cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, force)
 
@@ -510,7 +560,8 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : OGRLayerH
+        The open OGR layer
     force : bool
         True if the total bounds should be computed even if it is expensive
 
@@ -518,8 +569,8 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
     -------
     tuple of (xmin, ymin, xmax, ymax) or None
         The total bounds of the layer, or None if they could not be determined.
-    """
 
+    """
     cdef OGREnvelope ogr_envelope
 
     if OGR_L_GetExtent(ogr_layer, &ogr_envelope, force) == OGRERR_NONE:
@@ -533,15 +584,16 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
 
 
 cdef set_metadata(GDALMajorObjectH obj, object metadata):
-    """Set metadata on a dataset or layer
+    """Set metadata on a dataset or layer.
 
     Parameters
     ----------
-    obj : pointer to dataset or layer
+    obj : GDALMajorObjectH
+        The open dataset or layer to set metadata on
     metadata : dict, optional (default None)
-        keys and values must be strings
-    """
+        The metadata to set. All keys and values must be strings.
 
+    """
     cdef char **metadata_items = NULL
     cdef int err = 0
 
@@ -557,16 +609,18 @@ cdef set_metadata(GDALMajorObjectH obj, object metadata):
         raise RuntimeError("Could not set metadata") from None
 
 cdef get_metadata(GDALMajorObjectH obj):
-    """Get metadata for a dataset or layer
+    """Get metadata for a dataset or layer.
 
     Parameters
     ----------
-    obj : pointer to dataset or layer
+    obj : GDALMajorObjectH
+        The open OGR dataset or layer to get metadata from
 
     Returns
     -------
     dict or None
-        metadata as key, value pairs
+        The metadata as key, value pairs
+
     """
     # only default namespace is currently supported
     cdef char **metadata = GDALGetMetadata(obj, NULL)
@@ -589,14 +643,17 @@ cdef detect_encoding(OGRDataSourceH ogr_dataset, OGRLayerH ogr_layer):
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
-    ogr_layer : pointer to open OGR layer
+    ogr_dataset : OGRDataSourceH
+        The open OGR dataset
+    ogr_layer : OGRLayerH
+        The open OGR layer
 
     Returns
     -------
     str or None
-    """
+        The detected encoding
 
+    """
     if OGR_L_TestCapability(ogr_layer, OLCStringsAsUTF8):
         # OGR_L_TestCapability returns True for OLCStringsAsUTF8 if GDAL hides encoding
         # complexities for this layer/driver type. In this case all string attribute
@@ -657,9 +714,10 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : OGRLayerH
+        The open OGR layer to get fields from
     encoding : str
-        encoding to use when reading field name
+        Encoding to use when reading field name
     use_arrow : bool, default False
         If using arrow, all types are supported, and we don't have to
         raise warnings
@@ -742,7 +800,8 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : pointer
+        The open OGR layer to apply the filter to
     where : str
         See http://ogdi.sourceforge.net/prop/6.2.CapabilitiesMetadata.html
         restricted_where for more information about valid expressions.
@@ -751,7 +810,6 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     ------
     ValueError: if SQL query is not valid
     """
-
     where_b = where.encode("utf-8")
     where_c = where_b
     err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
@@ -773,15 +831,16 @@ cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
+    ogr_layer : pointer
+        The open OGR layer to apply the filter to
     bbox : list or tuple of xmin, ymin, xmax, ymax
+        Bounding box to filter on
 
     Raises
     ------
     ValueError: if bbox is not a list or tuple or does not have proper number of
         items
     """
-
     if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
         raise ValueError(f"Invalid bbox: {bbox}")
 
@@ -790,14 +849,15 @@ cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
 
 
 cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
-    """Applies geometry spatial filter to layer.
+    """Applies geometry spatial filter to the layer.
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
-    wkb : WKB encoding of geometry
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    wkb : bytes
+        Geometry encoded as WKB
     """
-
     cdef OGRGeometryH ogr_geometry = NULL
     cdef unsigned char *wkb_buffer = wkb
 
@@ -816,8 +876,10 @@ cdef apply_skip_features(OGRLayerH ogr_layer, int skip_features):
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
-    wskip_features : int
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    skip_features : int
+        Number of features to skip from the beginning of the layer
     """
     err = OGR_L_SetNextByIndex(ogr_layer, skip_features)
     # GDAL can raise an error (depending on the format) for out-of-bound index,
@@ -841,11 +903,18 @@ cdef validate_feature_range(
 
     Parameters
     ----------
-    ogr_layer : pointer to open OGR layer
-    skip_features : number of features to skip from beginning of available range
-    max_features : maximum number of features to read from available range
-    """
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    skip_features : int
+        The number of features to skip from the beginning of the layer
+    max_features : int
+        The maximum number of features to read
 
+    Returns
+    -------
+    tuple
+        A tuple containing the adjusted skip_features and max_features values
+    """
     feature_count = get_feature_count(ogr_layer, 1)
     num_features = max_features
 
@@ -867,7 +936,22 @@ cdef validate_feature_range(
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
 cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2d):
+    """Process the geometry of a feature.
 
+    The geometry is stored in the geom_view array as a WKB.
+
+    Parameters
+    ----------
+    ogr_feature : OGRFeatureH
+        The OGR feature
+    i : int
+        The index of the feature to be processed
+    geom_view : object
+        A view to the geometry array to save the geometry to
+    force_2d : uint8_t
+        Whether to force geometries to 2D
+
+    """
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRwkbGeometryType ogr_geometry_type
 
@@ -915,6 +999,32 @@ cdef process_fields(
     encoding,
     bint datetime_as_string
 ):
+    """Process the fields of a feature.
+
+    The field data is stored in the field_data_view.
+
+    Parameters
+    ----------
+    ogr_feature : OGRFeatureH
+        The OGR feature
+    i : int
+        The index of the feature to be processed
+    n_fields : int
+        The number of fields in the feature
+    field_data : object
+        The array where field data is stored
+    field_data_view : object
+        A view to the array to save the data to
+    field_indexes : object
+        An array with the indexes to each field in the feature
+    field_ogr_types : object
+        An array with the OGR types for each field
+    encoding : object
+        The encoding to use for reading field data
+    datetime_as_string : bint
+        Whether to read datetime fields as strings
+
+    """
     cdef int j
     cdef int success
     cdef int field_index
@@ -1082,7 +1192,36 @@ cdef get_features(
     uint8_t return_fids,
     bint datetime_as_string
 ):
+    """Get features from a layer.
 
+    Parameters
+    ----------
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    fields : object[:, :]
+        An array of fields to read
+    encoding : object
+        The encoding to use for reading field data
+    read_geometry : uint8_t
+        Whether to read geometry
+    force_2d : uint8_t
+        Whether to force 2D geometries
+    skip_features : int
+        The number of features to skip
+    num_features : int
+        The number of features to read
+    return_fids : uint8_t
+        Whether to return feature IDs
+    datetime_as_string : bint
+        Whether to read datetime fields as strings
+
+    Returns
+    -------
+    tuple(ndarray, ndarray, ndarray)
+        A tuple containing arrays with the feature IDs, geometries, and field data read
+        from the layer.
+
+    """
     cdef OGRFeatureH ogr_feature = NULL
     cdef int n_fields
     cdef int i
@@ -1193,7 +1332,32 @@ cdef get_features_by_fid(
     uint8_t force_2d,
     bint datetime_as_string
 ):
+    """Get features by their feature IDs (FIDs).
 
+    Parameters
+    ----------
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    fids : int[:]
+        An array of feature IDs to read
+    fields : object[:, :]
+        An array of fields to read
+    encoding : object
+        The encoding to use for reading field data
+    read_geometry : uint8_t
+        Whether to read geometry
+    force_2d : uint8_t
+        Whether to force 2D geometries
+    datetime_as_string : bint
+        Whether to read datetime fields as strings
+
+    Returns
+    -------
+    tuple(ndarray, ndarray)
+        A tuple containing arrays with the geometries and field data read from the
+        layer.
+
+    """
     cdef OGRFeatureH ogr_feature = NULL
     cdef int n_fields
     cdef int i
@@ -1258,6 +1422,24 @@ cdef get_features_by_fid(
 @cython.boundscheck(False)  # Deactivate bounds checking
 @cython.wraparound(False)   # Deactivate negative indexing.
 cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
+    """Get the bounds of the features in a layer.
+
+    Parameters
+    ----------
+    ogr_layer : OGRLayerH
+        The open OGR layer
+    skip_features : int
+        The number of features to skip from the beginning of the layer
+    num_features : int
+        The number of features to read from the layer
+
+    Returns
+    -------
+    tuple(ndarray, ndarray)
+        A tuple containing arrays with the feature IDs and bounds of the features in the
+        layer.
+
+    """
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGREnvelope ogr_envelope  # = NULL
@@ -1344,7 +1526,15 @@ def ogr_read(
     int return_fids=False,
     bint datetime_as_string=False,
 ):
+    """Read features from a dataset.
 
+    Returns
+    -------
+    tuple(dict, ndarray, ndarray, ndarray)
+        A tuple containing a dictionary with metadata, an array with feature IDs,
+        an array with geometries and an array with field data read from the dataset.
+
+    """
     cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
@@ -1610,7 +1800,14 @@ def ogr_open_arrow(
     use_pyarrow=False,
     datetime_as_string=False,
 ):
+    """Open a file via the GDAL arrow interface.
 
+    Returns
+    -------
+    tuple(dict, Arrow ArrayStream)
+        A tuple containing a dictionary with metadata about the file and an Arrow
+        ArrayStream object that can be used to read the data.
+    """
     cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
@@ -1927,7 +2124,7 @@ def ogr_read_bounds(
     tuple bbox=None,
     object mask=None,
 ):
-
+    """Read bounds of features in the dataset."""
     cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
@@ -1994,7 +2191,7 @@ def ogr_read_info(
     int force_feature_count=False,
     int force_total_bounds=False
 ):
-
+    """Read metadata information about the dataset."""
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
@@ -2088,6 +2285,19 @@ def ogr_read_info(
 
 
 def ogr_list_layers(object path_or_buffer):
+    """List the layers in the dataset.
+
+    Parameters
+    ----------
+    path_or_buffer : str or bytes
+        The path to the dataset, or a bytes buffer containing the dataset.
+
+    Returns
+    -------
+    ndarray(n)
+        An array with all layer names.
+
+    """
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
     cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
@@ -2111,18 +2321,19 @@ def ogr_list_layers(object path_or_buffer):
 
 
 cdef str get_default_layer(OGRDataSourceH ogr_dataset):
-    """ Get the layer in the dataset that is read by default.
+    """Get the layer in the dataset that is read by default.
 
     The caller is responsible for closing the dataset.
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
+    ogr_dataset : OGRDataSourceH
+        The open OGR dataset
 
     Returns
     -------
     str
-        the name of the default layer to be read.
+        The name of the default layer to be read.
 
     """
     layers = get_layer_names(ogr_dataset)
@@ -2143,18 +2354,19 @@ cdef str get_default_layer(OGRDataSourceH ogr_dataset):
 
 
 cdef get_layer_names(OGRDataSourceH ogr_dataset):
-    """ Get the layers in the dataset.
+    """Get the layers in the dataset.
 
     The caller is responsible for closing the dataset.
 
     Parameters
     ----------
-    ogr_dataset : pointer to open OGR dataset
+    ogr_dataset : OGRDataSourceH
+        The open OGR dataset
 
     Returns
     -------
     ndarray(n)
-        array of layer names
+        An array with all layer names
 
     """
     cdef OGRLayerH ogr_layer = NULL
@@ -2172,11 +2384,30 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     return data
 
 
-# NOTE: all modes are write-only
-# some data sources have multiple layers
 cdef void * ogr_create(
     const char* path_c, const char* driver_c, char** options
 ) except NULL:
+    """Create a new dataset.
+
+    NOTES:
+      - all modes are write-only
+      - some data sources have multiple layers
+
+    Parameters
+    ----------
+    path_c : const char*
+        The path to create the dataset at.
+    driver_c : const char*
+        The name of the driver to use for creating the dataset.
+    options : char**
+        Creation options for the dataset.
+
+    Returns
+    -------
+    OGRDataSourceH
+        The created dataset.
+
+    """
     cdef void *ogr_driver = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
@@ -2227,6 +2458,19 @@ cdef void * ogr_create(
 
 
 cdef void * create_crs(str crs) except NULL:
+    """Create an OGRSpatialReferenceH object from a CRS string.
+
+    Parameters
+    ----------
+    crs : str
+        The CRS string in any format accepted by OSRSetFromUserInput.
+
+    Returns
+    -------
+    OGRSpatialReferenceH
+        The created OGRSpatialReferenceH object.
+
+    """
     cdef char *crs_c = NULL
     cdef void *ogr_crs = NULL
 
@@ -2249,6 +2493,20 @@ cdef void * create_crs(str crs) except NULL:
 
 
 cdef infer_field_types(list dtypes):
+    """Infer OGR field types from numpy dtypes.
+
+    Parameters
+    ----------
+    dtypes : list
+        List of numpy dtypes for which to infer OGR field types.
+
+    Returns
+    -------
+    ndarray (n, 4)
+        Array with inferred OGR field types, subtypes, width, and precision
+        for each dtype.
+
+    """
     cdef int field_type = 0
     cdef int field_subtype = 0
     cdef int width = 0
@@ -2311,9 +2569,7 @@ cdef create_ogr_dataset_layer(
     OGRDataSourceH* ogr_dataset_out,
     OGRLayerH* ogr_layer_out,
 ):
-    """
-    Construct the OGRDataSource and OGRLayer objects based on input
-    path and layer.
+    """Create the OGRDataSource and OGRLayer objects based on input path and layer.
 
     If the file already exists, will open the existing dataset and overwrite
     or append the layer (depending on `append`), otherwise will create a new
@@ -2339,6 +2595,7 @@ cdef create_ogr_dataset_layer(
     bool :
         Whether a new layer was created, or False if we are appending to an
         existing layer.
+
     """
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
@@ -2535,6 +2792,7 @@ def ogr_write(
     layer_metadata=None,
     gdal_tz_offsets=None
 ):
+    """Write the data to a file."""
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
@@ -2870,6 +3128,7 @@ def ogr_write_arrow(
     dataset_metadata=None,
     layer_metadata=None,
 ):
+    """Write the data to a file, using the GDAL Arrow Interface."""
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 
@@ -2981,12 +3240,21 @@ def ogr_write_arrow(
 
 
 cdef get_arrow_extension_metadata(const ArrowSchema* schema):
-    """
-    Parse the metadata of the ArrowSchema and extract extension type
-    metadata (extension name and metadata).
+    """Parse the metadata of the ArrowSchema and extract extension type metadata.
 
     For the exact layout of the bytes, see
     https://arrow.apache.org/docs/dev/format/CDataInterface.html#c.ArrowSchema.metadata
+
+    Parameters
+    ----------
+    schema : ArrowSchema*
+        The Arrow schema to extract the metadata from.
+
+    Returns
+    -------
+    tuple(bytes or None, bytes or None)
+        A tuple with the extension name and extension metadata.
+
     """
     cdef const char *metadata = schema.metadata
 
@@ -3030,6 +3298,24 @@ cdef get_arrow_extension_metadata(const ArrowSchema* schema):
 
 
 cdef is_arrow_geometry_field(const ArrowSchema* schema):
+    """Check if the field is a geometry field or not.
+
+    Parameters
+    ----------
+    schema : ArrowSchema*
+        The field to check
+
+    Raises
+    ------
+    NotImplementedError
+        If the geometry type is a geoarrow type that is not supported for writing.
+
+    Returns
+    -------
+    bool
+        True if it is a geometry field, False otherwise.
+
+    """
     name, _ = get_arrow_extension_metadata(schema)
     if name is not None:
         if name == b"geoarrow.wkb" or name == b"ogc.wkb":
@@ -3049,8 +3335,20 @@ cdef is_arrow_geometry_field(const ArrowSchema* schema):
 cdef create_fields_from_arrow_schema(
     OGRLayerH destLayer, const ArrowSchema* schema, char** options, str geometry_name
 ):
-    """Create output fields using CreateFieldFromArrowSchema()"""
+    """Create output fields using CreateFieldFromArrowSchema().
 
+    Parameters
+    ----------
+    destLayer : OGRLayerH
+        The destination OGR layer to create the fields on.
+    schema : ArrowSchema*
+        The Arrow schema to create the fields from.
+    options : char**
+        Creation options for the fields.
+    geometry_name : str
+        The name of the geometry column.
+
+    """
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
 

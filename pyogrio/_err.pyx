@@ -109,18 +109,12 @@ class CPLE_AWSError(CPLE_BaseError):
 
 
 class NullPointerError(CPLE_BaseError):
-    """
-    Returned from check_pointer when a NULL pointer is passed, but no GDAL
-    error was raised.
-    """
+    """An NULL pointer was returned by a GDAL function."""
     pass
 
 
 class CPLError(CPLE_BaseError):
-    """
-    Returned from check_int when a error code is returned, but no GDAL
-    error was set.
-    """
+    """An unknown error occured in GDAL."""
     pass
 
 
@@ -211,6 +205,21 @@ cdef void *check_pointer(void *ptr) except NULL:
     When the last error registered by GDAL/OGR was a non-fatal error, the
     exception raised will be customized appropriately. Otherwise a
     NullPointerError is raised.
+
+    Parameters
+    ----------
+    ptr : pointer
+        The pointer returned by a GDAL/OGR function.
+
+    Raises
+    ------
+    An exception inheriting from CPLE_BaseError, if `ptr` is `NULL`.
+
+    Returns
+    -------
+    pointer
+        The `ptr` input parameter if it is not `NULL`. Otherwise an exception is raised.
+
     """
     if ptr == NULL:
         exc = check_last_error()
@@ -230,6 +239,22 @@ cdef int check_int(int err) except -1:
     When the last error registered by GDAL/OGR was a non-fatal error, the
     exception raised will be customized appropriately. Otherwise a CPLError is
     raised.
+
+    Parameters
+    ----------
+    err : int
+        The CPLErr returned by a GDAL/OGR function.
+
+    Raises
+    ------
+    An exception inheriting from CPLE_BaseError, if `err` is not OGRERR_NONE.
+
+    Returns
+    -------
+    int
+        The `err` input parameter if it is OGRERR_NONE. Otherwise an exception is
+        raised.
+
     """
     if err != OGRERR_NONE:
         exc = check_last_error()
@@ -252,6 +277,7 @@ cdef void error_handler(
     Python exception that includes the error message.
 
     Warnings are converted to Python warnings.
+
     """
     if err_class == CE_Fatal:
         # If the error class is CE_Fatal, we want to have a message issued
@@ -385,6 +411,7 @@ cdef void stacking_error_handler(
     exceptions and added to a stack, so they can be dealt with afterwards.
 
     Warnings are converted to Python warnings.
+
     """
     if err_class == CE_Fatal:
         # If the error class is CE_Fatal, we want to have a message issued
@@ -425,6 +452,7 @@ def capture_errors():
 
     Yields an ErrorHandler object that can be used to handle the errors
     if any were captured.
+
     """
     CPLErrorReset()
     _ERROR_STACK.set([])
