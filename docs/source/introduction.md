@@ -10,7 +10,7 @@ You can display the GDAL version that Pyogrio was compiled against by
 
 ## List available drivers
 
-Use {func}`~pyogrio.list_drivers()` to list all available drivers in your installation
+Use {func}`~pyogrio.list_drivers` to list all available drivers in your installation
 of GDAL. However, just because a driver is listed does not mean that it is
 currently compatible with Pyogrio.
 
@@ -53,7 +53,7 @@ The following drivers are known to be well-supported and tested in Pyogrio:
 
 ## List available layers
 
-To list layers available in a data source, use {func}`~pyogrio.list_layers()`:
+To list layers available in a data source, use {func}`~pyogrio.list_layers`:
 
 ```python
 >>> from pyogrio import list_layers
@@ -69,7 +69,7 @@ be nonspatial. In this case, the geometry type will be `None`.
 ## Read basic information about a data layer
 
 To list information about a data layer in a data source, use 
-{func}`~pyogrio.read_info()`. You can specify the name of the layer or its index
+{func}`~pyogrio.read_info`. You can specify the name of the layer or its index
 (0-based) within the data source. By default, this reads from the first layer.
 
 ```python
@@ -102,7 +102,7 @@ To read from a layer using name or index (the following are equivalent):
 
 ## Read a data layer into a GeoPandas GeoDataFrame
 
-To read all features from a spatial data layer, use {func}`~pyogrio.read_dataframe()`.
+To read all features from a spatial data layer, use {func}`~pyogrio.read_dataframe`.
 By default, this operates on the first layer unless `layer` is specified using layer
 name or index.
 
@@ -347,7 +347,7 @@ or a DBF file, directly into a Pandas `DataFrame`.
 
 You can read the bounds of all or a subset of features in the dataset in order
 to create a spatial index of features without reading all underlying geometries
-with {func}`~pyogrio.read_bounds()`.
+with {func}`~pyogrio.read_bounds`.
 This is typically 2-3x faster than reading full feature data, but the main
 benefit is to avoid reading all feature data into memory for very large datasets.
 
@@ -370,7 +370,7 @@ This function supports options to subset features from the dataset:
 
 ## Write a GeoPandas GeoDataFrame
 
-You can write a `GeoDataFrame` `df` to a file with {func}`~pyogrio.write_dataframe()`:
+You can write a `GeoDataFrame` `df` to a file with {func}`~pyogrio.write_dataframe`:
 
 ```python
 >>> from pyogrio import write_dataframe
@@ -474,7 +474,7 @@ You can also read from a URL with this syntax:
 
 GDAL only supports datetimes at a millisecond resolution. Reading data will thus
 give at most millisecond resolution (`datetime64[ms]` data type). With pandas 2.0
-{func}`~pyogrio.read_dataframe()` will return datetime data as `datetime64[ms]`
+{func}`~pyogrio.read_dataframe` will return datetime data as `datetime64[ms]`
 correspondingly. For previous versions of pandas, `datetime64[ns]` is used as
 ms precision was not supported. When writing, only precision up to
 ms is retained.
@@ -491,7 +491,7 @@ in mixed time zone offsets being written for time zones where daylight saving
 time is used (e.g. +01:00 and +02:00 offsets for time zone Europe/Brussels).
 When roundtripping through GDAL, the information about the original time zone
 is lost, only the offsets can be preserved. By default,
-{func}`pyogrio.read_dataframe()` will convert columns with mixed offsets to UTC
+{func}`pyogrio.read_dataframe` will convert columns with mixed offsets to UTC
 to return a datetime64 column. If you want to preserve the original offsets,
 you can use `datetime_as_string=True` or `mixed_offsets_as_utc=False`.
 
