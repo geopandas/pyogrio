@@ -2740,6 +2740,28 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expect
             assert df.geometry.iloc[0].wkt == expected_wkt
 
 
+def test_read_multi_chunks(tmp_path):
+    """Test reading a file where multiple chunks are used.
+
+    `ogr_read` reads features in chunks of features. Read a suffucient number of
+    featuers in this test so multiple chunks will be used.
+    """
+    # Create test file with enough features to require multiple chunks.
+    # > 3000 features will result in 3 chunks.
+    nb_features = 3300
+    df = gp.GeoDataFrame(
+        {"col": [1.0] * nb_features},
+        geometry=[Point(1, 1)] * nb_features,
+        crs="EPSG:4326",
+    )
+    test_path = tmp_path / "test.gpkg"
+    write_dataframe(df, test_path)
+
+    # Read the test file and compare to original dataframe
+    result = read_dataframe(test_path, use_arrow=False)
+    assert_geodataframe_equal(result, df)
+
+
 def test_read_multisurface(multisurface_file, use_arrow):
     if use_arrow:
         # TODO: revisit once https://github.com/geopandas/pyogrio/issues/478
