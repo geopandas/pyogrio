@@ -2557,16 +2557,10 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         "geometry": [geom] * len(object_col_data),
         "object_col": object_col_data,
     }
-    test_gdf = gp.GeoDataFrame(test_data, crs="epsg:31370")
+    test_gdf = gp.GeoDataFrame(test_data, crs=31370, dtype=object)
 
     # Verify that object_col is actually inferred as object dtype for this test.
-    str_dtype = (
-        "str"
-        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
-        else "object"
-    )
-    input_dtype = str_dtype if isinstance(object_col_data[0], str) else "object"
-    assert test_gdf["object_col"].dtype.name == input_dtype
+    assert test_gdf["object_col"].dtype.name == "object"
 
     write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
 
@@ -2575,9 +2569,10 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
 
     # Prepare expected dtype and data after round-tripping
     expected_dtype = None
-
-    if use_arrow:
-        # With arrow, some object types get a more specific treatment
+    if object_col_data in (["a", np.nan], ["a", None]):
+        expected_dtype = "str"
+        expected_data = ["a", np.nan]
+    elif use_arrow:
         if isinstance(object_col_data[0], date):
             # datetime.date objects are read back as datetime64 with arrow
             expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
@@ -2585,26 +2580,18 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
                 pd.Timestamp(value.year, value.month, value.day)
                 for value in object_col_data
             ]
-        elif isinstance(object_col_data[0], bytes):
-            # byte objects are read back as byte objects with arrow
+        elif isinstance(object_col_data[0], bytes | list):
+            # These types are read back as object type with arrow
             expected_dtype = "object"
             expected_data = object_col_data
         elif isinstance(object_col_data[0], Decimal):
             # Decimal objects are read back as decimal objects with arrow
             expected_dtype = "float64"
             expected_data = object_col_data
-        elif isinstance(object_col_data[0], list):
-            # lists retained with arrow
-            expected_dtype = "object"
-            expected_data = object_col_data
 
-    if object_col_data in (["a", np.nan], ["a", None]):
-        expected_dtype = str_dtype
-        expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
-
-    # In other cases, the object_col is written and read back as strings
+    # In other cases, fallback to the values just being read back as strings
     if expected_dtype is None:
-        expected_dtype = str_dtype
+        expected_dtype = "str"
         expected_data = [str(value) for value in object_col_data]
 
     assert result_gdf["object_col"].dtype.name == expected_dtype
