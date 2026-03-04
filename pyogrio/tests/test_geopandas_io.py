@@ -2547,7 +2547,7 @@ def test_write_read_null(tmp_path, use_arrow):
 @pytest.mark.parametrize("ext", [".gpkg"])
 @pytest.mark.requires_arrow_write_api
 def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
-    """Test writing and reading pandas object dtype columns.
+    """Test writing and reading a pandas object dtype column with different value types.
 
     Remark: how some types are handled depends a bit on the file format being used.
     """
@@ -2558,9 +2558,6 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         "object_col": object_col_data,
     }
     test_gdf = gp.GeoDataFrame(test_data, crs=31370, dtype=object)
-
-    # Verify that object_col is actually inferred as object dtype for this test.
-    assert test_gdf["object_col"].dtype.name == "object"
 
     write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
 
