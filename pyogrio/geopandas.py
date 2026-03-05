@@ -954,7 +954,9 @@ def _add_column_metadata(table, column_metadata: dict = {}):
 
     Returns
     -------
-    pyarrow.Table: table with the updated column metadata.
+    pyarrow.Table:
+        table with the updated column metadata.
+
     """
     import pyarrow as pa
 
