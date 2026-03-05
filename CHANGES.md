@@ -7,6 +7,7 @@
 -   Fix error in `write_dataframe` with `use_arrow=False` when writing a column with
     datetimes without any time zone offsets or with a mix of offsets and no offsets
     (#634).
+-   Fix overwriting a corrupt fileGDB directory (#600).
 
 ## 0.12.1 (2025-11-28)
 
