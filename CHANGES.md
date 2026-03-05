@@ -5,6 +5,7 @@
 ### Bug fixes
 
 -   Fix wrong handling of some windows network paths (#635).
+-   Fix overwriting a corrupt fileGDB directory (#600).
 
 ## 0.12.1 (2025-11-28)
 
