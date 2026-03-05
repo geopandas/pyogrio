@@ -2565,9 +2565,15 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     assert len(test_gdf) == len(result_gdf)
 
     # Prepare expected dtype and data after round-tripping
+    str_dtype = (
+        "str"
+        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+        else "object"
+    )
+
     expected_dtype = None
     if object_col_data in (["a", np.nan], ["a", None]):
-        expected_dtype = "str"
+        expected_dtype = str_dtype
         expected_data = ["a", np.nan]
     elif use_arrow:
         if isinstance(object_col_data[0], date):
@@ -2588,7 +2594,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
 
     # In other cases, fallback to the values just being read back as strings
     if expected_dtype is None:
-        expected_dtype = "str"
+        expected_dtype = str_dtype
         expected_data = [str(value) for value in object_col_data]
 
     assert result_gdf["object_col"].dtype.name == expected_dtype
