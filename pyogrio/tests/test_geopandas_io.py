@@ -2574,7 +2574,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     expected_dtype = None
     if object_col_data in (["a", np.nan], ["a", None]):
         expected_dtype = str_dtype
-        expected_data = ["a", np.nan]
+        expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
     elif use_arrow:
         if isinstance(object_col_data[0], date):
             # datetime.date objects are read back as datetime64 with arrow
