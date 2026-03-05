@@ -2064,7 +2064,7 @@ def test_write_None_string_column(tmp_path, use_arrow):
     assert_geodataframe_equal(result_gdf, gdf)
 
 
-@pytest.mark.parametrize("categorical_data", [["foo", "bar"], [1, 2], []])
+@pytest.mark.parametrize("categorical_data", [["foo", "bar"], [1, 2]])
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
@@ -2073,9 +2073,6 @@ def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
     The categorical data type is not preserved when written to any of the tested file
     formats, but the data itself should be preserved.
     """
-    if ext in [".geojson", ".geojsonl"] and len(categorical_data) == 0:
-        pytest.skip("Writing an empty dataframe to json formats doesn't roundtrip.")
-
     original_gdf = gp.GeoDataFrame(
         {
             "cat_col": categorical_data,
@@ -2103,20 +2100,18 @@ def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
     assert_geodataframe_equal(result, expected_gdf)
 
 
+@pytest.mark.parametrize("data_dtype", ["str", "object", "float"])
 @pytest.mark.requires_arrow_write_api
-def test_write_read_category_str_empty(tmp_path, use_arrow):
-    """Write and read a GeoDataFrame with an empty categorical string column.
+def test_write_read_categorical_empty(tmp_path, data_dtype, use_arrow):
+    """Write and read a GeoDataFrame with an empty categorical column.
 
     This specific test was added because such columns gave an error with arrow, as
     reported in this issue: https://github.com/geopandas/pyogrio/issues/620.
     """
-    # With pandas 3, and with use_arrow, the resulting empty dataframe read has string
-    # dtype for cat_col, for all other cases it will be object.
-    exp_dtype = "str" if PANDAS_GE_30 and use_arrow else object
-    exp_gdf = gp.GeoDataFrame(
+    gdf = gp.GeoDataFrame(
         {"cat_col": [], "geometry": []}, geometry="geometry", crs="EPSG:4326"
-    ).astype({"cat_col": exp_dtype})
-    category_gdf = exp_gdf.astype({"cat_col": "category"})
+    ).astype({"cat_col": data_dtype})
+    category_gdf = gdf.astype({"cat_col": "category"})
 
     path = tmp_path / f"test_{use_arrow}.gpkg"
     write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
@@ -2124,8 +2119,14 @@ def test_write_read_category_str_empty(tmp_path, use_arrow):
     # Read the data back
     result = read_dataframe(path, use_arrow=use_arrow)
     assert "cat_col" in result.columns
+
     # Category dtype is not preserved when data is written to the formats tested.
-    assert_geodataframe_equal(result, exp_gdf)
+    if data_dtype in ["str", "object"]:
+        expected_dtype = "str" if PANDAS_GE_30 and use_arrow else object
+    else:
+        expected_dtype = data_dtype
+    expected_gdf = gdf.astype({"cat_col": expected_dtype})
+    assert_geodataframe_equal(result, expected_gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
