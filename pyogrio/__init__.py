@@ -1,4 +1,4 @@
-"""Vectorized vector I/O using OGR."""
+"""Bulk-oriented vector I/O using OGR."""
 
 try:
     # we try importing shapely, to ensure it is imported (and it can load its
