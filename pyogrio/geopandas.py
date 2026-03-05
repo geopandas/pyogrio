@@ -827,7 +827,8 @@ def write_dataframe(
             elif pa.types.is_dictionary(field.type) and pa.types.is_null(
                 field.type.value_type
             ):
-                # A dictionary type with null values: convert to dictionary of strings
+                # A dictionary type with value type of null: convert to dictionary of
+                # strings
                 table = table.set_column(
                     field_index,
                     field.with_type(pa.dictionary(field.type.index_type, pa.string())),
