@@ -24,9 +24,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     Parameters
     ----------
     path_or_fp : str or io.BytesIO object
-        Path or BytesIO object that you would like to write to. If a BytesIO
-        object is passed, a temporary in-memory vsimem file will be created for you
-        to write to.
+        Path or BytesIO object that you would like to write to.
     driver : str
         OGR driver name to be used for writing.
 

@@ -907,7 +907,7 @@ cdef validate_feature_range(
     ogr_layer : OGRLayerH
         The open OGR layer
     skip_features : int
-        The number of features to skip from the beginning of the layer
+        The number of features to skip, after filtering is applied
     max_features : int
         The maximum number of features to read
 
@@ -946,7 +946,7 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
     ogr_feature : OGRFeatureH
         The OGR feature
     i : int
-        The index of the feature to be processed
+        The index of the OGR feature being processed (index into `geom_view`)
     geom_view : object
         A view to the geometry array to save the geometry to
     force_2d : uint8_t
@@ -1013,7 +1013,7 @@ cdef process_fields(
     n_fields : int
         The number of fields in the feature
     field_data : object
-        The array where field data is stored
+        The list of arrays where field data is stored
     field_data_view : object
         A view to the array to save the data to
     field_indexes : object
@@ -1021,7 +1021,7 @@ cdef process_fields(
     field_ogr_types : object
         An array with the OGR types for each field
     encoding : object
-        The encoding to use for reading field data
+        The encoding to use for reading string field data
     datetime_as_string : bint
         Whether to read datetime fields as strings
 
