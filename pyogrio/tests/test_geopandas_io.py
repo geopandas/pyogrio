@@ -2644,7 +2644,8 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     if object_col_data in (["a", np.nan], ["a", None]):
         expected_dtype = str_dtype
         expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
-    elif isinstance(object_col_data[0], datetime):
+    elif isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
+        # With arrow and older GDAL versions, datetimes were read back as strings.
         expected_dtype = (
             "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
         )
