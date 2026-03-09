@@ -29,13 +29,14 @@ to append data to an existing data source.
 
 [Fiona](https://github.com/Toblerity/Fiona) is a full-featured, general-purpose
 Python library for working with OGR vector data sources. It is **awesome**, has
-highly-dedicated maintainers and contributors, and exposes more functionality than
-Pyogrio ever will. Finally it is used in many projects in the Python ecosystem.
+highly-dedicated maintainers and contributors, and exposes more functionality
+than Pyogrio ever will. Finally it is used in many projects in the Python
+ecosystem.
 
-In contrast, Pyogrio specifically targets the typical needs of GeoPandas. It uses
-a stateless approach, so all data are read or written in a single pass. This
-bulk-oriented approach enables significantly faster I/O operations, especially
-for larger datasets.
+In contrast, Pyogrio specifically targets the typical needs of GeoPandas and
+other dataframe-oriented use cases. It uses a stateless approach, so all data
+are read or written in a single pass. This bulk-oriented approach enables
+significantly faster I/O operations, especially for larger datasets.
 
 Pyogrio borrows from the internal mechanics and lessons
 learned of Fiona and so this project would not have been possible without Fiona
