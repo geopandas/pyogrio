@@ -1,5 +1,6 @@
 import contextlib
 import os
+import sys
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
@@ -107,6 +108,20 @@ def test_vsi_path(path, expected):
 def test_vsi_path_unknown():
     # unrecognized URI gets passed through as is
     assert vsi_path("s4://test/data.geojson") == "s4://test/data.geojson"
+
+
+@pytest.mark.parametrize(
+    "path, expected",
+    [
+        (r"\\server\!test\example.shp", r"\\server\!test\example.shp"),
+        (r"\\server\!test\example.shp.zip", r"\\server\!test\example.shp.zip"),
+        (r"\\server\!test\example.zip", r"\\server\!test\example.zip"),
+    ],
+)
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="Windows specific paths")
+def test_vsi_path_windows(path, expected):
+    """Test for some specific Windows paths that only pass on Windows."""
+    assert vsi_path(path) == expected
 
 
 def test_vsi_handling_read_functions(naturalearth_lowres_vsi):
