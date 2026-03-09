@@ -2660,8 +2660,9 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         elif isinstance(object_col_data[0], list):
             # These types are read back as object type with arrow
             expected_dtype = "object"
+            nan_value = np.nan if PANDAS_GE_30 else None
             expected_data = [
-                np.nan if value is None else value for value in object_col_data
+                nan_value if value is None else value for value in object_col_data
             ]
         elif isinstance(object_col_data[0], Decimal):
             # Decimal objects are read back as float64 objects with arrow
