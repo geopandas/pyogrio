@@ -813,7 +813,7 @@ def write_dataframe(
                     try:
                         _ = pa.Schema.from_pandas(df[[name]])
                     except pa.ArrowInvalid:
-                        df[name] = df[name].astype("str")
+                        df[name] = df[name].astype("string")
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # A pd.datetime64 column with a time zone different than UTC can contain
