@@ -3,7 +3,7 @@ import locale
 import os
 import re
 import warnings
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -2601,6 +2601,10 @@ def test_write_read_null(tmp_path, use_arrow):
         ["test1", "test2"],
         [Path("test1"), Path("test2")],
         [date(2020, 1, 1), date(2021, 2, 2)],
+        [
+            datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
+            datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+        ],
         [b"foo", b"bar"],
         [[123, 321], [123, 321]],
         [123, "foo"],
@@ -2640,14 +2644,16 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     if object_col_data in (["a", np.nan], ["a", None]):
         expected_dtype = str_dtype
         expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
+    elif isinstance(object_col_data[0], datetime):
+        expected_dtype = (
+            "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
+        )
+        expected_data = [pd.Timestamp(value) for value in object_col_data]
     elif use_arrow:
         if isinstance(object_col_data[0], date):
             # datetime.date objects are read back as datetime64 with arrow
             expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
-            expected_data = [
-                pd.Timestamp(value.year, value.month, value.day)
-                for value in object_col_data
-            ]
+            expected_data = [pd.Timestamp(value) for value in object_col_data]
         elif isinstance(object_col_data[0], bytes | list):
             # These types are read back as object type with arrow
             expected_dtype = "object"
