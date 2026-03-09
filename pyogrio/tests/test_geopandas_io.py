@@ -2648,7 +2648,8 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         )
         expected_data = [pd.Timestamp(value) for value in object_col_data]
     elif use_arrow:
-        if isinstance(object_col_data[0], date):
+        if type(object_col_data[0]) is date:
+            # Don't use isinstance here as datetime objects are also instances of date
             # datetime.date objects are read back as datetime64 with arrow
             expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
             expected_data = [pd.Timestamp(value) for value in object_col_data]
