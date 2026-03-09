@@ -2598,19 +2598,19 @@ def test_write_read_null(tmp_path, use_arrow):
 @pytest.mark.parametrize(
     "object_col_data",
     [
-        ["test1", "test2"],
-        [Path("test1"), Path("test2")],
-        [date(2020, 1, 1), date(2021, 2, 2)],
+        ["foo", "bar", np.nan],
+        ["foo", "bar", None],
+        [Path("test1"), Path("test2"), None],
+        [date(2020, 1, 1), date(2021, 2, 2), None],
         [
             datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
             datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+            None,
         ],
-        [b"foo", b"bar"],
-        [[123, 321], [123, 321]],
-        [123, "foo"],
+        [b"foo", b"bar", None],
+        [[123, 321], [123, 321], None],
+        [123, "foo", None],
         [Decimal(1), Decimal(2)],
-        ["a", np.nan],
-        ["a", None],
     ],
 )
 @pytest.mark.parametrize("ext", [".gpkg"])
@@ -2641,10 +2641,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
     )
 
     expected_dtype = None
-    if object_col_data in (["a", np.nan], ["a", None]):
-        expected_dtype = str_dtype
-        expected_data = ["a", np.nan] if str_dtype == "str" else ["a", None]
-    elif isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
+    if isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
         # With arrow and older GDAL versions, datetimes were read back as strings.
         expected_dtype = (
             "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
@@ -2655,19 +2652,29 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
             # datetime.date objects are read back as datetime64 with arrow
             expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
             expected_data = [pd.Timestamp(value) for value in object_col_data]
-        elif isinstance(object_col_data[0], bytes | list):
+        elif isinstance(object_col_data[0], bytes):
             # These types are read back as object type with arrow
             expected_dtype = "object"
             expected_data = object_col_data
+        elif isinstance(object_col_data[0], list):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            expected_data = [
+                np.nan if value is None else value for value in object_col_data
+            ]
         elif isinstance(object_col_data[0], Decimal):
-            # Decimal objects are read back as decimal objects with arrow
+            # Decimal objects are read back as float64 objects with arrow
             expected_dtype = "float64"
-            expected_data = object_col_data
+            expected_data = [float(value) for value in object_col_data]
 
     # In other cases, fallback to the values just being read back as strings
     if expected_dtype is None:
         expected_dtype = str_dtype
-        expected_data = [str(value) for value in object_col_data]
+        nan_value = np.nan if str_dtype == "str" else None
+        expected_data = [
+            nan_value if value is None or value is np.nan else str(value)
+            for value in object_col_data
+        ]
 
     assert result_gdf["object_col"].dtype.name == expected_dtype
     assert list(result_gdf["object_col"]) == expected_data
