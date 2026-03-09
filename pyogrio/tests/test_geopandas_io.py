@@ -21,6 +21,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_GE_312_1,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -504,9 +505,9 @@ def test_read_list_types_columns(request, list_field_values_files, use_arrow, co
         and columns
         and len(columns) == 2
         and list_field_values_files.suffix == ".parquet"
+        and not GDAL_GE_312_1
     ):
-        # This gives following error, not sure why. Opened an issue for followup:
-        # https://github.com/geopandas/pyogrio/issues/XXX
+        # This gives an error with GDAL < 3.12.1.
         error_msg = (
             "This fails with 'pyarrow.lib.ArrowInvalid: ArrowArray struct has "
             "1 children, expected 0 for type extension<geoarrow.wkb>'"
