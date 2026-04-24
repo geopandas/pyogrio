@@ -1,5 +1,6 @@
 import logging
 import os
+from packaging.version import Version
 from pathlib import Path
 import platform
 import shutil
@@ -129,39 +130,6 @@ def get_gdal_config():
             raise e
 
 
-def parse_gdal_version(version_str: str) -> tuple[int, int, int]:
-    # assume (at least) three elements separated by periods
-    major, minor, patch = version_str.split(".")[:3]
-    ver_strs = {"major": major, "minor": minor, "patch": patch}
-
-    # remove non-digits and convert to int
-    ver_ints = dict()
-    for k, val in ver_strs.items():
-        try:
-            ver_ints[k] = int(val)
-        except ValueError:
-            v_numeric = list()
-            for c in val:
-                if c.isdigit():
-                    v_numeric.append(c)
-                elif len(v_numeric) > 0:
-                    break
-                else:
-                    pass
-            ver_ints[k] = int("".join(v_numeric))
-
-    # check output before logging and returning
-    assert len(ver_ints) == 3
-    for v in ver_ints.values():
-        assert isinstance(v, int)
-
-    logger.info(
-        f"Parsed GDAL version: {version_str} -> {ver_ints['major']}.{ver_ints['minor']}.{ver_ints['patch']}"
-    )
-
-    return ver_ints["major"], ver_ints["minor"], ver_ints["patch"]
-
-
 ext_modules = []
 package_data = {}
 
@@ -186,7 +154,7 @@ else:
 
     ext_options, gdal_version_str = get_gdal_config()
 
-    gdal_version = parse_gdal_version(gdal_version_str)
+    gdal_version = (Version(gdal_version_str).major, Version(gdal_version_str).minor, Version(gdal_version_str).micro)
     if not gdal_version >= MIN_GDAL_VERSION:
         sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
 
