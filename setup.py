@@ -130,18 +130,18 @@ def get_gdal_config():
 
 
 def parse_gdal_version(version_str: str) -> tuple[int, int, int]:
-    # assume three elements separated by periods
+    # assume (at least) three elements separated by periods
     major, minor, patch = version_str.split(".")[:3]
     ver_strs = {"major": major, "minor": minor, "patch": patch}
 
     # remove non-digits and convert to int
     ver_ints = dict()
-    for k, v in ver_strs.items():
+    for k, val in ver_strs.items():
         try:
-            ver_ints[k] = int(v)
+            ver_ints[k] = int(val)
         except ValueError:
             v_numeric = list()
-            for i, c in enumerate(v):
+            for c in val:
                 if c.isdigit():
                     v_numeric.append(c)
                 elif len(v_numeric) > 0:
@@ -150,10 +150,14 @@ def parse_gdal_version(version_str: str) -> tuple[int, int, int]:
                     pass
             ver_ints[k] = int("".join(v_numeric))
 
-    # check output before returning
+    # check output before logging and returning
     assert len(ver_ints) == 3
     for v in ver_ints.values():
         assert isinstance(v, int)
+
+    logger.info(
+        f"Parsed GDAL version: {version_str} -> {ver_ints['major']}.{ver_ints['minor']}.{ver_ints['patch']}"
+    )
 
     return ver_ints["major"], ver_ints["minor"], ver_ints["patch"]
 
