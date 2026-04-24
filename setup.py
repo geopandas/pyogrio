@@ -154,7 +154,7 @@ else:
 
     ext_options, gdal_version_str = get_gdal_config()
 
-    gdal_version = (Version(gdal_version_str).major, Version(gdal_version_str).minor, Version(gdal_version_str).micro)
+    gdal_version = Version(gdal_version_str).release
     if not gdal_version >= MIN_GDAL_VERSION:
         sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
 
