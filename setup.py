@@ -129,6 +129,35 @@ def get_gdal_config():
             raise e
 
 
+def parse_gdal_version(version_str: str) -> tuple[int, int, int]:
+    # assume three elements separated by periods
+    major, minor, patch = version_str.split(".")[:3]
+    ver_strs = {"major": major, "minor": minor, "patch": patch}
+
+    # remove non-digits and convert to int
+    ver_ints = dict()
+    for k, v in ver_strs.items():
+        try:
+            ver_ints[k] = int(v)
+        except ValueError:
+            v_numeric = list()
+            for i, c in enumerate(v):
+                if c.isdigit():
+                    v_numeric.append(c)
+                elif len(v_numeric) > 0:
+                    break
+                else:
+                    pass
+            ver_ints[k] = int("".join(v_numeric))
+
+    # check output before returning
+    assert len(ver_ints) == 3
+    for v in ver_ints.values():
+        assert isinstance(v, int)
+
+    return ver_ints["major"], ver_ints["minor"], ver_ints["patch"]
+
+
 ext_modules = []
 package_data = {}
 
@@ -153,7 +182,7 @@ else:
 
     ext_options, gdal_version_str = get_gdal_config()
 
-    gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
+    gdal_version = parse_gdal_version(gdal_version_str)
     if not gdal_version >= MIN_GDAL_VERSION:
         sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
 
