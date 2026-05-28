@@ -3045,6 +3045,39 @@ def test_arrow_enable_with_environment_variable(tmp_path):
             _ = read_dataframe(test_path, encoding="cp1252")
 
 
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
+def test_write_kml(tmp_path, kml_driver, use_arrow):
+    """Test writing a KML file.
+
+    A KML file is a bit of a special case, because when it is written, some extra
+    columns are added automatically in the layer definition: "Name" and "Description".
+    Because these extra columns are the first columns in the layer definition, it is
+    important to explicitly check the column index when writing values to fields as
+    you cannot rely on the index to be the same as the order fields were added to a
+    layer.
+
+    Test added when fixing https://github.com/geopandas/geopandas/issues/3609
+    """
+    df = gp.GeoDataFrame(
+        {"col_1": [1.0, 2.0], "col_2": [3.0, 4.0], "col_3": [5.0, 6.0]},
+        geometry=[Point(0, 0), Point(1, 1)],
+        crs="EPSG:4326",
+    )
+
+    output_path = tmp_path / "test.kml"
+    write_dataframe(df, output_path, driver=kml_driver, use_arrow=use_arrow)
+
+    assert output_path.exists()
+
+    result_df = read_dataframe(output_path)
+
+    # In a KML, there are several columns that are added automagically... so only check
+    # the columns we wrote.
+    result_df = result_df[df.columns]
+    assert_geodataframe_equal(result_df, df, check_index_type=False)
+
+
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory(naturalearth_lowres, driver):
