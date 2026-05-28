@@ -3077,7 +3077,10 @@ def test_write_kml(tmp_path, kml_driver, use_arrow):
 
     # In a KML, there are several columns that are added automagically... so only check
     # the columns we wrote.
-    result_df = result_df[df.columns]
+    try:
+        result_df = result_df[df.columns]
+    except KeyError as ex:
+        raise RuntimeError(f"Keyerror for {df.columns=} on {result_df=}") from ex
     assert_geodataframe_equal(result_df, df, check_index_type=False)
 
 
