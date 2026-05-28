@@ -3080,7 +3080,11 @@ def test_write_kml(tmp_path, kml_driver, use_arrow):
     try:
         result_df = result_df[df.columns]
     except KeyError as ex:
-        raise RuntimeError(f"Keyerror for {df.columns=} on {result_df=}") from ex
+        with open(output_path) as f:
+            content = f.read()
+        raise RuntimeError(
+            f"Keyerror for {df.columns=} on {result_df=}, {content=}"
+        ) from ex
     assert_geodataframe_equal(result_df, df, check_index_type=False)
 
 
