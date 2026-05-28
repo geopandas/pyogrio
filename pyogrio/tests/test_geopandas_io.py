@@ -3047,6 +3047,10 @@ def test_arrow_enable_with_environment_variable(tmp_path):
 
 @pytest.mark.requires_arrow_write_api
 @pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read simpledata element",
+)
 def test_write_kml(tmp_path, kml_driver, use_arrow):
     """Test writing a KML file.
 
@@ -3077,14 +3081,7 @@ def test_write_kml(tmp_path, kml_driver, use_arrow):
 
     # In a KML, there are several columns that are added automagically... so only check
     # the columns we wrote.
-    try:
-        result_df = result_df[df.columns]
-    except KeyError as ex:
-        with open(output_path) as f:
-            content = f.read()
-        raise RuntimeError(
-            f"Keyerror for {df.columns=} on {result_df=}, {content=}"
-        ) from ex
+    result_df = result_df[df.columns]
     assert_geodataframe_equal(result_df, df, check_index_type=False)
 
 
