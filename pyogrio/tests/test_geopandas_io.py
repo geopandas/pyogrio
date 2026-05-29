@@ -1169,6 +1169,59 @@ def test_write_read_datetime_utc(
         assert_geodataframe_equal(result, df)
 
 
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize(
+    "ext, use_arrow, expected_result",
+    [
+        (".gpkg", False, "error"),
+        (".geojson", False, "supported"),
+        (".geojsonl", False, "supported"),
+        (".shp", False, "second_column_dropped"),
+        (".gpkg", True, "error"),
+        (".geojson", True, "second_column_overwrites_first"),
+        (".geojsonl", True, "second_column_overwrites_first"),
+        (".shp", True, "second_column_dropped"),
+    ],
+)
+def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_result):
+    """Test writing and reading a file with column names that only differ in casing.
+
+    Probably never a good idea to use multiple columns with the same name but different
+    casing, but at least this test documents the current behaviour.
+
+    With arrow, this never seems to be supported.
+    """
+    df = pd.DataFrame(
+        {"col": [1, 2], "COL": [3, 4], "geometry": [Point(0, 0), Point(1, 1)]}
+    )
+    gdf = gp.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+
+    filename = tmp_path / f"test_duplicate_columns{ext}"
+    if expected_result == "error":
+        with pytest.raises(Exception, match="Error .* field .*'COL' .*"):
+            write_dataframe(gdf, filename, use_arrow=use_arrow)
+        return
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+
+    result = read_dataframe(filename, use_arrow=use_arrow)
+    assert "geometry" in result.columns
+    assert "col" in result.columns
+
+    if expected_result == "supported":
+        assert "COL" in result.columns
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert_series_equal(result["COL"], df["COL"], check_dtype=False)
+    elif expected_result == "second_column_dropped":
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert "COL" not in result.columns
+    elif expected_result == "second_column_overwrites_first":
+        assert_series_equal(result["col"], df["COL"].rename("col"), check_dtype=False)
+        assert "COL" not in result.columns
+    else:
+        raise AssertionError(f"Unhandled value for {expected_result=}")
+
+
 def test_read_null_values(tmp_path, use_arrow):
     filename = tmp_path / "test_null_values_no_geometry.gpkg"
 

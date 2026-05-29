@@ -2920,14 +2920,18 @@ def ogr_write(
         # Get the field indexes for the fields we need to write to, as they might be
         # different than the order they were created, e.g. when using the KML driver.
         ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+
         field_indexes = []
-        for i in range(num_fields):
-            index = OGR_FD_GetFieldIndex(ogr_featuredef, fields[i].encode(encoding))
-            if index < 0:
-                raise FieldError(
-                    f"Could not find field index for field '{fields[i]}'"
-                )
-            field_indexes.append(index)
+        if OGR_FD_GetFieldCount(ogr_featuredef) == num_fields:
+            field_indexes = list(range(num_fields))
+        else:
+            for i in range(num_fields):
+                index = OGR_FD_GetFieldIndex(ogr_featuredef, fields[i].encode(encoding))
+                if index < 0:
+                    raise FieldError(
+                        f"Could not find field index for field '{fields[i]}'"
+                    )
+                field_indexes.append(index)
 
         # Create the features
         supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
