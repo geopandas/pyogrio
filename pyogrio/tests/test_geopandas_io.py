@@ -1198,7 +1198,8 @@ def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_resul
 
     filename = tmp_path / f"test_duplicate_columns{ext}"
     if expected_result == "error":
-        with pytest.raises(Exception, match="Error .* field .*'COL' .*"):
+        with pytest.raises(Exception, match="COL"):
+            # The message depends on the driver and GDAL version, keep match simple.
             write_dataframe(gdf, filename, use_arrow=use_arrow)
         return
 
