@@ -3,8 +3,10 @@ import locale
 import os
 import re
 import warnings
-from datetime import datetime
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -2572,19 +2574,6 @@ def test_write_read_mixed_column_values(tmp_path):
     assert_series_equal(output_gdf["mixed"], expected)
 
 
-@requires_arrow_write_api
-def test_write_read_mixed_column_values_arrow(tmp_path):
-    # Arrow cannot represent a column of mixed types
-    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
-    geoms = [shapely.Point(0, 0) for _ in mixed_values]
-    test_gdf = gp.GeoDataFrame(
-        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
-    )
-    output_path = tmp_path / "test_write_mixed_column.gpkg"
-    with pytest.raises(TypeError, match=".*Conversion failed for column"):
-        write_dataframe(test_gdf, output_path, use_arrow=True)
-
-
 @pytest.mark.requires_arrow_write_api
 def test_write_read_null(tmp_path, use_arrow):
     output_path = tmp_path / "test_write_nan.gpkg"
@@ -2604,6 +2593,93 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][0] == "test"
     assert pd.isna(result_gdf["object_str"][1])
     assert pd.isna(result_gdf["object_str"][2])
+
+
+@pytest.mark.parametrize(
+    "object_col_data",
+    [
+        ["foo", "bar", np.nan],
+        ["foo", "bar", None],
+        [Path("test1"), Path("test2"), None],
+        [date(2020, 1, 1), date(2021, 2, 2), None],
+        [
+            datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
+            datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+            None,
+        ],
+        [b"foo", b"bar", None],
+        [[123, 321], [123, 321], None],
+        [123, "foo", None],
+        [Decimal(1), Decimal(2)],
+    ],
+)
+@pytest.mark.parametrize("ext", [".gpkg"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
+    """Test writing and reading a pandas object dtype column with different value types.
+
+    Remark: how some types are handled depends a bit on the file format being used.
+    """
+    output_path = tmp_path / f"test_write_object{ext}"
+    geom = shapely.Point(0, 0)
+    test_data = {
+        "geometry": [geom] * len(object_col_data),
+        "object_col": object_col_data,
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs=31370, dtype=object)
+
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
+
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+
+    # Prepare expected dtype and data after round-tripping
+    str_dtype = (
+        "str"
+        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+        else "object"
+    )
+
+    expected_dtype = None
+    if isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
+        # With arrow and older GDAL versions, datetimes were read back as strings.
+        expected_dtype = (
+            "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
+        )
+        expected_data = [pd.Timestamp(value) for value in object_col_data]
+    elif use_arrow:
+        if type(object_col_data[0]) is date:
+            # Don't use isinstance here as datetime objects are also instances of date
+            # datetime.date objects are read back as datetime64 with arrow
+            expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
+            expected_data = [pd.Timestamp(value) for value in object_col_data]
+        elif isinstance(object_col_data[0], bytes):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            expected_data = object_col_data
+        elif isinstance(object_col_data[0], list):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            nan_value = np.nan if PANDAS_GE_30 else None
+            expected_data = [
+                nan_value if value is None else value for value in object_col_data
+            ]
+        elif isinstance(object_col_data[0], Decimal):
+            # Decimal objects are read back as float64 objects with arrow
+            expected_dtype = "float64"
+            expected_data = [float(value) for value in object_col_data]
+
+    # In other cases, fallback to the values just being read back as strings
+    if expected_dtype is None:
+        expected_dtype = str_dtype
+        nan_value = np.nan if str_dtype == "str" else None
+        expected_data = [
+            nan_value if value is None or value is np.nan else str(value)
+            for value in object_col_data
+        ]
+
+    assert result_gdf["object_col"].dtype.name == expected_dtype
+    assert list(result_gdf["object_col"]) == expected_data
 
 
 @pytest.mark.requires_arrow_write_api
