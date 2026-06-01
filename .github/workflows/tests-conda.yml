@@ -35,6 +35,10 @@ jobs:
           - os: "ubuntu-latest"
             python: "3.10"
             env: "minimal"
+          # environment without pyarrow
+          - os: "ubuntu-latest"
+            python: "3.13"
+            env: "no-pyarrow"
           # environment with nightly wheels
           - os: "ubuntu-latest"
             python: "3.11"
