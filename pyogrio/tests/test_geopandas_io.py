@@ -613,22 +613,12 @@ def test_roundtrip_many_data_types_geojson_file(
         assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
 
         assert "list_int_col" in df.columns
-        if after_write and not use_arrow:
-            # Without arrow, and after writing the list columns have become strings
-            assert is_string_dtype(df["list_int_col"].dtype)
-            assert df["list_int_col"][0] == "[1 2 3]"
-        else:
-            assert is_object_dtype(df["list_int_col"].dtype)
-            assert df["list_int_col"][0].tolist() == [1, 2, 3]
+        assert is_object_dtype(df["list_int_col"].dtype)
+        assert df["list_int_col"][0].tolist() == [1, 2, 3]
 
         assert "list_str_col" in df.columns
-        if after_write and not use_arrow:
-            # Without arrow, and after writing the list columns have become strings
-            assert is_string_dtype(df["list_str_col"].dtype)
-            assert df["list_str_col"][0] == "['a' 'b' 'c']"
-        else:
-            assert is_object_dtype(df["list_str_col"].dtype)
-            assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+        assert is_object_dtype(df["list_str_col"].dtype)
+        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
 
         assert "list_mixed_col" in df.columns
         if after_write:
@@ -644,7 +634,7 @@ def test_roundtrip_many_data_types_geojson_file(
     validate_result(read_gdf, use_arrow, after_write=False)
 
     # Write the data read, read it back, and validate again
-    tmp_file = tmp_path / "temp.geojson"
+    tmp_file = tmp_path / "written.geojson"
     write_dataframe(read_gdf, tmp_file, use_arrow=use_arrow)
 
     # Validate data written
