@@ -17,14 +17,13 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
 )
-from pyogrio._compat import HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import GDAL_GE_37, GDAL_GE_313, HAS_PYARROW, HAS_SHAPELY
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
 from pyogrio.raw import open_arrow, read, write
 from pyogrio.tests.conftest import (
     DRIVER_EXT,
     DRIVERS,
     prepare_testfile,
-    requires_arrow_api,
     requires_pyarrow_api,
     requires_shapely,
 )
@@ -63,9 +62,10 @@ def test_read(naturalearth_lowres):
 @pytest.mark.parametrize("ext", DRIVERS)
 def test_read_autodetect_driver(tmp_path, naturalearth_lowres, ext):
     # Test all supported autodetect drivers
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip not supported for gdal < 3.7.0")
     testfile = prepare_testfile(naturalearth_lowres, dst_dir=tmp_path, ext=ext)
 
-    assert testfile.suffix == ext
     assert testfile.exists()
     meta, _, geometry, fields = read(testfile)
 
@@ -155,19 +155,20 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
         )
 
 
-def test_read_columns(naturalearth_lowres):
-    columns = ["NAME", "NAME_LONG"]
-    meta, _, geometry, fields = read(
+@pytest.mark.parametrize(
+    "descr, columns, exp_columns",
+    [
+        ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
+        ("case_sensitive", ["NAME"], []),
+        ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
+        ("keep_original_order", ["continent", "pop_est"], ["pop_est", "continent"]),
+    ],
+)
+def test_read_columns(naturalearth_lowres, descr, columns, exp_columns):
+    meta, _fids, _geometry, _fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False
     )
-    array_equal(meta["fields"], columns)
-
-    # Repeats should be dropped
-    columns = ["NAME", "NAME_LONG", "NAME"]
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=columns, read_geometry=False
-    )
-    array_equal(meta["fields"], columns[:2])
+    assert array_equal(meta["fields"], exp_columns), f"Failed for {descr}"
 
 
 @pytest.mark.parametrize("skip_features", [10, 200])
@@ -615,10 +616,6 @@ def test_write_no_geom_no_fields():
         write("test.gpkg", geometry=None, field_data=None, fields=None)
 
 
-@pytest.mark.skipif(
-    __gdal_version__ < (3, 6, 0),
-    reason="OpenFileGDB write support only available for GDAL >= 3.6.0",
-)
 @pytest.mark.parametrize(
     "write_int64",
     [
@@ -697,11 +694,8 @@ def test_write_openfilegdb(tmp_path, write_int64):
 
 @pytest.mark.parametrize("ext", DRIVERS)
 def test_write_append(tmp_path, naturalearth_lowres, ext):
-    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
-        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
-
-    if ext in (".geojsonl", ".geojsons") and __gdal_version__ < (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
+    if ext == ".gpkg.zip":
+        pytest.skip("Append to .gpkg.zip is not supported")
 
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
@@ -721,11 +715,8 @@ def test_write_append(tmp_path, naturalearth_lowres, ext):
     assert read_info(filename)["features"] == 354
 
 
-@pytest.mark.parametrize("driver,ext", [("GML", ".gml"), ("GeoJSONSeq", ".geojsons")])
+@pytest.mark.parametrize("driver,ext", [("GML", ".gml")])
 def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
-    if ext == ".geojsons" and __gdal_version__ >= (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq supported for GDAL >= 3.6.0")
-
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     # GML does not support append functionality
@@ -738,27 +729,6 @@ def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
 
     with pytest.raises(DataSourceError):
         write(filename, geometry, field_data, driver=driver, append=True, **meta)
-
-
-@pytest.mark.skipif(
-    __gdal_version__ > (3, 5, 0),
-    reason="segfaults on FlatGeobuf limited to GDAL <= 3.5.0",
-)
-def test_write_append_prevent_gdal_segfault(tmp_path, naturalearth_lowres):
-    """GDAL <= 3.5.0 segfaults when appending to FlatGeobuf; this test
-    verifies that we catch that before segfault"""
-    meta, _, geometry, field_data = read(naturalearth_lowres)
-    meta["geometry_type"] = "MultiPolygon"
-
-    filename = tmp_path / "test.fgb"
-    write(filename, geometry, field_data, **meta)
-
-    assert filename.exists()
-
-    with pytest.raises(
-        RuntimeError,  # match="append to FlatGeobuf is not supported for GDAL <= 3.5.0"
-    ):
-        write(filename, geometry, field_data, append=True, **meta)
 
 
 @pytest.mark.parametrize(
@@ -790,16 +760,14 @@ def test_write_supported(tmp_path, naturalearth_lowres, driver):
     assert filename.exists()
 
 
-@pytest.mark.skipif(
-    __gdal_version__ >= (3, 6, 0), reason="OpenFileGDB supports write for GDAL >= 3.6.0"
-)
 def test_write_unsupported(tmp_path, naturalearth_lowres):
+    """Test writing using a driver that does not support writing."""
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
-    filename = tmp_path / "test.gdb"
+    filename = tmp_path / "test.topojson"
 
     with pytest.raises(DataSourceError, match="does not support write functionality"):
-        write(filename, geometry, field_data, driver="OpenFileGDB", **meta)
+        write(filename, geometry, field_data, driver="TopoJSON", **meta)
 
 
 def test_write_gdalclose_error(naturalearth_lowres):
@@ -1001,15 +969,6 @@ def test_read_data_types_numeric_with_null(test_gpkg_nulls):
             assert field.dtype == "float64"
 
 
-def test_read_unsupported_types(list_field_values_file):
-    fields = read(list_field_values_file)[3]
-    # list field gets skipped, only integer field is read
-    assert len(fields) == 1
-
-    fields = read(list_field_values_file, columns=["int64"])[3]
-    assert len(fields) == 1
-
-
 def test_read_datetime_millisecond(datetime_file):
     field = read(datetime_file)[3][0]
     assert field.dtype == "datetime64[ms]"
@@ -1043,15 +1002,20 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
 def test_read_datetime_as_string(datetime_tz_file):
     field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
-    # timezone is ignored in numpy layer
+    # time zone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
     field = read(datetime_tz_file, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
-    # GDAL doesn't return strings in ISO format (yet)
-    assert field[0] == "2020/01/01 09:00:00.123-05"
-    assert field[1] == "2020/01/01 10:00:00-05"
+
+    if __gdal_version__ < (3, 7, 0):
+        # With GDAL < 3.7, datetimes are not returned as ISO8601 strings
+        assert field[0] == "2020/01/01 09:00:00.123-05"
+        assert field[1] == "2020/01/01 10:00:00-05"
+    else:
+        assert field[0] == "2020-01-01T09:00:00.123-05:00"
+        assert field[1] == "2020-01-01T10:00:00-05:00"
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
@@ -1090,7 +1054,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     write(filename, geometry, field_data, fields, **meta)
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": null }' in content
+    if GDAL_GE_313:
+        assert '{"col":null}' in content
+    else:
+        assert '{ "col": null }' in content
 
     # set to False
     # by default, GDAL will skip the property for GeoJSON if the value is NaN
@@ -1102,7 +1069,10 @@ def test_write_float_nan_null(tmp_path, dtype):
         write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
     with open(filename) as f:
         content = f.read()
-    assert '"properties": { }' in content
+    if GDAL_GE_313:
+        assert '"properties":{}' in content
+    else:
+        assert '"properties": { }' in content
 
     # but can instruct GDAL to write NaN to json
     write(
@@ -1116,7 +1086,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     )
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": NaN }' in content
+    if GDAL_GE_313:
+        assert '{"col":NaN}' in content
+    else:
+        assert '{ "col": NaN }' in content
 
 
 @requires_pyarrow_api
@@ -1183,9 +1156,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
     buffer = BytesIO()
@@ -1487,7 +1457,6 @@ def test_write_with_mask(tmp_path):
         write(filename, geometry, field_data, fields, field_mask, **meta)
 
 
-@requires_arrow_api
 def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we also run
     # it when pyarrow is not installed
@@ -1505,7 +1474,6 @@ def test_open_arrow_capsule_protocol_without_pyarrow(naturalearth_lowres):
 
 
 @pytest.mark.skipif(HAS_PYARROW, reason="pyarrow is installed")
-@requires_arrow_api
 def test_open_arrow_error_no_pyarrow(naturalearth_lowres):
     # this test is included here instead of test_arrow.py to ensure we run
     # it when pyarrow is not installed

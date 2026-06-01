@@ -1,24 +1,94 @@
 # CHANGELOG
 
-## 0.11.0 (TBD)
+## 0.12.2 (????-??-??)
+
+### Bug fixes
+
+-   Fix writing non-string object columns with arrow (#630).
+-   Fix writing empty string category columns with arrow fails (#621).
+-   Fix overwriting a corrupt fileGDB directory (#600).
+
+## 0.12.1 (2025-11-28)
+
+### Bug fixes
+
+-   Fix regression in reading date columns (#616).
+-   Fix regression in `read_dataframe` when `use_arrow=True` and `columns` is used to filter
+    out columns of some specific types (#611).
+
+## 0.12.0 (2025-11-26)
+
+### Potentially breaking changes
+
+-   Return JSON fields (as identified by GDAL) as dicts/lists in `read_dataframe`;
+    these were previously returned as strings (#556).
+-   Drop support for GDAL 3.4 and 3.5 (#584).
+
+### Improvements
+
+-   Add `datetime_as_string` and `mixed_offsets_as_utc` parameters to `read_dataframe`
+    to choose the way datetime columns are returned + several fixes when reading and
+    writing datetimes (#486).
+-   Add listing of GDAL data types and subtypes to `read_info` (#556).
+-   Add support to read list fields without arrow (#558, #597).
+
+### Bug fixes
+
+-   Fix decode error reading an sqlite file on Windows (#568).
+-   Fix wrong layer name when creating .gpkg.zip file (#570).
+-   Fix segfault on providing an invalid value for `layer` in `read_info` (#564).
+-   Fix error when reading data with ``use_arrow=True`` after having used the
+    Parquet driver with GDAL>=3.12 (#601).
+
+### Packaging
+
+-   Wheels are now available for Python 3.14 (#579).
+-   The GDAL library included in the wheels is upgraded from 3.10.3 to 3.11.4 (#578).
+-   Add libkml driver to the wheels for more recent Linux platforms supported
+    by manylinux_2_28, macOS, and Windows (#561).
+-   Add libspatialite to the wheels (#546).
+-   Minimum required Python version is now 3.10 (#557).
+-   Initial support for free-threaded Python builds, with the extension module
+    declaring free-threaded support and wheels for Python 3.13t and 3.14t being
+    built (#562).
+
+## 0.11.1 (2025-08-02)
+
+### Bug fixes
+
+-   Compatibility with Shapely >= 2.1 to avoid triggering a deprecation warning at
+    import (#542).
+-   Fix reading with a `skip_features` larger than the available number of
+    features to ensure this consistently returns an empty result for all file
+    formats (#550).
+
+## 0.11.0 (2025-05-08)
 
 ### Improvements
 
 -   Capture all errors logged by gdal when opening a file fails (#495).
+-   Add support to read and write ".gpkg.zip" (GDAL >= 3.7), ".shp.zip", and ".shz"
+    files (#527).
+-   Compatibility with the string dtype in the upcoming pandas 3.0 release (#493).
 
 ### Bug fixes
 
 -   Fix WKB writing on big-endian systems (#497).
+-   Fix writing fids to e.g. GPKG file with `use_arrow` (#511).
+-   Fix error in `write_dataframe` when writing an empty or all-None object
+    column with `use_arrow` (#512).
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.0 (#499).
+-   The GDAL library included in the wheels is upgraded from 3.9.2 to 3.10.3 (#499).
 
 ## 0.10.0 (2024-09-28)
 
 ### Improvements
 
 -   Add support to read, write, list, and remove `/vsimem/` files (#457).
+-   Raise specific error when trying to read non-UTF-8 file with
+    `use_arrow=True` (#490).
 
 ### Bug fixes
 
@@ -132,7 +202,7 @@
 
 ### Improvements
 
--   Support reading and writing datetimes with timezones (#253).
+-   Support reading and writing datetimes with time zones (#253).
 -   Support writing dataframes without geometry column (#267).
 -   Calculate feature count by iterating over features if GDAL returns an
     unknown count for a data layer (e.g., OSM driver); this may have signficant

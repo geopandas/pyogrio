@@ -4,7 +4,7 @@ import warnings
 from io import BytesIO
 from pathlib import Path
 
-from pyogrio._compat import HAS_ARROW_API, HAS_ARROW_WRITE_API, HAS_PYARROW
+from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYARROW
 from pyogrio._env import GDALEnv
 from pyogrio.core import detect_write_driver
 from pyogrio.errors import DataSourceError
@@ -151,7 +151,7 @@ def read(
         If True, will return the FIDs of the feature that were read.
     datetime_as_string : bool, optional (default: False)
         If True, will return datetime dtypes as detected by GDAL as a string
-        array (which can be used to extract timezone info), instead of
+        array (which can be used to extract time zone info), instead of
         a datetime64 array.
 
     **kwargs
@@ -171,9 +171,11 @@ def read(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
-            "dtypes": <ndarray of numpy dtypes corresponding to fields>
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
-            "geometry_type": "<geometry type>"
+            "geometry_type": "<geometry type>",
         }
 
     .. _OGRSQL:
@@ -233,6 +235,7 @@ def read_arrow(
     sql=None,
     sql_dialect=None,
     return_fids=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Read OGR data source into a pyarrow Table.
@@ -243,15 +246,19 @@ def read_arrow(
     -------
     (dict, pyarrow.Table)
 
-        Returns a tuple of meta information about the data source in a dict,
+        Returns a tuple of meta information about the returned data in a dict,
         and a pyarrow Table with data.
 
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
+            "fid_column": "<name of FID column in arrow table>"
         }
 
     """
@@ -303,6 +310,7 @@ def read_arrow(
         skip_features=gdal_skip_features,
         batch_size=batch_size,
         use_pyarrow=True,
+        datetime_as_string=datetime_as_string,
         **kwargs,
     ) as source:
         meta, reader = source
@@ -358,6 +366,7 @@ def open_arrow(
     return_fids=False,
     batch_size=65_536,
     use_pyarrow=False,
+    datetime_as_string=False,
     **kwargs,
 ):
     """Open OGR data source as a stream of Arrow record batches.
@@ -386,6 +395,9 @@ def open_arrow(
         ArrowStream object. In the default case, this stream object needs
         to be passed to another library supporting the Arrow PyCapsule
         Protocol to consume the stream of data.
+    datetime_as_string : bool, optional (default: False)
+        If True, will return datetime dtypes as detected by GDAL as strings,
+        as Arrow doesn't support e.g. mixed time zones.
 
     Examples
     --------
@@ -423,15 +435,16 @@ def open_arrow(
         Meta is: {
             "crs": "<crs>",
             "fields": <ndarray of field names>,
+            "dtypes": <ndarray of numpy dtypes corresponding to fields>,
+            "ogr_types": <ndarray of OGR types corresponding to fields>,
+            "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
+            "fid_column": "<name of FID column in arrow table>"
         }
 
     """
-    if not HAS_ARROW_API:
-        raise RuntimeError("GDAL>= 3.6 required to read using arrow")
-
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_open_arrow(
@@ -453,6 +466,7 @@ def open_arrow(
         dataset_kwargs=dataset_kwargs,
         batch_size=batch_size,
         use_pyarrow=use_pyarrow,
+        datetime_as_string=datetime_as_string,
     )
 
 
@@ -575,12 +589,6 @@ def _get_write_path_driver(path, driver, append=False):
             f"{get_gdal_version_string()}"
         )
 
-    # prevent segfault from: https://github.com/OSGeo/gdal/issues/5739
-    if append and driver == "FlatGeobuf" and get_gdal_version() <= (3, 5, 0):
-        raise RuntimeError(
-            "append to FlatGeobuf is not supported for GDAL <= 3.5.0 due to segfault"
-        )
-
     return path, driver
 
 
@@ -685,15 +693,17 @@ def write(
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
     gdal_tz_offsets : dict, optional (default: None)
-        Used to handle GDAL timezone offsets for each field contained in dict.
+        Used to handle GDAL time zone offsets for each field contained in dict.
     **kwargs
         Additional driver-specific dataset creation options passed to OGR. Invalid
         options will trigger a warning.
 
     """
-    # if dtypes is given, remove it from kwargs (dtypes is included in meta returned by
+    # remove some unneeded kwargs (e.g. dtypes is included in meta returned by
     # read, and it is convenient to pass meta directly into write for round trip tests)
     kwargs.pop("dtypes", None)
+    kwargs.pop("ogr_types", None)
+    kwargs.pop("ogr_subtypes", None)
 
     path, driver = _get_write_path_driver(path, driver, append=append)
 

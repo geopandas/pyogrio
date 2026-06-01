@@ -14,5 +14,5 @@ dependencies:
   - cython
   - pre-commit
   - pytest
-  - ruff==0.5.2
+  - ruff==0.11.5
   - versioneer

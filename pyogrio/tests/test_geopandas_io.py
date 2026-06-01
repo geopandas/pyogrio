@@ -1,8 +1,12 @@
 import contextlib
 import locale
+import os
+import re
 import warnings
-from datetime import datetime
+from datetime import date, datetime, timezone
+from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -16,7 +20,16 @@ from pyogrio import (
     vsi_listtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_352, HAS_ARROW_WRITE_API, HAS_PYPROJ, PANDAS_GE_15
+from pyogrio._compat import (
+    GDAL_GE_37,
+    GDAL_GE_311,
+    HAS_ARROW_WRITE_API,
+    HAS_PYPROJ,
+    PANDAS_GE_15,
+    PANDAS_GE_23,
+    PANDAS_GE_30,
+    SHAPELY_GE_21,
+)
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
@@ -26,6 +39,7 @@ from pyogrio.raw import (
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
+    GDAL_HAS_PARQUET_DRIVER,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -39,6 +53,14 @@ try:
     import geopandas as gp
     import pandas as pd
     from geopandas.array import from_wkt
+    from pandas.api.types import (
+        is_bool_dtype,
+        is_datetime64_dtype,
+        is_float_dtype,
+        is_integer_dtype,
+        is_object_dtype,
+        is_string_dtype,
+    )
 
     import shapely  # if geopandas is present, shapely is expected to be present
     from shapely.geometry import Point
@@ -84,18 +106,38 @@ def skip_if_no_arrow_write_api(request):
         pytest.skip("GDAL>=3.8 required for Arrow write API")
 
 
-def spatialite_available(path):
-    try:
-        _ = read_dataframe(
-            path, sql="select spatialite_version();", sql_dialect="SQLITE"
-        )
-        return True
-    except Exception:
-        return False
+@contextlib.contextmanager
+def use_arrow_context():
+    original = os.environ.get("PYOGRIO_USE_ARROW", None)
+    os.environ["PYOGRIO_USE_ARROW"] = "1"
+    yield
+    if original:
+        os.environ["PYOGRIO_USE_ARROW"] = original
+    else:
+        del os.environ["PYOGRIO_USE_ARROW"]
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-def test_read_csv_encoding(tmp_path, encoding):
+def test_spatialite_available(test_gpkg_nulls):
+    """Check if SpatiaLite is available by running a simple SQL query."""
+    _ = read_dataframe(
+        test_gpkg_nulls, sql="select spatialite_version();", sql_dialect="SQLITE"
+    )
+
+
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_pyarrow_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_read_csv_encoding(tmp_path, encoding, arrow):
+    """ "Test reading CSV files with different encodings.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -106,7 +148,7 @@ def test_read_csv_encoding(tmp_path, encoding):
     # Read csv. The data should be read with the same default encoding as the csv file
     # was written in, but should have been converted to utf-8 in the dataframe returned.
     # Hence, the asserts below, with strings in utf-8, be OK.
-    df = read_dataframe(csv_path, encoding=encoding)
+    df = read_dataframe(csv_path, encoding=encoding, use_arrow=arrow)
 
     assert len(df) == 1
     assert df.columns.tolist() == ["näme", "city"]
@@ -118,19 +160,29 @@ def test_read_csv_encoding(tmp_path, encoding):
     locale.getpreferredencoding().upper() == "UTF-8",
     reason="test requires non-UTF-8 default platform",
 )
-def test_read_csv_platform_encoding(tmp_path):
-    """verify that read defaults to platform encoding; only works on Windows (CP1252)"""
+def test_read_csv_platform_encoding(tmp_path, use_arrow):
+    """Verify that read defaults to platform encoding; only works on Windows (CP1252).
+
+    When use_arrow=True, reading an non-UTF8 fails.
+    """
     csv_path = tmp_path / "test.csv"
     with open(csv_path, "w", encoding=locale.getpreferredencoding()) as csv:
         csv.write("näme,city\n")
         csv.write("Wilhelm Röntgen,Zürich\n")
 
-    df = read_dataframe(csv_path)
+    if use_arrow:
+        with pytest.raises(
+            DataSourceError,
+            match="; please use_arrow=False",
+        ):
+            df = read_dataframe(csv_path, use_arrow=use_arrow)
+    else:
+        df = read_dataframe(csv_path, use_arrow=use_arrow)
 
-    assert len(df) == 1
-    assert df.columns.tolist() == ["näme", "city"]
-    assert df.city.tolist() == ["Zürich"]
-    assert df.näme.tolist() == ["Wilhelm Röntgen"]
+        assert len(df) == 1
+        assert df.columns.tolist() == ["näme", "city"]
+        assert df.city.tolist() == ["Zürich"]
+        assert df.näme.tolist() == ["Wilhelm Röntgen"]
 
 
 def test_read_dataframe(naturalearth_lowres_all_ext):
@@ -228,10 +280,6 @@ def test_read_force_2d(tmp_path, use_arrow):
     assert not df.iloc[0].geometry.has_z
 
 
-@pytest.mark.skipif(
-    not GDAL_GE_352,
-    reason="gdal >= 3.5.2 needed to use OGR_GEOJSON_MAX_OBJ_SIZE with a float value",
-)
 def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
     try:
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
@@ -244,11 +292,32 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": None})
 
 
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read simpledata element",
+)
+def test_read_kml_simpledata(kml_file, use_arrow):
+    """Test reading a KML file with a simpledata element.
+
+    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    """
+    gdf = read_dataframe(kml_file, use_arrow=use_arrow)
+
+    # Check if the simpledata column is present.
+    assert "formation" in gdf.columns
+    assert gdf["formation"].iloc[0] == "Ton"
+
+
 def test_read_layer(tmp_path, use_arrow):
     filename = tmp_path / "test.gpkg"
 
     # create a multilayer GPKG
     expected1 = gp.GeoDataFrame(geometry=[Point(0, 0)], crs="EPSG:4326")
+    if use_arrow:
+        # TODO this needs to be fixed on the geopandas side (to ensure the
+        # GeoDataFrame() constructor does this), when use_arrow we already
+        # get columns Index with string dtype
+        expected1.columns = expected1.columns.astype("str")
     write_dataframe(
         expected1,
         filename,
@@ -256,6 +325,8 @@ def test_read_layer(tmp_path, use_arrow):
     )
 
     expected2 = gp.GeoDataFrame(geometry=[Point(1, 1)], crs="EPSG:4326")
+    if use_arrow:
+        expected2.columns = expected2.columns.astype("str")
     write_dataframe(expected2, filename, layer="layer2", append=True)
 
     assert np.array_equal(
@@ -286,38 +357,296 @@ def test_read_layer_invalid(naturalearth_lowres_all_ext, use_arrow):
         read_dataframe(naturalearth_lowres_all_ext, layer="wrong", use_arrow=use_arrow)
 
 
-def test_read_datetime(datetime_file, use_arrow):
-    df = read_dataframe(datetime_file, use_arrow=use_arrow)
-    if PANDAS_GE_20:
-        # starting with pandas 2.0, it preserves the passed datetime resolution
-        assert df.col.dtype.name == "datetime64[ms]"
+@pytest.mark.parametrize("columns", [None, [], ["col"]])
+def test_read_datetime_columns(datetime_file, columns, use_arrow):
+    df = read_dataframe(datetime_file, columns=columns, use_arrow=use_arrow)
+
+    # Check result
+    if columns is None or "col" in columns:
+        assert "col" in df.columns
+        assert is_datetime64_dtype(df.col.dtype)
+        if PANDAS_GE_20:
+            # starting with pandas 2.0, it preserves the passed datetime resolution
+            assert df.col.dtype.name == "datetime64[ms]"
+        else:
+            assert df.col.dtype.name == "datetime64[ns]"
     else:
-        assert df.col.dtype.name == "datetime64[ns]"
+        assert len(df.columns) == 1  # only geometry
 
 
-@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
+def test_read_list_types(list_field_values_files, use_arrow):
+    """Test reading a geojson file containing fields with lists."""
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+
+    info = read_info(list_field_values_files)
+    suffix = list_field_values_files.suffix
+
+    result = read_dataframe(list_field_values_files, use_arrow=use_arrow)
+
+    # Check list_int column
+    assert "list_int" in result.columns
+    assert info["fields"][1] == "list_int"
+    assert info["ogr_types"][1] in ("OFTIntegerList", "OFTInteger64List")
+    assert result["list_int"][0].tolist() == [0, 1]
+    assert result["list_int"][1].tolist() == [2, 3]
+    assert result["list_int"][2].tolist() == []
+    assert result["list_int"][3] is None
+    assert result["list_int"][4] is None
+
+    # Check list_double column
+    assert "list_double" in result.columns
+    assert info["fields"][2] == "list_double"
+    assert info["ogr_types"][2] == "OFTRealList"
+    assert result["list_double"][0].tolist() == [0.0, 1.0]
+    assert result["list_double"][1].tolist() == [2.0, 3.0]
+    assert result["list_double"][2].tolist() == []
+    assert result["list_double"][3] is None
+    assert result["list_double"][4] is None
+
+    # Check list_string column
+    assert "list_string" in result.columns
+    assert info["fields"][3] == "list_string"
+    assert info["ogr_types"][3] == "OFTStringList"
+    assert result["list_string"][0].tolist() == ["string1", "string2"]
+    assert result["list_string"][1].tolist() == ["string3", "string4", ""]
+    assert result["list_string"][2].tolist() == []
+    assert result["list_string"][3] is None
+    assert result["list_string"][4] == [""]
+
+    # Check list_int_with_null column
+    if suffix == ".geojson":
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+        exp_list_int_with_null_value = [0, None]
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTInteger64List"
+        exp_subtype = "OFSTNone"
+        if use_arrow:
+            exp_list_int_with_null_value = [0.0, np.nan]
+        else:
+            exp_list_int_with_null_value = [0, 0]
+            # xfail: when reading a list of int with None values without Arrow from a
+            # .parquet file, the None values become 0, which is wrong.
+            # https://github.com/OSGeo/gdal/issues/13448
+
+    assert "list_int_with_null" in result.columns
+    assert info["fields"][4] == "list_int_with_null"
+    assert info["ogr_types"][4] == exp_type
+    assert info["ogr_subtypes"][4] == exp_subtype
+    assert result["list_int_with_null"][0][0] == 0
+    if exp_list_int_with_null_value[1] == 0:
+        assert result["list_int_with_null"][0][1] == exp_list_int_with_null_value[1]
+    else:
+        assert pd.isna(result["list_int_with_null"][0][1])
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_int_with_null"][1] == [2, 3]
+        assert result["list_int_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        assert result["list_int_with_null"][1].tolist() == [2, 3]
+        assert result["list_int_with_null"][2].tolist() == []
+
+    assert pd.isna(result["list_int_with_null"][3])
+    assert pd.isna(result["list_int_with_null"][4])
+
+    # Check list_string_with_null column
+    if suffix == ".geojson":
+        # Once any row of a column contains a null value in a list, the column isn't
+        # recognized as a list column anymore for .geojson files, but as a JSON column.
+        # Because JSON columns containing JSON Arrays are also parsed to python lists,
+        # the end result is the same...
+        exp_type = "OFTString"
+        exp_subtype = "OFSTJSON"
+    else:
+        # For .parquet files, the list column is preserved as a list column.
+        exp_type = "OFTStringList"
+        exp_subtype = "OFSTNone"
+
+    assert "list_string_with_null" in result.columns
+    assert info["fields"][5] == "list_string_with_null"
+    assert info["ogr_types"][5] == exp_type
+    assert info["ogr_subtypes"][5] == exp_subtype
+
+    if suffix == ".geojson":
+        # For .geojson, the lists are already python lists
+        assert result["list_string_with_null"][0] == ["string1", None]
+        assert result["list_string_with_null"][1] == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2] == []
+    else:
+        # For .parquet, the lists are numpy arrays
+        # When use_arrow=False, the None becomes an empty string, which is wrong.
+        exp_value = ["string1", ""] if not use_arrow else ["string1", None]
+        assert result["list_string_with_null"][0].tolist() == exp_value
+        assert result["list_string_with_null"][1].tolist() == ["string3", "string4", ""]
+        assert result["list_string_with_null"][2].tolist() == []
+
+    assert pd.isna(result["list_string_with_null"][3])
+    assert result["list_string_with_null"][4] == [""]
+
+
+@pytest.mark.parametrize("columns", [None, [], ["list_int", "list_string"]])
+def test_read_list_types_columns(request, list_field_values_files, use_arrow, columns):
+    """Test reading a geojson file containing fields with lists."""
+    if list_field_values_files.suffix == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+    if (
+        use_arrow
+        and columns
+        and len(columns) == 2
+        and list_field_values_files.suffix == ".parquet"
+    ):
+        # This gives following error, not sure why. Opened an issue for followup:
+        # https://github.com/geopandas/pyogrio/issues/XXX
+        error_msg = (
+            "This fails with 'pyarrow.lib.ArrowInvalid: ArrowArray struct has "
+            "1 children, expected 0 for type extension<geoarrow.wkb>'"
+        )
+        request.node.add_marker(pytest.mark.xfail(reason=error_msg))
+
+    result = read_dataframe(
+        list_field_values_files, use_arrow=use_arrow, columns=columns
+    )
+
+    # Check result
+    exp_columns = 7 if columns is None else len(columns) + 1  # +1 for geometry
+    assert len(result.columns) == exp_columns
+
+
 @pytest.mark.requires_arrow_write_api
-def test_read_datetime_tz(datetime_tz_file, tmp_path, use_arrow):
-    df = read_dataframe(datetime_tz_file)
-    # Make the index non-consecutive to test this case as well. Added for issue
-    # https://github.com/geopandas/pyogrio/issues/324
-    df = df.set_index(np.array([0, 2]))
-    raw_expected = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00"]
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_read_list_nested_struct_parquet_file(
+    list_nested_struct_parquet_file, use_arrow
+):
+    """Test reading a Parquet file containing nested struct and list types."""
+    if not use_arrow:
+        pytest.skip(
+            "When use_arrow=False, gdal flattens nested columns to seperate columns. "
+            "Not sure how we want to deal with this case, but for now just skip."
+        )
 
-    if PANDAS_GE_20:
-        expected = pd.to_datetime(raw_expected, format="ISO8601").as_unit("ms")
-    else:
-        expected = pd.to_datetime(raw_expected)
-    expected = pd.Series(expected, name="datetime_col")
-    assert_series_equal(df.datetime_col, expected, check_index=False)
-    # test write and read round trips
-    fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath, use_arrow=use_arrow)
-    df_read = read_dataframe(fpath, use_arrow=use_arrow)
+    result = read_dataframe(list_nested_struct_parquet_file, use_arrow=use_arrow)
+
+    assert "col_flat" in result.columns
+    assert np.array_equal(result["col_flat"].to_numpy(), np.array([0, 1, 2]))
+
+    assert "col_list" in result.columns
+    assert result["col_list"].dtype == object
+    assert result["col_list"][0].tolist() == [1, 2, 3]
+    assert result["col_list"][1].tolist() == [1, 2, 3]
+    assert result["col_list"][2].tolist() == [1, 2, 3]
+
+    assert "col_nested" in result.columns
+    assert result["col_nested"].dtype == object
+    assert result["col_nested"][0].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][1].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+    assert result["col_nested"][2].tolist() == [{"a": 1, "b": 2}, {"a": 1, "b": 2}]
+
+    assert "col_struct" in result.columns
+    assert result["col_struct"].dtype == object
+    assert result["col_struct"][0] == {"a": 1, "b": 2}
+    assert result["col_struct"][1] == {"a": 1, "b": 2}
+    assert result["col_struct"][2] == {"a": 1, "b": 2}
+
+
+@pytest.mark.requires_arrow_write_api
+def test_roundtrip_many_data_types_geojson_file(
+    request, tmp_path, many_data_types_geojson_file, use_arrow
+):
+    """Test roundtripping a GeoJSON file containing many data types."""
+
+    def validate_result(df: pd.DataFrame, use_arrow: bool, ignore_mixed_list_col=False):
+        """Function to validate the data of many_data_types_geojson_file.
+
+        Depending on arrow being used or not there are small differences.
+        """
+        assert "int_col" in df.columns
+        assert is_integer_dtype(df["int_col"].dtype)
+        assert df["int_col"].to_list() == [1]
+
+        assert "float_col" in df.columns
+        assert is_float_dtype(df["float_col"].dtype)
+        assert df["float_col"].to_list() == [1.5]
+
+        assert "str_col" in df.columns
+        assert is_string_dtype(df["str_col"].dtype)
+        assert df["str_col"].to_list() == ["string"]
+
+        assert "bool_col" in df.columns
+        assert is_bool_dtype(df["bool_col"].dtype)
+        assert df["bool_col"].to_list() == [True]
+
+        assert "date_col" in df.columns
+        if use_arrow:
+            # Arrow returns dates as datetime.date objects.
+            assert is_object_dtype(df["date_col"].dtype)
+            assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01").date()]
+        else:
+            # Without arrow, date columns are returned as datetime64.
+            assert is_datetime64_dtype(df["date_col"].dtype)
+            assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
+
+        # Ignore time columns till this is solved:
+        # Reported in https://github.com/geopandas/pyogrio/issues/615
+        # assert "time_col" in df.columns
+        # assert is_object_dtype(df["time_col"].dtype)
+        # assert df["time_col"].to_list() == [time(12, 0, 0)]
+
+        assert "datetime_col" in df.columns
+        assert is_datetime64_dtype(df["datetime_col"].dtype)
+        assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
+
+        assert "list_int_col" in df.columns
+        assert is_object_dtype(df["list_int_col"].dtype)
+        assert df["list_int_col"][0].tolist() == [1, 2, 3]
+
+        assert "list_str_col" in df.columns
+        assert is_object_dtype(df["list_str_col"].dtype)
+        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+
+        if not ignore_mixed_list_col:
+            assert "list_mixed_col" in df.columns
+            assert is_object_dtype(df["list_mixed_col"].dtype)
+            assert df["list_mixed_col"][0] == [1, "a", None, True]
+
+    # Read and validate result of reading
+    read_gdf = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
+    validate_result(read_gdf, use_arrow)
+
+    # Write the data read, read it back, and validate again
     if use_arrow:
-        # with Arrow, the datetimes are always read as UTC
-        expected = expected.dt.tz_convert("UTC")
-    assert_series_equal(df_read.datetime_col, expected)
+        # Writing a column with mixed types in a list is not supported with Arrow.
+        ignore_mixed_list_col = True
+        read_gdf = read_gdf.drop(columns=["list_mixed_col"])
+    else:
+        ignore_mixed_list_col = False
+        request.node.add_marker(
+            pytest.mark.xfail(
+                reason="roundtripping list types fails with use_arrow=False"
+            )
+        )
+
+    tmp_file = tmp_path / "temp.geojson"
+    write_dataframe(read_gdf, tmp_file, use_arrow=use_arrow)
+
+    # Validate data written
+    read_back_gdf = read_dataframe(tmp_file, use_arrow=use_arrow)
+    validate_result(
+        read_back_gdf, use_arrow, ignore_mixed_list_col=ignore_mixed_list_col
+    )
 
 
 @pytest.mark.filterwarnings(
@@ -333,39 +662,513 @@ def test_write_datetime_mixed_offset(tmp_path, use_arrow):
     if PANDAS_GE_20:
         utc_col = utc_col.dt.as_unit("ms")
 
-    df = gp.GeoDataFrame(
-        {"dates": localised_col, "geometry": [Point(1, 1), Point(1, 1)]},
-        crs="EPSG:4326",
-    )
-    fpath = tmp_path / "test.gpkg"
-    write_dataframe(df, fpath, use_arrow=use_arrow)
-    result = read_dataframe(fpath, use_arrow=use_arrow)
-    # GDAL tz only encodes offsets, not timezones
-    # check multiple offsets are read as utc datetime instead of string values
-    assert_series_equal(result["dates"], utc_col)
+
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+def test_read_datetime_long_ago(
+    geojson_datetime_long_ago, use_arrow, mixed_offsets_as_utc, datetime_as_string
+):
+    """Test writing/reading a column with a datetime far in the past.
+    Dates from before 1678-1-1 aren't parsed correctly by pandas < 3.0, so they
+    stay strings.
+    Reported in https://github.com/geopandas/pyogrio/issues/553.
+    """
+    handler = contextlib.nullcontext()
+    overflow_occured = False
+    if not datetime_as_string and not PANDAS_GE_30 and (not use_arrow or GDAL_GE_311):
+        # When datetimes should not be returned as string and arrow is not used or
+        # arrow is used with GDAL >= 3.11, `pandas.to_datetime` is used to parse the
+        # datetimes. However, when using pandas < 3.0, this raises an
+        # "Out of bounds nanosecond timestamp" error for very old dates.
+        # As a result, `read_dataframe` gives a warning and the datetimes stay strings.
+        handler = pytest.warns(
+            UserWarning, match="Error parsing datetimes, original strings are returned"
+        )
+        overflow_occured = True
+        # XFAIL: datetimes before 1678-1-1 give overflow with arrow=False and pandas<3.0
+    elif use_arrow and not PANDAS_GE_20 and not GDAL_GE_311:
+        # When arrow is used with pandas < 2.0 and GDAL < 3.11, an overflow occurs in
+        # pyarrow.to_pandas().
+        handler = pytest.raises(
+            Exception,
+            match=re.escape("Casting from timestamp[ms] to timestamp[ns] would result"),
+        )
+        overflow_occured = True
+        # XFAIL: datetimes before 1678-1-1 give overflow with arrow=True and pandas<2.0
+
+    with handler:
+        df = read_dataframe(
+            geojson_datetime_long_ago,
+            use_arrow=use_arrow,
+            datetime_as_string=datetime_as_string,
+            mixed_offsets_as_utc=mixed_offsets_as_utc,
+        )
+
+        exp_dates_str = pd.Series(["1670-01-01T09:00:00"], name="datetime_col")
+        if datetime_as_string:
+            assert is_string_dtype(df.datetime_col.dtype)
+            assert_series_equal(df.datetime_col, exp_dates_str)
+        else:
+            # It is a single naive datetime, so regardless of mixed_offsets_as_utc the
+            # expected "ideal" result is the same: a datetime64 without time zone info.
+            if overflow_occured:
+                # Strings are returned because of an overflow.
+                assert is_string_dtype(df.datetime_col.dtype)
+                assert_series_equal(df.datetime_col, exp_dates_str)
+            else:
+                # With use_arrow or pandas >= 3.0, old datetimes are parsed correctly.
+                assert is_datetime64_dtype(df.datetime_col)
+                assert df.datetime_col.iloc[0] == pd.Timestamp(1670, 1, 1, 9, 0, 0)
+                assert df.datetime_col.iloc[0].unit == "ms"
 
 
-@pytest.mark.filterwarnings(
-    "ignore: Non-conformant content for record 1 in column dates"
-)
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
 @pytest.mark.requires_arrow_write_api
-def test_read_write_datetime_tz_with_nulls(tmp_path, use_arrow):
-    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", pd.NaT]
+def test_write_read_datetime_no_tz(
+    tmp_path, ext, datetime_as_string, mixed_offsets_as_utc, use_arrow
+):
+    """Test writing/reading a column with naive datetimes (no time zone information)."""
+    dates_raw = ["2020-01-01T09:00:00.123", "2020-01-01T10:00:00", np.nan]
     if PANDAS_GE_20:
         dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
     else:
         dates = pd.to_datetime(dates_raw)
     df = gp.GeoDataFrame(
-        {"dates": dates, "geometry": [Point(1, 1), Point(1, 1), Point(1, 1)]},
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    if use_arrow and ext == ".gpkg" and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, columns with naive datetimes are written
+        # correctly, but when read they are wrongly interpreted as being in UTC.
+        # The reason is complicated, but more info can be found e.g. here:
+        # https://github.com/geopandas/pyogrio/issues/487#issuecomment-2423762807
+        exp_dates = df.dates.dt.tz_localize("UTC")
+        if datetime_as_string:
+            exp_dates = exp_dates.astype("str").str.replace(" ", "T")
+            exp_dates[2] = np.nan
+            assert_series_equal(result.dates, exp_dates)
+        elif not mixed_offsets_as_utc:
+            assert_series_equal(result.dates, exp_dates)
+        # XFAIL: naive datetimes read wrong in GPKG with GDAL < 3.11 via arrow
+
+    elif datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("str").str.replace(" ", "T")
+            dates_str[2] = np.nan
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+        assert_series_equal(result.dates, dates_str)
+    else:
+        assert is_datetime64_dtype(result.dates.dtype)
+        assert_geodataframe_equal(result, df)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+@pytest.mark.filterwarnings("ignore: Non-conformant content for record 1 in column ")
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz(
+    request, tmp_path, ext, datetime_as_string, mixed_offsets_as_utc, use_arrow
+):
+    """Write and read file with all equal time zones.
+
+    This should result in the result being in pandas datetime64 dtype column.
+    """
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # With GDAL < 3.10 with arrow, the time zone offset was applied to the datetime
+        # as well as retaining the time zone.
+        # This was fixed in https://github.com/OSGeo/gdal/pull/11049
+        request.node.add_marker(
+            pytest.mark.xfail(
+                reason="Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow"
+            )
+        )
+
+    dates_raw = ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", np.nan]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+
+    # Make the index non-consecutive to test this case as well. Added for issue
+    # https://github.com/geopandas/pyogrio/issues/324
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3},
+        index=[0, 2, 3],
         crs="EPSG:4326",
     )
-    fpath = tmp_path / "test.gpkg"
+    assert isinstance(df.dates.dtype, pd.DatetimeTZDtype)
+
+    fpath = tmp_path / f"test{ext}"
     write_dataframe(df, fpath, use_arrow=use_arrow)
-    result = read_dataframe(fpath, use_arrow=use_arrow)
-    if use_arrow:
-        # with Arrow, the datetimes are always read as UTC
-        df["dates"] = df["dates"].dt.tz_convert("UTC")
-    assert_geodataframe_equal(df, result)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    # With some older versions, the offset is represented slightly differently
+    if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
+        result.dates = result.dates.astype(df.dates.dtype)
+
+    if use_arrow and ext in (".fgb", ".gpkg") and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, datetime columns are written as string type
+        df_exp = df.copy()
+        df_exp.dates = df_exp[df_exp.dates.notna()].dates.astype(str)
+        assert_series_equal(result.dates, df_exp.dates, check_index=False)
+        # XFAIL: datetime columns written as string with GDAL < 3.11 via arrow
+    elif datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("str").str.replace(" ", "T")
+            dates_str.iloc[2] = np.nan
+        elif __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, time zone minutes aren't included in the string
+            dates_str = [x[:-3] for x in dates_raw if pd.notna(x)] + [np.nan]
+            dates_str = pd.Series(dates_str, name="dates")
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+        assert_series_equal(result.dates, dates_str, check_index=False)
+    else:
+        assert_series_equal(result.dates, df.dates, check_index=False)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_localized_mixed_offset(
+    tmp_path, ext, datetime_as_string, mixed_offsets_as_utc, use_arrow
+):
+    """Test with localized dates across a different summer/winter time zone offset."""
+    # Australian Summer Time AEDT (GMT+11), Standard Time AEST (GMT+10)
+    dates_raw = ["2023-01-01 11:00:01.111", "2023-06-01 10:00:01.111", np.nan]
+    dates_naive = pd.Series(pd.to_datetime(dates_raw), name="dates")
+    dates_local = dates_naive.dt.tz_localize("Australia/Sydney")
+    dates_local_offsets_str = dates_local.astype(str)
+    if datetime_as_string:
+        exp_dates = dates_local_offsets_str.str.replace(" ", "T")
+        exp_dates = exp_dates.str.replace(".111000", ".111")
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, time zone minutes aren't included in the string
+            exp_dates = exp_dates.str.slice(0, -3)
+    elif mixed_offsets_as_utc:
+        exp_dates = dates_local.dt.tz_convert("UTC")
+        if PANDAS_GE_20:
+            exp_dates = exp_dates.dt.as_unit("ms")
+    else:
+        exp_dates = dates_local_offsets_str.apply(
+            lambda x: pd.Timestamp(x) if pd.notna(x) else None
+        )
+
+    df = gp.GeoDataFrame(
+        {"dates": dates_local, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        if ext in (".geojson", ".geojsonl"):
+            # With GDAL < 3.11 with arrow, GDAL converts mixed time zone datetimes to
+            # UTC when read as the arrow datetime column type does not support mixed tz.
+            dates_utc = dates_local.dt.tz_convert("UTC")
+            if PANDAS_GE_20:
+                dates_utc = dates_utc.dt.as_unit("ms")
+            if datetime_as_string:
+                assert is_string_dtype(result.dates.dtype)
+                dates_utc = dates_utc.astype(str).str.replace(" ", "T")
+            assert pd.isna(result.dates[2])
+            assert_series_equal(result.dates.head(2), dates_utc.head(2))
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
+
+        elif ext in (".gpkg", ".fgb"):
+            # With GDAL < 3.11 with arrow, datetime columns written as string type
+            assert pd.isna(result.dates[2])
+            assert_series_equal(result.dates.head(2), dates_local_offsets_str.head(2))
+            # XFAIL: datetime columns written as string with GDAL < 3.11 + arrow
+            return
+
+    # GDAL tz only encodes offsets, not time zones
+    if datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+    elif mixed_offsets_as_utc:
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+    else:
+        assert is_object_dtype(result.dates.dtype)
+
+    # Check isna for the third value seperately as depending on versions this is
+    # different + pandas 3.0 assert_series_equal becomes strict about this.
+    assert pd.isna(result.dates[2])
+    assert_series_equal(result.dates.head(2), exp_dates.head(2))
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_mixed_offsets(
+    tmp_path, ext, datetime_as_string, mixed_offsets_as_utc, use_arrow
+):
+    """Test with dates with mixed time zone offsets."""
+    # Pandas datetime64 column types doesn't support mixed time zone offsets, so
+    # it needs to be a list of pandas.Timestamp objects instead.
+    dates = [
+        pd.Timestamp("2023-01-01 11:00:01.111+01:00"),
+        pd.Timestamp("2023-06-01 10:00:01.111+05:00"),
+        np.nan,
+    ]
+
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    if use_arrow and __gdal_version__ < (3, 11, 0):
+        if ext in (".geojson", ".geojsonl"):
+            # With GDAL < 3.11 with arrow, GDAL converts mixed time zone datetimes to
+            # UTC when read as the arrow datetime column type does not support mixed tz.
+            df_exp = df.copy()
+            df_exp.dates = pd.to_datetime(dates, utc=True)
+            if PANDAS_GE_20:
+                df_exp.dates = df_exp.dates.dt.as_unit("ms")
+            if datetime_as_string:
+                df_exp.dates = df_exp.dates.astype("str").str.replace(" ", "T")
+            df_exp.loc[2, "dates"] = pd.NA
+            assert_geodataframe_equal(result, df_exp)
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
+
+        elif ext in (".gpkg", ".fgb"):
+            # With arrow and GDAL < 3.11, mixed time zone datetimes are written as
+            # string type columns, so no proper roundtrip possible.
+            df_exp = df.copy()
+            df_exp.dates = df_exp.dates.astype("str")
+            if not PANDAS_GE_30:
+                df_exp.loc[2, "dates"] = None
+            assert_geodataframe_equal(result, df_exp)
+            # XFAIL: mixed tz datetimes converted to UTC with GDAL < 3.11 + arrow
+            return
+
+    if datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+        dates_str = df.dates.map(
+            lambda x: x.isoformat(timespec="milliseconds") if pd.notna(x) else np.nan
+        )
+        if __gdal_version__ < (3, 7, 0):
+            # With GDAL < 3.7, time zone minutes aren't included in the string
+            dates_str = dates_str.str.slice(0, -3)
+        assert_series_equal(result.dates, dates_str)
+    elif mixed_offsets_as_utc:
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+        exp_dates = pd.to_datetime(df.dates, utc=True)
+        if PANDAS_GE_20:
+            exp_dates = exp_dates.dt.as_unit("ms")
+        assert_series_equal(result.dates, exp_dates)
+    else:
+        assert is_object_dtype(result.dates.dtype)
+        assert_geodataframe_equal(result, df)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize(
+    "dates_raw",
+    [
+        (
+            pd.Timestamp("2020-01-01T09:00:00.123-05:00"),
+            pd.Timestamp("2020-01-01T10:00:00-05:00"),
+            np.nan,
+        ),
+        (
+            datetime.fromisoformat("2020-01-01T09:00:00.123-05:00"),
+            datetime.fromisoformat("2020-01-01T10:00:00-05:00"),
+            np.nan,
+        ),
+    ],
+)
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_tz_objects(
+    tmp_path, dates_raw, ext, use_arrow, datetime_as_string, mixed_offsets_as_utc
+):
+    """Datetime objects with equal offsets are read as datetime64."""
+    dates = pd.Series(dates_raw, dtype="O")
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    # Check result
+    if PANDAS_GE_20:
+        exp_dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        exp_dates = pd.to_datetime(dates_raw)
+    exp_df = df.copy()
+    exp_df["dates"] = pd.Series(exp_dates, name="dates")
+
+    # With some older versions, the offset is represented slightly differently
+    if result.dates.dtype.name.endswith(", pytz.FixedOffset(-300)]"):
+        result["dates"] = result.dates.astype(exp_df.dates.dtype)
+
+    if use_arrow and __gdal_version__ < (3, 10, 0) and ext in (".geojson", ".geojsonl"):
+        # XFAIL: Wrong datetimes read in GeoJSON with GDAL < 3.10 via arrow.
+        # The time zone offset was applied to the datetime as well as retaining
+        # the time zone. This was fixed in https://github.com/OSGeo/gdal/pull/11049
+
+        # Subtract 5 hours from the expected datetimes to match the wrong result.
+        if datetime_as_string:
+            exp_df["dates"] = pd.Series(
+                [
+                    "2020-01-01T04:00:00.123000-05:00",
+                    "2020-01-01T05:00:00-05:00",
+                    np.nan,
+                ]
+            )
+        else:
+            exp_df["dates"] = exp_df.dates - pd.Timedelta(hours=5)
+            if PANDAS_GE_20:
+                # The unit needs to be applied again apparently
+                exp_df["dates"] = exp_df.dates.dt.as_unit("ms")
+        assert_geodataframe_equal(result, exp_df)
+        return
+
+    if use_arrow and __gdal_version__ < (3, 11, 0) and ext in (".fgb", ".gpkg"):
+        # XFAIL: datetime columns are written as string with GDAL < 3.11 + arrow
+        # -> custom formatting because the df column is object dtype and thus
+        # astype(str) converted the datetime objects one by one
+        exp_df["dates"] = pd.Series(
+            ["2020-01-01 09:00:00.123000-05:00", "2020-01-01 10:00:00-05:00", np.nan]
+        )
+        assert_geodataframe_equal(result, exp_df)
+        return
+
+    if datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            # With GDAL < 3.11 with arrow, datetime columns are written as string type
+            exp_df["dates"] = pd.Series(
+                [
+                    "2020-01-01T09:00:00.123000-05:00",
+                    "2020-01-01T10:00:00-05:00",
+                    np.nan,
+                ]
+            )
+        else:
+            exp_df["dates"] = pd.Series(
+                ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", np.nan]
+            )
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, time zone minutes aren't included in the string
+                exp_df["dates"] = exp_df.dates.str.slice(0, -3)
+    elif mixed_offsets_as_utc:
+        # the offsets are all -05:00, so the result retains the offset and not UTC
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+        assert str(result.dates.dtype.tz) in ("UTC-05:00", "pytz.FixedOffset(-300)")
+    else:
+        assert isinstance(result.dates.dtype, pd.DatetimeTZDtype)
+
+    assert_geodataframe_equal(result, exp_df)
+
+
+@pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext != ".shp"])
+@pytest.mark.parametrize("datetime_as_string", [False, True])
+@pytest.mark.parametrize("mixed_offsets_as_utc", [False, True])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_datetime_utc(
+    tmp_path, ext, use_arrow, datetime_as_string, mixed_offsets_as_utc
+):
+    """Test writing/reading a column with UTC datetimes."""
+    dates_raw = ["2020-01-01T09:00:00.123Z", "2020-01-01T10:00:00Z", np.nan]
+    if PANDAS_GE_20:
+        dates = pd.to_datetime(dates_raw, format="ISO8601").as_unit("ms")
+    else:
+        dates = pd.to_datetime(dates_raw)
+    df = gp.GeoDataFrame(
+        {"dates": dates, "geometry": [Point(1, 1)] * 3}, crs="EPSG:4326"
+    )
+    assert df.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
+
+    fpath = tmp_path / f"test{ext}"
+    write_dataframe(df, fpath, use_arrow=use_arrow)
+    result = read_dataframe(
+        fpath,
+        use_arrow=use_arrow,
+        datetime_as_string=datetime_as_string,
+        mixed_offsets_as_utc=mixed_offsets_as_utc,
+    )
+
+    if use_arrow and ext == ".fgb" and __gdal_version__ < (3, 11, 0):
+        # With GDAL < 3.11 with arrow, time zone information is dropped when reading
+        # .fgb
+        if datetime_as_string:
+            assert is_string_dtype(result.dates.dtype)
+            dates_str = pd.Series(
+                ["2020-01-01T09:00:00.123", "2020-01-01T10:00:00.000", np.nan],
+                name="dates",
+            )
+            assert_series_equal(result.dates, dates_str)
+        else:
+            assert_series_equal(result.dates, df.dates.dt.tz_localize(None))
+        # XFAIL: UTC datetimes read wrong in .fgb with GDAL < 3.11 via arrow
+    elif datetime_as_string:
+        assert is_string_dtype(result.dates.dtype)
+        if use_arrow and __gdal_version__ < (3, 11, 0):
+            dates_str = df.dates.astype("str").str.replace(" ", "T")
+            dates_str[2] = np.nan
+        else:
+            dates_str = pd.Series(dates_raw, name="dates")
+            if __gdal_version__ < (3, 7, 0):
+                # With GDAL < 3.7, datetime ends with +00 for UTC, not Z
+                dates_str = dates_str.str.replace("Z", "+00")
+        assert_series_equal(result.dates, dates_str)
+    else:
+        assert result.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
+        assert_geodataframe_equal(result, df)
 
 
 def test_read_null_values(tmp_path, use_arrow):
@@ -378,7 +1181,7 @@ def test_read_null_values(tmp_path, use_arrow):
     df = read_dataframe(filename, use_arrow=use_arrow, read_geometry=False)
 
     # make sure that Null values are preserved
-    assert np.array_equal(df.col.values, expected.col.values)
+    assert df["col"].isna().all()
 
 
 def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
@@ -455,10 +1258,17 @@ def test_read_where_invalid(request, naturalearth_lowres_all_ext, use_arrow):
     if use_arrow and naturalearth_lowres_all_ext.suffix == ".gpkg":
         # https://github.com/OSGeo/gdal/issues/8492
         request.node.add_marker(pytest.mark.xfail(reason="GDAL doesn't error for GPGK"))
-    with pytest.raises(ValueError, match="Invalid SQL"):
-        read_dataframe(
-            naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
-        )
+
+    if naturalearth_lowres_all_ext.suffix == ".gpkg" and __gdal_version__ >= (3, 11, 0):
+        with pytest.raises(DataLayerError, match="no such column"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
+    else:
+        with pytest.raises(ValueError, match="Invalid SQL"):
+            read_dataframe(
+                naturalearth_lowres_all_ext, use_arrow=use_arrow, where="invalid"
+            )
 
 
 def test_read_where_ignored_field(naturalearth_lowres, use_arrow):
@@ -692,6 +1502,13 @@ def test_read_skip_features(naturalearth_lowres_all_ext, use_arrow, skip_feature
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
 
+    if skip_features == 200 and not use_arrow:
+        # result is an empty dataframe, so no proper dtype inference happens
+        # for the numpy object dtype arrays
+        df[["continent", "name", "iso_a3"]] = df[
+            ["continent", "name", "iso_a3"]
+        ].astype("str")
+
     assert_geodataframe_equal(
         df,
         expected,
@@ -707,12 +1524,22 @@ def test_read_negative_skip_features(naturalearth_lowres, use_arrow):
         read_dataframe(naturalearth_lowres, skip_features=-1, use_arrow=use_arrow)
 
 
+@pytest.mark.parametrize("skip_features", [0, 10, 200])
 @pytest.mark.parametrize("max_features", [10, 100])
-def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features):
+def test_read_max_features(
+    naturalearth_lowres_all_ext, use_arrow, max_features, skip_features
+):
     ext = naturalearth_lowres_all_ext.suffix
-    expected = read_dataframe(naturalearth_lowres_all_ext).iloc[:max_features]
+    expected = (
+        read_dataframe(naturalearth_lowres_all_ext)
+        .iloc[skip_features : skip_features + max_features]
+        .reset_index(drop=True)
+    )
     df = read_dataframe(
-        naturalearth_lowres_all_ext, max_features=max_features, use_arrow=use_arrow
+        naturalearth_lowres_all_ext,
+        skip_features=skip_features,
+        max_features=max_features,
+        use_arrow=use_arrow,
     )
 
     assert len(df) == len(expected)
@@ -722,6 +1549,13 @@ def test_read_max_features(naturalearth_lowres_all_ext, use_arrow, max_features)
     is_json = ext in [".geojson", ".geojsonl"]
     # In .geojsonl the vertices are reordered, so normalize
     is_jsons = ext == ".geojsonl"
+
+    if len(expected) == 0 and not use_arrow:
+        # for pandas >= 3, the column has string dtype but when reading it as
+        # empty result, it gets inferred as object dtype
+        expected["continent"] = expected["continent"].astype("object")
+        expected["name"] = expected["name"].astype("object")
+        expected["iso_a3"] = expected["iso_a3"].astype("object")
 
     assert_geodataframe_equal(
         df,
@@ -960,9 +1794,20 @@ def test_read_sql_dialect_sqlite_gpkg(naturalearth_lowres, use_arrow):
     assert df.iloc[0].geometry.area > area_canada
 
 
-@pytest.mark.parametrize("encoding", ["utf-8", "cp1252", None])
-def test_write_csv_encoding(tmp_path, encoding):
-    """Test if write_dataframe uses the default encoding correctly."""
+@pytest.mark.parametrize(
+    "encoding, arrow",
+    [
+        ("utf-8", False),
+        pytest.param("utf-8", True, marks=requires_arrow_write_api),
+        ("cp1252", False),
+        (None, False),
+    ],
+)
+def test_write_csv_encoding(tmp_path, encoding, arrow):
+    """Test if write_dataframe uses the default encoding correctly.
+
+    Arrow only supports utf-8 encoding.
+    """
     # Write csv test file. Depending on the os this will be written in a different
     # encoding: for linux and macos this is utf-8, for windows it is cp1252.
     csv_path = tmp_path / "test.csv"
@@ -975,7 +1820,7 @@ def test_write_csv_encoding(tmp_path, encoding):
     # same encoding as above.
     df = pd.DataFrame({"näme": ["Wilhelm Röntgen"], "city": ["Zürich"]})
     csv_pyogrio_path = tmp_path / "test_pyogrio.csv"
-    write_dataframe(df, csv_pyogrio_path, encoding=encoding)
+    write_dataframe(df, csv_pyogrio_path, encoding=encoding, use_arrow=arrow)
 
     # Check if the text files written both ways can be read again and give same result.
     with open(csv_path, encoding=encoding) as csv:
@@ -991,6 +1836,48 @@ def test_write_csv_encoding(tmp_path, encoding):
     with open(csv_pyogrio_path, "rb") as csv_pyogrio:
         csv_pyogrio_bytes = csv_pyogrio.read()
     assert csv_bytes == csv_pyogrio_bytes
+
+
+@pytest.mark.parametrize(
+    "ext, fid_column, fid_param_value",
+    [
+        (".gpkg", "fid", None),
+        (".gpkg", "FID", None),
+        (".sqlite", "ogc_fid", None),
+        (".gpkg", "fid_custom", "fid_custom"),
+        (".gpkg", "FID_custom", "fid_custom"),
+        (".sqlite", "ogc_fid_custom", "ogc_fid_custom"),
+    ],
+)
+@pytest.mark.requires_arrow_write_api
+def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow):
+    """Test to specify FIDs to save when writing to a file.
+
+    Saving custom FIDs is only supported for formats that actually store the FID, like
+    e.g. GPKG and SQLite. The fid_column name check is case-insensitive.
+
+    Typically, GDAL supports using a custom FID column for these file formats via a
+    `FID` layer creation option, which is also tested here. If `fid_param_value` is
+    specified (not None), an `fid` parameter is passed to `write_dataframe`, causing
+    GDAL to use the column name specified for the FID.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {fid_column: [5]}, geometry=[shapely.Point(0, 0)], crs="epsg:4326"
+    )
+    kwargs = {}
+    if fid_param_value is not None:
+        kwargs["fid"] = fid_param_value
+    path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, path, use_arrow=use_arrow, **kwargs)
+
+    assert path.exists()
+    output_gdf = read_dataframe(path, fid_as_index=True, use_arrow=use_arrow)
+    output_gdf = output_gdf.reset_index()
+
+    # pyogrio always sets "fid" as index name with `fid_as_index`
+    expected_gdf = input_gdf.rename(columns={fid_column: "fid"})
+    assert_geodataframe_equal(output_gdf, expected_gdf)
 
 
 @pytest.mark.parametrize("ext", ALL_EXTS)
@@ -1104,16 +1991,38 @@ def test_write_dataframe_index(tmp_path, naturalearth_lowres, use_arrow):
 
 
 @pytest.mark.parametrize("ext", [ext for ext in ALL_EXTS if ext not in ".geojsonl"])
+@pytest.mark.parametrize(
+    "columns, dtype",
+    [
+        ([], None),
+        (["col_int"], np.int64),
+        (["col_float"], np.float64),
+        (["col_object"], object),
+    ],
+)
 @pytest.mark.requires_arrow_write_api
-def test_write_empty_dataframe(tmp_path, ext, use_arrow):
-    expected = gp.GeoDataFrame(geometry=[], crs=4326)
+def test_write_empty_dataframe(tmp_path, ext, columns, dtype, use_arrow):
+    """Test writing dataframe with no rows.
 
+    With use_arrow, object type columns with no rows are converted to null type columns
+    by pyarrow, but null columns are not supported by GDAL. Added to test fix for #513.
+    """
+    expected = gp.GeoDataFrame(geometry=[], columns=columns, dtype=dtype, crs=4326)
     filename = tmp_path / f"test{ext}"
     write_dataframe(expected, filename, use_arrow=use_arrow)
 
     assert filename.exists()
-    df = read_dataframe(filename)
-    assert_geodataframe_equal(df, expected)
+    df = read_dataframe(filename, use_arrow=use_arrow)
+
+    # Check result
+    # For older pandas versions, the index is created as Object dtype but read as
+    # RangeIndex, so don't check the index dtype in that case.
+    check_index_type = True if PANDAS_GE_20 else False
+    # with pandas 3+ and reading through arrow, we preserve the string dtype
+    # (no proper dtype inference happens for the empty numpy object dtype arrays)
+    if use_arrow and dtype is object:
+        expected["col_object"] = expected["col_object"].astype("str")
+    assert_geodataframe_equal(df, expected, check_index_type=check_index_type)
 
 
 def test_write_empty_geometry(tmp_path):
@@ -1131,6 +2040,95 @@ def test_write_empty_geometry(tmp_path):
     # Xref GH-436: round-tripping possible with GPKG but not others
     df = read_dataframe(filename)
     assert_geodataframe_equal(df, expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_None_string_column(tmp_path, use_arrow):
+    """Test pandas object columns with all None values.
+
+    With use_arrow, such columns are converted to null type columns by pyarrow, but null
+    columns are not supported by GDAL. Added to test fix for #513.
+    """
+    gdf = gp.GeoDataFrame({"object_col": [None]}, geometry=[Point(0, 0)], crs=4326)
+    filename = tmp_path / "test.gpkg"
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+    assert filename.exists()
+
+    result_gdf = read_dataframe(filename, use_arrow=use_arrow)
+    if (
+        PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+    ) and use_arrow:
+        assert result_gdf.object_col.dtype == "str"
+        gdf["object_col"] = gdf["object_col"].astype("str")
+    else:
+        assert result_gdf.object_col.dtype == object
+    assert_geodataframe_equal(result_gdf, gdf)
+
+
+@pytest.mark.parametrize("categorical_data", [["foo", "bar"], [1, 2]])
+@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.requires_arrow_write_api
+def test_write_read_category(tmp_path, categorical_data, ext, use_arrow):
+    """Write and read a GeoDataFrame with a categorical column.
+
+    The categorical data type is not preserved when written to any of the tested file
+    formats, but the data itself should be preserved.
+    """
+    original_gdf = gp.GeoDataFrame(
+        {
+            "cat_col": categorical_data,
+            "geometry": [Point(0, 0)] * len(categorical_data),
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
+    )
+    category_gdf = original_gdf.astype({"cat_col": "category"})
+
+    path = tmp_path / f"test_{use_arrow}{ext}"
+    write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
+
+    # Read the data back
+    result = read_dataframe(path, use_arrow=use_arrow)
+    assert "cat_col" in result.columns
+
+    # Category dtype is not preserved when data is written to the formats tested, so use
+    # the original dataframe for comparison.
+    expected_gdf = original_gdf.copy()
+    if ext in [".geojson", ".geojsonl"] and is_integer_dtype(expected_gdf["cat_col"]):
+        # GeoJSON ints are read as int32
+        expected_gdf["cat_col"] = expected_gdf["cat_col"].astype(np.int32)
+
+    assert_geodataframe_equal(result, expected_gdf)
+
+
+@pytest.mark.parametrize("data_dtype", ["str", "object", "float"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_categorical_empty(tmp_path, data_dtype, use_arrow):
+    """Write and read a GeoDataFrame with an empty categorical column.
+
+    This specific test was added because such columns gave an error with arrow, as
+    reported in this issue: https://github.com/geopandas/pyogrio/issues/620.
+    """
+    gdf = gp.GeoDataFrame(
+        {"cat_col": [], "geometry": []}, geometry="geometry", crs="EPSG:4326"
+    ).astype({"cat_col": data_dtype})
+    category_gdf = gdf.astype({"cat_col": "category"})
+
+    path = tmp_path / f"test_{use_arrow}.gpkg"
+    write_dataframe(category_gdf, path, layer="my_layer", use_arrow=use_arrow)
+
+    # Read the data back
+    result = read_dataframe(path, use_arrow=use_arrow)
+    assert "cat_col" in result.columns
+
+    # Category dtype is not preserved when data is written to the formats tested.
+    if data_dtype in ["str", "object"]:
+        expected_dtype = "str" if PANDAS_GE_30 and use_arrow else object
+    else:
+        expected_dtype = data_dtype
+    expected_gdf = gdf.astype({"cat_col": expected_dtype})
+    assert_geodataframe_equal(result, expected_gdf)
 
 
 @pytest.mark.parametrize("ext", [".geojsonl", ".geojsons"])
@@ -1183,12 +2181,6 @@ def test_write_dataframe_gpkg_multiple_layers(tmp_path, naturalearth_lowres, use
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_append(request, tmp_path, naturalearth_lowres, ext, use_arrow):
-    if ext == ".fgb" and __gdal_version__ <= (3, 5, 0):
-        pytest.skip("Append to FlatGeobuf fails for GDAL <= 3.5.0")
-
-    if ext in (".geojsonl", ".geojsons") and __gdal_version__ <= (3, 6, 0):
-        pytest.skip("Append to GeoJSONSeq only available for GDAL >= 3.6.0")
-
     if use_arrow and ext.startswith(".geojson"):
         # Bug in GDAL when appending int64 to GeoJSON
         # (https://github.com/OSGeo/gdal/issues/9792)
@@ -1538,6 +2530,30 @@ def test_custom_crs_io(tmp_path, naturalearth_lowres_all_ext, use_arrow):
     assert df.crs.equals(expected.crs)
 
 
+@pytest.mark.parametrize("ext", [".gpkg.zip", ".shp.zip", ".shz"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_zipped_ext(tmp_path, naturalearth_lowres, ext, use_arrow):
+    """Run a basic read and write test on some extra (zipped) extensions."""
+    if ext == ".gpkg.zip" and not GDAL_GE_37:
+        pytest.skip(".gpkg.zip support requires GDAL >= 3.7")
+
+    input_gdf = read_dataframe(naturalearth_lowres)
+    output_path = tmp_path / f"test{ext}"
+
+    write_dataframe(input_gdf, output_path, use_arrow=use_arrow)
+
+    assert output_path.exists()
+    result_gdf = read_dataframe(output_path)
+
+    geometry_types = result_gdf.geometry.type.unique()
+    if DRIVERS[ext] in DRIVERS_NO_MIXED_SINGLE_MULTI:
+        assert list(geometry_types) == ["MultiPolygon"]
+    else:
+        assert set(geometry_types) == {"MultiPolygon", "Polygon"}
+
+    assert_geodataframe_equal(result_gdf, input_gdf, check_index_type=False)
+
+
 def test_write_read_mixed_column_values(tmp_path):
     # use_arrow=True is tested separately below
     mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
@@ -1549,24 +2565,13 @@ def test_write_read_mixed_column_values(tmp_path):
     write_dataframe(test_gdf, output_path)
     output_gdf = read_dataframe(output_path)
     assert len(test_gdf) == len(output_gdf)
-    for idx, value in enumerate(mixed_values):
-        if value in (None, np.nan):
-            assert output_gdf["mixed"][idx] is None
-        else:
-            assert output_gdf["mixed"][idx] == str(value)
-
-
-@requires_arrow_write_api
-def test_write_read_mixed_column_values_arrow(tmp_path):
-    # Arrow cannot represent a column of mixed types
-    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
-    geoms = [shapely.Point(0, 0) for _ in mixed_values]
-    test_gdf = gp.GeoDataFrame(
-        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
+    # mixed values as object dtype are currently written as strings
+    # (but preserving nulls)
+    expected = pd.Series(
+        [str(value) if value not in (None, np.nan) else None for value in mixed_values],
+        name="mixed",
     )
-    output_path = tmp_path / "test_write_mixed_column.gpkg"
-    with pytest.raises(TypeError, match=".*Conversion failed for column"):
-        write_dataframe(test_gdf, output_path, use_arrow=True)
+    assert_series_equal(output_gdf["mixed"], expected)
 
 
 @pytest.mark.requires_arrow_write_api
@@ -1586,8 +2591,95 @@ def test_write_read_null(tmp_path, use_arrow):
     assert pd.isna(result_gdf["float64"][1])
     assert pd.isna(result_gdf["float64"][2])
     assert result_gdf["object_str"][0] == "test"
-    assert result_gdf["object_str"][1] is None
-    assert result_gdf["object_str"][2] is None
+    assert pd.isna(result_gdf["object_str"][1])
+    assert pd.isna(result_gdf["object_str"][2])
+
+
+@pytest.mark.parametrize(
+    "object_col_data",
+    [
+        ["foo", "bar", np.nan],
+        ["foo", "bar", None],
+        [Path("test1"), Path("test2"), None],
+        [date(2020, 1, 1), date(2021, 2, 2), None],
+        [
+            datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
+            datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+            None,
+        ],
+        [b"foo", b"bar", None],
+        [[123, 321], [123, 321], None],
+        [123, "foo", None],
+        [Decimal(1), Decimal(2)],
+    ],
+)
+@pytest.mark.parametrize("ext", [".gpkg"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
+    """Test writing and reading a pandas object dtype column with different value types.
+
+    Remark: how some types are handled depends a bit on the file format being used.
+    """
+    output_path = tmp_path / f"test_write_object{ext}"
+    geom = shapely.Point(0, 0)
+    test_data = {
+        "geometry": [geom] * len(object_col_data),
+        "object_col": object_col_data,
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs=31370, dtype=object)
+
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
+
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+
+    # Prepare expected dtype and data after round-tripping
+    str_dtype = (
+        "str"
+        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+        else "object"
+    )
+
+    expected_dtype = None
+    if isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
+        # With arrow and older GDAL versions, datetimes were read back as strings.
+        expected_dtype = (
+            "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
+        )
+        expected_data = [pd.Timestamp(value) for value in object_col_data]
+    elif use_arrow:
+        if type(object_col_data[0]) is date:
+            # Don't use isinstance here as datetime objects are also instances of date
+            # datetime.date objects are read back as datetime64 with arrow
+            expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
+            expected_data = [pd.Timestamp(value) for value in object_col_data]
+        elif isinstance(object_col_data[0], bytes):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            expected_data = object_col_data
+        elif isinstance(object_col_data[0], list):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            nan_value = np.nan if PANDAS_GE_30 else None
+            expected_data = [
+                nan_value if value is None else value for value in object_col_data
+            ]
+        elif isinstance(object_col_data[0], Decimal):
+            # Decimal objects are read back as float64 objects with arrow
+            expected_dtype = "float64"
+            expected_data = [float(value) for value in object_col_data]
+
+    # In other cases, fallback to the values just being read back as strings
+    if expected_dtype is None:
+        expected_dtype = str_dtype
+        nan_value = np.nan if str_dtype == "str" else None
+        expected_data = [
+            nan_value if value is None or value is np.nan else str(value)
+            for value in object_col_data
+        ]
+
+    assert result_gdf["object_col"].dtype.name == expected_dtype
+    assert list(result_gdf["object_col"]) == expected_data
 
 
 @pytest.mark.requires_arrow_write_api
@@ -1731,23 +2823,29 @@ def test_write_geometry_z_types_auto(
 
 
 @pytest.mark.parametrize(
-    "on_invalid, message",
+    "on_invalid, message, expected_wkt",
     [
         (
             "warn",
             "Invalid WKB: geometry is returned as None. IllegalArgumentException: "
-            "Invalid number of points in LinearRing found 2 - must be 0 or >=",
+            "Points of LinearRing do not form a closed linestring",
+            None,
         ),
-        ("raise", "Invalid number of points in LinearRing found 2 - must be 0 or >="),
-        ("ignore", None),
+        ("raise", "Points of LinearRing do not form a closed linestring", None),
+        ("ignore", None, None),
+        ("fix", None, "POLYGON ((0 0, 0 1, 0 0))"),
     ],
 )
-def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
+@pytest.mark.filterwarnings("ignore:Non closed ring detected:RuntimeWarning")
+def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message, expected_wkt):
+    if on_invalid == "fix" and not SHAPELY_GE_21:
+        pytest.skip("on_invalid=fix not available for Shapely < 2.1")
+
     if on_invalid == "raise":
         handler = pytest.raises(shapely.errors.GEOSException, match=message)
     elif on_invalid == "warn":
         handler = pytest.warns(match=message)
-    elif on_invalid == "ignore":
+    elif on_invalid in ("fix", "ignore"):
         handler = contextlib.nullcontext()
     else:
         raise ValueError(f"unknown value for on_invalid: {on_invalid}")
@@ -1761,7 +2859,7 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
                 "properties": {},
                 "geometry": {
                     "type": "Polygon",
-                    "coordinates": [ [ [0, 0], [0, 0] ] ]
+                    "coordinates": [ [ [0, 0], [0, 1] ] ]
                 }
             }
         ]
@@ -1777,7 +2875,10 @@ def test_read_invalid_poly_ring(tmp_path, use_arrow, on_invalid, message):
             use_arrow=use_arrow,
             on_invalid=on_invalid,
         )
-        df.geometry.isnull().all()
+        if expected_wkt is None:
+            assert df.geometry.iloc[0] is None
+        else:
+            assert df.geometry.iloc[0].wkt == expected_wkt
 
 
 def test_read_multisurface(multisurface_file, use_arrow):
@@ -1804,11 +2905,15 @@ def test_read_dataset_kwargs(nested_geojson_file, use_arrow):
     expected = gp.GeoDataFrame(
         {
             "top_level": ["A"],
-            "intermediate_level": ['{ "bottom_level": "B" }'],
+            "intermediate_level": [{"bottom_level": "B"}],
         },
         geometry=[shapely.Point(0, 0)],
         crs="EPSG:4326",
     )
+    if GDAL_GE_311 and use_arrow:
+        # GDAL 3.11 started to use json extension type, which is not yet handled
+        # correctly in the arrow->pandas conversion (using object instead of str dtype)
+        expected["intermediate_level"] = expected["intermediate_level"].astype(object)
 
     assert_geodataframe_equal(df, expected)
 
@@ -1854,7 +2959,7 @@ def test_write_nullable_dtypes(tmp_path, use_arrow):
     expected["col2"] = expected["col2"].astype("float64")
     expected["col3"] = expected["col3"].astype("float32")
     expected["col4"] = expected["col4"].astype("float64")
-    expected["col5"] = expected["col5"].astype(object)
+    expected["col5"] = expected["col5"].astype("str")
     expected.loc[1, "col5"] = None  # pandas converts to pd.NA on line above
     assert_geodataframe_equal(output_gdf, expected)
 
@@ -1993,6 +3098,29 @@ def test_arrow_bool_exception(tmp_path, ext):
         _ = read_dataframe(filename, use_arrow=True)
 
 
+@requires_pyarrow_api
+def test_arrow_enable_with_environment_variable(tmp_path):
+    """Test if arrow can be enabled via an environment variable."""
+    # Latin 1 / Western European
+    encoding = "CP1252"
+    text = "ÿ"
+    test_path = tmp_path / "test.gpkg"
+
+    df = gp.GeoDataFrame({text: [text], "geometry": [Point(0, 0)]}, crs="EPSG:4326")
+    write_dataframe(df, test_path, encoding=encoding)
+
+    # Without arrow, specifying the encoding is supported
+    result = read_dataframe(test_path, encoding="cp1252")
+    assert result is not None
+
+    # With arrow enabled, specifying the encoding is not supported
+    with use_arrow_context():
+        with pytest.raises(
+            ValueError, match="non-UTF-8 encoding is not supported for Arrow"
+        ):
+            _ = read_dataframe(test_path, encoding="cp1252")
+
+
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
 @pytest.mark.parametrize("driver", ["GeoJSON", "GPKG"])
 def test_write_memory(naturalearth_lowres, driver):
@@ -2037,9 +3165,6 @@ def test_write_memory_driver_required(naturalearth_lowres):
 
 @pytest.mark.parametrize("driver", ["ESRI Shapefile", "OpenFileGDB"])
 def test_write_memory_unsupported_driver(naturalearth_lowres, driver):
-    if driver == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-        pytest.skip("OpenFileGDB write support only available for GDAL >= 3.6.0")
-
     df = read_dataframe(naturalearth_lowres)
 
     buffer = BytesIO()
@@ -2177,7 +3302,10 @@ def test_non_utf8_encoding_io_shapefile(tmp_path, encoded_text, use_arrow):
 
     if use_arrow:
         # pyarrow cannot decode column name with incorrect encoding
-        with pytest.raises(UnicodeDecodeError):
+        with pytest.raises(
+            DataSourceError,
+            match="The file being read is not encoded in UTF-8; please use_arrow=False",
+        ):
             read_dataframe(output_path, use_arrow=True)
     else:
         bad = read_dataframe(output_path, use_arrow=False)
@@ -2271,27 +3399,43 @@ def test_write_kml_file_coordinate_order(tmp_path, use_arrow):
 
     assert np.array_equal(gdf_in.geometry.values, points)
 
-    if "LIBKML" in list_drivers():
-        # test appending to the existing file only if LIBKML is available
-        # as it appears to fall back on LIBKML driver when appending.
-        points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
-        gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
 
-        write_dataframe(
-            gdf_append,
-            output_path,
-            layer="tmp_layer",
-            driver="KML",
-            use_arrow=use_arrow,
-            append=True,
-        )
-        # force_2d used to only compare xy geometry as z-dimension is undesirably
-        # introduced when the kml file is over-written.
-        gdf_in_appended = read_dataframe(
-            output_path, use_arrow=use_arrow, force_2d=True
-        )
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to append to .kml",
+)
+def test_write_kml_append(tmp_path, use_arrow):
+    """Append features to an existing KML file.
 
-        assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+    Appending is only supported by the LIBKML driver, and the driver isn't
+    included in the GDAL ubuntu-small images, so skip if not available.
+    """
+    points = [Point(10, 20), Point(30, 40), Point(50, 60)]
+    gdf = gp.GeoDataFrame(geometry=points, crs="EPSG:4326")
+    output_path = tmp_path / "test.kml"
+    write_dataframe(
+        gdf, output_path, layer="tmp_layer", driver="KML", use_arrow=use_arrow
+    )
+
+    # test appending to the existing file only if LIBKML is available
+    # as it appears to fall back on LIBKML driver when appending.
+    points_append = [Point(7, 8), Point(9, 10), Point(11, 12)]
+    gdf_append = gp.GeoDataFrame(geometry=points_append, crs="EPSG:4326")
+
+    write_dataframe(
+        gdf_append,
+        output_path,
+        layer="tmp_layer",
+        driver="KML",
+        use_arrow=use_arrow,
+        append=True,
+    )
+    # force_2d is used to only compare the xy dimensions of the geometry, as the LIBKML
+    # driver always adds the z-dimension when the kml file is over-written.
+    gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow, force_2d=True)
+
+    assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
 
 
 @pytest.mark.requires_arrow_write_api
@@ -2329,3 +3473,48 @@ def test_write_geojson_rfc7946_coordinates(tmp_path, use_arrow):
 
     gdf_in_appended = read_dataframe(output_path, use_arrow=use_arrow)
     assert np.array_equal(gdf_in_appended.geometry.values, points + points_append)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_openfilegdb_overwrite_corrupt(tmp_path, use_arrow):
+    """Test to overwriting an existing corrupt OpenFileGDB.
+
+    Test added in context of https://github.com/geopandas/pyogrio/issues/598
+    """
+    # Create a corrupt OpenFileGDB file. An empty directory suffices.
+    test_path = tmp_path / "test.gdb"
+    test_path.mkdir()
+
+    # Overwrite the corrupt OpenFileGDB
+    gdf = gp.GeoDataFrame(
+        {"id": [1.0, 2.0, 3.0]},
+        geometry=[shapely.Point(x, x) for x in range(3)],
+        crs="EPSG:4326",
+    )
+    write_dataframe(
+        gdf, test_path, layer="test_layer", driver="OpenFileGDB", use_arrow=use_arrow
+    )
+
+    # Read back and verify it was (over)written correctly
+    assert test_path.exists()
+    assert test_path.is_dir()
+    read_gdf = read_dataframe(test_path, use_arrow=use_arrow)
+    assert_geodataframe_equal(gdf, read_gdf)
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_parquet_driver(tmp_path, use_arrow):
+    """
+    Simple test verifying the Parquet driver works if available
+    """
+    gdf = gp.GeoDataFrame(
+        {"col": [1, 2, 3], "geometry": [Point(0, 0), Point(1, 1), Point(2, 2)]},
+        crs="EPSG:4326",
+    )
+    output_path = tmp_path / "test.parquet"
+    write_dataframe(gdf, output_path, use_arrow=use_arrow)
+    result = read_dataframe(output_path, use_arrow=use_arrow)
+    assert_geodataframe_equal(result, gdf)

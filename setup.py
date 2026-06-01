@@ -1,5 +1,6 @@
 import logging
 import os
+from packaging.version import Version
 from pathlib import Path
 import platform
 import shutil
@@ -20,12 +21,12 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-MIN_PYTHON_VERSION = (3, 9, 0)
+MIN_PYTHON_VERSION = (3, 10, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.9 is required")
+    raise RuntimeError("Python >= 3.10 is required")
 
 
 def copy_data_tree(datadir, destdir):
@@ -153,7 +154,7 @@ else:
 
     ext_options, gdal_version_str = get_gdal_config()
 
-    gdal_version = tuple(int(i) for i in gdal_version_str.strip("dev").split("."))
+    gdal_version = Version(gdal_version_str).release
     if not gdal_version >= MIN_GDAL_VERSION:
         sys.exit(f"GDAL must be >= {'.'.join(map(str, MIN_GDAL_VERSION))}")
 
@@ -169,7 +170,7 @@ else:
             Extension("pyogrio._ogr", ["pyogrio/_ogr.pyx"], **ext_options),
             Extension("pyogrio._vsi", ["pyogrio/_vsi.pyx"], **ext_options),
         ],
-        compiler_directives={"language_level": "3"},
+        compiler_directives={"language_level": "3", "freethreading_compatible": True},
         compile_time_env=compile_time_env,
     )
 

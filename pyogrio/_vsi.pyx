@@ -2,9 +2,6 @@ import fnmatch
 from io import BytesIO
 from uuid import uuid4
 
-from libc.stdlib cimport malloc, free
-from libc.string cimport memcpy
-
 from pyogrio._ogr cimport *
 from pyogrio._ogr import _get_driver_metadata_item
 
@@ -21,13 +18,15 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
     (though drivers that create sibling files are not supported for in-memory
     files).
 
-    Caller is responsible for deleting the directory via 
+    Caller is responsible for deleting the directory via
     vsimem_rmtree_toplevel().
 
     Parameters
     ----------
     path_or_fp : str or io.BytesIO object
+        Path or BytesIO object that you would like to write to.
     driver : str
+        OGR driver name to be used for writing.
 
     Returns
     -------
@@ -42,10 +41,12 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
     # Check for existing bytes
     if path_or_fp.getbuffer().nbytes > 0:
-        raise NotImplementedError("writing to existing in-memory object is not supported")
+        raise NotImplementedError(
+            "writing to existing in-memory object is not supported"
+        )
 
     # Create in-memory directory to contain auxiliary files.
-    # Prefix with "pyogrio_" so it is clear the directory was created by pyogrio. 
+    # Prefix with "pyogrio_" so it is clear the directory was created by pyogrio.
     memfilename = f"pyogrio_{uuid4().hex}"
     VSIMkdir(f"/vsimem/{memfilename}".encode("UTF-8"), 0666)
 
@@ -61,7 +62,7 @@ cdef tuple get_ogr_vsimem_write_path(object path_or_fp, str driver):
 
 
 cdef str read_buffer_to_vsimem(bytes bytes_buffer):
-    """ Wrap the bytes (zero-copy) into an in-memory dataset
+    """Wrap the bytes (zero-copy) into an in-memory dataset.
 
     If the first 4 bytes indicate the bytes are a zip file, the returned path
     will be prefixed with /vsizip/ and suffixed with .zip to enable proper
@@ -73,13 +74,20 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
     Parameters
     ----------
     bytes_buffer : bytes
+        Bytes to write to in-memory file
+
+    Returns
+    -------
+    str
+        Path to the in-memory file.
+
     """
     cdef int num_bytes = len(bytes_buffer)
 
     is_zipped = len(bytes_buffer) > 4 and bytes_buffer[:4].startswith(b"PK\x03\x04")
     ext = ".zip" if is_zipped else ""
 
-    # Prefix with "pyogrio_" so it is clear the file was created by pyogrio. 
+    # Prefix with "pyogrio_" so it is clear the file was created by pyogrio.
     path = f"/vsimem/pyogrio_{uuid4().hex}{ext}"
 
     # Create an in-memory object that references bytes_buffer
@@ -102,7 +110,7 @@ cdef str read_buffer_to_vsimem(bytes bytes_buffer):
 
 
 cdef read_vsimem_to_buffer(str path, object out_buffer):
-    """Copy bytes from in-memory file to buffer
+    """Copy bytes from in-memory file to buffer.
 
     This will automatically unlink the in-memory file pointed to by path; caller
     is still responsible for calling vsimem_rmtree_toplevel() to cleanup any
@@ -112,9 +120,10 @@ cdef read_vsimem_to_buffer(str path, object out_buffer):
     -----------
     path : str
         path to in-memory file
-    buffer : BytesIO object
-    """
+    out_buffer : BytesIO object
+        buffer to write bytes to
 
+    """
     cdef unsigned char *vsi_buffer = NULL
     cdef vsi_l_offset vsi_buffer_size = 0
 
@@ -227,7 +236,7 @@ def ogr_vsi_listtree(str path, str pattern):
     if not path.endswith("/"):
         path = f"{path}/"
     files = [f"{path}{file}" for file in files]
-    
+
     return files
 
 
@@ -277,7 +286,7 @@ def ogr_vsi_unlink(str path):
     except UnicodeDecodeError:
         path_b = path
     path_c = path_b
-    
+
     if not VSIStatL(path_c, &st_buf) == 0:
         raise FileNotFoundError(f"Path does not exist: '{path}'")
 

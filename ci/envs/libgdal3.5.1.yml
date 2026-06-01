@@ -1,7 +1,0 @@
-name: test
-channels:
-  - conda-forge
-dependencies:
-  - numpy
-  - libgdal==3.5.1
-  - pytest
