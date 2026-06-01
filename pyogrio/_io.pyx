@@ -1030,9 +1030,9 @@ cdef process_fields(
     cdef int success
     cdef int field_index
     cdef int ret_length
-    cdef int *ints_c
-    cdef GIntBig *int64s_c
-    cdef double *doubles_c
+    cdef const int *ints_c
+    cdef const GIntBig *int64s_c
+    cdef const double *doubles_c
     cdef char **strings_c
     cdef GByte *bin_value
     cdef int year = 0

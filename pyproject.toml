@@ -47,7 +47,6 @@ archs = ["auto64"]
 manylinux-x86_64-image = "manylinux-x86_64-vcpkg-gdal:latest"
 manylinux-aarch64-image = "manylinux-aarch64-vcpkg-gdal:latest"
 build-verbosity = 3
-enable = ["cpython-freethreading"]
 
 [tool.cibuildwheel.linux.environment]
 VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
