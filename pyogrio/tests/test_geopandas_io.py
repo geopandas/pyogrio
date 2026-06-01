@@ -24,6 +24,7 @@ from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
     HAS_ARROW_WRITE_API,
+    HAS_PYARROW,
     HAS_PYPROJ,
     PANDAS_GE_15,
     PANDAS_GE_23,
@@ -100,10 +101,10 @@ def skip_if_no_arrow_write_api(request):
     )
     if (
         use_arrow
-        and not HAS_ARROW_WRITE_API
+        and not (HAS_ARROW_WRITE_API and HAS_PYARROW)
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
-        pytest.skip("GDAL>=3.8 required for Arrow write API")
+        pytest.skip("GDAL>=3.8 and pyarrow required for Arrow write API")
 
 
 @contextlib.contextmanager
