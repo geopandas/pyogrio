@@ -23,21 +23,21 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2022]
-        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python: ["3.11", "3.12", "3.13", "3.14"]
         env: ["latest"]
         include:
           # environment with lower versions of optional dependencies
-          - python: "3.10"
+          - python: "3.11"
             extra: >-
               pandas=1.5
               geopandas=0.12
           # minimal environment without optional dependencies
           - os: "ubuntu-latest"
-            python: "3.10"
+            python: "3.11"
             env: "minimal"
           # environment with nightly wheels
           - os: "ubuntu-latest"
-            python: "3.11"
+            python: "3.14"
             env: "nightly-deps"
 
     steps:
