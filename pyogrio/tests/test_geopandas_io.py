@@ -23,6 +23,7 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_GE_312,
     HAS_ARROW_WRITE_API,
     HAS_PYPROJ,
     PANDAS_GE_15,
@@ -599,9 +600,9 @@ def test_roundtrip_many_data_types_geojson_file(
             assert is_datetime64_dtype(df["date_col"].dtype)
             assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
-        if not (after_write and use_arrow and not GDAL_GE_311):
-            # Before GDAL 3.11, if time columns were written with arrow they were
-            # not actually written.
+        if not (after_write and use_arrow and not GDAL_GE_312):
+            # Before GDAL 3.12, time columns were not read using arrow. Was fixed in
+            # https://github.com/OSGeo/gdal/commit/f23cfbdbcc5eb0260a6a62e85211580b908be794
             assert "time_col" in df.columns
             assert is_object_dtype(df["time_col"].dtype)
             assert df["time_col"].to_list() == [time(12, 0, 0)]
