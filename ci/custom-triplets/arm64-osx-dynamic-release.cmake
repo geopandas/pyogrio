@@ -6,7 +6,6 @@ set(VCPKG_BUILD_TYPE release)
 set(VCPKG_OSX_DEPLOYMENT_TARGET "12.0")
 
 set(VCPKG_LIBRARY_LINKAGE static)
-
 if(PORT MATCHES "gdal")
     set(VCPKG_LIBRARY_LINKAGE dynamic)
 endif()

@@ -202,16 +202,19 @@ jobs:
           brew install libtool
           echo $(which aclocal)
 
-      - name: Install vcpkg and checkout specific version
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgDirectory: "${{ github.workspace }}/vcpkg"
-          vcpkgGitCommitId: da096fdc67db437bee863ae73c4c12e289f82789
+      - name: Checkout specific version of vcpkg
+        shell: bash
+        run: |
+          cd $VCPKG_INSTALLATION_ROOT
+          # on mac the clone is not clean, otherwise git pull fails
+          git reset --hard
+          # pull specific commit with desired GDAL version
+          git pull
+          git checkout da096fdc67db437bee863ae73c4c12e289f82789
 
       - name: Install GDAL
         env:
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
-          VCPKG_INSTALLATION_ROOT: ${{ github.workspace }}/vcpkg
         shell: bash
         run: |
           vcpkg install --overlay-triplets=./ci/custom-triplets --feature-flags="versions,manifests" --x-manifest-root=./ci --x-install-root=$VCPKG_INSTALLATION_ROOT/installed --debug
@@ -294,6 +297,8 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         run: |
           uv venv .venv
+          echo "VIRTUAL_ENV=.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
 
       - name: Create virtual environment (Windows)
         if: ${{ runner.os == 'Windows' }}
