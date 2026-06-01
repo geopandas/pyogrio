@@ -4,6 +4,7 @@
 
 ### Bug fixes
 
+-   Fix writing non-string object columns with arrow (#630).
 -   Fix writing empty string category columns with arrow fails (#621).
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
