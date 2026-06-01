@@ -612,16 +612,29 @@ def test_roundtrip_many_data_types_geojson_file(
         assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
 
         assert "list_int_col" in df.columns
-        assert is_object_dtype(df["list_int_col"].dtype)
-        assert df["list_int_col"][0].tolist() == [1, 2, 3]
+        if after_write and not use_arrow:
+            # Without arrow, and after writing the list columns have become strings
+            assert is_string_dtype(df["list_int_col"].dtype)
+            assert df["list_int_col"][0] == "[1 2 3]"
+        else:
+            assert is_object_dtype(df["list_int_col"].dtype)
+            assert df["list_int_col"][0].tolist() == [1, 2, 3]
 
         assert "list_str_col" in df.columns
-        assert is_object_dtype(df["list_str_col"].dtype)
-        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+        if after_write and not use_arrow:
+            # Without arrow, and after writing the list columns have become strings
+            assert is_string_dtype(df["list_str_col"].dtype)
+            assert df["list_str_col"][0] == "['a' 'b' 'c']"
+        else:
+            assert is_object_dtype(df["list_str_col"].dtype)
+            assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
 
-        if not (after_write and use_arrow):
-            # Writing a column with mixed types in a list is not supported with Arrow.
-            assert "list_mixed_col" in df.columns
+        assert "list_mixed_col" in df.columns
+        if after_write:
+            # After writing, mixed types in a list are always serialized as strings.
+            assert is_string_dtype(df["list_mixed_col"].dtype)
+            assert df["list_mixed_col"][0] == "[1, 'a', None, True]"
+        else:
             assert is_object_dtype(df["list_mixed_col"].dtype)
             assert df["list_mixed_col"][0] == [1, "a", None, True]
 
@@ -630,16 +643,6 @@ def test_roundtrip_many_data_types_geojson_file(
     validate_result(read_gdf, use_arrow, after_write=False)
 
     # Write the data read, read it back, and validate again
-    if use_arrow:
-        # Writing a column with mixed types in a list is not supported with Arrow.
-        read_gdf = read_gdf.drop(columns=["list_mixed_col"])
-    else:
-        request.node.add_marker(
-            pytest.mark.xfail(
-                reason="roundtripping list types fails with use_arrow=False"
-            )
-        )
-
     tmp_file = tmp_path / "temp.geojson"
     write_dataframe(read_gdf, tmp_file, use_arrow=use_arrow)
 
