@@ -20,6 +20,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  GDAL_VERSION: "3.11.4"
+  VCPKG_GDAL_COMMIT: da096fdc67db437bee863ae73c4c12e289f82789
+
 jobs:
   build-sdist:
     name: Build pyogrio sdist
@@ -136,6 +140,8 @@ jobs:
           context: .
           file: ${{ matrix.container }}
           tags: manylinux-${{ matrix.arch }}-vcpkg-gdal:latest
+          build-args: |
+            VCPKG_GDAL_COMMIT=${{ env.VCPKG_GDAL_COMMIT }}
           push: false
           load: true
           cache-from: type=gha,scope=${{ matrix.container }}
@@ -191,7 +197,7 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.11.4-cache1
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -210,7 +216,7 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
-          git checkout da096fdc67db437bee863ae73c4c12e289f82789
+          git checkout ${{ env.VCPKG_GDAL_COMMIT }}
 
       - name: Install GDAL
         env:
