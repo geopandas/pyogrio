@@ -292,12 +292,13 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 @pytest.mark.skipif(
     "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read simpledata element",
+    reason="LIBKML driver is not available and is needed to read attribute columns",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
-    """Test reading a KML file with a simpledata element.
+    """Test reading a KML file with an attribute column.
 
-    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    Attribute columns (="Simpledata" elements in the .kml) are only read by the LibKML
+    driver, not the KML driver.
     """
     gdf = read_dataframe(kml_file, use_arrow=use_arrow)
 
@@ -3103,7 +3104,7 @@ def test_arrow_enable_with_environment_variable(tmp_path):
 @pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
 @pytest.mark.skipif(
     "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read simpledata element",
+    reason="LIBKML driver is not available and is needed to read attribute columns",
 )
 def test_write_kml(tmp_path, kml_driver, use_arrow):
     """Test writing a KML file.
