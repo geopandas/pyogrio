@@ -94,7 +94,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
@@ -145,8 +144,8 @@ jobs:
             VCPKG_GDAL_COMMIT=${{ env.VCPKG_GDAL_COMMIT }}
           push: false
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
         env:
           BUILDKIT_PROGRESS: plain
 
@@ -198,7 +197,11 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
+<<<<<<< HEAD
           key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache0
+=======
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache1
+>>>>>>> upstream/main
 
       # MacOS build requires aclocal, which is part of automake, but appears
       # to be missing in default image
@@ -217,7 +220,11 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
+<<<<<<< HEAD
           git checkout $VCPKG_GDAL_COMMIT
+=======
+          git checkout ${{ env.VCPKG_GDAL_COMMIT }}
+>>>>>>> upstream/main
 
       - name: Install GDAL
         env:
@@ -283,6 +290,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          sparse-checkout: ci/requirements-wheel-test.txt
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -334,7 +344,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 

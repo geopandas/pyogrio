@@ -24,6 +24,7 @@ from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
     HAS_ARROW_WRITE_API,
+    HAS_PYARROW,
     HAS_PYPROJ,
     PANDAS_GE_15,
     PANDAS_GE_23,
@@ -100,10 +101,10 @@ def skip_if_no_arrow_write_api(request):
     )
     if (
         use_arrow
-        and not HAS_ARROW_WRITE_API
+        and not (HAS_ARROW_WRITE_API and HAS_PYARROW)
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
-        pytest.skip("GDAL>=3.8 required for Arrow write API")
+        pytest.skip("GDAL>=3.8 and pyarrow required for Arrow write API")
 
 
 @contextlib.contextmanager
@@ -294,12 +295,13 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 @pytest.mark.skipif(
     "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read simpledata element",
+    reason="LIBKML driver is not available and is needed to read attribute columns",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
-    """Test reading a KML file with a simpledata element.
+    """Test reading a KML file with an attribute column.
 
-    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    Attribute columns (="Simpledata" elements in the .kml) are only read by the LibKML
+    driver, not the KML driver.
     """
     gdf = read_dataframe(kml_file, use_arrow=use_arrow)
 
@@ -1169,6 +1171,60 @@ def test_write_read_datetime_utc(
     else:
         assert result.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
         assert_geodataframe_equal(result, df)
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize(
+    "ext, use_arrow, expected_result",
+    [
+        (".gpkg", False, "error"),
+        (".geojson", False, "supported"),
+        (".geojsonl", False, "supported"),
+        (".shp", False, "second_column_dropped"),
+        (".gpkg", True, "error"),
+        (".geojson", True, "second_column_overwrites_first"),
+        (".geojsonl", True, "second_column_overwrites_first"),
+        (".shp", True, "second_column_dropped"),
+    ],
+)
+def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_result):
+    """Test writing and reading a file with column names that only differ in casing.
+
+    Probably never a good idea to use multiple columns with the same name but different
+    casing, but at least this test documents the current behaviour.
+
+    With arrow, this never seems to be supported.
+    """
+    df = pd.DataFrame(
+        {"col": [1, 2], "COL": [3, 4], "geometry": [Point(0, 0), Point(1, 1)]}
+    )
+    gdf = gp.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+
+    filename = tmp_path / f"test_duplicate_columns{ext}"
+    if expected_result == "error":
+        with pytest.raises(Exception, match="COL"):
+            # The message depends on the driver and GDAL version, keep match simple.
+            write_dataframe(gdf, filename, use_arrow=use_arrow)
+        return
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+
+    result = read_dataframe(filename, use_arrow=use_arrow)
+    assert "geometry" in result.columns
+    assert "col" in result.columns
+
+    if expected_result == "supported":
+        assert "COL" in result.columns
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert_series_equal(result["COL"], df["COL"], check_dtype=False)
+    elif expected_result == "second_column_dropped":
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert "COL" not in result.columns
+    elif expected_result == "second_column_overwrites_first":
+        assert_series_equal(result["col"], df["COL"].rename("col"), check_dtype=False)
+        assert "COL" not in result.columns
+    else:
+        raise AssertionError(f"Unhandled value for {expected_result=}")
 
 
 def test_read_null_values(tmp_path, use_arrow):
@@ -3119,6 +3175,46 @@ def test_arrow_enable_with_environment_variable(tmp_path):
             ValueError, match="non-UTF-8 encoding is not supported for Arrow"
         ):
             _ = read_dataframe(test_path, encoding="cp1252")
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read attribute columns",
+)
+def test_write_kml(tmp_path, kml_driver, use_arrow):
+    """Test writing a KML file.
+
+    A KML file is a bit of a special case, because when it is written, some extra
+    columns are added automatically in the layer definition: "Name" and "Description".
+    Because these extra columns are the first columns in the layer definition, it is
+    important to explicitly check the column index when writing values to fields as
+    you cannot rely on the index to be the same as the order fields were added to a
+    layer.
+
+    Test added when fixing https://github.com/geopandas/geopandas/issues/3609
+    """
+    if kml_driver not in list_drivers():
+        pytest.skip(f"{kml_driver} driver not available")
+
+    df = gp.GeoDataFrame(
+        {"col_1": [1.0, 2.0], "col_2": [3.0, 4.0], "col_3": [5.0, 6.0]},
+        geometry=[Point(0, 0), Point(1, 1)],
+        crs="EPSG:4326",
+    )
+
+    output_path = tmp_path / "test.kml"
+    write_dataframe(df, output_path, driver=kml_driver, use_arrow=use_arrow)
+
+    assert output_path.exists()
+
+    result_df = read_dataframe(output_path)
+
+    # In a KML, there are several columns that are added automagically... so only check
+    # the columns we wrote.
+    result_df = result_df[df.columns]
+    assert_geodataframe_equal(result_df, df, check_index_type=False)
 
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
