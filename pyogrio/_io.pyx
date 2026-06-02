@@ -4,7 +4,6 @@
 
 import contextlib
 import datetime
-import json
 import locale
 import logging
 import math
@@ -3018,10 +3017,7 @@ def ogr_write(
                         OGR_F_SetFieldNull(ogr_feature, field_index)
 
                     else:
-                        if isinstance(field_value, np.ndarray):
-                            # Serialize arrays to json lists.
-                            field_value = json.dumps(field_value.tolist())
-                        elif not isinstance(field_value, str):
+                        if not isinstance(field_value, str):
                             field_value = str(field_value)
 
                         try:
