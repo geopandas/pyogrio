@@ -41,7 +41,7 @@ jobs:
       - name: Install Python
         # the GDAL 3.6 - 3.8 images do have Python 3.10 installed, so have to
         # install a more recent Python version manually
-        if: matrix.container == 'osgeo/gdal:ubuntu-small-3.6.4' || matrix.container == 'osgeo/gdal:ubuntu-small-3.7.3' || matrix.container == 'osgeo/gdal:ubuntu-small-3.8.5'
+        if: matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.6.4' || matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.7.3' || matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.8.5'
         run: |
           apt-get update && apt-get install -y software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
