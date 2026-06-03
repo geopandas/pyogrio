@@ -18,8 +18,9 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38
+from pyogrio._compat import GDAL_GE_311, GDAL_GE_312, GDAL_GE_38
 from pyogrio._env import GDALEnv
+from pyogrio.core import list_drivers_details
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
 from pyogrio.tests.conftest import (
@@ -156,6 +157,33 @@ def test_list_drivers():
         k: v for k, v in all_drivers.items() if v.startswith("r") and v.endswith("w")
     }
     assert len(drivers) == len(expected)
+
+
+def test_list_drivers_details():
+    # Expected capabilities for some built-in drivers that should always be available.
+    expected_drivers_details: dict[str, str] = {
+        "FlatGeobuf": {"write": True, "update": False, "append": False},
+        "GeoJSON": {"write": True, "update": True, "append": False},
+        "GeoJSONSeq": {"write": True, "update": False, "append": True},
+        "TopoJSON": {"write": False, "update": False, "append": False},
+    }
+
+    drivers = list_drivers_details()
+
+    # Verify the properties of the expected drivers.
+    for name, expected in expected_drivers_details.items():
+        if name not in drivers:
+            raise AssertionError(f"Driver {name} not returned by list_drivers_details")
+
+        # Update and append properties are None for older GDAL versions.
+        if not GDAL_GE_311:
+            expected["update"] = None
+        if not GDAL_GE_312:
+            expected["append"] = None
+
+        assert drivers[name]["long_name"] is not None
+        assert drivers[name].get("update", False) is expected.get("update", False)
+        assert drivers[name].get("append", False) is expected.get("append", False)
 
 
 def test_list_layers(

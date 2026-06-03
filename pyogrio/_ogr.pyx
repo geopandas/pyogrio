@@ -159,6 +159,28 @@ def ogr_driver_supports_write(driver):
     return False
 
 
+def ogr_driver_supports_update(driver) -> bool | None:
+    # check metadata for driver to see if it supports update
+    IF CTE_GDAL_VERSION >= (3, 11, 0):
+        if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
+            return True
+        else:
+            return False
+
+    return None
+
+
+def ogr_driver_supports_append(driver) -> bool | None:
+    # check metadata for driver to see if it supports append
+    IF CTE_GDAL_VERSION >= (3, 12, 0):
+        if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
+            return True
+        else:
+            return False
+
+    return None
+
+
 def ogr_driver_supports_vsi(driver):
     """Check if driver supports virtual system interface (VSI).
 
@@ -207,6 +229,36 @@ def ogr_list_drivers():
 
         else:
             drivers[name] = "r"
+
+    return drivers
+
+
+def ogr_list_drivers_details():
+    """List all available OGR drivers with detailed information.
+
+    Returns
+    -------
+    dict
+        Dictionary with the driver name as key and a dict with detailed driver properties.
+
+    """
+    cdef OGRSFDriverH driver = NULL
+    cdef int i
+    cdef char *name_c
+
+    drivers = dict()
+    for i in range(OGRGetDriverCount()):
+        driver = OGRGetDriver(i)
+
+        name_c = <char *>OGR_Dr_GetName(driver)
+        name = get_string(name_c)
+
+        drivers[name] = {
+            "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
+            "write": ogr_driver_supports_write(name),
+            "update": ogr_driver_supports_update(name),
+            "append": ogr_driver_supports_append(name),
+        }
 
     return drivers
 
