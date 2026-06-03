@@ -18,7 +18,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_311, GDAL_GE_312, GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_311, GDAL_GE_312
 from pyogrio._env import GDALEnv
 from pyogrio.core import list_drivers_details
 from pyogrio.errors import DataLayerError, DataSourceError
@@ -161,7 +161,7 @@ def test_list_drivers():
 
 def test_list_drivers_details():
     # Expected capabilities for some built-in drivers that should always be available.
-    expected_drivers_details: dict[str, str] = {
+    expected_drivers_details: dict[str, dict] = {
         "FlatGeobuf": {"write": True, "update": False, "append": False},
         "GeoJSON": {"write": True, "update": True, "append": False},
         "GeoJSONSeq": {"write": True, "update": False, "append": True},
@@ -182,8 +182,8 @@ def test_list_drivers_details():
             expected["append"] = None
 
         assert drivers[name]["long_name"] is not None
-        assert drivers[name].get("update", False) is expected.get("update", False)
-        assert drivers[name].get("append", False) is expected.get("append", False)
+        assert drivers[name]["update"] is expected["update"]
+        assert drivers[name]["append"] is expected["append"]
 
 
 def test_list_layers(
