@@ -162,10 +162,10 @@ def test_list_drivers():
 def test_list_drivers_details():
     # Expected capabilities for some built-in drivers that should always be available.
     expected_drivers_details: dict[str, dict] = {
-        "FlatGeobuf": {"write": True, "update": False, "append": False},
-        "GeoJSON": {"write": True, "update": True, "append": False},
-        "GeoJSONSeq": {"write": True, "update": False, "append": True},
-        "TopoJSON": {"write": False, "update": False, "append": False},
+        "FlatGeobuf": {"create": True, "update": False, "append": False},
+        "GeoJSON": {"create": True, "update": True, "append": False},
+        "GeoJSONSeq": {"create": True, "update": False, "append": True},
+        "TopoJSON": {"create": False, "update": False, "append": False},
     }
 
     drivers = list_drivers_details()
@@ -182,6 +182,7 @@ def test_list_drivers_details():
             expected["append"] = None
 
         assert drivers[name]["long_name"] is not None
+        assert drivers[name]["create"] is expected["create"]
         assert drivers[name]["update"] is expected["update"]
         assert drivers[name]["append"] is expected["append"]
 
