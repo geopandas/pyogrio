@@ -187,6 +187,7 @@ def test_list_drivers_details():
         assert drivers[name]["create"] is expected["create"]
         assert drivers[name]["update"] is expected["update"]
         assert drivers[name]["append"] is expected["append"]
+        assert drivers[name]["supports_vsi"] is True
         assert drivers[name]["help_topic_url"] is not None
         assert isinstance(drivers[name]["extensions"], list)
         assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
