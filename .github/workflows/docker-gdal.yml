@@ -45,6 +45,9 @@ jobs:
         run: |
           apt-get update && apt-get install -y software-properties-common
           add-apt-repository -y ppa:deadsnakes/ppa
+          # set timezone to avoid tzdata interactive prompt
+          export DEBIAN_FRONTEND=noninteractive
+          export TZ=UTC
           apt-get update && apt-get install -y python3.11-dev
 
       - uses: actions/checkout@v6
