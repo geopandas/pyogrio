@@ -1001,7 +1001,11 @@ def test_write_read_datetime_tz_mixed_offsets(
             exp_dates = exp_dates.dt.as_unit("ms")
         assert_series_equal(result.dates, exp_dates)
     else:
-        assert is_object_dtype(result.dates.dtype)
+        if __gdal_version__ < (3, 7, 0):
+            assert is_string_dtype(result.dates.dtype)
+            result["dates"] = result["dates"].astype(object)
+        else:
+            assert is_object_dtype(result.dates.dtype)
         assert_geodataframe_equal(result, df)
 
 
