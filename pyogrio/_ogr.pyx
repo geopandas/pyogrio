@@ -254,11 +254,17 @@ def ogr_list_drivers_details():
         name_c = <char *>OGR_Dr_GetName(driver)
         name = get_string(name_c)
 
+        extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+        if extensions is not None:
+            extensions = [f".{ext}" for ext in extensions.split(" ")]
+
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
             "create": ogr_driver_supports_write(name),
             "update": ogr_driver_supports_update(name),
             "append": ogr_driver_supports_append(name),
+            "help_topic_url": _get_driver_metadata_item(name, "DMD_HELPTOPIC"),
+            "extensions": extensions,
         }
 
     return drivers

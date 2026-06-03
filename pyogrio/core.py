@@ -81,6 +81,9 @@ def list_drivers_details() -> dict[str, dict]:
       including appending new rows. This property is None if GDAL < 3.11.
     - append: a boolean indicating if the driver supports appending even though
       it does not support updating. This property is None if GDAL < 3.12.
+    - help_topic_url: a relative URL in the GDAL documentation to the help topic for
+      this driver.
+    - extensions: a list of file extensions associated with this driver, if any.
 
     Returns
     -------

@@ -5,7 +5,8 @@
 ### Improvements
 
 -   Add `list_drivers_details` function to list the available drivers with more
-    detailed properties line long names, if update/append is supported,... (#656).
+    detailed properties like the long driver namesn whether create/update/append is
+    supported by the driver,... (#656).
 
 ### Bug fixes
 
