@@ -137,6 +137,28 @@ def get_gdal_config_option(str name):
     return str_value
 
 
+def ogr_driver_supports_open(driver):
+    """Check if driver supports opening and reading an existing file.
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports opening and reading an existing file, False otherwise.
+
+    """
+    if _get_driver_metadata_item(driver, "DCAP_OPEN") == "YES":
+        return True
+
+    return False
+
+
 def ogr_driver_supports_write(driver):
     """Check if driver supports creation of new files.
 
@@ -260,9 +282,11 @@ def ogr_list_drivers_details():
 
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
+            "open": ogr_driver_supports_open(name),
             "create": ogr_driver_supports_write(name),
             "update": ogr_driver_supports_update(name),
             "append": ogr_driver_supports_append(name),
+            "supports_vsi": ogr_driver_supports_vsi(name),
             "help_topic_url": _get_driver_metadata_item(name, "DMD_HELPTOPIC"),
             "extensions": extensions,
         }

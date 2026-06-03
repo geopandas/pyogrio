@@ -182,6 +182,8 @@ def test_list_drivers_details():
             expected["append"] = None
 
         assert drivers[name]["long_name"] is not None
+
+        assert drivers[name]["open"] is True
         assert drivers[name]["create"] is expected["create"]
         assert drivers[name]["update"] is expected["update"]
         assert drivers[name]["append"] is expected["append"]

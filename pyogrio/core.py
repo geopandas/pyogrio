@@ -76,6 +76,8 @@ def list_drivers_details() -> dict[str, dict]:
     For each driver, the following properties are included:
 
     - long_name: the long name of the driver.
+    - open: a boolean indicating if the driver supports opening and reading an
+      existing file.
     - create: a boolean indicating if the driver supports creation of new files.
     - update: a boolean indicating if the driver supports updating an existing file,
       including appending new rows. This property is None if GDAL < 3.11.
