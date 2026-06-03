@@ -243,14 +243,15 @@ def ogr_list_drivers():
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
         name_c = <char *>OGR_Dr_GetName(driver)
-
         name = get_string(name_c)
 
+        acces_modes = ""
+        if ogr_driver_supports_open(name):
+            acces_modes += "r"
         if ogr_driver_supports_write(name):
-            drivers[name] = "rw"
+            acces_modes += "w"
 
-        else:
-            drivers[name] = "r"
+        drivers[name] = acces_modes
 
     return drivers
 
