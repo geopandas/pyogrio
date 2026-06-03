@@ -71,16 +71,16 @@ def list_drivers(read=False, write=False) -> dict[str, str]:
 
 
 def list_drivers_details() -> dict[str, dict]:
-    """List available drivers with for each driver detailed information.
+    """List all available drivers with detailed information.
 
     For each driver, the following properties are included:
 
-    - long_name: the long name of the driver
-    - write: a boolean indicating if the driver supports writing
-    - update: a boolean indicating if the driver supports updating.
-      This property is None if GDAL < 3.11.
-    - append: a boolean indicating if the driver supports appending.
-      This property is None if GDAL < 3.12.
+    - long_name: the long name of the driver.
+    - create: a boolean indicating if the driver supports creation of new files.
+    - update: a boolean indicating if the driver supports updating an existing file,
+      including appending new rows. This property is None if GDAL < 3.11.
+    - append: a boolean indicating if the driver supports appending even though
+      it does not support updating. This property is None if GDAL < 3.12.
 
     Returns
     -------

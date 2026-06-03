@@ -138,7 +138,7 @@ def get_gdal_config_option(str name):
 
 
 def ogr_driver_supports_write(driver):
-    """Check if driver supports writing/creation of new files.
+    """Check if driver supports creation of new files.
 
     Is determined based on the GDAL driver metadata.
 
@@ -150,7 +150,7 @@ def ogr_driver_supports_write(driver):
     Returns
     -------
     bool
-        True if driver supports writing/creation of new files, False otherwise.
+        True if driver supports creation of new files, False otherwise.
 
     """
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
@@ -256,7 +256,7 @@ def ogr_list_drivers_details():
 
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
-            "write": ogr_driver_supports_write(name),
+            "create": ogr_driver_supports_write(name),
             "update": ogr_driver_supports_update(name),
             "append": ogr_driver_supports_append(name),
         }

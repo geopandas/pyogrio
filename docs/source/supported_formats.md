@@ -3,10 +3,10 @@
 All vector formats/drivers available in the local installation of GDAL used
 by Pyogrio will be available in Pyogrio as well.
 
-For each format, it depends on the GDAL driver whether writing, updating and/or
-appending is supported. Please see the
+For each format, it depends on the GDAL driver if the format is readonly or
+writable. Please see the
 [list of GDAL drivers](https://gdal.org/drivers/vector/index.html) for the full
-list of possible drivers and some more information.
+list of possible drivers and more information about them.
 
 You can get a list all drivers available in your local installation with
 {func}`pyogrio.list_drivers` or {func}`pyogrio.list_drivers_details`.
