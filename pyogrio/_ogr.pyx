@@ -239,7 +239,8 @@ def ogr_list_drivers_details():
     Returns
     -------
     dict
-        Dictionary with the driver name as key and a dict with detailed driver properties.
+        Dictionary with the driver name as key and a dict with detailed driver
+        properties.
 
     """
     cdef OGRSFDriverH driver = NULL
