@@ -3,7 +3,7 @@ import locale
 import os
 import re
 import warnings
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -2659,8 +2659,8 @@ def test_write_read_null(tmp_path, use_arrow):
         [Path("test1"), Path("test2"), None],
         [date(2020, 1, 1), date(2021, 2, 2), None],
         [
-            datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
-            datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+            datetime(2020, 1, 1, 5, tzinfo=UTC),
+            datetime(2021, 2, 2, 6, tzinfo=UTC),
             None,
         ],
         [b"foo", b"bar", None],
