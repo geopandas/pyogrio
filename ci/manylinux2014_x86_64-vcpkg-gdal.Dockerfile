@@ -1,7 +1,7 @@
 FROM quay.io/pypa/manylinux2014_x86_64:2026.06.03-1
 
 # building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988) and linux kernel headers
-RUN yum install -y curl unzip zip tar perl-IPC-Cmd glibc-devel
+RUN yum install -y curl unzip zip tar perl-core perl-IPC-Cmd glibc-devel
 
 # require python >= 3.7 (python 3.6 is default on base image) for meson
 RUN ln -s /opt/python/cp312-cp312/bin/python3 /usr/bin/python3
@@ -11,8 +11,9 @@ RUN ln -s /opt/python/cp312-cp312/bin/python3 /usr/bin/python3
 # (vcpkg otherwise downloads a pre-built binary of ninja, which fails to run due to missing symbols in the older runtime)
 RUN curl -L -o /tmp/ninja-1.13.2.tar.gz https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz && \
     tar -xzf /tmp/ninja-1.13.2.tar.gz -C /tmp && \
-    python3 /tmp/ninja-1.13.2/configure.py --bootstrap && \
-    install -m 0755 /tmp/ninja-1.13.2/ninja /usr/local/bin/ninja && \
+    cd /tmp/ninja-1.13.2 && \
+    python3 configure.py --bootstrap && \
+    install -m 0755 ninja /usr/local/bin/ninja && \
     /usr/local/bin/ninja --version && \
     rm -rf /tmp/ninja-1.13.2 /tmp/ninja-1.13.2.tar.gz
 
