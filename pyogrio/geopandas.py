@@ -755,6 +755,8 @@ def write_dataframe(
 
         from pyogrio.raw import write_arrow
 
+        df = df.copy(deep=False)
+
         if geometry_column is not None:
             # Convert to multi type
             if promote_to_multi:
@@ -780,7 +782,6 @@ def write_dataframe(
                     )
 
             geometry = to_wkb(geometry.values)
-            df = df.copy(deep=False)
             # convert to plain DataFrame to avoid warning from geopandas about
             # writing non-geometries to the geometry column
             df = pd.DataFrame(df, copy=False)
@@ -793,11 +794,26 @@ def write_dataframe(
         # datetime columns when writing the dataset.
         datetime_cols = []
         for name, dtype in df.dtypes.items():
+            if geometry_column is not None and name == geometry_column:
+                continue
             if dtype == "object":
-                # An object column with datetimes can contain multiple offsets.
-                if pd.api.types.infer_dtype(df[name]) == "datetime":
+                inferred_dtype = pd.api.types.infer_dtype(df[name])
+                if inferred_dtype == "string":
+                    # The column already contains strings, so no need to convert.
+                    continue
+                elif inferred_dtype == "datetime":
+                    # The arrow timestamp type doesn't support mixed time zone offsets,
+                    # so convert to string to avoid data loss and pass on to GDAL
+                    # that it is a datetime so GDAL can preserve the type information.
                     df[name] = df[name].astype("string")
                     datetime_cols.append(name)
+                else:
+                    # Check if pyarrow can handle the data in the column. If not,
+                    # convert it to string and save it like that.
+                    try:
+                        _ = pa.Schema.from_pandas(df[[name]])
+                    except pa.ArrowInvalid:
+                        df[name] = df[name].astype("string")
 
             elif isinstance(dtype, pd.DatetimeTZDtype) and str(dtype.tz) != "UTC":
                 # A pd.datetime64 column with a time zone different than UTC can contain
@@ -815,13 +831,26 @@ def write_dataframe(
             },
         )
 
-        # Null arrow columns are not supported by GDAL, so convert to string
+        # The arrow null type is not supported by GDAL
         for field_index, field in enumerate(table.schema):
-            if field.type == pa.null():
+            if pa.types.is_null(field.type):
+                # Null arrow column: convert to string
                 table = table.set_column(
                     field_index,
                     field.with_type(pa.string()),
                     table[field_index].cast(pa.string()),
+                )
+            elif pa.types.is_dictionary(field.type) and pa.types.is_null(
+                field.type.value_type
+            ):
+                # A dictionary type with value type of null: convert to dictionary of
+                # strings
+                table = table.set_column(
+                    field_index,
+                    field.with_type(pa.dictionary(field.type.index_type, pa.string())),
+                    table[field_index].cast(
+                        pa.dictionary(field.type.index_type, pa.string())
+                    ),
                 )
 
         if geometry_column is not None:
@@ -954,7 +983,9 @@ def _add_column_metadata(table, column_metadata: dict = {}):
 
     Returns
     -------
-    pyarrow.Table: table with the updated column metadata.
+    pyarrow.Table:
+        table with the updated column metadata.
+
     """
     import pyarrow as pa
 
