@@ -3,8 +3,10 @@ import locale
 import os
 import re
 import warnings
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from zipfile import ZipFile
 
 import numpy as np
@@ -21,7 +23,9 @@ from pyogrio import (
 from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
+    GDAL_GE_312,
     HAS_ARROW_WRITE_API,
+    HAS_PYARROW,
     HAS_PYPROJ,
     PANDAS_GE_15,
     PANDAS_GE_23,
@@ -98,10 +102,10 @@ def skip_if_no_arrow_write_api(request):
     )
     if (
         use_arrow
-        and not HAS_ARROW_WRITE_API
+        and not (HAS_ARROW_WRITE_API and HAS_PYARROW)
         and request.node.get_closest_marker("requires_arrow_write_api")
     ):
-        pytest.skip("GDAL>=3.8 required for Arrow write API")
+        pytest.skip("GDAL>=3.8 and pyarrow required for Arrow write API")
 
 
 @contextlib.contextmanager
@@ -292,12 +296,13 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 @pytest.mark.skipif(
     "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read simpledata element",
+    reason="LIBKML driver is not available and is needed to read attribute columns",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
-    """Test reading a KML file with a simpledata element.
+    """Test reading a KML file with an attribute column.
 
-    Simpledata elements are only read by the LibKML driver, not the KML driver.
+    Attribute columns (="Simpledata" elements in the .kml) are only read by the LibKML
+    driver, not the KML driver.
     """
     gdf = read_dataframe(kml_file, use_arrow=use_arrow)
 
@@ -562,11 +567,11 @@ def test_read_list_nested_struct_parquet_file(
 
 @pytest.mark.requires_arrow_write_api
 def test_roundtrip_many_data_types_geojson_file(
-    request, tmp_path, many_data_types_geojson_file, use_arrow
+    tmp_path, many_data_types_geojson_file, use_arrow
 ):
     """Test roundtripping a GeoJSON file containing many data types."""
 
-    def validate_result(df: pd.DataFrame, use_arrow: bool, ignore_mixed_list_col=False):
+    def validate_result(df: pd.DataFrame, use_arrow: bool, after_write=False):
         """Function to validate the data of many_data_types_geojson_file.
 
         Depending on arrow being used or not there are small differences.
@@ -597,54 +602,53 @@ def test_roundtrip_many_data_types_geojson_file(
             assert is_datetime64_dtype(df["date_col"].dtype)
             assert df["date_col"].to_list() == [pd.Timestamp("2020-01-01")]
 
-        # Ignore time columns till this is solved:
-        # Reported in https://github.com/geopandas/pyogrio/issues/615
-        # assert "time_col" in df.columns
-        # assert is_object_dtype(df["time_col"].dtype)
-        # assert df["time_col"].to_list() == [time(12, 0, 0)]
+        if not (after_write and use_arrow and not GDAL_GE_312):
+            # Before GDAL 3.12, time columns were not read using arrow. Was fixed in
+            # https://github.com/OSGeo/gdal/commit/f23cfbdbcc5eb0260a6a62e85211580b908be794
+            assert "time_col" in df.columns
+            assert is_object_dtype(df["time_col"].dtype)
+            assert df["time_col"].to_list() == [time(12, 0, 0)]
 
         assert "datetime_col" in df.columns
         assert is_datetime64_dtype(df["datetime_col"].dtype)
         assert df["datetime_col"].to_list() == [pd.Timestamp("2020-01-01T12:00:00")]
 
         assert "list_int_col" in df.columns
-        assert is_object_dtype(df["list_int_col"].dtype)
-        assert df["list_int_col"][0].tolist() == [1, 2, 3]
+        if not after_write or use_arrow:
+            assert is_object_dtype(df["list_int_col"].dtype)
+            assert df["list_int_col"][0].tolist() == [1, 2, 3]
+        else:
+            assert is_string_dtype(df["list_int_col"].dtype)
+            assert df["list_int_col"][0] == "[1 2 3]"
 
         assert "list_str_col" in df.columns
-        assert is_object_dtype(df["list_str_col"].dtype)
-        assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+        if not after_write or use_arrow:
+            assert is_object_dtype(df["list_str_col"].dtype)
+            assert df["list_str_col"][0].tolist() == ["a", "b", "c"]
+        else:
+            assert is_string_dtype(df["list_str_col"].dtype)
+            assert df["list_str_col"][0] == "['a' 'b' 'c']"
 
-        if not ignore_mixed_list_col:
-            assert "list_mixed_col" in df.columns
+        assert "list_mixed_col" in df.columns
+        if not after_write:
             assert is_object_dtype(df["list_mixed_col"].dtype)
             assert df["list_mixed_col"][0] == [1, "a", None, True]
+        else:
+            # After writing, mixed types in a list are always serialized as strings.
+            assert is_string_dtype(df["list_mixed_col"].dtype)
+            assert df["list_mixed_col"][0] == "[1, 'a', None, True]"
 
     # Read and validate result of reading
     read_gdf = read_dataframe(many_data_types_geojson_file, use_arrow=use_arrow)
-    validate_result(read_gdf, use_arrow)
+    validate_result(read_gdf, use_arrow, after_write=False)
 
     # Write the data read, read it back, and validate again
-    if use_arrow:
-        # Writing a column with mixed types in a list is not supported with Arrow.
-        ignore_mixed_list_col = True
-        read_gdf = read_gdf.drop(columns=["list_mixed_col"])
-    else:
-        ignore_mixed_list_col = False
-        request.node.add_marker(
-            pytest.mark.xfail(
-                reason="roundtripping list types fails with use_arrow=False"
-            )
-        )
-
-    tmp_file = tmp_path / "temp.geojson"
+    tmp_file = tmp_path / "written.geojson"
     write_dataframe(read_gdf, tmp_file, use_arrow=use_arrow)
 
     # Validate data written
     read_back_gdf = read_dataframe(tmp_file, use_arrow=use_arrow)
-    validate_result(
-        read_back_gdf, use_arrow, ignore_mixed_list_col=ignore_mixed_list_col
-    )
+    validate_result(read_back_gdf, use_arrow, after_write=True)
 
 
 @pytest.mark.filterwarnings(
@@ -1222,6 +1226,60 @@ def test_write_read_datetime_utc(
     else:
         assert result.dates.dtype.name in ("datetime64[ms, UTC]", "datetime64[ns, UTC]")
         assert_geodataframe_equal(result, df)
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize(
+    "ext, use_arrow, expected_result",
+    [
+        (".gpkg", False, "error"),
+        (".geojson", False, "supported"),
+        (".geojsonl", False, "supported"),
+        (".shp", False, "second_column_dropped"),
+        (".gpkg", True, "error"),
+        (".geojson", True, "second_column_overwrites_first"),
+        (".geojsonl", True, "second_column_overwrites_first"),
+        (".shp", True, "second_column_dropped"),
+    ],
+)
+def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_result):
+    """Test writing and reading a file with column names that only differ in casing.
+
+    Probably never a good idea to use multiple columns with the same name but different
+    casing, but at least this test documents the current behaviour.
+
+    With arrow, this never seems to be supported.
+    """
+    df = pd.DataFrame(
+        {"col": [1, 2], "COL": [3, 4], "geometry": [Point(0, 0), Point(1, 1)]}
+    )
+    gdf = gp.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
+
+    filename = tmp_path / f"test_duplicate_columns{ext}"
+    if expected_result == "error":
+        with pytest.raises(Exception, match="COL"):
+            # The message depends on the driver and GDAL version, keep match simple.
+            write_dataframe(gdf, filename, use_arrow=use_arrow)
+        return
+
+    write_dataframe(gdf, filename, use_arrow=use_arrow)
+
+    result = read_dataframe(filename, use_arrow=use_arrow)
+    assert "geometry" in result.columns
+    assert "col" in result.columns
+
+    if expected_result == "supported":
+        assert "COL" in result.columns
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert_series_equal(result["COL"], df["COL"], check_dtype=False)
+    elif expected_result == "second_column_dropped":
+        assert_series_equal(result["col"], df["col"], check_dtype=False)
+        assert "COL" not in result.columns
+    elif expected_result == "second_column_overwrites_first":
+        assert_series_equal(result["col"], df["COL"].rename("col"), check_dtype=False)
+        assert "COL" not in result.columns
+    else:
+        raise AssertionError(f"Unhandled value for {expected_result=}")
 
 
 def test_read_null_values(tmp_path, use_arrow):
@@ -2627,19 +2685,6 @@ def test_write_read_mixed_column_values(tmp_path):
     assert_series_equal(output_gdf["mixed"], expected)
 
 
-@requires_arrow_write_api
-def test_write_read_mixed_column_values_arrow(tmp_path):
-    # Arrow cannot represent a column of mixed types
-    mixed_values = ["test", 1.0, 1, datetime.now(), None, np.nan]
-    geoms = [shapely.Point(0, 0) for _ in mixed_values]
-    test_gdf = gp.GeoDataFrame(
-        {"geometry": geoms, "mixed": mixed_values}, crs="epsg:31370"
-    )
-    output_path = tmp_path / "test_write_mixed_column.gpkg"
-    with pytest.raises(TypeError, match=".*Conversion failed for column"):
-        write_dataframe(test_gdf, output_path, use_arrow=True)
-
-
 @pytest.mark.requires_arrow_write_api
 def test_write_read_null(tmp_path, use_arrow):
     output_path = tmp_path / "test_write_nan.gpkg"
@@ -2659,6 +2704,93 @@ def test_write_read_null(tmp_path, use_arrow):
     assert result_gdf["object_str"][0] == "test"
     assert pd.isna(result_gdf["object_str"][1])
     assert pd.isna(result_gdf["object_str"][2])
+
+
+@pytest.mark.parametrize(
+    "object_col_data",
+    [
+        ["foo", "bar", np.nan],
+        ["foo", "bar", None],
+        [Path("test1"), Path("test2"), None],
+        [date(2020, 1, 1), date(2021, 2, 2), None],
+        [
+            datetime(2020, 1, 1, 5, tzinfo=timezone.utc),
+            datetime(2021, 2, 2, 6, tzinfo=timezone.utc),
+            None,
+        ],
+        [b"foo", b"bar", None],
+        [[123, 321], [123, 321], None],
+        [123, "foo", None],
+        [Decimal(1), Decimal(2)],
+    ],
+)
+@pytest.mark.parametrize("ext", [".gpkg"])
+@pytest.mark.requires_arrow_write_api
+def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
+    """Test writing and reading a pandas object dtype column with different value types.
+
+    Remark: how some types are handled depends a bit on the file format being used.
+    """
+    output_path = tmp_path / f"test_write_object{ext}"
+    geom = shapely.Point(0, 0)
+    test_data = {
+        "geometry": [geom] * len(object_col_data),
+        "object_col": object_col_data,
+    }
+    test_gdf = gp.GeoDataFrame(test_data, crs=31370, dtype=object)
+
+    write_dataframe(test_gdf, output_path, use_arrow=use_arrow)
+
+    result_gdf = read_dataframe(output_path)
+    assert len(test_gdf) == len(result_gdf)
+
+    # Prepare expected dtype and data after round-tripping
+    str_dtype = (
+        "str"
+        if PANDAS_GE_30 or (PANDAS_GE_23 and pd.options.future.infer_string)
+        else "object"
+    )
+
+    expected_dtype = None
+    if isinstance(object_col_data[0], datetime) and (not use_arrow or GDAL_GE_311):
+        # With arrow and older GDAL versions, datetimes were read back as strings.
+        expected_dtype = (
+            "datetime64[ms, UTC]" if PANDAS_GE_20 else "datetime64[ns, UTC]"
+        )
+        expected_data = [pd.Timestamp(value) for value in object_col_data]
+    elif use_arrow:
+        if type(object_col_data[0]) is date:
+            # Don't use isinstance here as datetime objects are also instances of date
+            # datetime.date objects are read back as datetime64 with arrow
+            expected_dtype = "datetime64[ms]" if PANDAS_GE_20 else "datetime64[ns]"
+            expected_data = [pd.Timestamp(value) for value in object_col_data]
+        elif isinstance(object_col_data[0], bytes):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            expected_data = object_col_data
+        elif isinstance(object_col_data[0], list):
+            # These types are read back as object type with arrow
+            expected_dtype = "object"
+            nan_value = np.nan if PANDAS_GE_30 else None
+            expected_data = [
+                nan_value if value is None else value for value in object_col_data
+            ]
+        elif isinstance(object_col_data[0], Decimal):
+            # Decimal objects are read back as float64 objects with arrow
+            expected_dtype = "float64"
+            expected_data = [float(value) for value in object_col_data]
+
+    # In other cases, fallback to the values just being read back as strings
+    if expected_dtype is None:
+        expected_dtype = str_dtype
+        nan_value = np.nan if str_dtype == "str" else None
+        expected_data = [
+            nan_value if value is None or value is np.nan else str(value)
+            for value in object_col_data
+        ]
+
+    assert result_gdf["object_col"].dtype.name == expected_dtype
+    assert list(result_gdf["object_col"]) == expected_data
 
 
 @pytest.mark.requires_arrow_write_api
@@ -3098,6 +3230,46 @@ def test_arrow_enable_with_environment_variable(tmp_path):
             ValueError, match="non-UTF-8 encoding is not supported for Arrow"
         ):
             _ = read_dataframe(test_path, encoding="cp1252")
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
+@pytest.mark.skipif(
+    "LIBKML" not in list_drivers(),
+    reason="LIBKML driver is not available and is needed to read attribute columns",
+)
+def test_write_kml(tmp_path, kml_driver, use_arrow):
+    """Test writing a KML file.
+
+    A KML file is a bit of a special case, because when it is written, some extra
+    columns are added automatically in the layer definition: "Name" and "Description".
+    Because these extra columns are the first columns in the layer definition, it is
+    important to explicitly check the column index when writing values to fields as
+    you cannot rely on the index to be the same as the order fields were added to a
+    layer.
+
+    Test added when fixing https://github.com/geopandas/geopandas/issues/3609
+    """
+    if kml_driver not in list_drivers():
+        pytest.skip(f"{kml_driver} driver not available")
+
+    df = gp.GeoDataFrame(
+        {"col_1": [1.0, 2.0], "col_2": [3.0, 4.0], "col_3": [5.0, 6.0]},
+        geometry=[Point(0, 0), Point(1, 1)],
+        crs="EPSG:4326",
+    )
+
+    output_path = tmp_path / "test.kml"
+    write_dataframe(df, output_path, driver=kml_driver, use_arrow=use_arrow)
+
+    assert output_path.exists()
+
+    result_df = read_dataframe(output_path)
+
+    # In a KML, there are several columns that are added automagically... so only check
+    # the columns we wrote.
+    result_df = result_df[df.columns]
+    assert_geodataframe_equal(result_df, df, check_index_type=False)
 
 
 @pytest.mark.filterwarnings("ignore:File /vsimem:RuntimeWarning")
