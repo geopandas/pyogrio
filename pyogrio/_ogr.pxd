@@ -327,6 +327,8 @@ cdef extern from "ogr_api.h":
     OGRFeatureDefnH     OGR_FD_Create(const char *name)
     int                 OGR_FD_GetFieldCount(OGRFeatureDefnH featuredefn)
     OGRFeatureDefnH     OGR_FD_GetFieldDefn(OGRFeatureDefnH featuredefn, int n)
+    int                 OGR_FD_GetFieldIndex(OGRFeatureDefnH featuredefn,
+                                             const char *name)
     OGRwkbGeometryType  OGR_FD_GetGeomType(OGRFeatureDefnH featuredefn)
 
     OGRFieldDefnH   OGR_Fld_Create(const char *name, OGRFieldType fieldtype)
@@ -422,6 +424,14 @@ cdef extern from "ogr_api.h":
     bint OGR_L_GetArrowStream(
         OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
     )
+
+IF CTE_GDAL_VERSION >= (3, 7, 0):
+
+    cdef extern from "ogr_api.h":
+        const char* OGR_F_GetFieldAsISO8601DateTime(
+            OGRFeatureH feature, int n, char** papszOptions
+        )
+
 
 IF CTE_GDAL_VERSION >= (3, 8, 0):
 
