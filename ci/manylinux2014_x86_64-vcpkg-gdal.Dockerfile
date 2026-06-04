@@ -6,6 +6,16 @@ RUN yum install -y curl unzip zip tar perl-IPC-Cmd
 # require python >= 3.7 (python 3.6 is default on base image) for meson
 RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
 
+# vcpkg currently requires ninja >= 1.13.2; build it from source so the binary
+# is compatible with the older manylinux2014 runtime libraries.
+# (vcpkg otherwise downloads a pre-built binary of ninja, which fails to run due to missing symbols in the older runtime)
+RUN curl -L -o /tmp/ninja-1.13.2.tar.gz https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz && \
+    tar -xzf /tmp/ninja-1.13.2.tar.gz -C /tmp && \
+    /usr/bin/python3 /tmp/ninja-1.13.2/configure.py --bootstrap && \
+    install -m 0755 /tmp/ninja-1.13.2/ninja /usr/local/bin/ninja && \
+    /usr/local/bin/ninja --version && \
+    rm -rf /tmp/ninja-1.13.2 /tmp/ninja-1.13.2.tar.gz
+
 ARG VCPKG_GDAL_COMMIT
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
     git -C /opt/vcpkg checkout ${VCPKG_GDAL_COMMIT}
