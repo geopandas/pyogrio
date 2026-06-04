@@ -1,7 +1,7 @@
 FROM quay.io/pypa/manylinux_2_28_x86_64:2026.06.03-1
 
-# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
-RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
+# building openssl needs IPC-Cmd and linux kernel headers
+RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd kernel-headers
 
 ARG VCPKG_GDAL_COMMIT
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
