@@ -10,6 +10,10 @@
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
 
+### Packaging
+
+-   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4.
+
 ## 0.12.1 (2025-11-28)
 
 ### Bug fixes
