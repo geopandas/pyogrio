@@ -921,14 +921,10 @@ def write_dataframe(
         elif col.dtype == "object":
             # Column of Timestamp/datetime objects, split in naive datetime and tz.
             if pd.api.types.infer_dtype(df[name]) == "datetime":
-                tz_offset = col.map(lambda x: x.utcoffset(), na_action="ignore")
-                gdal_offset_repr = tz_offset.map(
-                    lambda x: x // pd.Timedelta("15m") + 100, na_action="ignore"
+                tz_offset = col.map(lambda x: x.utcoffset(), na_action="ignore").astype(
+                    "timedelta64[us]" if PANDAS_GE_30 else "timedelta64[ns]"
                 )
-                # Replace pd.NA with np.nan because the cython code expects numpy arrays
-                gdal_offset_repr = gdal_offset_repr.where(
-                    ~pd.isna(gdal_offset_repr), np.nan
-                )
+                gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
                 gdal_tz_offsets[name] = gdal_offset_repr.values
                 naive = col.map(lambda x: x.replace(tzinfo=None), na_action="ignore")
                 values = naive.values

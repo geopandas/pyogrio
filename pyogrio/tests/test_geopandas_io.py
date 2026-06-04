@@ -1026,14 +1026,7 @@ def test_write_read_datetime_tz_mixed_offsets(
     reason="before GDAL 3.11, datetimes weren't handled as well",
 )
 def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
-    """Test writing a column with datetimes with and without time zone offsets.
-
-    Two types of errors occured:
-      - For datetimes without any offset, when written without arrow:
-        `TypeError: Invalid dtype float64 for __floordiv__`
-      - For datetimes with a mix of having a time zone offset and without, when written
-        without arrow: `ValueError: cannot convert float NaN to integer`
-    """
+    """Test writing a column with datetimes with and without time zone offsets."""
     df = gp.GeoDataFrame(
         {"dates": dates, "geometry": [Point(1, 1)] * len(dates)},
         crs="EPSG:4326",
