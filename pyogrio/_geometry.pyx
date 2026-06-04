@@ -1,4 +1,3 @@
-import warnings
 from pyogrio._ogr cimport *
 from pyogrio._err cimport *
 from pyogrio._err import CPLE_BaseError, NullPointerError
