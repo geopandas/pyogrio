@@ -1,7 +1,10 @@
 FROM quay.io/pypa/manylinux2014_x86_64:2026.06.03-1
 
-# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988) and linux kernel headers
-RUN yum install -y curl unzip zip tar perl-core perl-IPC-Cmd glibc-devel autoconf autoconf-archive automake libtool
+# Additional system dependencies:
+# - vcpkg needs: curl zip unzip tar ninja
+# - openssl needs IPC-Cmd and perl-core (https://github.com/microsoft/vcpkg/issues/24988, https://github.com/openssl/openssl/issues/28579)
+# - libspatialite needs full autotools suite to build (autoconf autoconf-archive automake libtool)
+RUN yum install -y curl unzip zip tar perl-core perl-IPC-Cmd autoconf autoconf-archive automake libtool
 
 # require python >= 3.7 (python 3.6 is default on base image) for meson
 RUN ln -s /opt/python/cp312-cp312/bin/python3 /usr/bin/python3
