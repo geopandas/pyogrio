@@ -6,6 +6,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 
 from setuptools import Extension, setup, find_packages
 import versioneer
@@ -29,7 +30,8 @@ if sys.version_info < MIN_PYTHON_VERSION:
     raise RuntimeError("Python >= 3.10 is required")
 
 
-USE_ABI3 = sys.implementation.name == "cpython" and sys.version_info >= (3, 11)
+is_freethreaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+USE_ABI3 = sys.implementation.name == "cpython" and sys.version_info >= (3, 11) and not is_freethreaded
 
 
 def copy_data_tree(datadir, destdir):
