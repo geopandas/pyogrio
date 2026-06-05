@@ -11,10 +11,11 @@ import sysconfig
 from setuptools import Extension, setup, find_packages
 import versioneer
 
+from setuptools.command.build_ext import build_ext
+
 # import Cython if available
 try:
     from Cython.Build import cythonize
-    from Cython.Distutils import build_ext
 except ImportError:
     cythonize = None
 
@@ -31,7 +32,11 @@ if sys.version_info < MIN_PYTHON_VERSION:
 
 
 is_freethreaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
-USE_ABI3 = sys.implementation.name == "cpython" and sys.version_info >= (3, 11) and not is_freethreaded
+USE_ABI3 = (
+    sys.implementation.name == "cpython"
+    and sys.version_info >= (3, 11)
+    and not is_freethreaded
+)
 
 
 def copy_data_tree(datadir, destdir):
