@@ -12,7 +12,7 @@
 
 ### Packaging
 
--   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4.
+-   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4 (#658).
 
 ## 0.12.1 (2025-11-28)
 
