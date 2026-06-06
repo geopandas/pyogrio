@@ -983,7 +983,7 @@ def test_read_unsupported_ext(tmp_path):
         file.write("data1,data2")
 
     with pytest.raises(
-        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+        DataSourceError, match=r".* by prefixing the file path with '<DRIVER>:'.*"
     ):
         read(test_unsupported_path)
 
