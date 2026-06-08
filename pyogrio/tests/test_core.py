@@ -183,10 +183,9 @@ def test_list_layers(
 
     # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
-    with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
-    ):
-        assert array_equal(list_layers(line_zm_file), [["line_zm", "LineString Z"]])
+    assert array_equal(
+        list_layers(line_zm_file), [["line_zm", "Measured 3D LineString"]]
+    )
 
     # Curve / surface types are downgraded to plain types
     assert array_equal(list_layers(curve_file), [["curve", "LineString"]])
@@ -595,6 +594,10 @@ def test_read_info_invalid_layer(naturalearth_lowres):
 
 def test_read_info_without_geometry(no_geometry_file):
     assert read_info(no_geometry_file)["total_bounds"] is None
+
+
+def test_read_info_zm(line_zm_file):
+    assert read_info(line_zm_file)["geometry_type"] == "Measured 3D LineString"
 
 
 @pytest.mark.parametrize(

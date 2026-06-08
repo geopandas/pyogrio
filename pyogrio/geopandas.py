@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from pyogrio._compat import (
+    GEOS_GE_312,
     HAS_GEOPANDAS,
     HAS_PYARROW,
     PANDAS_GE_15,
@@ -15,6 +16,7 @@ from pyogrio._compat import (
     PANDAS_GE_22,
     PANDAS_GE_30,
     PYARROW_GE_19,
+    SHAPELY_GE_21,
     __gdal_version__,
 )
 from pyogrio.errors import DataSourceError
@@ -372,6 +374,8 @@ def read_dataframe(
 
     read_func = read_arrow if use_arrow else read
     gdal_force_2d = False if use_arrow else force_2d
+    keep_m = True if SHAPELY_GE_21 and GEOS_GE_312 else False
+    keep_m = True
 
     # Always read datetimes as string values to preserve (mixed) time zone info
     # correctly. If arrow is not used, it is needed because numpy does not
@@ -396,6 +400,7 @@ def read_dataframe(
         sql_dialect=sql_dialect,
         return_fids=fid_as_index,
         datetime_as_string=True,
+        keep_m=keep_m,
         **kwargs,
     )
 

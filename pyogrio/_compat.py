@@ -52,5 +52,7 @@ GDAL_GE_313 = __gdal_version__ >= (3, 13, 0)
 
 HAS_GDAL_GEOS = __gdal_geos_version__ is not None
 
+GEOS_GE_312 = shapely is not None and shapely.geos_version >= (3, 12, 0)
+
 HAS_SHAPELY = shapely is not None and Version(shapely.__version__) >= Version("2.0.0")
 SHAPELY_GE_21 = shapely is not None and Version(shapely.__version__) >= Version("2.1.0")
