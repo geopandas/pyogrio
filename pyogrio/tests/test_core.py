@@ -168,14 +168,16 @@ def test_list_layers(
     multisurface_file,
     no_geometry_file,
 ):
+    # SHP
+    geom_type = "Polygon" if __gdal_version__ < (3, 14) else "MultiPolygon"
     assert array_equal(
-        list_layers(naturalearth_lowres), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres), [["naturalearth_lowres", geom_type]]
+    )
+    assert array_equal(
+        list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", geom_type]]
     )
 
-    assert array_equal(
-        list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
-    )
-
+    # in-memory GPKG
     assert array_equal(
         list_layers(naturalearth_lowres_vsimem),
         [["naturalearth_lowres", "MultiPolygon"]],
@@ -445,7 +447,11 @@ def test_read_info(naturalearth_lowres):
         # geometry_name == "" for formats where geometry column name cannot be
         # customized
         assert meta["geometry_name"] == ""
-        assert meta["geometry_type"] == "Polygon"
+        assert (
+            meta["geometry_type"] == "Polygon"
+            if __gdal_version__ < (3, 14)
+            else "MultiPolygon"
+        )
         assert meta["driver"] == "ESRI Shapefile"
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
