@@ -1702,7 +1702,7 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
 
 def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        with pytest.raises(Exception, match=r"In ExecuteSQL().*"):
+        with pytest.raises(Exception, match=re.escape("In ExecuteSQL()")):
             read_dataframe(
                 naturalearth_lowres_all_ext, sql="invalid", use_arrow=use_arrow
             )
@@ -2200,7 +2200,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
 
     assert filename.exists()
     with pytest.raises(
-        Exception, match=r".* not recognized as( being in)? a supported file format."
+        Exception, match=r" not recognized as( being in)? a supported file format."
     ):
         _ = read_dataframe(filename, use_arrow=use_arrow)
 
