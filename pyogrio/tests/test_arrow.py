@@ -885,7 +885,7 @@ def test_write_non_arrow_tabular_data(tmp_path):
     data = pa.chunked_array([[1, 2, 3], [4, 5, 6]])
     with pytest.raises(
         DataLayerError,
-        match=r".*should be called on a schema that is a struct of fields",
+        match="should be called on a schema that is a struct of fields",
     ):
         write_arrow(
             data,
@@ -912,7 +912,7 @@ def test_write_batch_error_message(tmp_path):
     )
     table = pa.table({"geometry": points, "col": arr})
 
-    with pytest.raises(DataLayerError, match=r".*invalid dictionary index"):
+    with pytest.raises(DataLayerError, match="invalid dictionary index"):
         write_arrow(
             table,
             tmp_path / "test_unsupported_list_type.fgb",
@@ -937,7 +937,7 @@ def test_write_schema_error_message(tmp_path):
         }
     )
 
-    with pytest.raises(FieldError, match=r".*not supported"):
+    with pytest.raises(FieldError, match="not supported"):
         write_arrow(
             table,
             tmp_path / "test_unsupported_map_type.shp",
