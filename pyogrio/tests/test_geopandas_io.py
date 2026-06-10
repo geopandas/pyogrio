@@ -2425,6 +2425,11 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     output_gdf = read_dataframe(output_path)
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
+
+    if ext == ".shp" and __gdal_version__ >= (3, 14):
+        # Shapefile driver in GDAL 3.14+ reports the geometry type as MultiPolygon
+        # instead of Polygon (https://github.com/OSGeo/gdal/pull/14662)
+        expected_geometry_type = "MultiPolygon"
     assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
@@ -2842,10 +2847,20 @@ def test_write_geometry_z_types_auto(
     if ext == ".shp":
         if exp_geometry_type in ("GeometryCollection Z", "Unknown"):
             pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
-        elif exp_geometry_type == "MultiLineString Z":
-            exp_geometry_type = "LineString Z"
-        elif exp_geometry_type == "MultiPolygon Z":
-            exp_geometry_type = "Polygon Z"
+        if __gdal_version__ < (3, 14):
+            # For GDAL < 3.14, it always indicates single geometry types, even if layer
+            # contains multi geometry types
+            if exp_geometry_type == "MultiLineString Z":
+                exp_geometry_type = "LineString Z"
+            elif exp_geometry_type == "MultiPolygon Z":
+                exp_geometry_type = "Polygon Z"
+        else:
+            # For GDAL 3.14+, it always reads as multi geometry types, even if the layer
+            # contains only single geometry types
+            if exp_geometry_type == "LineString Z":
+                exp_geometry_type = "MultiLineString Z"
+            elif exp_geometry_type == "Polygon Z":
+                exp_geometry_type = "MultiPolygon Z"
 
     column_data = {}
     column_data["test_descr"] = [test_descr] * len(wkt)
