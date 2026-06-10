@@ -1,6 +1,12 @@
 # CHANGELOG
 
-## 0.12.2 (????-??-??)
+## 0.13.0 (????-??-??)
+
+### Improvements
+
+-   Add `list_drivers_details` function to list the available drivers with more
+    detailed properties like the long driver namesn whether create/update/append is
+    supported by the driver,... (#656).
 
 ### Bug fixes
 

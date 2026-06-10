@@ -23,6 +23,7 @@ with GDALEnv():
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
         ogr_list_drivers,
+        ogr_list_drivers_details,
         set_gdal_config_options as _set_gdal_config_options,
     )
     from pyogrio._vsi import (
@@ -41,7 +42,7 @@ with GDALEnv():
     __gdal_geos_version__ = get_gdal_geos_version()
 
 
-def list_drivers(read=False, write=False):
+def list_drivers(read=False, write=False) -> dict[str, str]:
     """List drivers available in GDAL.
 
     Parameters
@@ -67,6 +68,32 @@ def list_drivers(read=False, write=False):
         drivers = {k: v for k, v in drivers.items() if v.endswith("w")}
 
     return drivers
+
+
+def list_drivers_details() -> dict[str, dict]:
+    """List all available drivers with detailed information.
+
+    For each driver, the following properties are included:
+
+    - long_name: the long name of the driver.
+    - open: a boolean indicating if the driver supports opening and reading an
+      existing file.
+    - create: a boolean indicating if the driver supports creation of new files.
+    - update: a boolean indicating if the driver supports updating an existing file,
+      including appending new rows. This property is None if GDAL < 3.11.
+    - append: a boolean indicating if the driver supports appending even though
+      it does not support updating. This property is None if GDAL < 3.12.
+    - help_topic_url: a relative URL in the GDAL documentation to the help topic for
+      this driver.
+    - extensions: a list of file extensions associated with this driver, if any.
+
+    Returns
+    -------
+    dict of dicts
+        Mapping of driver short name to a dict with detailed driver properties.
+
+    """
+    return ogr_list_drivers_details()
 
 
 def detect_write_driver(path):

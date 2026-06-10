@@ -19,8 +19,9 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_311, GDAL_GE_312
 from pyogrio._env import GDALEnv
+from pyogrio.core import list_drivers_details
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
 from pyogrio.tests.conftest import (
@@ -157,6 +158,45 @@ def test_list_drivers():
         k: v for k, v in all_drivers.items() if v.startswith("r") and v.endswith("w")
     }
     assert len(drivers) == len(expected)
+
+    # The PGDump driver is write-only
+    if "PGDUMP" in all_drivers:
+        assert all_drivers["PGDUMP"] == "w"
+
+
+def test_list_drivers_details():
+    # Expected capabilities for some built-in drivers that should always be available.
+    expected_drivers_details: dict[str, dict] = {
+        "FlatGeobuf": {"open": True, "create": True, "update": False, "append": False},
+        "GeoJSON": {"open": True, "create": True, "update": True, "append": False},
+        "GeoJSONSeq": {"open": True, "create": True, "update": False, "append": True},
+        "TopoJSON": {"open": True, "create": False, "update": False, "append": False},
+        "PGDUMP": {"open": False, "create": True, "update": False, "append": False},
+    }
+
+    drivers = list_drivers_details()
+
+    # Verify the properties of the expected drivers.
+    for name, expected in expected_drivers_details.items():
+        if name not in drivers:
+            raise AssertionError(f"Driver {name} not returned by list_drivers_details")
+
+        # Update and append properties are None for older GDAL versions.
+        if not GDAL_GE_311:
+            expected["update"] = None
+        if not GDAL_GE_312:
+            expected["append"] = None
+
+        assert drivers[name]["long_name"] is not None
+
+        assert drivers[name]["open"] is expected["open"]
+        assert drivers[name]["create"] is expected["create"]
+        assert drivers[name]["update"] is expected["update"]
+        assert drivers[name]["append"] is expected["append"]
+        assert drivers[name]["supports_vsi"] is True
+        assert drivers[name]["help_topic_url"] is not None
+        assert isinstance(drivers[name]["extensions"], list)
+        assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
 
 
 def test_list_layers(
