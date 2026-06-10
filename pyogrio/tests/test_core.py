@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import numpy as np
@@ -184,7 +185,7 @@ def test_list_layers(
     # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
     with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
+        UserWarning, match=re.escape("Measured (M) geometry types are not supported")
     ):
         assert array_equal(list_layers(line_zm_file), [["line_zm", "LineString Z"]])
 

@@ -287,7 +287,7 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
         with pytest.raises(
             DataSourceError,
-            match="Failed to read GeoJSON data; .* GeoJSON object too complex",
+            match=r"Failed to read GeoJSON data; .* GeoJSON object too complex",
         ):
             read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
     finally:
@@ -1702,7 +1702,7 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
 
 def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        with pytest.raises(Exception, match="In ExecuteSQL().*"):
+        with pytest.raises(Exception, match=re.escape("In ExecuteSQL()")):
             read_dataframe(
                 naturalearth_lowres_all_ext, sql="invalid", use_arrow=use_arrow
             )
@@ -2200,7 +2200,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
 
     assert filename.exists()
     with pytest.raises(
-        Exception, match=".* not recognized as( being in)? a supported file format."
+        Exception, match=r" not recognized as( being in)? a supported file format."
     ):
         _ = read_dataframe(filename, use_arrow=use_arrow)
 
@@ -2730,7 +2730,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         expected_dtype = str_dtype
         nan_value = np.nan if str_dtype == "str" else None
         expected_data = [
-            nan_value if value is None or value is np.nan else str(value)
+            nan_value if value is None or value is np.nan else str(value)  # noqa: PLW0177
             for value in object_col_data
         ]
 
@@ -3142,8 +3142,10 @@ def test_arrow_bool_exception(tmp_path, ext):
         # only raise exception for GPKG / FGB
         with pytest.raises(
             RuntimeError,
-            match="GDAL < 3.8.3 does not correctly read boolean data values using "
-            "the Arrow API",
+            match=re.escape(
+                "GDAL < 3.8.3 does not correctly read boolean data values using "
+                "the Arrow API"
+            ),
         ):
             read_dataframe(filename, use_arrow=True)
 
