@@ -24,6 +24,7 @@ from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
     GDAL_GE_312,
+    GDAL_GE_314,
     HAS_ARROW_WRITE_API,
     HAS_PYARROW,
     HAS_PYPROJ,
@@ -295,14 +296,14 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 
 @pytest.mark.skipif(
-    "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read attribute columns",
+    not GDAL_GE_314 and "LIBKML" not in list_drivers(),
+    reason="Needed GDAL driver (version) not available to read .kml attribute columns",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
-    """Test reading a KML file with an attribute column.
+    """Test reading a .kml file with an attribute column.
 
-    Attribute columns (="Simpledata" elements in the .kml) are only read by the LibKML
-    driver, not the KML driver.
+    Attribute columns (="Simpledata" elements in the .kml) can be read with the "LibKML"
+    driver or with the "KML" driver starting from GDAL 3.14
     """
     gdf = read_dataframe(kml_file, use_arrow=use_arrow)
 
@@ -3182,8 +3183,8 @@ def test_arrow_enable_with_environment_variable(tmp_path):
 @pytest.mark.requires_arrow_write_api
 @pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
 @pytest.mark.skipif(
-    "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read attribute columns",
+    not GDAL_GE_314 and "LIBKML" not in list_drivers(),
+    reason="Needed GDAL driver (version) not available to read .kml attribute columns",
 )
 def test_write_kml(tmp_path, kml_driver, use_arrow):
     """Test writing a KML file.
