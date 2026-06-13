@@ -1,6 +1,7 @@
 import contextlib
 import ctypes
 import json
+import re
 import sys
 from io import BytesIO
 from zipfile import ZipFile
@@ -382,13 +383,17 @@ def test_read_fids(naturalearth_lowres):
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(-1\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (-1) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[-1])
 
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(200\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (200) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[200])
 
@@ -983,7 +988,7 @@ def test_read_unsupported_ext(tmp_path):
         file.write("data1,data2")
 
     with pytest.raises(
-        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+        DataSourceError, match=" by prefixing the file path with '<DRIVER>:'"
     ):
         read(test_unsupported_path)
 

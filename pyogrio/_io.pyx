@@ -11,7 +11,8 @@ import os
 import shutil
 import sys
 import warnings
-from pathlib import Path
+IF CTE_GDAL_VERSION < (3, 8, 0):
+    from pathlib import Path
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
@@ -27,10 +28,8 @@ from pyogrio._err cimport (
     check_last_error, check_int, check_pointer, ErrorHandler
 )
 from pyogrio._err import (
-    CPLE_AppDefinedError,
     CPLE_BaseError,
     CPLE_NotSupportedError,
-    CPLE_OpenFailedError,
     NullPointerError,
     capture_errors,
 )
@@ -458,7 +457,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
 
     # If CRS can be decoded to an EPSG code, use that.
     # The following pointers will be NULL if it cannot be decoded.
-    retval = OSRAutoIdentifyEPSG(ogr_crs)
+    _retval = OSRAutoIdentifyEPSG(ogr_crs)
     authority_key = <const char *>OSRGetAuthorityName(ogr_crs, NULL)
     authority_val = <const char *>OSRGetAuthorityCode(ogr_crs, NULL)
 
@@ -506,7 +505,7 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
         ogr_driver = check_pointer(ogr_driver)
 
     except NullPointerError:
-        raise DataLayerError(f"Could not detect driver of dataset") from None
+        raise DataLayerError("Could not detect driver of dataset") from None
 
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
@@ -760,7 +759,6 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef int field_subtype
-    cdef const char *key_c
 
     try:
         with nogil:
@@ -1587,17 +1585,12 @@ def ogr_read(
         an array with geometries and an array with field data read from the dataset.
 
     """
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
-    cdef const char *where_c = NULL
     cdef const char *field_c = NULL
     cdef char **fields_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef int feature_count = 0
-    cdef double xmin, ymin, xmax, ymax
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
 
@@ -1861,21 +1854,16 @@ def ogr_open_arrow(
         A tuple containing a dictionary with metadata about the file and an Arrow
         ArrayStream object that can be used to read the data.
     """
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
-    cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
     cdef ArrowArrayStream* stream
-    cdef ArrowSchema schema
 
     if force_2d:
         raise ValueError("forcing 2D is not supported for Arrow")
@@ -2183,14 +2171,9 @@ def ogr_read_bounds(
     object mask=None,
 ):
     """Read bounds of features in the dataset."""
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
-    cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef int feature_count = 0
-    cdef double xmin, ymin, xmax, ymax
 
     if bbox and mask:
         raise ValueError("cannot set both 'bbox' and 'mask'")
@@ -2251,7 +2234,6 @@ def ogr_read_info(
 ):
     """Read metadata information about the dataset."""
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
@@ -2357,7 +2339,6 @@ def ogr_list_layers(object path_or_buffer):
 
     """
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
     try:
@@ -2569,8 +2550,6 @@ cdef infer_field_types(list dtypes):
     """
     cdef int field_type = 0
     cdef int field_subtype = 0
-    cdef int width = 0
-    cdef int precision = 0
 
     field_types = np.zeros(shape=(len(dtypes), 4), dtype=int)
     field_types_view = field_types[:]
@@ -2660,11 +2639,9 @@ cdef create_ogr_dataset_layer(
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
-    cdef const char *crs_c = NULL
     cdef const char *encoding_c = NULL
     cdef char **dataset_options = NULL
     cdef char **layer_options = NULL
-    cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
@@ -2865,7 +2842,6 @@ def ogr_write(
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
-    cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef const unsigned char *wkb_buffer = NULL
@@ -2949,7 +2925,7 @@ def ogr_write(
 
         if layer_created:
             for i in range(num_fields):
-                field_type, field_subtype, width, precision = field_types[i]
+                field_type, field_subtype, width, _precision = field_types[i]
 
                 name_b = fields[i].encode(encoding)
                 try:
@@ -3106,13 +3082,13 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_index)
                     else:
-                        datetime = field_value.item()
+                        datetime_value = field_value.item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_index,
-                            datetime.year,
-                            datetime.month,
-                            datetime.day,
+                            datetime_value.year,
+                            datetime_value.month,
+                            datetime_value.day,
                             0,
                             0,
                             0.0,
@@ -3123,7 +3099,7 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_index)
                     else:
-                        datetime = field_value.astype("datetime64[ms]").item()
+                        datetime_value = field_value.astype("datetime64[ms]").item()
                         tz_array = gdal_tz_offsets.get(fields[field_idx], None)
                         if tz_array is None:
                             gdal_tz = 0
@@ -3132,12 +3108,12 @@ def ogr_write(
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_index,
-                            datetime.year,
-                            datetime.month,
-                            datetime.day,
-                            datetime.hour,
-                            datetime.minute,
-                            datetime.second + datetime.microsecond / 10**6,
+                            datetime_value.year,
+                            datetime_value.month,
+                            datetime_value.day,
+                            datetime_value.hour,
+                            datetime_value.minute,
+                            datetime_value.second + datetime_value.microsecond / 10**6,
                             gdal_tz
                         )
 

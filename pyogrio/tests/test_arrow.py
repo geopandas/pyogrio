@@ -1,6 +1,7 @@
 import contextlib
 import json
 import math
+import re
 import sys
 from io import BytesIO
 from packaging.version import Version
@@ -261,11 +262,13 @@ def test_open_arrow_skip_features_unsupported(naturalearth_lowres, skip_features
     GDAL < 3.8.0"""
     with pytest.raises(
         ValueError,
-        match="specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0",
+        match=re.escape(
+            "specifying 'skip_features' is not supported for Arrow for GDAL<3.8.0"
+        ),
     ):
         with open_arrow(naturalearth_lowres, skip_features=skip_features) as (
-            meta,
-            reader,
+            _meta,
+            _reader,
         ):
             pass
 
@@ -278,8 +281,8 @@ def test_open_arrow_max_features_unsupported(naturalearth_lowres, max_features):
         match="specifying 'max_features' is not supported for Arrow",
     ):
         with open_arrow(naturalearth_lowres, max_features=max_features) as (
-            meta,
-            reader,
+            _meta,
+            _reader,
         ):
             pass
 
@@ -389,8 +392,10 @@ def test_arrow_bool_exception(tmp_path, ext):
         # only raise exception for GPKG / FGB
         with pytest.raises(
             RuntimeError,
-            match="GDAL < 3.8.3 does not correctly read boolean data values using "
-            "the Arrow API",
+            match=re.escape(
+                "GDAL < 3.8.3 does not correctly read boolean data values using the "
+                "Arrow API"
+            ),
         ):
             with open_arrow(filename):
                 pass
@@ -766,7 +771,9 @@ def test_write_unsupported_geoarrow(tmp_path, naturalearth_lowres):
 
     with pytest.raises(
         NotImplementedError,
-        match="Writing a geometry column of type geoarrow.point is not yet supported",
+        match=re.escape(
+            "Writing a geometry column of type geoarrow.point is not yet supported"
+        ),
     ):
         write_arrow(
             new_table,
@@ -878,7 +885,7 @@ def test_write_non_arrow_tabular_data(tmp_path):
     data = pa.chunked_array([[1, 2, 3], [4, 5, 6]])
     with pytest.raises(
         DataLayerError,
-        match=".*should be called on a schema that is a struct of fields",
+        match="should be called on a schema that is a struct of fields",
     ):
         write_arrow(
             data,
@@ -905,7 +912,7 @@ def test_write_batch_error_message(tmp_path):
     )
     table = pa.table({"geometry": points, "col": arr})
 
-    with pytest.raises(DataLayerError, match=".*invalid dictionary index"):
+    with pytest.raises(DataLayerError, match="invalid dictionary index"):
         write_arrow(
             table,
             tmp_path / "test_unsupported_list_type.fgb",
@@ -930,7 +937,7 @@ def test_write_schema_error_message(tmp_path):
         }
     )
 
-    with pytest.raises(FieldError, match=".*not supported"):
+    with pytest.raises(FieldError, match="not supported"):
         write_arrow(
             table,
             tmp_path / "test_unsupported_map_type.shp",
