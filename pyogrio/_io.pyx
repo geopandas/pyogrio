@@ -1238,8 +1238,8 @@ cdef get_features(
 
     # We don't (always) know beforehand how many features there will be read, so
     # allocate output arrays as needed (in chunks), and return the concatenated results.
-    last_chunk_size = 1_000
-    max_chunk_size = 50_000
+    last_chunk_size = 500    # the first chunk size will be 2 * last_chunk_size
+    max_chunk_size = 65_536  # this is the default chunk size for arrow arrays
 
     if num_features >= 0:
         last_chunk_size = num_features
@@ -1752,6 +1752,18 @@ def ogr_read(
                 skip_features, num_features = validate_feature_range(
                     ogr_layer, skip_features, max_features
                 )
+
+            # If there are no filters and the driver supports fast feature count, we can
+            # determine the feature count already which avoids chunking in get_features.
+            if (
+                where is None
+                and bbox is None
+                and mask is None
+                and skip_features == 0
+                and max_features == 0
+                and num_features < 0
+            ):
+                num_features = get_feature_count(ogr_layer, 0)
 
             fid_data, geometries, field_data = get_features(
                 ogr_layer,
