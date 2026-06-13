@@ -550,8 +550,9 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
         feature_count = 0
         while True:
             try:
-                # Don't use `with nogil` here, as if there are many features, the
-                # overhead of acquiring and releasing the GIL becomes significant .
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
                 ogr_feature = OGR_L_GetNextFeature(ogr_layer)
                 ogr_feature = check_pointer(ogr_feature)
                 feature_count +=1
@@ -1316,8 +1317,9 @@ cdef get_features(
                 break
 
             try:
-                # Don't use `with nogil` here, as if there are many features, the
-                # overhead of acquiring and releasing the GIL becomes significant .
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
                 ogr_feature = OGR_L_GetNextFeature(ogr_layer)
                 ogr_feature = check_pointer(ogr_feature)
 
@@ -1514,8 +1516,9 @@ cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
                 break
 
             try:
-                # Don't use `with nogil` here, as if there are many features, the
-                # overhead of acquiring and releasing the GIL becomes significant .
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
                 ogr_feature = OGR_L_GetNextFeature(ogr_layer)
                 ogr_feature = check_pointer(ogr_feature)
 
