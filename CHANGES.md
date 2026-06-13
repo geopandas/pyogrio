@@ -2,6 +2,13 @@
 
 ## 0.12.2 (????-??-??)
 
+### Improvements
+
+-   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
+    [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
+    in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
+    used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
+
 ### Bug fixes
 
 -   Fix writing non-string object columns with arrow (#630).
