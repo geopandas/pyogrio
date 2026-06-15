@@ -7,7 +7,7 @@ Core
 ----
 
 .. automodule:: pyogrio
-   :members: list_drivers, detect_write_driver, list_layers, read_bounds, read_info, set_gdal_config_options, get_gdal_config_option, vsi_listtree, vsi_rmtree, vsi_unlink
+   :members: list_drivers, detect_write_driver, list_layers, read_bounds, read_info, set_gdal_config_options, get_gdal_config_option, vsi_listtree, vsi_rmtree, vsi_unlink, vsi_curl_clear_cache
 
 ..
    For the special attributes/dunder attributes, the inline docstrings weren't

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from pyogrio import (
     read_bounds,
     read_info,
     set_gdal_config_options,
+    vsi_curl_clear_cache,
     vsi_listtree,
     vsi_rmtree,
     vsi_unlink,
@@ -186,7 +188,7 @@ def test_list_layers(
     # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
     with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
+        UserWarning, match=re.escape("Measured (M) geometry types are not supported")
     ):
         assert array_equal(list_layers(line_zm_file), [["line_zm", "LineString Z"]])
 
@@ -706,3 +708,13 @@ def test_vsimem_unlink_error(naturalearth_lowres_vsimem):
 
     with pytest.raises(FileNotFoundError, match="Path does not exist"):
         vsi_unlink("/vsimem/non-existent.gpkg")
+
+
+def test_vsi_curl_clear_cache_empty_default():
+    # Validate call doesn't raise any error when no prefix is used
+    vsi_curl_clear_cache()
+
+
+def test_vsi_curl_clear_cache():
+    # Validate call doesn't raise any error when prefix/path is used
+    vsi_curl_clear_cache("http://example.com/prefix")
