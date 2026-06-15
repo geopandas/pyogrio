@@ -80,6 +80,14 @@ except ImportError:
 pytest.importorskip("geopandas")
 
 
+NE_KWARGS = dict()
+if __gdal_version__ >= (3, 14):
+    DRIVERS_NO_MIXED_SINGLE_MULTI = DRIVERS_NO_MIXED_SINGLE_MULTI.union(
+        ["ESRI Shapefile"]
+    )
+    NE_KWARGS = dict(PROMOTE_TO_MULTI=False)
+
+
 @pytest.fixture(
     scope="session",
     params=[
@@ -1939,7 +1947,7 @@ def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
     output_path = tmp_path / f"test{ext}"
 
     if ext == ".fgb":
@@ -2352,7 +2360,7 @@ def test_write_dataframe_promote_to_multi(
     expected_geometry_type,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test_promote{ext}"
     write_dataframe(
@@ -2401,7 +2409,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     expected_geometry_type,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
 
@@ -2423,13 +2431,13 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
-    geometry_types = sorted(output_gdf.geometry.type.unique())
-    assert geometry_types == expected_geometry_types
-
     if ext == ".shp" and __gdal_version__ >= (3, 14):
         # Shapefile driver in GDAL 3.14+ reports the geometry type as MultiPolygon
         # instead of Polygon (https://github.com/OSGeo/gdal/pull/14662)
         expected_geometry_type = "MultiPolygon"
+        expected_geometry_types = ["MultiPolygon"]
+    geometry_types = sorted(output_gdf.geometry.type.unique())
+    assert geometry_types == expected_geometry_types
     assert read_info(output_path)["geometry_type"] == expected_geometry_type
 
 
@@ -2459,7 +2467,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     expected_raises_match,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test{ext}"
     with pytest.raises((FeatureError, DataLayerError), match=expected_raises_match):
@@ -2476,7 +2484,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
 def test_write_dataframe_layer_geom_type_invalid(
     tmp_path, naturalearth_lowres, use_arrow
 ):
-    df = read_dataframe(naturalearth_lowres)
+    df = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     filename = tmp_path / "test.geojson"
     with pytest.raises(
