@@ -41,7 +41,11 @@ def test_read(naturalearth_lowres):
     meta, _, geometry, fields = read(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
+    assert (
+        meta["geometry_type"] == "Polygon"
+        if __gdal_version__ < (3, 14)
+        else "MultiPolygon"
+    )
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
 
@@ -106,8 +110,9 @@ def test_read_invalid_layer(naturalearth_lowres):
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
     _, naturalearth_lowres_vsi = naturalearth_lowres_vsi
+    geom_type = "Polygon" if __gdal_version__ < (3, 14) else "MultiPolygon"
     assert array_equal(
-        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", geom_type]]
     )
 
     geometry = read(naturalearth_lowres_vsi)[2]
