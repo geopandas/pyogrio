@@ -3222,7 +3222,7 @@ def test_write_kml(tmp_path, kml_driver, use_arrow):
     Test added when fixing https://github.com/geopandas/geopandas/issues/3609
     """
     if kml_driver not in list_drivers():
-        pytest.skip(f"{kml_driver} driver not available")
+        pytest.skip(f"{kml_driver} driver not available in test_write_kml")
 
     df = gp.GeoDataFrame(
         {"col_1": [1.0, 2.0], "col_2": [3.0, 4.0], "col_3": [5.0, 6.0]},
