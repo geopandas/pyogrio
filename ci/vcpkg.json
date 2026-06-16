@@ -14,5 +14,11 @@
             ]
         }
     ],
-    "builtin-baseline": "da096fdc67db437bee863ae73c4c12e289f82789"
+    "builtin-baseline": "89dac9685f8d0ebd0a07d8b93ed51215c3a2fb2c",
+    "overrides": [
+        {
+            "name": "uriparser",
+            "version": "1.0.0"
+        }
+    ]
 }
