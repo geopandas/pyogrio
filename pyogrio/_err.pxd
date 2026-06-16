@@ -1,6 +1,6 @@
 cdef object check_last_error()
 cdef int check_int(int retval) except -1
-cdef void *check_pointer(void *ptr) except NULL
+cdef void *check_pointer(void *ptr) except NULL nogil
 
 cdef class ErrorHandler:
     cdef object error_stack
