@@ -7,9 +7,6 @@
 -   Add `list_drivers_details` function to list the available drivers with more
     detailed properties like the long driver namesn whether create/update/append is
     supported by the driver,... (#656).
-
-### Improvements
-
 -   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
     [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
     in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
