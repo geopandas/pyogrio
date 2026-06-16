@@ -84,7 +84,13 @@ tag_prefix = "v"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py", "conf.py", "setup.py"]
+extend-exclude = [
+    "doc/*",
+    "benchmarks/*",
+    "pyogrio/_version.py",
+    "conf.py",
+    "setup.py",
+]
 
 [tool.ruff.lint]
 select = [
@@ -148,10 +154,14 @@ ignore = [
     "PLR0915",
     # Magic number
     "PLR2004",
+    # Lambda may be unnecessary; consider inlining inner function
+    "PLW0108",
     # Redefined loop name
     "PLW2901",
     # Global statements are discouraged
     "PLW0603",
+    # Import should be at the top-level of a file
+    "PLC0415",
     # compare-to-empty-string
     "PLC1901",
 
