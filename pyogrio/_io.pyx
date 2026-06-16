@@ -1792,11 +1792,14 @@ def ogr_read(
             elif mask is not None:
                 apply_geometry_filter(ogr_layer, mask)
 
-            # Limit feature range to available range
+            # Limit feature range to available range, but avoid doing an actual count if
+            # not needed (with num_features=-1, we will read in chunks in get_features)
             num_features = -1
             if max_features > 0:
                 num_features = max_features
 
+            # When skipping features, we need to validate the value against the
+            # actual count to avoid out-of-bound index in apply_skip_features
             if skip_features > 0:
                 skip_features, num_features = validate_feature_range(
                     ogr_layer, skip_features, max_features
