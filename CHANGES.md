@@ -17,6 +17,10 @@
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
 
+### Packaging
+
+-   Minimum required Python version is now 3.11 (#xxx).
+
 ## 0.12.1 (2025-11-28)
 
 ### Bug fixes

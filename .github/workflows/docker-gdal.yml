@@ -26,9 +26,9 @@ jobs:
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.11.5" # python 3.12.3
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.10.3" # python 3.12.3
           - "ghcr.io/osgeo/gdal:ubuntu-small-3.9.3" # python 3.12.3
-          - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.10.12
-          - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.10.12
-          - "ghcr.io/osgeo/gdal:ubuntu-small-3.6.4" # python 3.10.6
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.8.5" # python 3.11 (installed manually)
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.7.3" # python 3.11 (installed manually)
+          - "ghcr.io/osgeo/gdal:ubuntu-small-3.6.4" # python 3.11 (installed manually)
 
     container:
       image: ${{ matrix.container }}
@@ -38,14 +38,17 @@ jobs:
         run: |
           apt-get update && apt-get install -y build-essential git python3-dev
 
-      # - name: Install Python
-      #   # the GDAL 3.4 and 3.5 images do have Python 3.8 installed, so have to
-      #   # install a more recent Python version manually
-      #   if: matrix.container == 'osgeo/gdal:ubuntu-small-3.5.3' || matrix.container == 'osgeo/gdal:ubuntu-small-3.4.3'
-      #   run: |
-      #     apt-get update && apt-get install -y software-properties-common
-      #     add-apt-repository -y ppa:deadsnakes/ppa
-      #     apt-get update && apt-get install -y python3.9-dev
+      - name: Install Python
+        # the GDAL 3.6 - 3.8 images do have Python 3.10 installed, so have to
+        # install a more recent Python version manually
+        if: matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.6.4' || matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.7.3' || matrix.container == 'ghcr.io/osgeo/gdal:ubuntu-small-3.8.5'
+        run: |
+          apt-get update && apt-get install -y software-properties-common
+          add-apt-repository -y ppa:deadsnakes/ppa
+          # set timezone to avoid tzdata interactive prompt
+          export DEBIAN_FRONTEND=noninteractive
+          export TZ=UTC
+          apt-get update && apt-get install -y python3.11-dev
 
       - uses: actions/checkout@v6
 

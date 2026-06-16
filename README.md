@@ -31,7 +31,7 @@ Read the documentation for more information:
 
 ## Requirements
 
-- Python >= 3.10
+- Python >= 3.11
 - GDAL >= 3.6
 - Reading to GeoDataFrames requires `geopandas>=0.12` and `shapely>=2`. Additionally,
   installing `pyarrow` enables a further speed-up when specifying `use_arrow=True`.
