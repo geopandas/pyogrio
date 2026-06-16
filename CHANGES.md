@@ -7,10 +7,17 @@
 -   Add `list_drivers_details` function to list the available drivers with more
     detailed properties like the long driver namesn whether create/update/append is
     supported by the driver,... (#656).
--   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
-    [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
-    in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
-    used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
+-   Add `vsi_curl_clear_cache` to allow users to clear the local gdal vsi cache
+    associated with /vsicurl/ (and related file systems). When a `prefix` is provided,
+    only cached state for any file or directory starting with that prefix will be
+    cleared (=[`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)).
+    If no `prefix` is specified, the entire local cache is cleared
+    ((=[`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev)))
+    (#605).
+-   Improve performance of `read_dataframe` without arrow, especially if a filter is
+    used (#577).
+-   Unlock the gil during GDAL functions that can take significant time to improve
+    performance when multithreading (#572).
 
 ### Bug fixes
 
@@ -47,8 +54,6 @@
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558, #597).
--   Improve performance of `read_dataframe`, especially if a filter is used (#577).
--   Unlock the gil during GDAL functions that can take significant time (#572).
 
 ### Bug fixes
 
