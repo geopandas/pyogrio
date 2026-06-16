@@ -21,8 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GDAL_VERSION: "3.11.4"
-  VCPKG_GDAL_COMMIT: da096fdc67db437bee863ae73c4c12e289f82789
+  GDAL_VERSION: "3.12.4"
+  VCPKG_GDAL_COMMIT: 89dac9685f8d0ebd0a07d8b93ed51215c3a2fb2c
 
 jobs:
   build-sdist:
@@ -58,7 +58,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.4"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.12.4"
 
     steps:
       - name: Install packages
@@ -150,7 +150,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.1.0
 
       - uses: actions/upload-artifact@v7
         with:
@@ -200,12 +200,12 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
-      # to be missing in default image
-      - name: Reinstall automake
+      # to be missing in default image. In addition, building libspatialite also
+      # requires full autotools
+      - name: Install autotools prerequisites
         if: runner.os == 'macOS'
         run: |
-          brew reinstall automake
-          brew install libtool
+          brew install autoconf autoconf-archive automake libtool
           echo $(which aclocal)
 
       - name: Checkout specific version of vcpkg
@@ -234,7 +234,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.1.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}

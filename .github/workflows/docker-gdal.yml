@@ -68,4 +68,4 @@ jobs:
           
       - name: Test with pytest
         run: |
-          pytest --cov=pyogrio --cov-report term-missing pyogrio/tests
+          pytest --color=yes -r sX --cov=pyogrio --cov-report term-missing pyogrio/tests

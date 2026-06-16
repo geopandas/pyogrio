@@ -1,10 +1,24 @@
-FROM quay.io/pypa/manylinux2014_x86_64:2025.09.19-1
+FROM quay.io/pypa/manylinux2014_x86_64:2026.06.03-1
 
-# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
-RUN yum install -y curl unzip zip tar perl-IPC-Cmd
+# Additional system dependencies:
+# - vcpkg needs: curl zip unzip tar ninja
+# - openssl needs IPC-Cmd and perl-core (https://github.com/microsoft/vcpkg/issues/24988, https://github.com/openssl/openssl/issues/28579)
+# - libspatialite needs full autotools suite to build (autoconf autoconf-archive automake libtool)
+RUN yum install -y curl unzip zip tar perl-core perl-IPC-Cmd autoconf autoconf-archive automake libtool
 
 # require python >= 3.7 (python 3.6 is default on base image) for meson
-RUN ln -s /opt/python/cp38-cp38/bin/python3 /usr/bin/python3
+RUN ln -s /opt/python/cp312-cp312/bin/python3 /usr/bin/python3
+
+# vcpkg currently requires ninja >= 1.13.2; build it from source so the binary
+# is compatible with the older manylinux2014 runtime libraries.
+# (vcpkg otherwise downloads a pre-built binary of ninja, which fails to run due to missing symbols in the older runtime)
+RUN curl -L -o /tmp/ninja-1.13.2.tar.gz https://github.com/ninja-build/ninja/archive/refs/tags/v1.13.2.tar.gz && \
+    tar -xzf /tmp/ninja-1.13.2.tar.gz -C /tmp && \
+    cd /tmp/ninja-1.13.2 && \
+    python3 configure.py --bootstrap && \
+    install -m 0755 ninja /usr/local/bin/ninja && \
+    /usr/local/bin/ninja --version && \
+    rm -rf /tmp/ninja-1.13.2 /tmp/ninja-1.13.2.tar.gz
 
 ARG VCPKG_GDAL_COMMIT
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
