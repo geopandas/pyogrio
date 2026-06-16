@@ -5,3 +5,4 @@ dependencies:
   - numpy
   - libgdal-core
   - pytest
+  - pytest-cov

@@ -1,6 +1,7 @@
 import contextlib
 import ctypes
 import json
+import re
 import sys
 from io import BytesIO
 from zipfile import ZipFile
@@ -40,7 +41,11 @@ def test_read(naturalearth_lowres):
     meta, _, geometry, fields = read(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
+    assert (
+        meta["geometry_type"] == "Polygon"
+        if __gdal_version__ < (3, 14)
+        else "MultiPolygon"
+    )
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
 
@@ -105,8 +110,9 @@ def test_read_invalid_layer(naturalearth_lowres):
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
     _, naturalearth_lowres_vsi = naturalearth_lowres_vsi
+    geom_type = "Polygon" if __gdal_version__ < (3, 14) else "MultiPolygon"
     assert array_equal(
-        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", geom_type]]
     )
 
     geometry = read(naturalearth_lowres_vsi)[2]
@@ -382,13 +388,17 @@ def test_read_fids(naturalearth_lowres):
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(-1\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (-1) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[-1])
 
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(200\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (200) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[200])
 
@@ -983,7 +993,7 @@ def test_read_unsupported_ext(tmp_path):
         file.write("data1,data2")
 
     with pytest.raises(
-        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+        DataSourceError, match=" by prefixing the file path with '<DRIVER>:'"
     ):
         read(test_unsupported_path)
 

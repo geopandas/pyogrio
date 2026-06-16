@@ -2,6 +2,13 @@
 
 ## 0.12.2 (????-??-??)
 
+### Improvements
+
+-   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
+    [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
+    in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
+    used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
+
 ### Bug fixes
 
 -   Fix writing non-string object columns with arrow (#630).
@@ -9,6 +16,10 @@
 -   Fix Time type columns being skipped with `use_arrow=False` (#617).
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
+
+### Packaging
+
+-   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4 (#658).
 
 ## 0.12.1 (2025-11-28)
 
@@ -33,6 +44,7 @@
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558, #597).
+-   Unlock the gil during GDAL functions that can take significant time (#572).
 
 ### Bug fixes
 

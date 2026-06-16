@@ -11,11 +11,11 @@ import os
 import shutil
 import sys
 import warnings
-from pathlib import Path
+IF CTE_GDAL_VERSION < (3, 8, 0):
+    from pathlib import Path
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
-from libc.string cimport strlen
 from libc.math cimport isnan
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
@@ -28,10 +28,8 @@ from pyogrio._err cimport (
     check_last_error, check_int, check_pointer, ErrorHandler
 )
 from pyogrio._err import (
-    CPLE_AppDefinedError,
     CPLE_BaseError,
     CPLE_NotSupportedError,
-    CPLE_OpenFailedError,
     NullPointerError,
     capture_errors,
 )
@@ -255,6 +253,7 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
     """
     cdef void *ogr_dataset = NULL
     cdef ErrorHandler errors
+    cdef int flags
 
     # Force linear approximations in all cases
     OGRSetNonLinearGeometriesEnabledFlag(0)
@@ -269,9 +268,10 @@ cdef void* ogr_open(const char* path_c, int mode, char** options) except NULL:
         # WARNING: GDAL logs warnings about invalid open options to stderr
         # instead of raising an error
         with capture_errors() as errors:
-            ogr_dataset = GDALOpenEx(
-                path_c, flags, NULL, <const char *const *>options, NULL
-            )
+            with nogil:
+                ogr_dataset = GDALOpenEx(
+                    path_c, flags, NULL, <const char *const *>options, NULL
+                )
             return errors.check_pointer(ogr_dataset, True)
 
     except NullPointerError:
@@ -334,15 +334,23 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
 
     """
     cdef OGRLayerH ogr_layer = NULL
+    cdef char *layer_c
+    cdef int layer_int
+    cdef char *sql_c
 
     try:
         if isinstance(layer, str):
-            name_b = layer.encode("utf-8")
-            name_c = name_b
-            ogr_layer = check_pointer(GDALDatasetGetLayerByName(ogr_dataset, name_c))
+            layer_b = layer.encode("utf-8")
+            layer_c = layer_b
+            with nogil:
+                ogr_layer = GDALDatasetGetLayerByName(ogr_dataset, layer_c)
+            ogr_layer = check_pointer(ogr_layer)
 
         elif isinstance(layer, int):
-            ogr_layer = check_pointer(GDALDatasetGetLayer(ogr_dataset, layer))
+            layer_int = layer
+            with nogil:
+                ogr_layer = GDALDatasetGetLayer(ogr_dataset, layer_int)
+            ogr_layer = check_pointer(ogr_layer)
         else:
             raise ValueError(
                 f"'layer' parameter must be a str or int, got {type(layer)}"
@@ -364,7 +372,8 @@ cdef OGRLayerH get_ogr_layer(GDALDatasetH ogr_dataset, layer) except NULL:
         sql_b = f"SET interest_layers = {layer_name}".encode("utf-8")
         sql_c = sql_b
 
-        GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
+        with nogil:
+            GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
 
     return ogr_layer
 
@@ -389,17 +398,23 @@ cdef OGRLayerH execute_sql(
         The resulting OGR layer
 
     """
+    cdef char * sql_c
+    cdef char * sql_dialect_c
+    cdef OGRLayerH retval = NULL
+
     try:
         sql_b = sql.encode("utf-8")
         sql_c = sql_b
         if sql_dialect is None:
-            return check_pointer(GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL))
+            with nogil:
+                retval = GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, NULL)
+            return check_pointer(retval)
 
         sql_dialect_b = sql_dialect.encode("utf-8")
         sql_dialect_c = sql_dialect_b
-        return check_pointer(GDALDatasetExecuteSQL(
-            ogr_dataset, sql_c, NULL, sql_dialect_c)
-        )
+        with nogil:
+            retval = GDALDatasetExecuteSQL(ogr_dataset, sql_c, NULL, sql_dialect_c)
+        return check_pointer(retval)
 
     # GDAL does not always raise exception messages in this case
     except NullPointerError:
@@ -428,7 +443,9 @@ cdef str get_crs(OGRLayerH ogr_layer):
     cdef char *ogr_wkt = NULL
 
     try:
-        ogr_crs = check_pointer(OGR_L_GetSpatialRef(ogr_layer))
+        with nogil:
+            ogr_crs = OGR_L_GetSpatialRef(ogr_layer)
+        ogr_crs = check_pointer(ogr_crs)
 
     except NullPointerError:
         # No coordinate system defined.
@@ -440,7 +457,7 @@ cdef str get_crs(OGRLayerH ogr_layer):
 
     # If CRS can be decoded to an EPSG code, use that.
     # The following pointers will be NULL if it cannot be decoded.
-    retval = OSRAutoIdentifyEPSG(ogr_crs)
+    _retval = OSRAutoIdentifyEPSG(ogr_crs)
     authority_key = <const char *>OSRGetAuthorityName(ogr_crs, NULL)
     authority_val = <const char *>OSRGetAuthorityCode(ogr_crs, NULL)
 
@@ -483,10 +500,12 @@ cdef get_driver(OGRDataSourceH ogr_dataset):
     cdef void *ogr_driver
 
     try:
-        ogr_driver = check_pointer(GDALGetDatasetDriver(ogr_dataset))
+        with nogil:
+            ogr_driver = GDALGetDatasetDriver(ogr_dataset)
+        ogr_driver = check_pointer(ogr_driver)
 
     except NullPointerError:
-        raise DataLayerError(f"Could not detect driver of dataset") from None
+        raise DataLayerError("Could not detect driver of dataset") from None
 
     except CPLE_BaseError as exc:
         raise DataLayerError(str(exc))
@@ -515,19 +534,27 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
 
     """
     cdef OGRFeatureH ogr_feature = NULL
-    cdef int feature_count = OGR_L_GetFeatureCount(ogr_layer, force)
+    cdef int feature_count
+
+    with nogil:
+        feature_count = OGR_L_GetFeatureCount(ogr_layer, force)
 
     # if GDAL refuses to give us the feature count, we have to loop over all
     # features ourselves and get the count.  This can happen for some drivers
     # (e.g., OSM) or if a where clause is invalid but not rejected as error
     if force and feature_count == -1:
         # make sure layer is read from beginning
-        OGR_L_ResetReading(ogr_layer)
+        with nogil:
+            OGR_L_ResetReading(ogr_layer)
 
         feature_count = 0
         while True:
             try:
-                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
+                ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+                ogr_feature = check_pointer(ogr_feature)
                 feature_count +=1
 
             except NullPointerError:
@@ -570,11 +597,12 @@ cdef get_total_bounds(OGRLayerH ogr_layer, int force):
     -------
     tuple of (xmin, ymin, xmax, ymax) or None
         The total bounds of the layer, or None if they could not be determined.
-
     """
     cdef OGREnvelope ogr_envelope
 
-    if OGR_L_GetExtent(ogr_layer, &ogr_envelope, force) == OGRERR_NONE:
+    with nogil:
+        err = OGR_L_GetExtent(ogr_layer, &ogr_envelope, force)
+    if err == OGRERR_NONE:
         bounds = (
            ogr_envelope.MinX, ogr_envelope.MinY, ogr_envelope.MaxX, ogr_envelope.MaxY
         )
@@ -733,10 +761,11 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef int field_subtype
-    cdef const char *key_c
 
     try:
-        ogr_featuredef = check_pointer(OGR_L_GetLayerDefn(ogr_layer))
+        with nogil:
+            ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+        ogr_featuredef = check_pointer(ogr_featuredef)
 
     except NullPointerError:
         raise DataLayerError("Could not get layer definition") from None
@@ -811,9 +840,14 @@ cdef apply_where_filter(OGRLayerH ogr_layer, str where):
     ------
     ValueError: if SQL query is not valid
     """
+    cdef const char* where_c
+    cdef int err
+
     where_b = where.encode("utf-8")
     where_c = where_b
-    err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+    with nogil:
+        err = OGR_L_SetAttributeFilter(ogr_layer, where_c)
+
     # WARNING: GDAL does not raise this error for GPKG but instead only
     # logs to stderr
     if err != OGRERR_NONE:
@@ -842,11 +876,14 @@ cdef apply_bbox_filter(OGRLayerH ogr_layer, bbox):
     ValueError: if bbox is not a list or tuple or does not have proper number of
         items
     """
+    cdef double xmin, ymin, xmax, ymax
+
     if not (isinstance(bbox, (tuple, list)) and len(bbox) == 4):
         raise ValueError(f"Invalid bbox: {bbox}")
 
     xmin, ymin, xmax, ymax = bbox
-    OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
+    with nogil:
+        OGR_L_SetSpatialFilterRect(ogr_layer, xmin, ymin, xmax, ymax)
 
 
 cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
@@ -868,7 +905,8 @@ cdef apply_geometry_filter(OGRLayerH ogr_layer, wkb):
             OGR_G_DestroyGeometry(ogr_geometry)
         raise GeometryError("Could not create mask geometry") from None
 
-    OGR_L_SetSpatialFilter(ogr_layer, ogr_geometry)
+    with nogil:
+        OGR_L_SetSpatialFilter(ogr_layer, ogr_geometry)
     OGR_G_DestroyGeometry(ogr_geometry)
 
 
@@ -882,7 +920,9 @@ cdef apply_skip_features(OGRLayerH ogr_layer, int skip_features):
     skip_features : int
         Number of features to skip from the beginning of the layer
     """
-    err = OGR_L_SetNextByIndex(ogr_layer, skip_features)
+    with nogil:
+        err = OGR_L_SetNextByIndex(ogr_layer, skip_features)
+
     # GDAL can raise an error (depending on the format) for out-of-bound index,
     # but `validate_feature_range()` should ensure we only pass a valid number
     if err != OGRERR_NONE:
@@ -1231,7 +1271,8 @@ cdef get_features(
     cdef int field_index
 
     # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
+    with nogil:
+        OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
         apply_skip_features(ogr_layer, skip_features)
@@ -1276,7 +1317,11 @@ cdef get_features(
                 break
 
             try:
-                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
+                ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+                ogr_feature = check_pointer(ogr_feature)
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1369,7 +1414,8 @@ cdef get_features_by_fid(
     cdef int count = len(fids)
 
     # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
+    with nogil:
+        OGR_L_ResetReading(ogr_layer)
 
     if read_geometry:
         geometries = np.empty(shape=(count, ), dtype="object")
@@ -1399,7 +1445,9 @@ cdef get_features_by_fid(
             fid = fids[i]
 
             try:
-                ogr_feature = check_pointer(OGR_L_GetFeature(ogr_layer, fid))
+                with nogil:
+                    ogr_feature = OGR_L_GetFeature(ogr_layer, fid)
+                ogr_feature = check_pointer(ogr_feature)
 
             except NullPointerError:
                 raise FeatureError(f"Could not read feature with fid {fid}") from None
@@ -1449,7 +1497,8 @@ cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
     cdef int i
 
     # make sure layer is read from beginning
-    OGR_L_ResetReading(ogr_layer)
+    with nogil:
+        OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
         apply_skip_features(ogr_layer, skip_features)
@@ -1467,7 +1516,11 @@ cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
                 break
 
             try:
-                ogr_feature = check_pointer(OGR_L_GetNextFeature(ogr_layer))
+                # Don't use `with nogil` inside this loop, as if there are many
+                # features, the overhead of acquiring and releasing the GIL becomes
+                # significant on linux.
+                ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+                ogr_feature = check_pointer(ogr_feature)
 
             except NullPointerError:
                 # No more rows available, so stop reading
@@ -1538,17 +1591,12 @@ def ogr_read(
         an array with geometries and an array with field data read from the dataset.
 
     """
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
-    cdef const char *where_c = NULL
     cdef const char *field_c = NULL
     cdef char **fields_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef int feature_count = 0
-    cdef double xmin, ymin, xmax, ymax
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
 
@@ -1656,7 +1704,8 @@ def ogr_read(
                 field_c = field_b
                 fields_c = CSLAddString(fields_c, field_c)
 
-            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
+            with nogil:
+                OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         geometry_type = get_geometry_type(ogr_layer)
 
@@ -1811,21 +1860,16 @@ def ogr_open_arrow(
         A tuple containing a dictionary with metadata about the file and an Arrow
         ArrayStream object that can be used to read the data.
     """
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
-    cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef void *ogr_driver = NULL
     cdef char **fields_c = NULL
     cdef const char *field_c = NULL
     cdef char **options = NULL
     cdef const char *prev_shape_encoding = NULL
     cdef bint override_shape_encoding = False
     cdef ArrowArrayStream* stream
-    cdef ArrowSchema schema
 
     if force_2d:
         raise ValueError("forcing 2D is not supported for Arrow")
@@ -2010,7 +2054,8 @@ def ogr_open_arrow(
                 field_c = field_b
                 fields_c = CSLAddString(fields_c, field_c)
 
-            OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
+            with nogil:
+                OGR_L_SetIgnoredFields(ogr_layer, <const char**>fields_c)
 
         if not return_fids:
             options = CSLSetNameValue(options, "INCLUDE_FID", "NO")
@@ -2037,12 +2082,15 @@ def ogr_open_arrow(
                 options = CSLSetNameValue(options, "DATETIME_AS_STRING", "YES")
 
         # make sure layer is read from beginning
-        OGR_L_ResetReading(ogr_layer)
+        with nogil:
+            OGR_L_ResetReading(ogr_layer)
 
         # allocate the stream struct and wrap in capsule to ensure clean-up on error
         capsule = alloc_c_stream(&stream)
 
-        if not OGR_L_GetArrowStream(ogr_layer, stream, options):
+        with nogil:
+            reval = OGR_L_GetArrowStream(ogr_layer, stream, options)
+        if not reval:
             raise RuntimeError("Failed to open ArrowArrayStream from Layer")
 
         if skip_features > 0:
@@ -2050,7 +2098,8 @@ def ogr_open_arrow(
             # the Arrow stream
             # use `OGR_L_SetNextByIndex` directly and not `apply_skip_features`
             # to ignore errors in case skip_features == feature_count
-            OGR_L_SetNextByIndex(ogr_layer, skip_features)
+            with nogil:
+                OGR_L_SetNextByIndex(ogr_layer, skip_features)
 
         if use_pyarrow:
             import pyarrow as pa
@@ -2128,14 +2177,9 @@ def ogr_read_bounds(
     object mask=None,
 ):
     """Read bounds of features in the dataset."""
-    cdef int err = 0
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
-    cdef const char *where_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
-    cdef int feature_count = 0
-    cdef double xmin, ymin, xmax, ymax
 
     if bbox and mask:
         raise ValueError("cannot set both 'bbox' and 'mask'")
@@ -2196,7 +2240,6 @@ def ogr_read_info(
 ):
     """Read metadata information about the dataset."""
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
@@ -2302,7 +2345,6 @@ def ogr_list_layers(object path_or_buffer):
 
     """
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
-    cdef const char *path_c = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
     try:
@@ -2374,12 +2416,14 @@ cdef get_layer_names(OGRDataSourceH ogr_dataset):
     """
     cdef OGRLayerH ogr_layer = NULL
 
-    layer_count = GDALDatasetGetLayerCount(ogr_dataset)
+    with nogil:
+        layer_count = GDALDatasetGetLayerCount(ogr_dataset)
 
     data = np.empty(shape=(layer_count, 2), dtype=object)
     data_view = data[:]
     for i in range(layer_count):
-        ogr_layer = GDALDatasetGetLayer(ogr_dataset, i)
+        with nogil:
+            ogr_layer = GDALDatasetGetLayer(ogr_dataset, i)
 
         data_view[i, 0] = get_string(OGR_L_GetName(ogr_layer))
         data_view[i, 1] = get_geometry_type(ogr_layer)
@@ -2512,8 +2556,6 @@ cdef infer_field_types(list dtypes):
     """
     cdef int field_type = 0
     cdef int field_subtype = 0
-    cdef int width = 0
-    cdef int precision = 0
 
     field_types = np.zeros(shape=(len(dtypes), 4), dtype=int)
     field_types_view = field_types[:]
@@ -2603,11 +2645,9 @@ cdef create_ogr_dataset_layer(
     cdef const char *path_c = NULL
     cdef const char *layer_c = NULL
     cdef const char *driver_c = NULL
-    cdef const char *crs_c = NULL
     cdef const char *encoding_c = NULL
     cdef char **dataset_options = NULL
     cdef char **layer_options = NULL
-    cdef const char *ogr_name = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRSpatialReferenceH ogr_crs = NULL
@@ -2808,7 +2848,6 @@ def ogr_write(
     cdef OGRLayerH ogr_layer = NULL
     cdef OGRFeatureH ogr_feature = NULL
     cdef OGRGeometryH ogr_geometry = NULL
-    cdef OGRGeometryH ogr_geometry_multi = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
     cdef const unsigned char *wkb_buffer = NULL
@@ -2892,7 +2931,7 @@ def ogr_write(
 
         if layer_created:
             for i in range(num_fields):
-                field_type, field_subtype, width, precision = field_types[i]
+                field_type, field_subtype, width, _precision = field_types[i]
 
                 name_b = fields[i].encode(encoding)
                 try:
@@ -3049,13 +3088,13 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_index)
                     else:
-                        datetime = field_value.item()
+                        datetime_value = field_value.item()
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_index,
-                            datetime.year,
-                            datetime.month,
-                            datetime.day,
+                            datetime_value.year,
+                            datetime_value.month,
+                            datetime_value.day,
                             0,
                             0,
                             0.0,
@@ -3066,7 +3105,7 @@ def ogr_write(
                     if np.isnat(field_value):
                         OGR_F_SetFieldNull(ogr_feature, field_index)
                     else:
-                        datetime = field_value.astype("datetime64[ms]").item()
+                        datetime_value = field_value.astype("datetime64[ms]").item()
                         tz_array = gdal_tz_offsets.get(fields[field_idx], None)
                         if tz_array is None:
                             gdal_tz = 0
@@ -3075,12 +3114,12 @@ def ogr_write(
                         OGR_F_SetFieldDateTimeEx(
                             ogr_feature,
                             field_index,
-                            datetime.year,
-                            datetime.month,
-                            datetime.day,
-                            datetime.hour,
-                            datetime.minute,
-                            datetime.second + datetime.microsecond / 10**6,
+                            datetime_value.year,
+                            datetime_value.month,
+                            datetime_value.day,
+                            datetime_value.hour,
+                            datetime_value.minute,
+                            datetime_value.second + datetime_value.microsecond / 10**6,
                             gdal_tz
                         )
 

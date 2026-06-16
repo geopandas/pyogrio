@@ -24,6 +24,7 @@ from pyogrio._compat import (
     GDAL_GE_37,
     GDAL_GE_311,
     GDAL_GE_312,
+    GDAL_GE_314,
     HAS_ARROW_WRITE_API,
     HAS_PYARROW,
     HAS_PYPROJ,
@@ -78,6 +79,14 @@ except ImportError:
 
 
 pytest.importorskip("geopandas")
+
+
+NE_KWARGS = dict()
+if __gdal_version__ >= (3, 14):
+    DRIVERS_NO_MIXED_SINGLE_MULTI = DRIVERS_NO_MIXED_SINGLE_MULTI.union(
+        ["ESRI Shapefile"]
+    )
+    NE_KWARGS = dict(PROMOTE_TO_MULTI=False)
 
 
 @pytest.fixture(
@@ -287,7 +296,7 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
         set_gdal_config_options({"OGR_GEOJSON_MAX_OBJ_SIZE": 0.01})
         with pytest.raises(
             DataSourceError,
-            match="Failed to read GeoJSON data; .* GeoJSON object too complex",
+            match=r"Failed to read GeoJSON data; .* GeoJSON object too complex",
         ):
             read_dataframe(naturalearth_lowres_geojson, use_arrow=use_arrow)
     finally:
@@ -295,14 +304,14 @@ def test_read_geojson_error(naturalearth_lowres_geojson, use_arrow):
 
 
 @pytest.mark.skipif(
-    "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read attribute columns",
+    not GDAL_GE_314 and "LIBKML" not in list_drivers(),
+    reason="Needed GDAL driver (version) not available to read .kml attribute columns",
 )
 def test_read_kml_simpledata(kml_file, use_arrow):
-    """Test reading a KML file with an attribute column.
+    """Test reading a .kml file with an attribute column.
 
-    Attribute columns (="Simpledata" elements in the .kml) are only read by the LibKML
-    driver, not the KML driver.
+    Attribute columns (="Simpledata" elements in the .kml) can be read with the "LibKML"
+    driver or with the "KML" driver starting from GDAL 3.14
     """
     gdf = read_dataframe(kml_file, use_arrow=use_arrow)
 
@@ -1702,7 +1711,7 @@ def test_read_sql(naturalearth_lowres_all_ext, use_arrow):
 
 def test_read_sql_invalid(naturalearth_lowres_all_ext, use_arrow):
     if naturalearth_lowres_all_ext.suffix == ".gpkg":
-        with pytest.raises(Exception, match="In ExecuteSQL().*"):
+        with pytest.raises(Exception, match=re.escape("In ExecuteSQL()")):
             read_dataframe(
                 naturalearth_lowres_all_ext, sql="invalid", use_arrow=use_arrow
             )
@@ -1939,7 +1948,7 @@ def test_write_custom_fids(tmp_path, ext, fid_column, fid_param_value, use_arrow
 @pytest.mark.parametrize("ext", ALL_EXTS)
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
     output_path = tmp_path / f"test{ext}"
 
     if ext == ".fgb":
@@ -2200,7 +2209,7 @@ def test_write_read_empty_dataframe_unsupported(tmp_path, ext, use_arrow):
 
     assert filename.exists()
     with pytest.raises(
-        Exception, match=".* not recognized as( being in)? a supported file format."
+        Exception, match=r" not recognized as( being in)? a supported file format."
     ):
         _ = read_dataframe(filename, use_arrow=use_arrow)
 
@@ -2352,7 +2361,7 @@ def test_write_dataframe_promote_to_multi(
     expected_geometry_type,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test_promote{ext}"
     write_dataframe(
@@ -2401,7 +2410,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
     expected_geometry_type,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test_promote_layer_geom_type{ext}"
 
@@ -2423,6 +2432,11 @@ def test_write_dataframe_promote_to_multi_layer_geom_type(
 
     assert output_path.exists()
     output_gdf = read_dataframe(output_path)
+    if ext == ".shp" and __gdal_version__ >= (3, 14):
+        # Shapefile driver in GDAL 3.14+ reports the geometry type as MultiPolygon
+        # instead of Polygon (https://github.com/OSGeo/gdal/pull/14662)
+        expected_geometry_type = "MultiPolygon"
+        expected_geometry_types = ["MultiPolygon"]
     geometry_types = sorted(output_gdf.geometry.type.unique())
     assert geometry_types == expected_geometry_types
     assert read_info(output_path)["geometry_type"] == expected_geometry_type
@@ -2454,7 +2468,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
     expected_raises_match,
     use_arrow,
 ):
-    input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     output_path = tmp_path / f"test{ext}"
     with pytest.raises((FeatureError, DataLayerError), match=expected_raises_match):
@@ -2471,7 +2485,7 @@ def test_write_dataframe_promote_to_multi_layer_geom_type_invalid(
 def test_write_dataframe_layer_geom_type_invalid(
     tmp_path, naturalearth_lowres, use_arrow
 ):
-    df = read_dataframe(naturalearth_lowres)
+    df = read_dataframe(naturalearth_lowres, **NE_KWARGS)
 
     filename = tmp_path / "test.geojson"
     with pytest.raises(
@@ -2730,7 +2744,7 @@ def test_write_read_object_column(tmp_path, object_col_data, ext, use_arrow):
         expected_dtype = str_dtype
         nan_value = np.nan if str_dtype == "str" else None
         expected_data = [
-            nan_value if value is None or value is np.nan else str(value)
+            nan_value if value is None or value is np.nan else str(value)  # noqa: PLW0177
             for value in object_col_data
         ]
 
@@ -2842,10 +2856,20 @@ def test_write_geometry_z_types_auto(
     if ext == ".shp":
         if exp_geometry_type in ("GeometryCollection Z", "Unknown"):
             pytest.skip(f"ext {ext} doesn't support {exp_geometry_type}")
-        elif exp_geometry_type == "MultiLineString Z":
-            exp_geometry_type = "LineString Z"
-        elif exp_geometry_type == "MultiPolygon Z":
-            exp_geometry_type = "Polygon Z"
+        if __gdal_version__ < (3, 14):
+            # For GDAL < 3.14, it always indicates single geometry types, even if layer
+            # contains multi geometry types
+            if exp_geometry_type == "MultiLineString Z":
+                exp_geometry_type = "LineString Z"
+            elif exp_geometry_type == "MultiPolygon Z":
+                exp_geometry_type = "Polygon Z"
+        else:
+            # For GDAL 3.14+, it always reads as multi geometry types, even if the layer
+            # contains only single geometry types
+            if exp_geometry_type == "LineString Z":
+                exp_geometry_type = "MultiLineString Z"
+            elif exp_geometry_type == "Polygon Z":
+                exp_geometry_type = "MultiPolygon Z"
 
     column_data = {}
     column_data["test_descr"] = [test_descr] * len(wkt)
@@ -3142,8 +3166,10 @@ def test_arrow_bool_exception(tmp_path, ext):
         # only raise exception for GPKG / FGB
         with pytest.raises(
             RuntimeError,
-            match="GDAL < 3.8.3 does not correctly read boolean data values using "
-            "the Arrow API",
+            match=re.escape(
+                "GDAL < 3.8.3 does not correctly read boolean data values using "
+                "the Arrow API"
+            ),
         ):
             read_dataframe(filename, use_arrow=True)
 
@@ -3180,8 +3206,8 @@ def test_arrow_enable_with_environment_variable(tmp_path):
 @pytest.mark.requires_arrow_write_api
 @pytest.mark.parametrize("kml_driver", ["LIBKML", "KML"])
 @pytest.mark.skipif(
-    "LIBKML" not in list_drivers(),
-    reason="LIBKML driver is not available and is needed to read attribute columns",
+    not GDAL_GE_314 and "LIBKML" not in list_drivers(),
+    reason="Needed GDAL driver (version) not available to read .kml attribute columns",
 )
 def test_write_kml(tmp_path, kml_driver, use_arrow):
     """Test writing a KML file.
@@ -3196,7 +3222,7 @@ def test_write_kml(tmp_path, kml_driver, use_arrow):
     Test added when fixing https://github.com/geopandas/geopandas/issues/3609
     """
     if kml_driver not in list_drivers():
-        pytest.skip(f"{kml_driver} driver not available")
+        pytest.skip(f"{kml_driver} driver not available in test_write_kml")
 
     df = gp.GeoDataFrame(
         {"col_1": [1.0, 2.0], "col_2": [3.0, 4.0], "col_3": [5.0, 6.0]},

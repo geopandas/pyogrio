@@ -1,7 +1,10 @@
-FROM quay.io/pypa/manylinux_2_28_x86_64:2025.09.19-1
+FROM quay.io/pypa/manylinux_2_28_x86_64:2026.06.03-1
 
-# building openssl needs IPC-Cmd (https://github.com/microsoft/vcpkg/issues/24988)
-RUN dnf -y install curl zip unzip tar ninja-build perl-IPC-Cmd
+# Additional system dependencies:
+# - vcpkg needs: curl zip unzip tar ninja
+# - openssl needs IPC-Cmd and perl-core (https://github.com/microsoft/vcpkg/issues/24988, https://github.com/openssl/openssl/issues/28579)
+# - libspatialite needs full autotools suite to build (autoconf autoconf-archive automake libtool)
+RUN dnf -y install curl zip unzip tar ninja-build perl-core perl-IPC-Cmd autoconf autoconf-archive automake libtool
 
 ARG VCPKG_GDAL_COMMIT
 RUN git clone https://github.com/Microsoft/vcpkg.git /opt/vcpkg && \
