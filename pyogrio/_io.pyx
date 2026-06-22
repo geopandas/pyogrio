@@ -1032,10 +1032,10 @@ cdef process_fields(
     OGRFeatureH ogr_feature,
     int i,
     int n_fields,
-    object field_data,
-    object field_data_view,
-    object field_indexes,
-    object field_ogr_types,
+    list field_data,
+    list field_data_view,
+    list field_indexes,
+    list field_ogr_types,
     encoding,
     bint datetime_as_string
 ):
@@ -1056,9 +1056,9 @@ cdef process_fields(
     field_data_view : object
         A view to the array to save the data to
     field_indexes : object
-        An array with the indexes to each field in the feature
+        A list with the indexes to each field in the feature
     field_ogr_types : object
-        An array with the OGR types for each field
+        A list with the OGR types for each field
     encoding : object
         The encoding to use for reading string field data
     datetime_as_string : bint
@@ -1312,8 +1312,8 @@ cdef get_features(
     i = 0
     i_total = 0
     last_chunk_index = -1
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
 
     while True:
         try:
@@ -1479,8 +1479,8 @@ cdef get_features_by_fid(
         geometries = None
 
     n_fields = fields.shape[0]
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
     field_data = [
         np.empty(
             shape=(count, ),
