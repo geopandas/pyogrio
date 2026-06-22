@@ -6,7 +6,6 @@ import contextlib
 import datetime
 import locale
 import logging
-import math
 import os
 import shutil
 import sys
@@ -16,7 +15,7 @@ IF CTE_GDAL_VERSION < (3, 8, 0):
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
-from libc.math cimport isnan
+from libc.math cimport isnan, modff
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
@@ -1080,6 +1079,7 @@ cdef process_fields(
     cdef int hour = 0
     cdef int minute = 0
     cdef float fsecond = 0.0
+    cdef float ss = 0.0
     cdef int timezone = 0
 
     for j in range(n_fields):
@@ -1152,7 +1152,7 @@ cdef process_fields(
                     &timezone,
                 )
 
-                ms, ss = math.modf(fsecond)
+                ms = modff(fsecond, &ss)
                 second = int(ss)
                 # fsecond has millisecond accuracy
                 microsecond = round(ms * 1000) * 1000
