@@ -548,37 +548,36 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
             OGR_L_ResetReading(ogr_layer)
 
         feature_count = 0
-        while True:
-            try:
-                # Don't use `with nogil` inside this loop, as if there are many
-                # features, the overhead of acquiring and releasing the GIL becomes
-                # significant on linux.
-                ogr_feature = OGR_L_GetNextFeature(ogr_layer)
-                ogr_feature = check_pointer(ogr_feature)
-                feature_count +=1
 
-            except NullPointerError:
-                # No more rows available, so stop reading
-                break
+        try:
+            with nogil:
+                while True:
+                    ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+                    ogr_feature = check_pointer(ogr_feature)
+                    feature_count +=1
 
-            # driver may raise other errors, e.g., for OSM if node ids are not
-            # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
-            # causes errors iterating over features
-            except CPLE_BaseError as exc:
-                # if an invalid where clause is used for a GPKG file, it is not
-                # caught as an error until attempting to iterate over features;
-                # catch it here
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
+        except NullPointerError:
+            # No more rows available, so stop reading
+            pass
 
-                raise DataLayerError(
-                    f"Could not iterate over features: {str(exc)}"
-                ) from None
+        # driver may raise other errors, e.g., for OSM if node ids are not
+        # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
+        # causes errors iterating over features
+        except CPLE_BaseError as exc:
+            # if an invalid where clause is used for a GPKG file, it is not
+            # caught as an error until attempting to iterate over features;
+            # catch it here
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query: {str(exc)}") from None
 
-            finally:
-                if ogr_feature != NULL:
-                    OGR_F_Destroy(ogr_feature)
-                    ogr_feature = NULL
+            raise DataLayerError(
+                f"Could not iterate over features: {str(exc)}"
+            ) from None
+
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
 
     return feature_count
 
