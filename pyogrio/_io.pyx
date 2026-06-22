@@ -1067,6 +1067,7 @@ cdef process_fields(
     cdef int j
     cdef int success
     cdef int field_index
+    cdef int field_type
     cdef int ret_length
     cdef const int *ints_c
     cdef const GIntBig *int64s_c
