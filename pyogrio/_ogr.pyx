@@ -162,7 +162,7 @@ def ogr_driver_supports_update(driver):
 
 def ogr_driver_supports_append(driver):
     """Check metadata for driver to see if it supports append.
-    
+
     Note that this only returns True for drivers that do not support
     general updates, but do support appending.
 
