@@ -145,7 +145,7 @@ def test_list_drivers():
         "ARCGEN": "r",
         "BNA": "rw",
         "DXF": "rw",
-        "CSV": "raw",
+        # "CSV": "raw",  # Some versions of GDAL don't report that append is supported
         "FileGDB": "raw",
         "OpenFileGDB": "raw",
         "ESRIJSON": "r",
@@ -161,6 +161,7 @@ def test_list_drivers():
         "Idrisi": "r",
         "MapInfo File": "raw",
         "DGN": "rw",  # Changed: "raw" to "rw": unclear if append is possible
+        # "Parquet": "rw",  # Newer versions of GDAL support append
         "PCIDSK": "raw",
         "PDS": "r",
         "OGR_PDS": "r",
