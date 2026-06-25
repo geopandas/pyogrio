@@ -176,13 +176,10 @@ def test_list_drivers():
     # verify that the core drivers are present
     for name, expected_capability in expected_drivers.items():
         if name not in all_drivers:
-            print(f"{name} not in list_drivers(), ignore")
             continue
 
         if not GDAL_GE_312:
             expected_capability = expected_capability.replace("a", "")
-        if name == "OpenFileGDB" and __gdal_version__ < (3, 6, 0):
-            expected_capability = "r"
 
         assert all_drivers[name] == expected_capability, (
             f"Error for {name}: {expected_capability=}, {all_drivers[name]=}"

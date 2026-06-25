@@ -221,11 +221,8 @@ def ogr_list_drivers():
 
         capability = "r"
 
-        if ogr_driver_supports_update(name):
+        if ogr_driver_supports_update(name) or ogr_driver_supports_append(name):
             capability += "a"
-        else:
-            if ogr_driver_supports_append(name):
-                capability += "a"
 
         if ogr_driver_supports_write(name):
             capability += "w"
