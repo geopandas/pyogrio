@@ -145,7 +145,7 @@ def test_list_drivers():
         "ARCGEN": "r",
         "BNA": "rw",
         "DXF": "rw",
-        # "CSV": "raw",  # Some versions of GDAL don't report that append is supported
+        "CSV": "raw",
         "FileGDB": "raw",
         "OpenFileGDB": "raw",
         "ESRIJSON": "r",
@@ -178,7 +178,7 @@ def test_list_drivers():
         if name not in all_drivers:
             continue
 
-        if not GDAL_GE_312:
+        if __gdal_version__ < (3, 11, 5):
             expected_capability = expected_capability.replace("a", "")
 
         assert all_drivers[name] == expected_capability, (
