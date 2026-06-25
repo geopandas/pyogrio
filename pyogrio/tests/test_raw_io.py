@@ -1,6 +1,7 @@
 import contextlib
 import ctypes
 import json
+import re
 import sys
 from io import BytesIO
 from zipfile import ZipFile
@@ -17,7 +18,7 @@ from pyogrio import (
     read_info,
     set_gdal_config_options,
 )
-from pyogrio._compat import GDAL_GE_37, HAS_PYARROW, HAS_SHAPELY
+from pyogrio._compat import GDAL_GE_37, GDAL_GE_313, HAS_PYARROW, HAS_SHAPELY
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError
 from pyogrio.raw import open_arrow, read, write
 from pyogrio.tests.conftest import (
@@ -40,7 +41,11 @@ def test_read(naturalearth_lowres):
     meta, _, geometry, fields = read(naturalearth_lowres)
 
     assert meta["crs"] == "EPSG:4326"
-    assert meta["geometry_type"] == "Polygon"
+    assert (
+        meta["geometry_type"] == "Polygon"
+        if __gdal_version__ < (3, 14)
+        else "MultiPolygon"
+    )
     assert meta["encoding"] == "UTF-8"
     assert meta["fields"].shape == (5,)
 
@@ -105,8 +110,9 @@ def test_read_invalid_layer(naturalearth_lowres):
 
 def test_vsi_read_layers(naturalearth_lowres_vsi):
     _, naturalearth_lowres_vsi = naturalearth_lowres_vsi
+    geom_type = "Polygon" if __gdal_version__ < (3, 14) else "MultiPolygon"
     assert array_equal(
-        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres_vsi), [["naturalearth_lowres", geom_type]]
     )
 
     geometry = read(naturalearth_lowres_vsi)[2]
@@ -155,19 +161,20 @@ def test_read_no_geometry_no_columns_no_fids(naturalearth_lowres):
         )
 
 
-def test_read_columns(naturalearth_lowres):
-    columns = ["NAME", "NAME_LONG"]
-    meta, _, geometry, fields = read(
+@pytest.mark.parametrize(
+    "descr, columns, exp_columns",
+    [
+        ("all", None, ["pop_est", "continent", "name", "iso_a3", "gdp_md_est"]),
+        ("case_sensitive", ["NAME"], []),
+        ("repeats_dropped", ["continent", "continent", "name"], ["continent", "name"]),
+        ("keep_original_order", ["continent", "pop_est"], ["pop_est", "continent"]),
+    ],
+)
+def test_read_columns(naturalearth_lowres, descr, columns, exp_columns):
+    meta, _fids, _geometry, _fields = read(
         naturalearth_lowres, columns=columns, read_geometry=False
     )
-    array_equal(meta["fields"], columns)
-
-    # Repeats should be dropped
-    columns = ["NAME", "NAME_LONG", "NAME"]
-    meta, _, geometry, fields = read(
-        naturalearth_lowres, columns=columns, read_geometry=False
-    )
-    array_equal(meta["fields"], columns[:2])
+    assert array_equal(meta["fields"], exp_columns), f"Failed for {descr}"
 
 
 @pytest.mark.parametrize("skip_features", [10, 200])
@@ -381,13 +388,17 @@ def test_read_fids(naturalearth_lowres):
 def test_read_fids_out_of_bounds(naturalearth_lowres):
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(-1\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (-1) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[-1])
 
     with pytest.raises(
         FeatureError,
-        match=r"Attempt to read shape with feature id \(200\) out of available range",
+        match=re.escape(
+            "Attempt to read shape with feature id (200) out of available range"
+        ),
     ):
         read(naturalearth_lowres, fids=[200])
 
@@ -982,7 +993,7 @@ def test_read_unsupported_ext(tmp_path):
         file.write("data1,data2")
 
     with pytest.raises(
-        DataSourceError, match=".* by prefixing the file path with '<DRIVER>:'.*"
+        DataSourceError, match=" by prefixing the file path with '<DRIVER>:'"
     ):
         read(test_unsupported_path)
 
@@ -1001,15 +1012,20 @@ def test_read_unsupported_ext_with_prefix(tmp_path):
 def test_read_datetime_as_string(datetime_tz_file):
     field = read(datetime_tz_file)[3][0]
     assert field.dtype == "datetime64[ms]"
-    # timezone is ignored in numpy layer
+    # time zone is ignored in numpy layer
     assert field[0] == np.datetime64("2020-01-01 09:00:00.123")
     assert field[1] == np.datetime64("2020-01-01 10:00:00.000")
 
     field = read(datetime_tz_file, datetime_as_string=True)[3][0]
     assert field.dtype == "object"
-    # GDAL doesn't return strings in ISO format (yet)
-    assert field[0] == "2020/01/01 09:00:00.123-05"
-    assert field[1] == "2020/01/01 10:00:00-05"
+
+    if __gdal_version__ < (3, 7, 0):
+        # With GDAL < 3.7, datetimes are not returned as ISO8601 strings
+        assert field[0] == "2020/01/01 09:00:00.123-05"
+        assert field[1] == "2020/01/01 10:00:00-05"
+    else:
+        assert field[0] == "2020-01-01T09:00:00.123-05:00"
+        assert field[1] == "2020-01-01T10:00:00-05:00"
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "geojson"])
@@ -1048,7 +1064,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     write(filename, geometry, field_data, fields, **meta)
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": null }' in content
+    if GDAL_GE_313:
+        assert '{"col":null}' in content
+    else:
+        assert '{ "col": null }' in content
 
     # set to False
     # by default, GDAL will skip the property for GeoJSON if the value is NaN
@@ -1060,7 +1079,10 @@ def test_write_float_nan_null(tmp_path, dtype):
         write(filename, geometry, field_data, fields, **meta, nan_as_null=False)
     with open(filename) as f:
         content = f.read()
-    assert '"properties": { }' in content
+    if GDAL_GE_313:
+        assert '"properties":{}' in content
+    else:
+        assert '"properties": { }' in content
 
     # but can instruct GDAL to write NaN to json
     write(
@@ -1074,7 +1096,10 @@ def test_write_float_nan_null(tmp_path, dtype):
     )
     with open(filename) as f:
         content = f.read()
-    assert '{ "col": NaN }' in content
+    if GDAL_GE_313:
+        assert '{"col":NaN}' in content
+    else:
+        assert '{ "col": NaN }' in content
 
 
 @requires_pyarrow_api

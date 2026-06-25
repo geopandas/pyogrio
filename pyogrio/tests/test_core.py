@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from pyogrio import (
     read_bounds,
     read_info,
     set_gdal_config_options,
+    vsi_curl_clear_cache,
     vsi_listtree,
     vsi_rmtree,
     vsi_unlink,
@@ -223,14 +225,16 @@ def test_list_layers(
     multisurface_file,
     no_geometry_file,
 ):
+    # SHP
+    geom_type = "Polygon" if __gdal_version__ < (3, 14) else "MultiPolygon"
     assert array_equal(
-        list_layers(naturalearth_lowres), [["naturalearth_lowres", "Polygon"]]
+        list_layers(naturalearth_lowres), [["naturalearth_lowres", geom_type]]
+    )
+    assert array_equal(
+        list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", geom_type]]
     )
 
-    assert array_equal(
-        list_layers(naturalearth_lowres_vsi[1]), [["naturalearth_lowres", "Polygon"]]
-    )
-
+    # in-memory GPKG
     assert array_equal(
         list_layers(naturalearth_lowres_vsimem),
         [["naturalearth_lowres", "MultiPolygon"]],
@@ -239,7 +243,7 @@ def test_list_layers(
     # Measured 3D is downgraded to plain 3D during read
     # Make sure this warning is raised
     with pytest.warns(
-        UserWarning, match=r"Measured \(M\) geometry types are not supported"
+        UserWarning, match=re.escape("Measured (M) geometry types are not supported")
     ):
         assert array_equal(list_layers(line_zm_file), [["line_zm", "LineString Z"]])
 
@@ -500,7 +504,11 @@ def test_read_info(naturalearth_lowres):
         # geometry_name == "" for formats where geometry column name cannot be
         # customized
         assert meta["geometry_name"] == ""
-        assert meta["geometry_type"] == "Polygon"
+        assert (
+            meta["geometry_type"] == "Polygon"
+            if __gdal_version__ < (3, 14)
+            else "MultiPolygon"
+        )
         assert meta["driver"] == "ESRI Shapefile"
         assert meta["capabilities"]["fast_set_next_by_index"] is True
     else:
@@ -755,3 +763,13 @@ def test_vsimem_unlink_error(naturalearth_lowres_vsimem):
 
     with pytest.raises(FileNotFoundError, match="Path does not exist"):
         vsi_unlink("/vsimem/non-existent.gpkg")
+
+
+def test_vsi_curl_clear_cache_empty_default():
+    # Validate call doesn't raise any error when no prefix is used
+    vsi_curl_clear_cache()
+
+
+def test_vsi_curl_clear_cache():
+    # Validate call doesn't raise any error when prefix/path is used
+    vsi_curl_clear_cache("http://example.com/prefix")
