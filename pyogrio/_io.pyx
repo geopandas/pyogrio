@@ -6,7 +6,6 @@ import contextlib
 import datetime
 import locale
 import logging
-import math
 import os
 import shutil
 import sys
@@ -16,7 +15,7 @@ IF CTE_GDAL_VERSION < (3, 8, 0):
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
-from libc.math cimport isnan
+from libc.math cimport isnan, modff
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
@@ -1032,10 +1031,10 @@ cdef process_fields(
     OGRFeatureH ogr_feature,
     int i,
     int n_fields,
-    object field_data,
-    object field_data_view,
-    object field_indexes,
-    object field_ogr_types,
+    list field_data,
+    list field_data_view,
+    list field_indexes,
+    list field_ogr_types,
     encoding,
     bint datetime_as_string
 ):
@@ -1056,9 +1055,9 @@ cdef process_fields(
     field_data_view : object
         A view to the array to save the data to
     field_indexes : object
-        An array with the indexes to each field in the feature
+        A list with the indexes to each field in the feature
     field_ogr_types : object
-        An array with the OGR types for each field
+        A list with the OGR types for each field
     encoding : object
         The encoding to use for reading string field data
     datetime_as_string : bint
@@ -1068,6 +1067,7 @@ cdef process_fields(
     cdef int j
     cdef int success
     cdef int field_index
+    cdef int field_type
     cdef int ret_length
     cdef const int *ints_c
     cdef const GIntBig *int64s_c
@@ -1080,6 +1080,7 @@ cdef process_fields(
     cdef int hour = 0
     cdef int minute = 0
     cdef float fsecond = 0.0
+    cdef float ss = 0.0
     cdef int timezone = 0
 
     for j in range(n_fields):
@@ -1152,7 +1153,7 @@ cdef process_fields(
                     &timezone,
                 )
 
-                ms, ss = math.modf(fsecond)
+                ms = modff(fsecond, &ss)
                 second = int(ss)
                 # fsecond has millisecond accuracy
                 microsecond = round(ms * 1000) * 1000
@@ -1312,8 +1313,8 @@ cdef get_features(
     i = 0
     i_total = 0
     last_chunk_index = -1
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
 
     while True:
         try:
@@ -1479,8 +1480,8 @@ cdef get_features_by_fid(
         geometries = None
 
     n_fields = fields.shape[0]
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
     field_data = [
         np.empty(
             shape=(count, ),
@@ -2902,9 +2903,9 @@ def ogr_write(
     str layer,
     str driver,
     geometry,
-    fields,
-    field_data,
-    field_mask,
+    list fields,
+    list field_data,
+    list field_mask,
     str crs,
     str geometry_type,
     str encoding,
@@ -2932,6 +2933,10 @@ def ogr_write(
     cdef int num_records = -1
     cdef int num_field_data = len(field_data) if field_data is not None else 0
     cdef int num_fields = len(fields) if fields is not None else 0
+    cdef list field_indexes = []
+    cdef list field_ogr_types = []
+    cdef int field_index
+    cdef int field_type
     cdef bint use_tmp_vsimem = False
 
     if num_fields != num_field_data:
@@ -3005,11 +3010,11 @@ def ogr_write(
 
         if layer_created:
             for i in range(num_fields):
-                field_type, field_subtype, width, _precision = field_types[i]
+                field_ogr_type, field_subtype, width, _precision = field_types[i]
 
                 name_b = fields[i].encode(encoding)
                 try:
-                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_type))
+                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_ogr_type))
 
                     # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html  # noqa: E501
                     if field_subtype != OFSTNone:
@@ -3036,7 +3041,6 @@ def ogr_write(
         # different than the order they were created, e.g. when using the KML driver.
         ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
 
-        field_indexes = []
         if OGR_FD_GetFieldCount(ogr_featuredef) == num_fields:
             field_indexes = list(range(num_fields))
         else:
@@ -3047,6 +3051,9 @@ def ogr_write(
                         f"Could not find field index for field '{fields[i]}'"
                     )
                 field_indexes.append(index)
+
+        if field_types is not None:
+            field_ogr_types = list(field_types[:, 0])
 
         # Create the features
         supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
@@ -3115,7 +3122,7 @@ def ogr_write(
             # Set field values
             for field_idx in range(num_fields):
                 field_value = field_data[field_idx][i]
-                field_type = field_types[field_idx][0]
+                field_type = field_ogr_types[field_idx]
                 field_index = field_indexes[field_idx]
 
                 mask = field_mask[field_idx]
