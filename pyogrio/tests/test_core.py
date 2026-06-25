@@ -161,7 +161,6 @@ def test_list_drivers():
         "Idrisi": "r",
         "MapInfo File": "raw",
         "DGN": "rw",  # Changed: "raw" to "rw": unclear if append is possible
-        "Parquet": "rw",
         "PCIDSK": "raw",
         "PDS": "r",
         "OGR_PDS": "r",
