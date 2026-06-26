@@ -3,7 +3,7 @@ channels:
   - gdal-master
   - conda-forge
 dependencies:
-  - libgdal-core
+  - libgdal-core >= 3.13
   - pandas
   - pip
   - pytest
