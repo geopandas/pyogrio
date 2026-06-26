@@ -2960,7 +2960,7 @@ def test_write_geometry_z_types_auto(
     assert info["geometry_type"] == exp_geometry_type
 
     result_gdf = read_dataframe(filename)
-    if ext == ".geojsonl":
+    if ext == ".geojsonl" and HAS_PYPROJ:
         result_gdf.set_crs("EPSG:4326", inplace=True, allow_override=True)
 
     assert_geodataframe_equal(gdf, result_gdf)
