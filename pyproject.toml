@@ -76,7 +76,7 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 ignore = ["E265", "E222"]
 
 [tool.pytest]
-testpaths = pyogrio/tests
+testpaths = ["pyogrio/tests"]
 
 markers = [
     "network: marks tests that require a network connection",
