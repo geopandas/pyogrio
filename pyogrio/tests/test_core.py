@@ -242,7 +242,11 @@ def test_list_drivers_details(driver_access_modes):
         assert drivers[name]["long_name"] is not None
 
         assert drivers[name]["read"] is ("r" in expected_access_mode)
-        assert drivers[name]["append"] is ("a" in expected_access_mode)
+        if GDAL_GE_311:
+            assert drivers[name]["append"] is ("a" in expected_access_mode)
+        else:
+            # GDAL < 3.11 does not support reporting update/append capability
+            assert drivers[name]["append"] is None
         assert drivers[name]["write"] is ("w" in expected_access_mode)
         assert drivers[name]["supports_vsi"]
         assert drivers[name]["help_topic_url"] is None or isinstance(
