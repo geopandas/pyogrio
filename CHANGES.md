@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 0.12.2 (????-??-??)
+## 0.13.0 (xxxx-xx-xx)
 
 ### Improvements
 
@@ -8,6 +8,7 @@
     [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
     in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
     used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
+-   Add whether append is supported in `list_drivers` (#559)
 
 ### Bug fixes
 
