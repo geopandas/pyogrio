@@ -20,7 +20,7 @@ from pyogrio import (
     vsi_rmtree,
     vsi_unlink,
 )
-from pyogrio._compat import GDAL_GE_38
+from pyogrio._compat import GDAL_GE_38, GDAL_GE_311, GDAL_GE_312
 from pyogrio._env import GDALEnv
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
@@ -178,7 +178,12 @@ def test_list_drivers():
         if name not in all_drivers:
             continue
 
-        if __gdal_version__ < (3, 11, 5):
+        # Update (including append) capability only available from GDAL 3.11 onwards
+        if not GDAL_GE_311:
+            expected_capability = expected_capability.replace("a", "")
+        # Specifically for GeoJSONSeq, that only supports append, it is only available
+        # from GDAL 3.12 onwards
+        if name == "GeoJSONSeq" and not GDAL_GE_312:
             expected_capability = expected_capability.replace("a", "")
 
         assert all_drivers[name] == expected_capability, (
