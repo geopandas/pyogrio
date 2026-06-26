@@ -273,10 +273,15 @@ def ogr_list_drivers():
         name_c = <char *>OGR_Dr_GetName(driver)
         name = get_string(name_c)
 
+        supports_append = ogr_driver_supports_update(name)
+        if not supports_append and CTE_GDAL_VERSION >= (3, 12, 0):
+            supports_append = ogr_driver_supports_append(name)
         access_modes = ""
         if ogr_driver_supports_open(name):
             access_modes += "r"
-        if ogr_driver_supports_update(name) or ogr_driver_supports_append(name):
+        if ogr_driver_supports_update(name) or (
+            CTE_GDAL_VERSION >= (3, 12, 0) and ogr_driver_supports_append(name)
+        ):
             access_modes += "a"
         if ogr_driver_supports_write(name):
             access_modes += "w"
@@ -321,8 +326,8 @@ def ogr_list_drivers_details():
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
             "read": ogr_driver_supports_open(name),
-            "append": (
-                ogr_driver_supports_update(name) or ogr_driver_supports_append(name)
+            "append": ogr_driver_supports_update(name) or (
+                CTE_GDAL_VERSION >= (3, 12, 0) and ogr_driver_supports_append(name)
             ),
             "write": ogr_driver_supports_write(name),
             "supports_vsi": ogr_driver_supports_vsi(name),
