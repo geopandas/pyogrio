@@ -15,6 +15,9 @@
 
 ### Bug fixes
 
+-   Fix error in `write_dataframe` with `use_arrow=False` when writing an object-type
+    column with datetimes without any time zone offsets or with a mix of offsets and
+    no offsets (#634).
 -   Fix writing non-string object columns with arrow (#630).
 -   Fix writing empty string category columns with arrow fails (#621).
 -   Fix overwriting a corrupt fileGDB directory (#600).
