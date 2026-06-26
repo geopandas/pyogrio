@@ -227,7 +227,7 @@ def ogr_driver_supports_append(driver):
             return True
         else:
             return False
-    
+
     return None
 
 
@@ -313,10 +313,9 @@ def ogr_list_drivers_details():
 
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
-            "open": ogr_driver_supports_open(name),
-            "create": ogr_driver_supports_write(name),
-            "update": ogr_driver_supports_update(name),
-            "append": ogr_driver_supports_append(name),
+            "read": ogr_driver_supports_open(name),
+            "append": ogr_driver_supports_update(name) or ogr_driver_supports_append(name),
+            "write": ogr_driver_supports_write(name),
             "supports_vsi": ogr_driver_supports_vsi(name),
             "help_topic_url": _get_driver_metadata_item(name, "DMD_HELPTOPIC"),
             "extensions": extensions,

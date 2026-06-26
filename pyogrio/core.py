@@ -89,16 +89,16 @@ def list_drivers_details() -> dict[str, dict]:
     For each driver, the following properties are included:
 
     - long_name: the long name of the driver.
-    - open: a boolean indicating if the driver supports opening and reading an
+    - read: a boolean indicating if the driver supports opening and reading an
       existing file.
-    - create: a boolean indicating if the driver supports creation of new files.
-    - update: a boolean indicating if the driver supports updating an existing file,
-      including appending new rows. This property is None if GDAL < 3.11.
-    - append: a boolean indicating if the driver supports appending even though
-      it does not support updating. This property is None if GDAL < 3.12.
-    - help_topic_url: a relative URL in the GDAL documentation to the help topic for
+    - append: a boolean indicating if the driver supports appending rows to an
+      existing file. This property is None if GDAL < 3.12.
+    - write: a boolean indicating if the driver supports creating and writing
+      new files.
+    - help_topic_url: an URL to the GDAL documentation for the help topic of
       this driver.
-    - extensions: a list of file extensions associated with this driver, if any.
+    - extensions: a list of file extensions associated with this driver,
+      if any.
 
     Returns
     -------

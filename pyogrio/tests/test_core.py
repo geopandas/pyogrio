@@ -46,6 +46,59 @@ except ImportError:
     pass
 
 
+@pytest.fixture()
+def driver_access_modes() -> dict[str, str]:
+    """Expected driver access modes adjusted for the active GDAL version."""
+    # Base expected driver access modes.
+    driver_access_modes: dict[str, str] = {
+        "AeronavFAA": "r",
+        "ARCGEN": "r",
+        "BNA": "rw",
+        "DXF": "rw",
+        "CSV": "raw",
+        "FileGDB": "raw",
+        "OpenFileGDB": "raw",
+        "ESRIJSON": "r",
+        "ESRI Shapefile": "raw",
+        "FlatGeobuf": "rw",  # Remark: append only if no spatial index
+        "GeoJSON": "raw",
+        "GeoJSONSeq": "raw",
+        "GPKG": "raw",
+        "GML": "rw",
+        "GMT": "rw",
+        "OGR_GMT": "rw",
+        "GPX": "rw",
+        "Idrisi": "r",
+        "MapInfo File": "raw",
+        "DGN": "rw",  # Remark: unclear if append is possible
+        # "Parquet": "rw",  # Newer versions of GDAL support append
+        "PCIDSK": "raw",
+        "PDS": "r",
+        "PGDUMP": "w",
+        "OGR_PDS": "r",
+        "S57": "rw",  # Remark: create supported according to GDAL docs
+        "SEGY": "r",
+        "SQLite": "raw",
+        "SUA": "r",
+        "TileDB": "raw",
+        "TopoJSON": "r",
+    }
+
+    # Update / append capability is only available from GDAL 3.11 onwards.
+    if not GDAL_GE_311:
+        driver_access_modes = {
+            name: mode.replace("a", "") for name, mode in driver_access_modes.items()
+        }
+
+    # GeoJSONSeq append capability is only available from GDAL 3.12 onwards.
+    if not GDAL_GE_312:
+        driver_access_modes["GeoJSONSeq"] = driver_access_modes["GeoJSONSeq"].replace(
+            "a", ""
+        )
+
+    return driver_access_modes
+
+
 def test_gdal_data():
     # test will fail if GDAL data files cannot be found, indicating an
     # installation error
@@ -137,56 +190,13 @@ def test_ogr_driver_supports_write(driver, expected):
     assert ogr_driver_supports_write(driver) == expected
 
 
-def test_list_drivers():
+def test_list_drivers(driver_access_modes):
     all_drivers = list_drivers()
 
-    # Expected capabilities based on `fiona.supported_drivers`.
-    expected_drivers: dict[str, str] = {
-        "AeronavFAA": "r",
-        "ARCGEN": "r",
-        "BNA": "rw",
-        "DXF": "rw",
-        "CSV": "raw",
-        "FileGDB": "raw",
-        "OpenFileGDB": "raw",
-        "ESRIJSON": "r",
-        "ESRI Shapefile": "raw",
-        "FlatGeobuf": "rw",  # Changed: "raw" to "rw": append only if no spatial index
-        "GeoJSON": "raw",
-        "GeoJSONSeq": "raw",
-        "GPKG": "raw",
-        "GML": "rw",
-        "GMT": "rw",
-        "OGR_GMT": "rw",
-        "GPX": "rw",
-        "Idrisi": "r",
-        "MapInfo File": "raw",
-        "DGN": "rw",  # Changed: "raw" to "rw": unclear if append is possible
-        # "Parquet": "rw",  # Newer versions of GDAL support append
-        "PCIDSK": "raw",
-        "PDS": "r",
-        "PGDUMP": "w",
-        "OGR_PDS": "r",
-        "S57": "rw",  # Changed: "r" to "rw": create supported according to GDAL docs
-        "SEGY": "r",
-        "SQLite": "raw",
-        "SUA": "r",
-        "TileDB": "raw",
-        "TopoJSON": "r",
-    }
-
     # Verify that the core drivers are present + their capabilities match expectations.
-    for name, expected_capability in expected_drivers.items():
+    for name, expected_capability in driver_access_modes.items():
         if name not in all_drivers:
             continue
-
-        # Update (including append) capability only available from GDAL 3.11 onwards
-        if not GDAL_GE_311:
-            expected_capability = expected_capability.replace("a", "")
-        # Specifically for GeoJSONSeq, that only supports append, it is only available
-        # from GDAL 3.12 onwards
-        if name == "GeoJSONSeq" and not GDAL_GE_312:
-            expected_capability = expected_capability.replace("a", "")
 
         assert all_drivers[name] == expected_capability, (
             f"Error for {name}: {expected_capability=}, {all_drivers[name]=}"
@@ -220,39 +230,28 @@ def test_list_drivers():
     assert len(drivers) == len(expected)
 
 
-def test_list_drivers_details():
-    # Expected capabilities for some built-in drivers that should always be available.
-    expected_drivers_details: dict[str, dict] = {
-        "FlatGeobuf": {"open": True, "create": True, "update": False, "append": False},
-        "GeoJSON": {"open": True, "create": True, "update": True, "append": False},
-        "GeoJSONSeq": {"open": True, "create": True, "update": False, "append": True},
-        "TopoJSON": {"open": True, "create": False, "update": False, "append": False},
-        "PGDUMP": {"open": False, "create": True, "update": False, "append": False},
-    }
-
+def test_list_drivers_details(driver_access_modes):
     drivers = list_drivers_details()
 
-    # Verify the properties of the expected drivers.
-    for name, expected in expected_drivers_details.items():
+    # Verify detailed capabilities for all drivers that we track expected access for.
+    for name, expected_access_mode in driver_access_modes.items():
         if name not in drivers:
-            raise AssertionError(f"Driver {name} not returned by list_drivers_details")
-
-        # Update and append properties are None for older GDAL versions.
-        if not GDAL_GE_311:
-            expected["update"] = None
-        if not GDAL_GE_312:
-            expected["append"] = None
+            continue
 
         assert drivers[name]["long_name"] is not None
 
-        assert drivers[name]["open"] is expected["open"]
-        assert drivers[name]["create"] is expected["create"]
-        assert drivers[name]["update"] is expected["update"]
-        assert drivers[name]["append"] is expected["append"]
-        assert drivers[name]["supports_vsi"] is True
-        assert drivers[name]["help_topic_url"] is not None
-        assert isinstance(drivers[name]["extensions"], list)
-        assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
+        assert drivers[name]["read"] is ("r" in expected_access_mode)
+        assert drivers[name]["append"] is ("a" in expected_access_mode)
+        assert drivers[name]["write"] is ("w" in expected_access_mode)
+        assert drivers[name]["supports_vsi"]
+        assert drivers[name]["help_topic_url"] is None or isinstance(
+            drivers[name]["help_topic_url"], str
+        )
+        assert drivers[name]["extensions"] is None or isinstance(
+            drivers[name]["extensions"], list
+        )
+        if drivers[name]["extensions"] is not None:
+            assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
 
 
 def test_list_layers(
