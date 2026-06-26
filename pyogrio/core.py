@@ -92,7 +92,7 @@ def list_drivers_details() -> dict[str, dict]:
     - read: a boolean indicating if the driver supports opening and reading an
       existing file.
     - append: a boolean indicating if the driver supports appending rows to an
-      existing file. This property is None if GDAL < 3.12.
+      existing file. This property is None if GDAL < 3.11.
     - write: a boolean indicating if the driver supports creating and writing
       new files.
     - help_topic_url: an URL to the GDAL documentation for the help topic of

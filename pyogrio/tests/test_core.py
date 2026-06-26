@@ -1,5 +1,5 @@
-import urllib.request
 import re
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -239,26 +239,30 @@ def test_list_drivers_details(driver_access_modes):
         if name not in drivers:
             continue
 
-        assert drivers[name]["long_name"] is not None
+        try:
+            assert drivers[name]["long_name"] is not None
 
-        assert drivers[name]["read"] is ("r" in expected_access_mode)
-        if GDAL_GE_311:
-            assert drivers[name]["append"] is ("a" in expected_access_mode)
-        else:
-            # GDAL < 3.11 does not support reporting update/append capability
-            assert drivers[name]["append"] is None
-        assert drivers[name]["write"] is ("w" in expected_access_mode)
-        assert drivers[name]["supports_vsi"]
-        assert drivers[name]["help_topic_url"] is None or isinstance(
-            drivers[name]["help_topic_url"], str
-        )
-        assert drivers[name]["extensions"] is None or isinstance(
-            drivers[name]["extensions"], list
-        )
-        if drivers[name]["extensions"] is not None:
-            assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
+            assert drivers[name]["read"] is ("r" in expected_access_mode)
+            if GDAL_GE_311:
+                assert drivers[name]["append"] is ("a" in expected_access_mode)
+            else:
+                # GDAL < 3.11 does not support reporting update/append capability
+                assert drivers[name]["append"] is None
+            assert drivers[name]["write"] is ("w" in expected_access_mode)
+            assert drivers[name]["supports_vsi"]
+            assert drivers[name]["help_topic_url"] is None or isinstance(
+                drivers[name]["help_topic_url"], str
+            )
+            assert drivers[name]["extensions"] is None or isinstance(
+                drivers[name]["extensions"], list
+            )
+            if drivers[name]["extensions"] is not None:
+                assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
+        except AssertionError as e:
+            raise AssertionError(f"Error for driver {name}: {e}") from e
 
 
+@pytest.mark.network
 def test_list_drivers_details_help_topic_url():
     """Check if the help_topic_url for the GeoJSON driver is valid and reachable."""
     drivers = list_drivers_details()["GeoJSON"]

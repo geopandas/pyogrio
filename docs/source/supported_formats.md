@@ -25,7 +25,7 @@ You can also use [Virtual File System](https://gdal.org/user/virtual_file_system
 paths to read e.g. remote or zipped data sources and directories.
 
 Most Pyogrio functionalities will most likely work for the other vector formats
-available in your local installation of GDAL. Nonetheles, please be aware that
+available in your local installation of GDAL. Nonetheless, please be aware that
 these likely have not been tested for compatibility with Pyogrio and you may
 encounter specific issues with these formats and / or their constituent geometry
 or field data types.
