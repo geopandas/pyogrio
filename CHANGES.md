@@ -4,19 +4,15 @@
 
 ### Improvements
 
--   Add `list_drivers_details` function to list the available drivers with more
+-   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
+-   Add `list_drivers_details()` function to list the available drivers with more
     detailed properties like the long driver names, whether read/append/write is
     supported by the driver,... (#656).
 -   Add whether append is supported in `list_drivers` (#559)
--   Add `vsi_curl_clear_cache` to allow users to clear the local gdal vsi cache
-    associated with /vsicurl/ (and related file systems). When a `prefix` is provided,
-    only cached state for any file or directory starting with that prefix will be
-    cleared (=[`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)).
-    If no `prefix` is specified, the entire local cache is cleared
-    ((=[`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev)))
-    (#605).
--   Improve performance of `read_dataframe` without arrow, especially if a filter is
-    used (#577).
+-   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi cache
+    associated with /vsicurl/ (and related file systems) (#605).
+-   Improve performance of `read_dataframe` (especially if a filter is used)
+    and `write_dataframe` without Arrow (#577, #674).
 -   Unlock the gil during GDAL functions that can take significant time to improve
     performance when multithreading (#572).
 
@@ -24,13 +20,13 @@
 
 -   Fix writing non-string object columns with arrow (#630).
 -   Fix writing empty string category columns with arrow fails (#621).
--   Fix Time type columns being skipped with `use_arrow=False` (#617).
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
 
 ### Packaging
 
 -   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4 (#658).
+-   The wheels for Python 3.11+ are now distributed on PyPI as a single ABI3 wheel per platform (#660).
 
 ## 0.12.1 (2025-11-28)
 
