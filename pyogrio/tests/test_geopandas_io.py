@@ -29,6 +29,7 @@ from pyogrio._compat import (
     HAS_PYARROW,
     HAS_PYPROJ,
     PANDAS_GE_15,
+    PANDAS_GE_22,
     PANDAS_GE_23,
     PANDAS_GE_30,
     SHAPELY_GE_21,
@@ -1054,7 +1055,18 @@ def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
     if dates[0].tzinfo is None:
         exp_df.dates = pd.to_datetime(exp_df.dates, utc=False)
         if PANDAS_GE_20:
-            exp_df.dates = exp_df.dates.dt.as_unit("ms")
+            exp_df["dates"] = exp_df.dates.dt.as_unit("ms")
+    else:
+        # pandas < 2.2 returns this as objects, and pandas >= 3.0 raises an error
+        # but apparently in between (with ISO format) it actually incorrectly "works"
+        # by applying the tz also to the naive strings
+        if PANDAS_GE_22 and not PANDAS_GE_30:
+            exp_df.loc[1, "dates"] = exp_df.loc[1, "dates"].replace(
+                tzinfo=timezone(timedelta(hours=1))
+            )
+            exp_df["dates"] = pd.to_datetime(exp_df.dates)
+            if PANDAS_GE_20:
+                exp_df["dates"] = exp_df.dates.dt.as_unit("ms")
 
     if not PANDAS_GE_30:
         exp_df.loc[2, "dates"] = None
