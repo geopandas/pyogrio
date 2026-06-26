@@ -137,6 +137,50 @@ def get_gdal_config_option(str name):
     return str_value
 
 
+def ogr_driver_supports_open(driver):
+    """Check if driver supports opening and reading an existing file.
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports opening and reading an existing file, False otherwise.
+
+    """
+    if _get_driver_metadata_item(driver, "DCAP_OPEN") == "YES":
+        return True
+
+    return False
+
+
+def ogr_driver_supports_write(driver):
+    """Check if driver supports creation/writing of new files.
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports creation of new files, False otherwise.
+
+    """
+    if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
+        return True
+
+    return False
+
+
 def ogr_driver_supports_update(driver):
     """Check metadata for driver to see if it supports update.
 
@@ -156,8 +200,10 @@ def ogr_driver_supports_update(driver):
     IF CTE_GDAL_VERSION >= (3, 11, 0):
         if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
             return True
+        else:
+            return False
 
-    return False
+    return None
 
 
 def ogr_driver_supports_append(driver):
@@ -179,30 +225,10 @@ def ogr_driver_supports_append(driver):
     IF CTE_GDAL_VERSION >= (3, 12, 0):
         if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
             return True
+        else:
+            return False
 
-    return False
-
-
-def ogr_driver_supports_write(driver):
-    """Check if driver supports writing/creation of new files.
-
-    Is determined based on the GDAL driver metadata.
-
-    Parameters
-    ----------
-    driver : str
-        Driver to check
-
-    Returns
-    -------
-    bool
-        True if driver supports writing/creation of new files, False otherwise.
-
-    """
-    if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
-        return True
-
-    return False
+    return None
 
 
 def ogr_driver_supports_vsi(driver):
@@ -228,13 +254,13 @@ def ogr_driver_supports_vsi(driver):
 
 
 def ogr_list_drivers():
-    """List all available OGR drivers with read/write mode.
+    """List all available OGR drivers with their supported access modes.
 
     Returns
     -------
     dict
         Dictionary with the driver name as key and the supported modes as value
-        ("r" or "rw")
+        ("r", "rw" or "raw")
 
     """
     cdef OGRSFDriverH driver = NULL
@@ -247,15 +273,68 @@ def ogr_list_drivers():
         name_c = <char *>OGR_Dr_GetName(driver)
         name = get_string(name_c)
 
-        capability = "r"
+        supports_append = ogr_driver_supports_update(name)
+        if not supports_append and CTE_GDAL_VERSION >= (3, 12, 0):
+            supports_append = ogr_driver_supports_append(name)
 
-        if ogr_driver_supports_update(name) or ogr_driver_supports_append(name):
-            capability += "a"
-
+        access_modes = ""
+        if ogr_driver_supports_open(name):
+            access_modes += "r"
+        if supports_append:
+            access_modes += "a"
         if ogr_driver_supports_write(name):
-            capability += "w"
+            access_modes += "w"
 
-        drivers[name] = capability
+        drivers[name] = access_modes
+
+    return drivers
+
+
+def ogr_list_drivers_details():
+    """List all available OGR drivers with detailed information.
+
+    Returns
+    -------
+    dict
+        Dictionary with the driver name as key and a dict with detailed driver
+        properties.
+
+    """
+    cdef OGRSFDriverH driver = NULL
+    cdef int i
+    cdef char *name_c
+
+    GDAL_URL = "https://gdal.org/en/stable"
+
+    drivers = dict()
+    for i in range(OGRGetDriverCount()):
+        driver = OGRGetDriver(i)
+
+        name_c = <char *>OGR_Dr_GetName(driver)
+        name = get_string(name_c)
+
+        extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+        if extensions is not None:
+            extensions = [f".{ext}" for ext in extensions.split(" ")]
+
+        relative_help_url = _get_driver_metadata_item(name, "DMD_HELPTOPIC")
+        help_topic_url = (
+            f"{GDAL_URL}/{relative_help_url}" if relative_help_url is not None else None
+        )
+
+        supports_append = ogr_driver_supports_update(name)
+        if not supports_append and CTE_GDAL_VERSION >= (3, 12, 0):
+            supports_append = ogr_driver_supports_append(name)
+
+        drivers[name] = {
+            "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
+            "read": ogr_driver_supports_open(name),
+            "append": supports_append,
+            "write": ogr_driver_supports_write(name),
+            "supports_vsi": ogr_driver_supports_vsi(name),
+            "help_topic_url": help_topic_url,
+            "extensions": extensions,
+        }
 
     return drivers
 

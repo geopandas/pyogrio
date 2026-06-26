@@ -1,4 +1,5 @@
 import re
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,7 @@ from pyogrio import (
 )
 from pyogrio._compat import GDAL_GE_38, GDAL_GE_311, GDAL_GE_312
 from pyogrio._env import GDALEnv
+from pyogrio.core import list_drivers_details
 from pyogrio.errors import DataLayerError, DataSourceError
 from pyogrio.raw import read, write
 from pyogrio.tests.conftest import (
@@ -43,6 +45,59 @@ try:
     import shapely
 except ImportError:
     pass
+
+
+@pytest.fixture()
+def driver_access_modes() -> dict[str, str]:
+    """Expected driver access modes adjusted for the active GDAL version."""
+    # Base expected driver access modes.
+    driver_access_modes: dict[str, str] = {
+        "AeronavFAA": "r",
+        "ARCGEN": "r",
+        "BNA": "rw",
+        "DXF": "rw",
+        "CSV": "raw",
+        "FileGDB": "raw",
+        "OpenFileGDB": "raw",
+        "ESRIJSON": "r",
+        "ESRI Shapefile": "raw",
+        "FlatGeobuf": "rw",  # Remark: append only if no spatial index
+        "GeoJSON": "raw",
+        "GeoJSONSeq": "raw",
+        "GPKG": "raw",
+        "GML": "rw",
+        "GMT": "rw",
+        "OGR_GMT": "rw",
+        "GPX": "rw",
+        "Idrisi": "r",
+        "MapInfo File": "raw",
+        "DGN": "rw",  # Remark: unclear if append is possible
+        # "Parquet": "rw",  # Newer versions of GDAL support append
+        "PCIDSK": "raw",
+        "PDS": "r",
+        "PGDUMP": "w",
+        "OGR_PDS": "r",
+        "S57": "rw",  # Remark: create supported according to GDAL docs
+        "SEGY": "r",
+        "SQLite": "raw",
+        "SUA": "r",
+        "TileDB": "raw",
+        "TopoJSON": "r",
+    }
+
+    # Update / append capability is only available from GDAL 3.11 onwards.
+    if not GDAL_GE_311:
+        driver_access_modes = {
+            name: mode.replace("a", "") for name, mode in driver_access_modes.items()
+        }
+
+    # GeoJSONSeq append capability is only available from GDAL 3.12 onwards.
+    if not GDAL_GE_312:
+        driver_access_modes["GeoJSONSeq"] = driver_access_modes["GeoJSONSeq"].replace(
+            "a", ""
+        )
+
+    return driver_access_modes
 
 
 def test_gdal_data():
@@ -136,60 +191,19 @@ def test_ogr_driver_supports_write(driver, expected):
     assert ogr_driver_supports_write(driver) == expected
 
 
-def test_list_drivers():
+def test_list_drivers(driver_access_modes):
     all_drivers = list_drivers()
 
-    # Expected capabilities based on `fiona.supported_drivers`.
-    expected_drivers: dict[str, str] = {
-        "AeronavFAA": "r",
-        "ARCGEN": "r",
-        "BNA": "rw",
-        "DXF": "rw",
-        "CSV": "raw",
-        "FileGDB": "raw",
-        "OpenFileGDB": "raw",
-        "ESRIJSON": "r",
-        "ESRI Shapefile": "raw",
-        "FlatGeobuf": "rw",  # Changed: "raw" to "rw": append only if no spatial index
-        "GeoJSON": "raw",
-        "GeoJSONSeq": "raw",
-        "GPKG": "raw",
-        "GML": "rw",
-        "GMT": "rw",
-        "OGR_GMT": "rw",
-        "GPX": "rw",
-        "Idrisi": "r",
-        "MapInfo File": "raw",
-        "DGN": "rw",  # Changed: "raw" to "rw": unclear if append is possible
-        # "Parquet": "rw",  # Newer versions of GDAL support append
-        "PCIDSK": "raw",
-        "PDS": "r",
-        "OGR_PDS": "r",
-        "S57": "rw",  # Changed: "r" to "rw": create supported according to GDAL docs
-        "SEGY": "r",
-        "SQLite": "raw",
-        "SUA": "r",
-        "TileDB": "raw",
-        "TopoJSON": "r",
-    }
-
-    # verify that the core drivers are present
-    for name, expected_capability in expected_drivers.items():
+    # Verify that the core drivers are present + their capabilities match expectations.
+    for name, expected_capability in driver_access_modes.items():
         if name not in all_drivers:
             continue
-
-        # Update (including append) capability only available from GDAL 3.11 onwards
-        if not GDAL_GE_311:
-            expected_capability = expected_capability.replace("a", "")
-        # Specifically for GeoJSONSeq, that only supports append, it is only available
-        # from GDAL 3.12 onwards
-        if name == "GeoJSONSeq" and not GDAL_GE_312:
-            expected_capability = expected_capability.replace("a", "")
 
         assert all_drivers[name] == expected_capability, (
             f"Error for {name}: {expected_capability=}, {all_drivers[name]=}"
         )
 
+    # Check the filtering functionality of list_drivers
     drivers = list_drivers(read=True)
     expected = {k: v for k, v in all_drivers.items() if v.startswith("r")}
     assert len(drivers) == len(expected)
@@ -215,6 +229,51 @@ def test_list_drivers():
         if v.startswith("r") and v.endswith("w") and "a" in v
     }
     assert len(drivers) == len(expected)
+
+
+def test_list_drivers_details(driver_access_modes):
+    drivers = list_drivers_details()
+
+    # Verify detailed capabilities for all drivers that we track expected access for.
+    for name, expected_access_mode in driver_access_modes.items():
+        if name not in drivers:
+            continue
+
+        try:
+            assert drivers[name]["long_name"] is not None
+
+            assert drivers[name]["read"] is ("r" in expected_access_mode)
+            if GDAL_GE_311:
+                assert drivers[name]["append"] is ("a" in expected_access_mode)
+            else:
+                # GDAL < 3.11 does not support reporting update/append capability
+                assert drivers[name]["append"] is None
+            assert drivers[name]["write"] is ("w" in expected_access_mode)
+            assert drivers[name]["supports_vsi"]
+            assert drivers[name]["help_topic_url"] is None or isinstance(
+                drivers[name]["help_topic_url"], str
+            )
+            assert drivers[name]["extensions"] is None or isinstance(
+                drivers[name]["extensions"], list
+            )
+            if drivers[name]["extensions"] is not None:
+                assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
+        except AssertionError as e:
+            raise AssertionError(f"Error for driver {name}: {e}") from e
+
+
+@pytest.mark.network
+def test_list_drivers_details_help_topic_url():
+    """Check if the help_topic_url for the GeoJSON driver is valid and reachable."""
+    drivers = list_drivers_details()["GeoJSON"]
+
+    request = urllib.request.Request(
+        drivers["help_topic_url"], method="HEAD", headers={"User-Agent": "pyogrio-test"}
+    )
+    ret = urllib.request.urlopen(request)
+    assert ret.status == 200, (
+        f"Help topic URL {drivers['help_topic_url']} is not reachable"
+    )
 
 
 def test_list_layers(

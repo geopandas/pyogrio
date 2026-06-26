@@ -921,7 +921,9 @@ def write_dataframe(
         elif col.dtype == "object":
             # Column of Timestamp/datetime objects, split in naive datetime and tz.
             if pd.api.types.infer_dtype(df[name]) == "datetime":
-                tz_offset = col.map(lambda x: x.utcoffset(), na_action="ignore")
+                tz_offset = col.map(lambda x: x.utcoffset(), na_action="ignore").astype(
+                    "timedelta64[us]" if PANDAS_GE_30 else "timedelta64[ns]"
+                )
                 gdal_offset_repr = tz_offset // pd.Timedelta("15m") + 100
                 gdal_tz_offsets[name] = gdal_offset_repr.values
                 naive = col.map(lambda x: x.replace(tzinfo=None), na_action="ignore")

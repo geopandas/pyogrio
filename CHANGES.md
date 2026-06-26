@@ -1,21 +1,34 @@
 # CHANGELOG
 
-## 0.13.0 (xxxx-xx-xx)
-
-### Improvements
-
--   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
-    [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
-    in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
-    used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
--   Add whether append is supported in `list_drivers` (#559)
+## 0.13.1 (????-??-??)
 
 ### Bug fixes
 
 -   Fix wrong handling of some windows network paths (#635).
+
+## 0.13.0 (????-??-??)
+
+### Improvements
+
+-   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
+-   Add `list_drivers_details()` function to list the available drivers with more
+    detailed properties like the long driver names, whether read/append/write is
+    supported by the driver,... (#656).
+-   Add whether append is supported in `list_drivers` (#559)
+-   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi cache
+    associated with /vsicurl/ (and related file systems) (#605).
+-   Improve performance of `read_dataframe` (especially if a filter is used)
+    and `write_dataframe` without Arrow (#577, #674).
+-   Unlock the gil during GDAL functions that can take significant time to improve
+    performance when multithreading (#572).
+
+### Bug fixes
+
+-   Fix error in `write_dataframe` with `use_arrow=False` when writing an object-type
+    column with datetimes without any time zone offsets or with a mix of offsets and
+    no offsets (#634).
 -   Fix writing non-string object columns with arrow (#630).
 -   Fix writing empty string category columns with arrow fails (#621).
--   Fix Time type columns being skipped with `use_arrow=False` (#617).
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
 
@@ -47,8 +60,6 @@
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558, #597).
--   Improve performance of `read_dataframe`, especially if a filter is used (#577).
--   Unlock the gil during GDAL functions that can take significant time (#572).
 
 ### Bug fixes
 
