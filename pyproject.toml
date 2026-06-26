@@ -75,6 +75,17 @@ repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-wind
 [tool.cython-lint]
 ignore = ["E265", "E222"]
 
+[tool.pytest.ini_options]
+log_level = "DEBUG"
+# Write all logging and warnings immediately while running test with debugger.
+# log_cli = true
+# addopts = "-p no:warnings"
+
+# Some filters that apply to warnings that can be ignored for any test.
+filterwarnings = [
+    "ignore: Cannot set the CRS, falling back to None. The CRS support requires the 'pyproj' package, but it is not installed or does not import correctly",
+]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
