@@ -74,17 +74,21 @@ cdef str get_geometry_type(void *ogr_layer):
     Parameters
     ----------
     ogr_layer : pointer to open OGR layer
+        The open OGR layer to get the geometry type for.
 
     Returns
     -------
     str
         geometry type
+
     """
     cdef void *ogr_featuredef = NULL
     cdef OGRwkbGeometryType ogr_type
 
     try:
-        ogr_featuredef = check_pointer(OGR_L_GetLayerDefn(ogr_layer))
+        with nogil:
+            ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+        ogr_featuredef = check_pointer(ogr_featuredef)
     except NullPointerError:
         raise DataLayerError("Could not get layer definition")
 
@@ -117,11 +121,13 @@ cdef OGRwkbGeometryType get_geometry_type_code(str geometry_type) except *:
     Parameters
     ----------
     geometry_type : str
+        Geometry type as a string.
 
     Returns
     -------
     int
         geometry type code
+
     """
     if geometry_type not in GEOMETRY_TYPE_CODES:
         raise GeometryError(f"Geometry type is not supported: {geometry_type}")

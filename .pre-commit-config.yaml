@@ -1,11 +1,11 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.11.5"
+    rev: "v0.15.16"
     hooks:
       - id: ruff-format
-      - id: ruff
+      - id: ruff-check
   - repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.16.6
+    rev: v0.19.0
     hooks:
       - id: cython-lint
       - id: double-quote-cython-strings

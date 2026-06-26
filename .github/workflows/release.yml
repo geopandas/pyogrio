@@ -20,6 +20,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
+env:
+  GDAL_VERSION: "3.12.4"
+  VCPKG_GDAL_COMMIT: 89dac9685f8d0ebd0a07d8b93ed51215c3a2fb2c
+
 jobs:
   build-sdist:
     name: Build pyogrio sdist
@@ -27,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -54,7 +58,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.4"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.12.4"
 
     steps:
       - name: Install packages
@@ -90,7 +94,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
@@ -120,7 +123,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -137,15 +140,17 @@ jobs:
           context: .
           file: ${{ matrix.container }}
           tags: manylinux-${{ matrix.arch }}-vcpkg-gdal:latest
+          build-args: |
+            VCPKG_GDAL_COMMIT=${{ env.VCPKG_GDAL_COMMIT }}
           push: false
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.container }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.container }}
         env:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.0
+        uses: pypa/cibuildwheel@v4.1.0
 
       - uses: actions/upload-artifact@v7
         with:
@@ -181,7 +186,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -192,15 +197,15 @@ jobs:
           path: |
             ${{ matrix.vcpkg_cache }}
           # bump the last digit to avoid using previous build cache
-          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal3.11.4-cache0
+          key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
-      # to be missing in default image
-      - name: Reinstall automake
+      # to be missing in default image. In addition, building libspatialite also
+      # requires full autotools
+      - name: Install autotools prerequisites
         if: runner.os == 'macOS'
         run: |
-          brew reinstall automake
-          brew install libtool
+          brew install autoconf autoconf-archive automake libtool
           echo $(which aclocal)
 
       - name: Checkout specific version of vcpkg
@@ -211,7 +216,7 @@ jobs:
           git reset --hard
           # pull specific commit with desired GDAL version
           git pull
-          git checkout da096fdc67db437bee863ae73c4c12e289f82789
+          git checkout ${{ env.VCPKG_GDAL_COMMIT }}
 
       - name: Install GDAL
         env:
@@ -229,7 +234,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.0
+        uses: pypa/cibuildwheel@v4.1.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -276,7 +281,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: ci/requirements-wheel-test.txt
+          sparse-checkout-cone-mode: false
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -328,7 +336,6 @@ jobs:
         shell: bash
         # virtual environment is automatically activated
         run: |
-          cd ..
           uv run python -c "import pyogrio; print(f'GDAL version: {pyogrio.__gdal_version__}\nGEOS version: {pyogrio.__gdal_geos_version__}')"
           uv run python -m pytest --pyargs pyogrio.tests -v
 
@@ -358,7 +365,7 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: Version ${{ github.ref_name }}
           tag_name: ${{ github.ref }}
