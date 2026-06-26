@@ -85,7 +85,7 @@ markers = [
 
 # Some filters that apply to warnings that can be ignored for any test.
 filterwarnings = [
-    "ignore:Cannot set the CRS, falling back to None. The CRS support requires the 'pyproj' package, but it is not installed or does not import correctly",
+    #"error",
 ]
 
 [tool.versioneer]

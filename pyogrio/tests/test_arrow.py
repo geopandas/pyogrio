@@ -19,6 +19,7 @@ from pyogrio import (
     set_gdal_config_options,
     vsi_listtree,
 )
+from pyogrio._compat import HAS_PYPROJ
 from pyogrio.errors import DataLayerError, DataSourceError, FieldError
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
 from pyogrio.tests.conftest import (
@@ -44,6 +45,17 @@ except ImportError:
 pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
 pa = pytest.importorskip("pyarrow")
+
+
+if not HAS_PYPROJ:
+    # Ignore warnings related to missing pyproj
+    pytestmark = [
+        pytest.mark.filterwarnings(
+            "ignore:Cannot set the CRS, falling back to None. The CRS support "
+            "requires the 'pyproj' package, but it is not installed or does not "
+            "import correctly"
+        ),
+    ]
 
 
 def test_read_arrow(naturalearth_lowres_all_ext):
