@@ -10,9 +10,9 @@ You can display the GDAL version that Pyogrio was compiled against by
 
 ## List available drivers
 
-Use {func}`~pyogrio.list_drivers` to list all available drivers in your installation
-of GDAL. However, just because a driver is listed does not mean that it is
-currently compatible with Pyogrio.
+Use {func}`~pyogrio.list_drivers` to list all available drivers in your
+installation of GDAL. However, just because a driver is listed does not
+mean that it is fully supported in Pyogrio.
 
 ```{warning}
 Not all geometry or field types may be supported for all drivers.
@@ -21,21 +21,25 @@ Not all geometry or field types may be supported for all drivers.
 ```python
 >>> from pyogrio import list_drivers
 >>> list_drivers()
-{...'GeoJSON': 'rw', 'GeoJSONSeq': 'rw',...}
+{...'GeoJSON': 'raw', 'GeoJSONSeq': 'raw',...}
 ```
 
-Drivers that support write capability in your version of GDAL end in `"w"`.
-Certain drivers that are known to be unsupported in Pyogrio are disabled for
-write capabilities.
+The drivers are returned as a dict, where the value gives some more
+information about the driver. For drivers that support opening and reading
+an existing file, the corresponding value will contain an `"r"`. If the driver
+supports appending data to an existing file, it will contain an `"a"`. If the
+driver supports creating a new file and writing data to it, it will contain a
+`"w"`.
 
-NOTE: not all drivers support writing the contents of a GeoDataFrame; you may
-encounter errors due to unsupported data types, unsupported geometry types,
-or other driver-related errors when writing to a data source.
+NOTE: not all drivers support writing the contents of any GeoDataFrame; you
+may encounter errors due to unsupported data types, unsupported geometry
+types, or other driver-related errors when writing to a data source.
 
-To find subsets of drivers that support read or write capabilities:
+To find subsets of drivers that support read, append or write capabilities:
 
 ```python
 >>> list_drivers(read=True)
+>>> list_drivers(append=True)
 >>> list_drivers(write=True)
 ```
 

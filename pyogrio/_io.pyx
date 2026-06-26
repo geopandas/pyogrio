@@ -6,7 +6,6 @@ import contextlib
 import datetime
 import locale
 import logging
-import math
 import os
 import shutil
 import sys
@@ -16,7 +15,7 @@ IF CTE_GDAL_VERSION < (3, 8, 0):
 
 from libc.stdint cimport uint8_t, uintptr_t
 from libc.stdlib cimport malloc, free
-from libc.math cimport isnan
+from libc.math cimport isnan, modff
 from cpython.pycapsule cimport PyCapsule_GetPointer
 
 cimport cython
@@ -548,37 +547,36 @@ cdef get_feature_count(OGRLayerH ogr_layer, int force):
             OGR_L_ResetReading(ogr_layer)
 
         feature_count = 0
-        while True:
-            try:
-                # Don't use `with nogil` inside this loop, as if there are many
-                # features, the overhead of acquiring and releasing the GIL becomes
-                # significant on linux.
-                ogr_feature = OGR_L_GetNextFeature(ogr_layer)
-                ogr_feature = check_pointer(ogr_feature)
-                feature_count +=1
 
-            except NullPointerError:
-                # No more rows available, so stop reading
-                break
+        try:
+            with nogil:
+                while True:
+                    ogr_feature = OGR_L_GetNextFeature(ogr_layer)
+                    ogr_feature = check_pointer(ogr_feature)
+                    feature_count +=1
 
-            # driver may raise other errors, e.g., for OSM if node ids are not
-            # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
-            # causes errors iterating over features
-            except CPLE_BaseError as exc:
-                # if an invalid where clause is used for a GPKG file, it is not
-                # caught as an error until attempting to iterate over features;
-                # catch it here
-                if "failed to prepare SQL" in str(exc):
-                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
+        except NullPointerError:
+            # No more rows available, so stop reading
+            pass
 
-                raise DataLayerError(
-                    f"Could not iterate over features: {str(exc)}"
-                ) from None
+        # driver may raise other errors, e.g., for OSM if node ids are not
+        # increasing, the default config option OSM_USE_CUSTOM_INDEXING=YES
+        # causes errors iterating over features
+        except CPLE_BaseError as exc:
+            # if an invalid where clause is used for a GPKG file, it is not
+            # caught as an error until attempting to iterate over features;
+            # catch it here
+            if "failed to prepare SQL" in str(exc):
+                raise ValueError(f"Invalid SQL query: {str(exc)}") from None
 
-            finally:
-                if ogr_feature != NULL:
-                    OGR_F_Destroy(ogr_feature)
-                    ogr_feature = NULL
+            raise DataLayerError(
+                f"Could not iterate over features: {str(exc)}"
+            ) from None
+
+        finally:
+            if ogr_feature != NULL:
+                OGR_F_Destroy(ogr_feature)
+                ogr_feature = NULL
 
     return feature_count
 
@@ -1033,10 +1031,10 @@ cdef process_fields(
     OGRFeatureH ogr_feature,
     int i,
     int n_fields,
-    object field_data,
-    object field_data_view,
-    object field_indexes,
-    object field_ogr_types,
+    list field_data,
+    list field_data_view,
+    list field_indexes,
+    list field_ogr_types,
     encoding,
     bint datetime_as_string
 ):
@@ -1057,9 +1055,9 @@ cdef process_fields(
     field_data_view : object
         A view to the array to save the data to
     field_indexes : object
-        An array with the indexes to each field in the feature
+        A list with the indexes to each field in the feature
     field_ogr_types : object
-        An array with the OGR types for each field
+        A list with the OGR types for each field
     encoding : object
         The encoding to use for reading string field data
     datetime_as_string : bint
@@ -1069,6 +1067,7 @@ cdef process_fields(
     cdef int j
     cdef int success
     cdef int field_index
+    cdef int field_type
     cdef int ret_length
     cdef const int *ints_c
     cdef const GIntBig *int64s_c
@@ -1081,6 +1080,7 @@ cdef process_fields(
     cdef int hour = 0
     cdef int minute = 0
     cdef float fsecond = 0.0
+    cdef float ss = 0.0
     cdef int timezone = 0
 
     for j in range(n_fields):
@@ -1153,7 +1153,7 @@ cdef process_fields(
                     &timezone,
                 )
 
-                ms, ss = math.modf(fsecond)
+                ms = modff(fsecond, &ss)
                 second = int(ss)
                 # fsecond has millisecond accuracy
                 microsecond = round(ms * 1000) * 1000
@@ -1270,50 +1270,55 @@ cdef get_features(
     cdef int i
     cdef int field_index
 
-    # make sure layer is read from beginning
+    # Make sure the layer is read from the beginning
     with nogil:
         OGR_L_ResetReading(ogr_layer)
 
     if skip_features > 0:
         apply_skip_features(ogr_layer, skip_features)
 
-    if return_fids:
-        fid_data = np.empty(shape=(num_features), dtype=np.int64)
-        fid_view = fid_data[:]
-    else:
-        fid_data = None
+    # We don't (always) know beforehand how many features there will be read, so
+    # allocate output arrays as needed (in chunks), and return the concatenated results.
+    last_chunk_size = 500    # the first chunk size will be 2 * last_chunk_size
+    max_chunk_size = 65_536  # this is the default chunk size for arrow arrays
 
-    if read_geometry:
-        geometries = np.empty(shape=(num_features, ), dtype="object")
-        geom_view = geometries[:]
+    if num_features >= 0:
+        last_chunk_size = num_features
 
-    else:
-        geometries = None
-
+    fid_chunks = []
+    geom_chunks = []
     n_fields = fields.shape[0]
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_data_chunks: list[list[np.ndarray]] = []
 
-    field_data = []
-    for field_index in range(n_fields):
-        if datetime_as_string and fields[field_index, 3].startswith("datetime"):
-            dtype = "object"
-        elif fields[field_index, 3].startswith("list"):
-            dtype = "object"
-        else:
-            dtype = fields[field_index, 3]
+    def add_data_chunk(size):
+        """Add a new data chunk to the output array lists."""
+        if return_fids:
+            fid_chunks.append(np.empty(shape=(size, ), dtype=np.int64))
+        if read_geometry:
+            geom_chunks.append(np.empty(shape=(size, ), dtype="object"))
 
-        field_data.append(np.empty(shape=(num_features, ), dtype=dtype))
+        field_data_chunk: list[np.ndarray] = []
+        for field_index in range(n_fields):
+            if datetime_as_string and fields[field_index, 3].startswith("datetime"):
+                dtype = "object"
+            elif fields[field_index, 3].startswith("list"):
+                dtype = "object"
+            else:
+                dtype = fields[field_index, 3]
 
-    field_data_view = [field_data[field_index][:] for field_index in range(n_fields)]
+            field_data_chunk.append(np.empty(shape=(size, ), dtype=dtype))
 
-    if num_features == 0:
-        return fid_data, geometries, field_data
+        field_data_chunks.append(field_data_chunk)
 
     i = 0
+    i_total = 0
+    last_chunk_index = -1
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
+
     while True:
         try:
-            if num_features > 0 and i == num_features:
+            if num_features >= 0 and i_total == num_features:
                 break
 
             try:
@@ -1328,9 +1333,12 @@ cdef get_features(
                 break
 
             except CPLE_BaseError as exc:
+                if "failed to prepare SQL" in str(exc):
+                    raise ValueError(f"Invalid SQL query: {str(exc)}") from None
+
                 raise FeatureError(str(exc))
 
-            if i >= num_features:
+            if num_features > 0 and i_total >= num_features:
                 raise FeatureError(
                     "GDAL returned more records than expected based on the count of "
                     "records that may meet your combination of filters against this "
@@ -1339,6 +1347,24 @@ cdef get_features(
                     "encountering this error."
                 ) from None
 
+            if i_total == 0 or i == last_chunk_size:
+                # No chunk yet or last chunk filled up: add a new chunk.
+                i = 0
+                last_chunk_index += 1
+                if num_features < 0 and last_chunk_size < max_chunk_size:
+                    # Double chunk size for next chunk, up to max_chunk_size
+                    last_chunk_size = min(last_chunk_size * 2, max_chunk_size)
+
+                add_data_chunk(last_chunk_size)
+                if return_fids:
+                    fid_view = fid_chunks[last_chunk_index][:]
+                if read_geometry:
+                    geom_view = geom_chunks[last_chunk_index][:]
+                field_data_view = [
+                    field_data_chunks[last_chunk_index][field_index][:]
+                    for field_index in range(n_fields)
+                ]
+
             if return_fids:
                 fid_view[i] = OGR_F_GetFID(ogr_feature)
 
@@ -1346,27 +1372,56 @@ cdef get_features(
                 process_geometry(ogr_feature, i, geom_view, force_2d)
 
             process_fields(
-                ogr_feature, i, n_fields, field_data, field_data_view,
-                field_indexes, field_ogr_types, encoding, datetime_as_string
+                ogr_feature, i, n_fields, field_data_chunks[last_chunk_index],
+                field_data_view, field_indexes, field_ogr_types, encoding,
+                datetime_as_string
             )
+
             i += 1
+            i_total += 1
+
         finally:
             if ogr_feature != NULL:
                 OGR_F_Destroy(ogr_feature)
                 ogr_feature = NULL
 
-    # There may be fewer rows available than expected from OGR_L_GetFeatureCount,
-    # such as features with bounding boxes that intersect the bbox
-    # but do not themselves intersect the bbox.
-    # Empty rows are dropped.
-    if i < num_features:
-        if return_fids:
-            fid_data = fid_data[:i]
-        if read_geometry:
-            geometries = geometries[:i]
-        field_data = [data_field[:i] for data_field in field_data]
+    # If no features were read, add an empty chunk
+    if i_total == 0:
+        add_data_chunk(0)
+        last_chunk_size = 0
+        last_chunk_index = 0
 
-    return fid_data, geometries, field_data
+    # If the last chunk wasn't completely full, drop empty rows
+    if i < last_chunk_size:
+        if return_fids:
+            fid_chunks[last_chunk_index] = fid_chunks[last_chunk_index][:i]
+        if read_geometry:
+            geom_chunks[last_chunk_index] = geom_chunks[last_chunk_index][:i]
+        for field_index in range(n_fields):
+            field_data_chunks[last_chunk_index][field_index] = (
+                field_data_chunks[last_chunk_index][field_index][:i]
+            )
+
+    if last_chunk_index == 0:
+        # Only one chunk, so avoid concatenation
+        fid_data = fid_chunks[0] if return_fids else None
+        geom_data = geom_chunks[0] if read_geometry else None
+
+        return fid_data, geom_data, field_data_chunks[0]
+
+    else:
+        # Concatenate all chunks
+        fid_data = np.concatenate(fid_chunks) if return_fids else None
+        geom_data = np.concatenate(geom_chunks) if read_geometry else None
+
+        field_data = []
+        for field_index in range(n_fields):
+            data_to_concat = []
+            for chunk in range(last_chunk_index + 1):
+                data_to_concat.append(field_data_chunks[chunk][field_index])
+            field_data.append(np.concatenate(data_to_concat))
+
+        return fid_data, geom_data, field_data
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -1425,8 +1480,8 @@ cdef get_features_by_fid(
         geometries = None
 
     n_fields = fields.shape[0]
-    field_indexes = fields[:, 0]
-    field_ogr_types = fields[:, 1]
+    field_indexes = list(fields[:, 0])
+    field_ogr_types = list(fields[:, 1])
     field_data = [
         np.empty(
             shape=(count, ),
@@ -1737,10 +1792,30 @@ def ogr_read(
             elif mask is not None:
                 apply_geometry_filter(ogr_layer, mask)
 
-            # Limit feature range to available range
-            skip_features, num_features = validate_feature_range(
-                ogr_layer, skip_features, max_features
-            )
+            # Limit feature range to available range, but avoid doing an actual count if
+            # not needed (with num_features=-1, we will read in chunks in get_features)
+            num_features = -1
+            if max_features > 0:
+                num_features = max_features
+
+            # When skipping features, we need to validate the value against the
+            # actual count to avoid out-of-bound index in apply_skip_features
+            if skip_features > 0:
+                skip_features, num_features = validate_feature_range(
+                    ogr_layer, skip_features, max_features
+                )
+
+            # If there are no filters and the driver supports fast feature count, we can
+            # determine the feature count already which avoids chunking in get_features.
+            if (
+                where is None
+                and bbox is None
+                and mask is None
+                and skip_features == 0
+                and max_features == 0
+                and num_features < 0
+            ):
+                num_features = get_feature_count(ogr_layer, 0)
 
             fid_data, geometries, field_data = get_features(
                 ogr_layer,
@@ -2828,9 +2903,9 @@ def ogr_write(
     str layer,
     str driver,
     geometry,
-    fields,
-    field_data,
-    field_mask,
+    list fields,
+    list field_data,
+    list field_mask,
     str crs,
     str geometry_type,
     str encoding,
@@ -2858,6 +2933,10 @@ def ogr_write(
     cdef int num_records = -1
     cdef int num_field_data = len(field_data) if field_data is not None else 0
     cdef int num_fields = len(fields) if fields is not None else 0
+    cdef list field_indexes = []
+    cdef list field_ogr_types = []
+    cdef int field_index
+    cdef int field_type
     cdef bint use_tmp_vsimem = False
 
     if num_fields != num_field_data:
@@ -2931,11 +3010,11 @@ def ogr_write(
 
         if layer_created:
             for i in range(num_fields):
-                field_type, field_subtype, width, _precision = field_types[i]
+                field_ogr_type, field_subtype, width, _precision = field_types[i]
 
                 name_b = fields[i].encode(encoding)
                 try:
-                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_type))
+                    ogr_fielddef = check_pointer(OGR_Fld_Create(name_b, field_ogr_type))
 
                     # subtypes, see: https://gdal.org/development/rfc/rfc50_ogr_field_subtype.html  # noqa: E501
                     if field_subtype != OFSTNone:
@@ -2962,7 +3041,6 @@ def ogr_write(
         # different than the order they were created, e.g. when using the KML driver.
         ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
 
-        field_indexes = []
         if OGR_FD_GetFieldCount(ogr_featuredef) == num_fields:
             field_indexes = list(range(num_fields))
         else:
@@ -2973,6 +3051,9 @@ def ogr_write(
                         f"Could not find field index for field '{fields[i]}'"
                     )
                 field_indexes.append(index)
+
+        if field_types is not None:
+            field_ogr_types = list(field_types[:, 0])
 
         # Create the features
         supports_transactions = OGR_L_TestCapability(ogr_layer, OLCTransactions)
@@ -3041,7 +3122,7 @@ def ogr_write(
             # Set field values
             for field_idx in range(num_fields):
                 field_value = field_data[field_idx][i]
-                field_type = field_types[field_idx][0]
+                field_type = field_ogr_types[field_idx]
                 field_index = field_indexes[field_idx]
 
                 mask = field_mask[field_idx]

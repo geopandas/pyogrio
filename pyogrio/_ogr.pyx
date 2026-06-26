@@ -137,6 +137,52 @@ def get_gdal_config_option(str name):
     return str_value
 
 
+def ogr_driver_supports_update(driver):
+    """Check metadata for driver to see if it supports update.
+
+    Note that update here means that both support for general updates to
+    features as well as appending new features is supported.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports update, False otherwise.
+    """
+    IF CTE_GDAL_VERSION >= (3, 11, 0):
+        if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
+            return True
+
+    return False
+
+
+def ogr_driver_supports_append(driver):
+    """Check metadata for driver to see if it supports append.
+
+    Note that this only returns True for drivers that do not support
+    general updates, but do support appending.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports append, False otherwise.
+    """
+    IF CTE_GDAL_VERSION >= (3, 12, 0):
+        if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
+            return True
+
+    return False
+
+
 def ogr_driver_supports_write(driver):
     """Check if driver supports writing/creation of new files.
 
@@ -199,14 +245,17 @@ def ogr_list_drivers():
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
         name_c = <char *>OGR_Dr_GetName(driver)
-
         name = get_string(name_c)
 
-        if ogr_driver_supports_write(name):
-            drivers[name] = "rw"
+        capability = "r"
 
-        else:
-            drivers[name] = "r"
+        if ogr_driver_supports_update(name) or ogr_driver_supports_append(name):
+            capability += "a"
+
+        if ogr_driver_supports_write(name):
+            capability += "w"
+
+        drivers[name] = capability
 
     return drivers
 
