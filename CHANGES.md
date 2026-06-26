@@ -21,6 +21,7 @@
 ### Packaging
 
 -   The GDAL library included in the wheels is upgraded from 3.11.4 to 3.12.4 (#658).
+-   The wheels for Python 3.11+ are now distributed on PyPI as a single ABI3 wheel per platform (#660).
 
 ## 0.12.1 (2025-11-28)
 

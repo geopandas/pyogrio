@@ -6,14 +6,16 @@ import platform
 import shutil
 import subprocess
 import sys
+import sysconfig
 
 from setuptools import Extension, setup, find_packages
 import versioneer
 
+from setuptools.command.build_ext import build_ext
+
 # import Cython if available
 try:
     from Cython.Build import cythonize
-    from Cython.Distutils import build_ext
 except ImportError:
     cythonize = None
 
@@ -27,6 +29,17 @@ MIN_GDAL_VERSION = (2, 4, 0)
 
 if sys.version_info < MIN_PYTHON_VERSION:
     raise RuntimeError("Python >= 3.10 is required")
+
+
+is_freethreaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+USE_LIMITED_API = (
+    os.environ.get("PYOGRIO_LIMITED_API") == "1"
+    and sys.implementation.name == "cpython"
+    and sys.version_info >= (3, 11)
+    and not is_freethreaded
+)
+ABI3_TARGET_VERSION = "cp311"
+ABI3_TARGET_HEX = 0x030B0000
 
 
 def copy_data_tree(datadir, destdir):
@@ -161,6 +174,9 @@ else:
     compile_time_env = {
         "CTE_GDAL_VERSION": gdal_version,
     }
+    if USE_LIMITED_API:
+        ext_options["define_macros"] = [("Py_LIMITED_API", ABI3_TARGET_HEX)]
+        ext_options["py_limited_api"] = True
 
     ext_modules = cythonize(
         [
@@ -202,6 +218,12 @@ version = versioneer.get_version()
 cmdclass = versioneer.get_cmdclass()
 cmdclass["build_ext"] = build_ext
 
+if USE_LIMITED_API:
+    kwargs = dict(options={"bdist_wheel": {"py_limited_api": ABI3_TARGET_VERSION}})
+else:
+    kwargs = {}
+
+
 setup(
     version=version,
     packages=find_packages(),
@@ -210,4 +232,5 @@ setup(
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     package_data=package_data,
+    **kwargs,
 )
