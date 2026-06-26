@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.13.1 (????-??-??)
+
+### Bug fixes
+
+-   Fix wrong handling of some windows network paths (#635).
+
 ## 0.13.0 (????-??-??)
 
 ### Improvements
