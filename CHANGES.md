@@ -5,7 +5,7 @@
 ### Improvements
 
 -   Add `list_drivers_details` function to list the available drivers with more
-    detailed properties like the long driver namesn whether create/update/append is
+    detailed properties like the long driver names, whether read/append/write is
     supported by the driver,... (#656).
 -   Add whether append is supported in `list_drivers` (#559)
 -   Add `vsi_curl_clear_cache` to allow users to clear the local gdal vsi cache

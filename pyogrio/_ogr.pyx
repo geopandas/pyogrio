@@ -300,6 +300,8 @@ def ogr_list_drivers_details():
     cdef int i
     cdef char *name_c
 
+    GDAL_URL = "https://gdal.org/en/stable"
+
     drivers = dict()
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
@@ -311,6 +313,11 @@ def ogr_list_drivers_details():
         if extensions is not None:
             extensions = [f".{ext}" for ext in extensions.split(" ")]
 
+        relative_help_url = _get_driver_metadata_item(name, "DMD_HELPTOPIC")
+        help_topic_url = (
+            f"{GDAL_URL}/{relative_help_url}" if relative_help_url is not None else None
+        )
+
         drivers[name] = {
             "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
             "read": ogr_driver_supports_open(name),
@@ -319,7 +326,7 @@ def ogr_list_drivers_details():
             ),
             "write": ogr_driver_supports_write(name),
             "supports_vsi": ogr_driver_supports_vsi(name),
-            "help_topic_url": _get_driver_metadata_item(name, "DMD_HELPTOPIC"),
+            "help_topic_url": help_topic_url,
             "extensions": extensions,
         }
 
