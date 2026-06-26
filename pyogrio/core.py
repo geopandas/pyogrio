@@ -403,6 +403,11 @@ def vsi_unlink(path: str | Path):
 def vsi_curl_clear_cache(prefix: str = ""):
     """Clean local cache associated with /vsicurl/.
 
+    When a `prefix` is provided, only cached state for any file or directory
+    starting with that prefix will be (exposing `VSICurlPartialClearCache <https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc>`__).
+    If no `prefix` is specified, the entire local cache is cleared (exposing
+    `VSICurlClearCache <https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev>`__).
+
     Parameters
     ----------
     prefix : str
