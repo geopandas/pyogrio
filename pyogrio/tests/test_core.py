@@ -1,3 +1,4 @@
+import urllib.request
 import re
 from pathlib import Path
 
@@ -252,6 +253,19 @@ def test_list_drivers_details(driver_access_modes):
         )
         if drivers[name]["extensions"] is not None:
             assert all(ext.startswith(".") for ext in drivers[name]["extensions"])
+
+
+def test_list_drivers_details_help_topic_url():
+    """Check if the help_topic_url for the GeoJSON driver is valid and reachable."""
+    drivers = list_drivers_details()["GeoJSON"]
+
+    request = urllib.request.Request(
+        drivers["help_topic_url"], method="HEAD", headers={"User-Agent": "pyogrio-test"}
+    )
+    ret = urllib.request.urlopen(request)
+    assert ret.status == 200, (
+        f"Help topic URL {drivers['help_topic_url']} is not reachable"
+    )
 
 
 def test_list_layers(
