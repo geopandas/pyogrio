@@ -2961,7 +2961,7 @@ def test_write_geometry_z_types_auto(
 
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl":
-        result_gdf.crs = "EPSG:4326"
+        result_gdf.set_crs("EPSG:4326", inplace=True, allow_override=True)
 
     assert_geodataframe_equal(gdf, result_gdf)
 
