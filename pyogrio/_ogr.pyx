@@ -160,7 +160,7 @@ def ogr_driver_supports_open(driver):
 
 
 def ogr_driver_supports_write(driver):
-    """Check if driver supports creation of new files.
+    """Check if driver supports creation/writing of new files.
 
     Is determined based on the GDAL driver metadata.
 
@@ -181,8 +181,22 @@ def ogr_driver_supports_write(driver):
     return False
 
 
-def ogr_driver_supports_update(driver) -> bool | None:
-    # check metadata for driver to see if it supports update
+def ogr_driver_supports_update(driver):
+    """Check metadata for driver to see if it supports update.
+
+    Note that update here means that both support for general updates to
+    features as well as appending new features is supported.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports update, False otherwise.
+    """
     IF CTE_GDAL_VERSION >= (3, 11, 0):
         if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
             return True
@@ -192,14 +206,28 @@ def ogr_driver_supports_update(driver) -> bool | None:
     return None
 
 
-def ogr_driver_supports_append(driver) -> bool | None:
-    # check metadata for driver to see if it supports append
+def ogr_driver_supports_append(driver):
+    """Check metadata for driver to see if it supports append.
+
+    Note that this only returns True for drivers that do not support
+    general updates, but do support appending.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports append, False otherwise.
+    """
     IF CTE_GDAL_VERSION >= (3, 12, 0):
         if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
             return True
         else:
             return False
-
+    
     return None
 
 
@@ -226,13 +254,13 @@ def ogr_driver_supports_vsi(driver):
 
 
 def ogr_list_drivers():
-    """List all available OGR drivers with read/write mode.
+    """List all available OGR drivers with their supported access modes.
 
     Returns
     -------
     dict
         Dictionary with the driver name as key and the supported modes as value
-        ("r" or "rw")
+        ("r", "rw" or "raw")
 
     """
     cdef OGRSFDriverH driver = NULL
@@ -245,13 +273,15 @@ def ogr_list_drivers():
         name_c = <char *>OGR_Dr_GetName(driver)
         name = get_string(name_c)
 
-        acces_modes = ""
+        access_modes = ""
         if ogr_driver_supports_open(name):
-            acces_modes += "r"
+            access_modes += "r"
+        if ogr_driver_supports_update(name) or ogr_driver_supports_append(name):
+            access_modes += "a"
         if ogr_driver_supports_write(name):
-            acces_modes += "w"
+            access_modes += "w"
 
-        drivers[name] = acces_modes
+        drivers[name] = access_modes
 
     return drivers
 
