@@ -1,12 +1,15 @@
 # CHANGELOG
 
-## 0.13.0 (xxxx-xx-xx)
+## 0.13.0 (????-??-??)
 
 ### Improvements
 
 -   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
+-   Add `list_drivers_details()` function to list the available drivers with more
+    detailed properties like the long driver names, whether read/append/write is
+    supported by the driver,... (#656).
 -   Add whether append is supported in `list_drivers` (#559)
--   Add `vsi_curl_clear_cache` to allow users to clear the local GDAL vsi cache
+-   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi cache
     associated with /vsicurl/ (and related file systems) (#605).
 -   Improve performance of `read_dataframe` (especially if a filter is used)
     and `write_dataframe` without Arrow (#577, #674).
