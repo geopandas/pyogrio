@@ -1030,7 +1030,6 @@ def test_write_read_datetime_tz_mixed_offsets(
         ],
     ],
 )
-@pytest.mark.requires_arrow_write_api
 @pytest.mark.skipif(
     not GDAL_GE_311,
     reason="before GDAL 3.11, datetimes weren't handled as well",
@@ -1038,6 +1037,7 @@ def test_write_read_datetime_tz_mixed_offsets(
 @pytest.mark.filterwarnings(
     "ignore: Non-conformant content for record 1 in column dates"
 )
+@pytest.mark.requires_arrow_write_api
 def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
     """Test writing a column with datetimes with and without time zone offsets."""
     df = gp.GeoDataFrame(
@@ -1245,7 +1245,6 @@ def test_write_read_datetime_utc(
         assert_geodataframe_equal(result, df)
 
 
-@pytest.mark.requires_arrow_write_api
 @pytest.mark.parametrize(
     "ext, use_arrow, expected_result",
     [
@@ -1260,6 +1259,7 @@ def test_write_read_datetime_utc(
     ],
 )
 @pytest.mark.filterwarnings("ignore: Normalized/laundered field name")
+@pytest.mark.requires_arrow_write_api
 def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_result):
     """Test writing and reading a file with column names that only differ in casing.
 
