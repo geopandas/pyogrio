@@ -4,17 +4,19 @@
 
 ### Improvements
 
--   Surface [`VSICurlClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev) and
-    [`VSICurlPartialClearCache`](https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc)
-    in python core `vsi_curl_clear_cache` in order to allow users to clear the global and partial cache
-    used by gdal vsi system. Partial clear is issued when a `prefix` is provided (#605).
+-   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
 -   Add whether append is supported in `list_drivers` (#559)
+-   Add `vsi_curl_clear_cache` to allow users to clear the local GDAL vsi cache
+    associated with /vsicurl/ (and related file systems) (#605).
+-   Improve performance of `read_dataframe` (especially if a filter is used)
+    and `write_dataframe` without Arrow (#577, #674).
+-   Unlock the gil during GDAL functions that can take significant time to improve
+    performance when multithreading (#572).
 
 ### Bug fixes
 
 -   Fix writing non-string object columns with arrow (#630).
 -   Fix writing empty string category columns with arrow fails (#621).
--   Fix Time type columns being skipped with `use_arrow=False` (#617).
 -   Fix overwriting a corrupt fileGDB directory (#600).
 -   Fix attribute data being incorrectly written with KML driver (#650).
 
@@ -46,8 +48,6 @@
     writing datetimes (#486).
 -   Add listing of GDAL data types and subtypes to `read_info` (#556).
 -   Add support to read list fields without arrow (#558, #597).
--   Improve performance of `read_dataframe`, especially if a filter is used (#577).
--   Unlock the gil during GDAL functions that can take significant time (#572).
 
 ### Bug fixes
 
