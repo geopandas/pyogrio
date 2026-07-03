@@ -63,7 +63,7 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          uv pip install -e .[dev,test,geopandas]
+          uv pip install -e . --group dev
           uv pip install pyarrow
           
       - name: Test with pytest

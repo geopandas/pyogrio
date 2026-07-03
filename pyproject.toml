@@ -32,10 +32,17 @@ requires-python = ">=3.10"
 dependencies = ["certifi", "numpy", "packaging"]
 
 [project.optional-dependencies]
-dev = ["cython>=3.1"]
-test = ["pytest", "pytest-cov"]
-benchmark = ["pytest-benchmark"]
 geopandas = ["geopandas"]
+
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "cython>=3.1",
+    "pyogrio[geopandas]",
+    {include-group = "tests"},
+]
+benchmark = ["pytest-benchmark"]
+tests = ["pytest", "pytest-cov"]
 
 [project.urls]
 Home = "https://pyogrio.readthedocs.io/"
