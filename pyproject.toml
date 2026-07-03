@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools",
+    "setuptools>=77",
     "Cython>=3.1",
     "versioneer[toml]==0.28",
     # tomli is used by versioneer
@@ -16,13 +16,13 @@ authors = [
     { name = "pyogrio contributors" },
 ]
 maintainers = [{ name = "pyogrio contributors" }]
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = [ "LICENSE" ]
 description = "Vectorized spatial vector file format I/O using GDAL/OGR"
 readme = "README.md"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: GIS",
