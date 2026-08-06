@@ -63,8 +63,7 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
-          uv pip install -e . --group dev
-          uv pip install pyarrow
+          uv pip install -e . --group dev pyarrow
           
       - name: Test with pytest
         run: |

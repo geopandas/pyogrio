@@ -1,4 +1,5 @@
 [build-system]
+# NOTE: when updating this table, also update `dependency-groups.build`
 requires = [
     "setuptools>=77",
     "Cython>=3.1",
@@ -35,14 +36,21 @@ dependencies = ["certifi", "numpy", "packaging"]
 geopandas = ["geopandas"]
 
 [dependency-groups]
-dev = [
-    "pre-commit",
-    "cython>=3.1",
-    "pyogrio[geopandas]",
-    {include-group = "tests"},
+build = [
+    "setuptools>=77",
+    "Cython>=3.1",
+    "versioneer[toml]==0.28",
+    # tomli is used by versioneer
+    "tomli; python_version < '3.11'",
 ]
 benchmark = ["pytest-benchmark"]
 tests = ["pytest", "pytest-cov"]
+dev = [
+    "pre-commit",
+    "pyogrio[geopandas]",
+    {include-group = "build"},
+    {include-group = "tests"},
+]
 
 [project.urls]
 Home = "https://pyogrio.readthedocs.io/"
