@@ -47,7 +47,7 @@ benchmarks = ["pytest-benchmark"]
 tests = ["pytest", "pytest-cov"]
 dev = [
     "pre-commit",
-    "pyogrio[geopandas]",
+    "geopandas",
     {include-group = "build"},
     {include-group = "tests"},
 ]
