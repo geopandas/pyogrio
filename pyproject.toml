@@ -43,7 +43,7 @@ build = [
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
 ]
-benchmark = ["pytest-benchmark"]
+benchmarks = ["pytest-benchmark"]
 tests = ["pytest", "pytest-cov"]
 dev = [
     "pre-commit",
