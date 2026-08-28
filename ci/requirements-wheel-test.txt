@@ -2,7 +2,9 @@ pytest
 # dependencies of geopandas (installed separately with --no-deps to avoid fiona)
 pandas
 pyproj
-shapely>=2
+# Windows ARM64 wheels are currently available from the scientific Python nightly index.
+shapely>=2; sys_platform != "win32" or platform_machine != "ARM64"
 packaging
 # optional test dependencies
-pyarrow
+# PyArrow does not currently publish Windows ARM64 wheels.
+pyarrow; sys_platform != "win32" or platform_machine != "ARM64"

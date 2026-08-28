@@ -184,6 +184,12 @@ jobs:
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
+          - os: "windows-11-arm"
+            triplet: "arm64-windows-dynamic-release"
+            arch: ARM64
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -259,10 +265,17 @@ jobs:
             "ubuntu-22.04",
             "ubuntu-24.04-arm",
             "windows-latest",
+            "windows-11-arm",
             "macos-15-intel",
             "macos-latest",
           ]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
+        # setup-python only provides native Windows ARM64 interpreters for 3.12+.
+        exclude:
+          - os: "windows-11-arm"
+            python-version: "3.10"
+          - os: "windows-11-arm"
+            python-version: "3.11"
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -274,6 +287,8 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_aarch64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
+          - os: "windows-11-arm"
+            artifact: pyogrio-wheel-arm64-windows-dynamic-release
           - os: "macos-15-intel"
             artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"
@@ -321,6 +336,9 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
+          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ runner.arch }}" = "ARM64" ]; then
+              uv pip install --pre --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple "shapely>=2"
+          fi
           uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
           # TMP avoid installing nightly pandas given pandas <-> geopandas compatibility issues
