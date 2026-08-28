@@ -223,6 +223,11 @@ jobs:
           # pull specific commit with desired GDAL version
           git pull
           git checkout ${{ env.VCPKG_GDAL_COMMIT }}
+          if [ "$RUNNER_OS" = "Windows" ]; then
+              ./bootstrap-vcpkg.bat -disableMetrics
+          else
+              ./bootstrap-vcpkg.sh -disableMetrics
+          fi
 
       - name: Install GDAL
         env:
