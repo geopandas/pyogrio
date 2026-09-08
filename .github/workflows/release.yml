@@ -150,7 +150,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.1.1
+        uses: pypa/cibuildwheel@v4.2.0
 
       - uses: actions/upload-artifact@v7
         with:
@@ -217,6 +217,13 @@ jobs:
           # pull specific commit with desired GDAL version
           git pull
           git checkout ${{ env.VCPKG_GDAL_COMMIT }}
+          # TMP the installed runner on the image is newer and complains about
+          # the no-longer-supported schema of of vcpkg-tools.json in the checkout 
+          if [ "$RUNNER_OS" = "Windows" ]; then
+              ./bootstrap-vcpkg.bat -disableMetrics
+          else
+              ./bootstrap-vcpkg.sh -disableMetrics
+          fi
 
       - name: Install GDAL
         env:
@@ -234,7 +241,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.1.1
+        uses: pypa/cibuildwheel@v4.2.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
