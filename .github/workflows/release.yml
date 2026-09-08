@@ -217,6 +217,13 @@ jobs:
           # pull specific commit with desired GDAL version
           git pull
           git checkout ${{ env.VCPKG_GDAL_COMMIT }}
+          # TMP the installed runner on the image is newer and complains about
+          # the no-longer-supported schema of of vcpkg-tools.json in the checkout 
+          if [ "$RUNNER_OS" = "Windows" ]; then
+              ./bootstrap-vcpkg.bat -disableMetrics
+          else
+              ./bootstrap-vcpkg.sh -disableMetrics
+          fi
 
       - name: Install GDAL
         env:
