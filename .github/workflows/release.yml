@@ -343,9 +343,6 @@ jobs:
       - name: Install dependencies and pyogrio wheel
         shell: bash
         run: |
-          if [ "${{ runner.os }}" = "Windows" ] && [ "${{ runner.arch }}" = "ARM64" ]; then
-              uv pip install --pre --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple "shapely>=2"
-          fi
           uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
           # TMP avoid installing nightly pandas given pandas <-> geopandas compatibility issues
