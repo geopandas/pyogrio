@@ -2,7 +2,7 @@
 requires = [
     "setuptools>=77",
     "Cython>=3.1",
-    "versioneer[toml]==0.28",
+    "versioneer[toml]>=0.28",
     # tomli is used by versioneer
     "tomli; python_version < '3.11'",
 ]
