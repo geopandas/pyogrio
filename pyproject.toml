@@ -1,6 +1,6 @@
 [build-system]
-# NOTE: when updating this table, also update `dependency-groups.build`
 requires = [
+    # keep in sync with a subset of [dependency-groups.build]
     "setuptools>=77",
     "Cython>=3.1",
     "versioneer[toml]==0.28",
@@ -37,6 +37,7 @@ geopandas = ["geopandas"]
 
 [dependency-groups]
 build = [
+    # keep in sync with a superset of [build-system.requires]
     "setuptools>=77",
     "Cython>=3.1",
     "versioneer[toml]==0.28",
