@@ -35,7 +35,6 @@ is_freethreaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 USE_LIMITED_API = (
     os.environ.get("PYOGRIO_LIMITED_API") == "1"
     and sys.implementation.name == "cpython"
-    and sys.version_info >= (3, 11)
     and not is_freethreaded
 )
 ABI3_TARGET_VERSION = "cp311"
