@@ -2,7 +2,9 @@ pytest
 # dependencies of geopandas (installed separately with --no-deps to avoid fiona)
 pandas
 pyproj
-shapely>=2
+shapely>=2; platform_system != "Windows" or platform_machine != "ARM64"
+shapely==2.2.0rc1; platform_system == "Windows" and platform_machine == "ARM64"
 packaging
 # optional test dependencies
-pyarrow
+# pyarrow does not provide wheels for Windows arm64
+pyarrow; platform_system != "Windows" or platform_machine != "ARM64"
