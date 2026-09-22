@@ -7,6 +7,7 @@ from pyogrio.util import (
     _mask_to_wkb,
     _preprocess_options_key_value,
     get_vsi_path_or_buffer,
+    vsi_path,
 )
 
 with GDALEnv():
@@ -23,9 +24,12 @@ with GDALEnv():
         init_gdal_data as _init_gdal_data,
         init_proj_data as _init_proj_data,
         ogr_list_drivers,
+        ogr_list_drivers_details,
         set_gdal_config_options as _set_gdal_config_options,
     )
     from pyogrio._vsi import (
+        ogr_vsi_curl_clear_all_cache,
+        ogr_vsi_curl_clear_cache,
         ogr_vsi_listtree,
         ogr_vsi_rmtree,
         ogr_vsi_unlink,
@@ -41,7 +45,7 @@ with GDALEnv():
     __gdal_geos_version__ = get_gdal_geos_version()
 
 
-def list_drivers(read=False, write=False):
+def list_drivers(read=False, write=False, append=False) -> dict[str, str]:
     """List drivers available in GDAL.
 
     Parameters
@@ -50,12 +54,19 @@ def list_drivers(read=False, write=False):
         If True, will only return drivers that are known to support read capabilities.
     write: bool, optional (default: False)
         If True, will only return drivers that are known to support write capabilities.
+    append: bool, optional (default: False)
+        If True, will only return drivers that are known to support append capabilities.
+        .. versionadded:: 0.13.0
 
     Returns
     -------
     dict
-        Mapping of driver name to file mode capabilities: ``"r"``: read, ``"w"``: write.
+        Mapping of driver name to file mode capabilities: ``"r"``: read,
+        ``"a"``: append, ``"w"``: write.
         Drivers that are available but with unknown support are marked with ``"?"``
+
+        .. versionchanged:: 0.13.0
+           Added the ``a`` flag, which is available for GDAL >= 3.11.
 
     """
     drivers = ogr_list_drivers()
@@ -66,7 +77,36 @@ def list_drivers(read=False, write=False):
     if write:
         drivers = {k: v for k, v in drivers.items() if v.endswith("w")}
 
+    if append:
+        drivers = {k: v for k, v in drivers.items() if "a" in v}
+
     return drivers
+
+
+def list_drivers_details() -> dict[str, dict]:
+    """List all available drivers with detailed information.
+
+    For each driver, the following properties are included:
+
+    - long_name: the long name of the driver.
+    - read: a boolean indicating if the driver supports opening and reading an
+      existing file.
+    - append: a boolean indicating if the driver supports appending rows to an
+      existing file. This property is None if GDAL < 3.11.
+    - write: a boolean indicating if the driver supports creating and writing
+      new files.
+    - help_topic_url: an URL to the GDAL documentation for the help topic of
+      this driver.
+    - extensions: a list of file extensions associated with this driver,
+      if any.
+
+    Returns
+    -------
+    dict of dicts
+        Mapping of driver short name to a dict with detailed driver properties.
+
+    """
+    return ogr_list_drivers_details()
 
 
 def detect_write_driver(path):
@@ -385,3 +425,24 @@ def vsi_unlink(path: str | Path):
         path = path.as_posix()
 
     ogr_vsi_unlink(path)
+
+
+def vsi_curl_clear_cache(prefix: str = ""):
+    """Clean local cache associated with /vsicurl/.
+
+    When a `prefix` is provided, only cached state for any file or directory
+    starting with that prefix will be (exposing `VSICurlPartialClearCache <https://gdal.org/en/stable/api/cpl.html#_CPPv424VSICurlPartialClearCachePKc>`__).
+    If no `prefix` is specified, the entire local cache is cleared (exposing
+    `VSICurlClearCache <https://gdal.org/en/stable/api/cpl.html#_CPPv417VSICurlClearCachev>`__).
+
+    Parameters
+    ----------
+    prefix : str
+        Filename or prefix to clear associated cache. If not specified clear all cache.
+
+    """
+    if prefix == "":
+        ogr_vsi_curl_clear_all_cache()
+    else:
+        vsi_prefix = vsi_path(prefix)
+        ogr_vsi_curl_clear_cache(vsi_prefix)

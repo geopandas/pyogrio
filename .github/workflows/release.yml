@@ -21,8 +21,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GDAL_VERSION: "3.11.4"
-  VCPKG_GDAL_COMMIT: da096fdc67db437bee863ae73c4c12e289f82789
+  GDAL_VERSION: "3.12.4"
+  VCPKG_GDAL_COMMIT: 89dac9685f8d0ebd0a07d8b93ed51215c3a2fb2c
 
 jobs:
   build-sdist:
@@ -31,12 +31,12 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -58,7 +58,7 @@ jobs:
     needs: [build-sdist]
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.11.4"
+      image: "ghcr.io/osgeo/gdal:ubuntu-small-3.12.4"
 
     steps:
       - name: Install packages
@@ -123,7 +123,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -150,7 +150,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.2.0
 
       - uses: actions/upload-artifact@v7
         with:
@@ -186,12 +186,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Cache vcpkg
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: vcpkgcache
         with:
           path: |
@@ -200,12 +200,12 @@ jobs:
           key: ${{ matrix.os }}-${{ matrix.arch }}-vcpkg-gdal${{ env.GDAL_VERSION }}-cache1
 
       # MacOS build requires aclocal, which is part of automake, but appears
-      # to be missing in default image
-      - name: Reinstall automake
+      # to be missing in default image. In addition, building libspatialite also
+      # requires full autotools
+      - name: Install autotools prerequisites
         if: runner.os == 'macOS'
         run: |
-          brew reinstall automake
-          brew install libtool
+          brew install autoconf autoconf-archive automake libtool
           echo $(which aclocal)
 
       - name: Checkout specific version of vcpkg
@@ -217,6 +217,13 @@ jobs:
           # pull specific commit with desired GDAL version
           git pull
           git checkout ${{ env.VCPKG_GDAL_COMMIT }}
+          # TMP the installed runner on the image is newer and complains about
+          # the no-longer-supported schema of of vcpkg-tools.json in the checkout 
+          if [ "$RUNNER_OS" = "Windows" ]; then
+              ./bootstrap-vcpkg.bat -disableMetrics
+          else
+              ./bootstrap-vcpkg.sh -disableMetrics
+          fi
 
       - name: Install GDAL
         env:
@@ -234,7 +241,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.4.1
+        uses: pypa/cibuildwheel@v4.2.0
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -281,13 +288,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           sparse-checkout: ci/requirements-wheel-test.txt
           sparse-checkout-cone-mode: false
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true

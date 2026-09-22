@@ -137,8 +137,8 @@ def get_gdal_config_option(str name):
     return str_value
 
 
-def ogr_driver_supports_write(driver):
-    """Check if driver supports writing/creation of new files.
+def ogr_driver_supports_open(driver):
+    """Check if driver supports opening and reading an existing file.
 
     Is determined based on the GDAL driver metadata.
 
@@ -150,13 +150,85 @@ def ogr_driver_supports_write(driver):
     Returns
     -------
     bool
-        True if driver supports writing/creation of new files, False otherwise.
+        True if driver supports opening and reading an existing file, False otherwise.
+
+    """
+    if _get_driver_metadata_item(driver, "DCAP_OPEN") == "YES":
+        return True
+
+    return False
+
+
+def ogr_driver_supports_write(driver):
+    """Check if driver supports creation/writing of new files.
+
+    Is determined based on the GDAL driver metadata.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports creation of new files, False otherwise.
 
     """
     if _get_driver_metadata_item(driver, "DCAP_CREATE") == "YES":
         return True
 
     return False
+
+
+def ogr_driver_supports_update(driver):
+    """Check metadata for driver to see if it supports update.
+
+    Note that update here means that both support for general updates to
+    features as well as appending new features is supported.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports update, False otherwise.
+    """
+    IF CTE_GDAL_VERSION >= (3, 11, 0):
+        if _get_driver_metadata_item(driver, "DCAP_UPDATE") == "YES":
+            return True
+        else:
+            return False
+
+    return None
+
+
+def ogr_driver_supports_append(driver):
+    """Check metadata for driver to see if it supports append.
+
+    Note that this only returns True for drivers that do not support
+    general updates, but do support appending.
+
+    Parameters
+    ----------
+    driver : str
+        Driver to check
+
+    Returns
+    -------
+    bool
+        True if driver supports append, False otherwise.
+    """
+    IF CTE_GDAL_VERSION >= (3, 12, 0):
+        if _get_driver_metadata_item(driver, "DCAP_APPEND") == "YES":
+            return True
+        else:
+            return False
+
+    return None
 
 
 def ogr_driver_supports_vsi(driver):
@@ -182,13 +254,13 @@ def ogr_driver_supports_vsi(driver):
 
 
 def ogr_list_drivers():
-    """List all available OGR drivers with read/write mode.
+    """List all available OGR drivers with their supported access modes.
 
     Returns
     -------
     dict
         Dictionary with the driver name as key and the supported modes as value
-        ("r" or "rw")
+        ("r", "rw" or "raw")
 
     """
     cdef OGRSFDriverH driver = NULL
@@ -199,20 +271,76 @@ def ogr_list_drivers():
     for i in range(OGRGetDriverCount()):
         driver = OGRGetDriver(i)
         name_c = <char *>OGR_Dr_GetName(driver)
-
         name = get_string(name_c)
 
-        if ogr_driver_supports_write(name):
-            drivers[name] = "rw"
+        supports_append = ogr_driver_supports_update(name)
+        if not supports_append and CTE_GDAL_VERSION >= (3, 12, 0):
+            supports_append = ogr_driver_supports_append(name)
 
-        else:
-            drivers[name] = "r"
+        access_modes = ""
+        if ogr_driver_supports_open(name):
+            access_modes += "r"
+        if supports_append:
+            access_modes += "a"
+        if ogr_driver_supports_write(name):
+            access_modes += "w"
+
+        drivers[name] = access_modes
+
+    return drivers
+
+
+def ogr_list_drivers_details():
+    """List all available OGR drivers with detailed information.
+
+    Returns
+    -------
+    dict
+        Dictionary with the driver name as key and a dict with detailed driver
+        properties.
+
+    """
+    cdef OGRSFDriverH driver = NULL
+    cdef int i
+    cdef char *name_c
+
+    GDAL_URL = "https://gdal.org/en/stable"
+
+    drivers = dict()
+    for i in range(OGRGetDriverCount()):
+        driver = OGRGetDriver(i)
+
+        name_c = <char *>OGR_Dr_GetName(driver)
+        name = get_string(name_c)
+
+        extensions = _get_driver_metadata_item(name, "DMD_EXTENSIONS")
+        if extensions is not None:
+            extensions = [f".{ext}" for ext in extensions.split(" ")]
+
+        relative_help_url = _get_driver_metadata_item(name, "DMD_HELPTOPIC")
+        help_topic_url = (
+            f"{GDAL_URL}/{relative_help_url}" if relative_help_url is not None else None
+        )
+
+        supports_append = ogr_driver_supports_update(name)
+        if not supports_append and CTE_GDAL_VERSION >= (3, 12, 0):
+            supports_append = ogr_driver_supports_append(name)
+
+        drivers[name] = {
+            "long_name": _get_driver_metadata_item(name, "DMD_LONGNAME"),
+            "read": ogr_driver_supports_open(name),
+            "append": supports_append,
+            "write": ogr_driver_supports_write(name),
+            "supports_vsi": ogr_driver_supports_vsi(name),
+            "help_topic_url": help_topic_url,
+            "extensions": extensions,
+        }
 
     return drivers
 
 
 cdef void set_proj_search_path(str path):
-    """Set PROJ library data file search path for use in GDAL."""
+    """Set PROJ data file search path for use in GDAL."""
     cdef char **paths = NULL
     cdef const char *path_c = NULL
     path_b = path.encode("utf-8")
@@ -247,7 +375,7 @@ def get_gdal_data_path():
 
 
 def has_proj_data():
-    """Verify that PROJ library data files are correctly found.
+    """Verify that PROJ data files are correctly found.
 
     Returns
     -------
@@ -316,7 +444,7 @@ def init_gdal_data():
 def init_proj_data():
     """Set Proj search directories in the following precedence:
     - wheel copy of proj_data
-    - default detection by PROJ, including PROJ_LIB (detected automatically by PROJ)
+    - default detection by PROJ, including PROJ_DATA (detected automatically by PROJ)
     - search other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
@@ -333,7 +461,7 @@ def init_proj_data():
             )
         return
 
-    # PROJ correctly found data files from PROJ_LIB or compiled-in paths
+    # PROJ correctly found data files from PROJ_DATA or compiled-in paths
     if has_proj_data():
         return
 
@@ -349,7 +477,7 @@ def init_proj_data():
         return
 
     warnings.warn(
-            "Could not detect PROJ data files. Set PROJ_LIB environment variable to "
+            "Could not detect PROJ data files. Set PROJ_DATA environment variable to "
             "the correct path.", RuntimeWarning)
 
 

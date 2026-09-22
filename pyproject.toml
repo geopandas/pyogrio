@@ -1,8 +1,9 @@
 [build-system]
 requires = [
-    "setuptools",
+    # keep in sync with a subset of [dependency-groups.build]
+    "setuptools>=77",
     "Cython>=3.1",
-    "versioneer[toml]==0.28",
+    "versioneer>=0.28,<0.30",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -14,13 +15,13 @@ authors = [
     { name = "pyogrio contributors" },
 ]
 maintainers = [{ name = "pyogrio contributors" }]
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = [ "LICENSE" ]
 description = "Vectorized spatial vector file format I/O using GDAL/OGR"
 readme = "README.md"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: GIS",
@@ -30,10 +31,23 @@ requires-python = ">=3.11"
 dependencies = ["certifi", "numpy", "packaging"]
 
 [project.optional-dependencies]
-dev = ["cython>=3.1"]
-test = ["pytest", "pytest-cov"]
-benchmark = ["pytest-benchmark"]
 geopandas = ["geopandas"]
+
+[dependency-groups]
+build = [
+    # keep in sync with a superset of [build-system.requires]
+    "setuptools>=77",
+    "Cython>=3.1",
+    "versioneer[toml]>=0.28,<0.30",
+]
+benchmarks = ["pytest-benchmark"]
+tests = ["pytest", "pytest-cov"]
+dev = [
+    "pre-commit",
+    "geopandas",
+    {include-group = "build"},
+    {include-group = "tests"},
+]
 
 [project.urls]
 Home = "https://pyogrio.readthedocs.io/"
@@ -52,8 +66,9 @@ GDAL_INCLUDE_PATH = "$VCPKG_INSTALL/include"
 GDAL_LIBRARY_PATH = "$VCPKG_INSTALL/lib"
 # GDAL_VERSION is set in release.yml
 PYOGRIO_PACKAGE_DATA = 1
+PYOGRIO_LIMITED_API = 1
 GDAL_DATA = "$VCPKG_INSTALL/share/gdal"
-PROJ_LIB = "$VCPKG_INSTALL/share/proj"
+PROJ_DATA = "$VCPKG_INSTALL/share/proj"
 MACOSX_DEPLOYMENT_TARGET = "12.0"
 
 [tool.cibuildwheel.linux]
@@ -82,7 +97,13 @@ tag_prefix = "v"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["doc/*", "benchmarks/*", "pyogrio/_version.py", "conf.py", "setup.py"]
+extend-exclude = [
+    "doc/*",
+    "benchmarks/*",
+    "pyogrio/_version.py",
+    "conf.py",
+    "setup.py",
+]
 
 [tool.ruff.lint]
 select = [
@@ -146,10 +167,14 @@ ignore = [
     "PLR0915",
     # Magic number
     "PLR2004",
+    # Lambda may be unnecessary; consider inlining inner function
+    "PLW0108",
     # Redefined loop name
     "PLW2901",
     # Global statements are discouraged
     "PLW0603",
+    # Import should be at the top-level of a file
+    "PLC0415",
     # compare-to-empty-string
     "PLC1901",
 

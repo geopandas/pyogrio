@@ -198,7 +198,7 @@ cdef clean_error_message(const char* err_msg):
     return msg
 
 
-cdef void *check_pointer(void *ptr) except NULL:
+cdef void *check_pointer(void *ptr) except NULL nogil:
     """Check the pointer returned by a GDAL/OGR function.
 
     If `ptr` is `NULL`, an exception inheriting from CPLE_BaseError is raised.
@@ -222,12 +222,13 @@ cdef void *check_pointer(void *ptr) except NULL:
 
     """
     if ptr == NULL:
-        exc = check_last_error()
-        if exc:
-            raise exc
-        else:
-            # null pointer was passed, but no error message from GDAL
-            raise NullPointerError(-1, -1, "NULL pointer error")
+        with gil:
+            exc = check_last_error()
+            if exc:
+                raise exc
+            else:
+                # null pointer was passed, but no error message from GDAL
+                raise NullPointerError(-1, -1, "NULL pointer error")
 
     return ptr
 

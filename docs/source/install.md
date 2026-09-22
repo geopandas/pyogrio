@@ -196,4 +196,4 @@ correctly detected by GDAL:
 
 -   set `GDAL_DATA` to the folder containing the GDAL data files (e.g., contains `header.dxf`)
     within the installation of GDAL that is used by Pyogrio.
--   set `PROJ_LIB` to the folder containing the PROJ data files (e.g., contains `proj.db`)
+-   set `PROJ_DATA` to the folder containing the PROJ data files (e.g., contains `proj.db`)
