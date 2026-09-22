@@ -1,3 +1,4 @@
+--extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple
 pytest
 # dependencies of geopandas (installed separately with --no-deps to avoid fiona)
 pandas
@@ -5,4 +6,4 @@ pyproj
 shapely>=2
 packaging
 # optional test dependencies
-pyarrow
+pyarrow ; python_version < '3.15'
