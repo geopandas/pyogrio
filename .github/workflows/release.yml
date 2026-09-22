@@ -184,6 +184,13 @@ jobs:
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
+          - os: "windows-11-arm"
+            triplet: "arm64-windows-dynamic-release"
+            arch: ARM64
+            # windows requires windows-specific paths
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -266,10 +273,16 @@ jobs:
             "ubuntu-22.04",
             "ubuntu-24.04-arm",
             "windows-latest",
+            "windows-11-arm",
             "macos-15-intel",
             "macos-latest",
           ]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
+        exclude:
+          # official Python installers for Windows ARM64 are only available
+          # starting with 3.11
+          - os: "windows-11-arm"
+            python-version: "3.10"
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -281,6 +294,8 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_aarch64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
+          - os: "windows-11-arm"
+            artifact: pyogrio-wheel-arm64-windows-dynamic-release
           - os: "macos-15-intel"
             artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"

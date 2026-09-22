@@ -70,7 +70,7 @@ repair-wheel-command = [
 
 [tool.cibuildwheel.windows]
 before-build = "pip install delvewheel"
-repair-wheel-command = "delvewheel repair --add-path C:/vcpkg/installed/x64-windows-dynamic-release/bin -w {dest_dir} {wheel}"
+repair-wheel-command = "delvewheel repair --add-path %VCPKG_INSTALLATION_ROOT%/installed/%VCPKG_DEFAULT_TRIPLET%/bin -w {dest_dir} {wheel}"
 
 [tool.cython-lint]
 ignore = ["E265", "E222"]
