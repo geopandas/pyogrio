@@ -18,6 +18,21 @@ except ImportError:
     has_geopandas = False
 
 
+if not HAS_PYPROJ:
+    # Ignore warnings related to missing pyproj
+    pytestmark = [
+        pytest.mark.filterwarnings(
+            "ignore:Cannot set the CRS, falling back to None. The CRS support "
+            "requires the 'pyproj' package, but it is not installed or does not "
+            "import correctly"
+        ),
+        pytest.mark.filterwarnings(
+            "ignore:'crs' was not provided.  The output dataset will not have "
+            "projection information"
+        ),
+    ]
+
+
 @contextlib.contextmanager
 def change_cwd(path):
     curdir = os.getcwd()
