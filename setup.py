@@ -23,19 +23,18 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-MIN_PYTHON_VERSION = (3, 10, 0)
+MIN_PYTHON_VERSION = (3, 11, 0)
 MIN_GDAL_VERSION = (2, 4, 0)
 
 
 if sys.version_info < MIN_PYTHON_VERSION:
-    raise RuntimeError("Python >= 3.10 is required")
+    raise RuntimeError("Python >= 3.11 is required")
 
 
 is_freethreaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
 USE_LIMITED_API = (
     os.environ.get("PYOGRIO_LIMITED_API") == "1"
     and sys.implementation.name == "cpython"
-    and sys.version_info >= (3, 11)
     and not is_freethreaded
 )
 ABI3_TARGET_VERSION = "cp311"

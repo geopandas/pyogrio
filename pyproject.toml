@@ -3,7 +3,7 @@ requires = [
     # keep in sync with a subset of [dependency-groups.build]
     "setuptools>=77",
     "Cython>=3.1",
-    "versioneer[toml]>=0.28,<0.30",
+    "versioneer>=0.28,<0.30",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -27,7 +27,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
     "Programming Language :: Python :: Free Threading :: 2 - Beta",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["certifi", "numpy", "packaging"]
 
 [project.optional-dependencies]
