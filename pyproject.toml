@@ -1,10 +1,9 @@
 [build-system]
 requires = [
+    # keep in sync with a subset of [dependency-groups.build]
     "setuptools>=77",
     "Cython>=3.1",
-    "versioneer[toml]==0.28",
-    # tomli is used by versioneer
-    "tomli; python_version < '3.11'",
+    "versioneer[toml]>=0.28,<0.30",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -32,10 +31,23 @@ requires-python = ">=3.10"
 dependencies = ["certifi", "numpy", "packaging"]
 
 [project.optional-dependencies]
-dev = ["cython>=3.1"]
-test = ["pytest", "pytest-cov"]
-benchmark = ["pytest-benchmark"]
 geopandas = ["geopandas"]
+
+[dependency-groups]
+build = [
+    # keep in sync with a superset of [build-system.requires]
+    "setuptools>=77",
+    "Cython>=3.1",
+    "versioneer[toml]>=0.28,<0.30",
+]
+benchmarks = ["pytest-benchmark"]
+tests = ["pytest", "pytest-cov"]
+dev = [
+    "pre-commit",
+    "geopandas",
+    {include-group = "build"},
+    {include-group = "tests"},
+]
 
 [project.urls]
 Home = "https://pyogrio.readthedocs.io/"
