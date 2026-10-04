@@ -41,6 +41,13 @@ GEOMETRY_TYPES = {
     wkbMultiLineString25D: "MultiLineString Z",
     wkbMultiPolygon25D: "MultiPolygon Z",
     wkbGeometryCollection25D: "GeometryCollection Z",
+    # Unknown with Z or M, which GDAL declares for layers that may hold any
+    # geometry with Z or M, such as FileGDB MultiPatch layers. Measured types
+    # are downgraded to their 2D / 3D types on read, as above. GDAL gives the
+    # codes, as Unknown Z sets the same high bit as the 2.5D types below.
+    OGR_GT_SetModifier(wkbUnknown, 1, 0): "Unknown Z",
+    OGR_GT_SetModifier(wkbUnknown, 0, 1): "Measured Unknown",
+    OGR_GT_SetModifier(wkbUnknown, 1, 1): "Measured 3D Unknown",
 }
 
 GEOMETRY_TYPE_CODES = {v: k for k, v in GEOMETRY_TYPES.items()}
