@@ -992,6 +992,8 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
 
     """
     cdef OGRGeometryH ogr_geometry = NULL
+    cdef OGRGeometryH owned_geometry = NULL
+    cdef OGRGeometryH converted_geometry = NULL
     cdef OGRwkbGeometryType ogr_geometry_type
 
     cdef unsigned char *wkb = NULL
@@ -1014,7 +1016,18 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
 
             # if non-linear (e.g., curve), force to linear type
             if OGR_GT_IsNonLinear(ogr_geometry_type):
-                ogr_geometry = OGR_G_GetLinearGeometry(ogr_geometry, 0, NULL)
+                owned_geometry = OGR_G_GetLinearGeometry(ogr_geometry, 0, NULL)
+                ogr_geometry = owned_geometry
+
+            # PolyhedralSurface, TIN and Triangle, such as the parts of FileGDB
+            # MultiPatch features, have no GEOS equivalent: read as MultiPolygon
+            # and Polygon, also within a GeometryCollection
+            if has_polyhedral_surface(ogr_geometry):
+                converted_geometry = polyhedral_surface_as_polygon(ogr_geometry)
+                if owned_geometry != NULL:
+                    OGR_G_DestroyGeometry(owned_geometry)
+                owned_geometry = converted_geometry
+                ogr_geometry = owned_geometry
 
             ret_length = OGR_G_WkbSize(ogr_geometry)
             wkb = <unsigned char*>malloc(sizeof(unsigned char)*ret_length)
@@ -1023,6 +1036,45 @@ cdef process_geometry(OGRFeatureH ogr_feature, int i, geom_view, uint8_t force_2
 
         finally:
             free(wkb)
+            if owned_geometry != NULL:
+                OGR_G_DestroyGeometry(owned_geometry)
+
+
+cdef bint has_polyhedral_surface(OGRGeometryH ogr_geometry):
+    """Whether a geometry is, or holds, a PolyhedralSurface, TIN or Triangle."""
+    cdef OGRwkbGeometryType flat = OGR_GT_Flatten(OGR_G_GetGeometryType(ogr_geometry))
+    cdef int j
+
+    if flat == wkbPolyhedralSurface or flat == wkbTIN or flat == wkbTriangle:
+        return True
+    if flat == wkbGeometryCollection:
+        for j in range(OGR_G_GetGeometryCount(ogr_geometry)):
+            if has_polyhedral_surface(OGR_G_GetGeometryRef(ogr_geometry, j)):
+                return True
+    return False
+
+
+cdef OGRGeometryH polyhedral_surface_as_polygon(OGRGeometryH ogr_geometry):
+    """A copy of a geometry with each PolyhedralSurface and TIN as a MultiPolygon
+    and each Triangle as a Polygon, also within a GeometryCollection; the caller
+    owns the copy."""
+    cdef OGRwkbGeometryType flat = OGR_GT_Flatten(OGR_G_GetGeometryType(ogr_geometry))
+    cdef OGRGeometryH collection = NULL
+    cdef int j
+
+    if flat == wkbTriangle:
+        return OGR_G_ForceToPolygon(OGR_G_Clone(ogr_geometry))
+    if flat == wkbPolyhedralSurface or flat == wkbTIN:
+        return OGR_G_ForceToMultiPolygon(OGR_G_Clone(ogr_geometry))
+    if flat == wkbGeometryCollection:
+        collection = OGR_G_CreateGeometry(OGR_G_GetGeometryType(ogr_geometry))
+        for j in range(OGR_G_GetGeometryCount(ogr_geometry)):
+            OGR_G_AddGeometryDirectly(
+                collection,
+                polyhedral_surface_as_polygon(OGR_G_GetGeometryRef(ogr_geometry, j)),
+            )
+        return collection
+    return OGR_G_Clone(ogr_geometry)
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
