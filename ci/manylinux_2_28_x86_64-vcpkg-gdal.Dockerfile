@@ -1,4 +1,4 @@
-FROM quay.io/pypa/manylinux_2_28_x86_64:2026.06.03-1
+FROM quay.io/pypa/manylinux_2_28_x86_64:2026.10.03-1
 
 # Additional system dependencies:
 # - vcpkg needs: curl zip unzip tar ninja
