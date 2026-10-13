@@ -506,7 +506,8 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
 
     assert filename.exists()
 
-    data = json.loads(open(filename).read())
+    with open(filename) as f:
+        data = json.load(f)
 
     assert data["type"] == "FeatureCollection"
     assert data["name"] == "test"
@@ -780,6 +781,7 @@ def test_write_unsupported(tmp_path, naturalearth_lowres):
         write(filename, geometry, field_data, driver="TopoJSON", **meta)
 
 
+@pytest.mark.filterwarnings("ignore:HTTP response code on .* 403")
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
 
