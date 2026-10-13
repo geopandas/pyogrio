@@ -1,5 +1,13 @@
 # CHANGELOG
 
+
+## 0.14.0 (????-??-??)
+
+
+### Packaging
+
+-   Minimum required Python version is now 3.11 (#655).
+
 ## 0.13.0 (2026-06-26)
 
 ### Improvements
