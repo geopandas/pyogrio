@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 0.13.1 (????-??-??)
+
+### Bug fixes
+
+-   Read seekable file-like inputs from the beginning and raise a clear error when no
+    bytes can be read (#492).
+
 ## 0.13.0 (2026-06-26)
 
 ### Improvements

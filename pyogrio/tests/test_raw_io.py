@@ -850,15 +850,29 @@ def test_read_from_file_like(tmp_path, naturalearth_lowres, driver, ext):
     write(filename, geometry, field_data, driver=driver, **meta)
 
     with open(filename, "rb") as f:
+        f.seek(0, 2)
         result2 = read(f)
+        assert f.tell() == 0
 
     assert_equal_result((meta, index, geometry, field_data), result2)
+
+
+def test_read_from_empty_file_like():
+    with pytest.raises(
+        DataSourceError, match="Could not read any bytes from file-like object"
+    ):
+        read(BytesIO())
 
 
 def test_read_from_nonseekable_bytes(nonseekable_bytes):
     meta, _, geometry, _ = read(nonseekable_bytes)
     assert meta["fields"].shape == (0,)
     assert len(geometry) == 1
+
+    with pytest.raises(
+        DataSourceError, match="Could not read any bytes from file-like object"
+    ):
+        read(nonseekable_bytes)
 
 
 @pytest.mark.parametrize("ext", ["gpkg", "fgb"])

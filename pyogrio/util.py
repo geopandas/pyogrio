@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 
 from pyogrio._ogr import MULTI_EXTENSIONS
 from pyogrio._vsi import vsimem_rmtree_toplevel as _vsimem_rmtree_toplevel
+from pyogrio.errors import DataSourceError
 
 
 def get_vsi_path_or_buffer(path_or_buffer):
@@ -41,11 +42,18 @@ def get_vsi_path_or_buffer(path_or_buffer):
         return path_or_buffer
 
     if hasattr(path_or_buffer, "read"):
+        is_seekable = hasattr(path_or_buffer, "seekable") and path_or_buffer.seekable()
+        if is_seekable:
+            path_or_buffer.seek(0)
+
         bytes_buffer = path_or_buffer.read()
 
         # rewind buffer if possible so that subsequent operations do not need to rewind
-        if hasattr(path_or_buffer, "seekable") and path_or_buffer.seekable():
+        if is_seekable:
             path_or_buffer.seek(0)
+
+        if not bytes_buffer:
+            raise DataSourceError("Could not read any bytes from file-like object")
 
         return bytes_buffer
 
