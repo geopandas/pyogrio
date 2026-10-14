@@ -1,4 +1,7 @@
+import os
 import re
+import subprocess
+import sys
 import urllib.request
 from pathlib import Path
 
@@ -760,6 +763,41 @@ def test_error_handling_warning(capfd, naturalearth_lowres):
         read_info(naturalearth_lowres, INVALID="YES")
 
     assert capfd.readouterr().err == ""
+
+
+def test_gdal_skip_unknown_driver_warning_suppressible():
+    # GH690: a warning emitted by GDALAllRegister() itself (e.g. because
+    # GDAL_SKIP names an unknown driver) happens during `import pyogrio`,
+    # before our error handler used to be registered. That let it print
+    # straight to stderr as raw GDAL output, bypassing Python's warnings
+    # system entirely -- so it could not be caught or filtered by callers.
+    # The error handler must be registered before drivers are, so this
+    # warning is routed through Python's warnings machinery like any other
+    # GDAL warning, and is therefore suppressible.
+    env = {**os.environ, "GDAL_SKIP": "nonexistent_driver_xyz"}
+
+    result = subprocess.run(
+        [sys.executable, "-W", "ignore", "-c", "import pyogrio"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert result.stderr == ""
+
+    # sanity check: without suppression, the same warning is still emitted
+    # (as a normal Python RuntimeWarning, not raw GDAL stderr output)
+    result = subprocess.run(
+        [sys.executable, "-c", "import pyogrio"],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "RuntimeWarning" in result.stderr
+    assert "nonexistent_driver_xyz" in result.stderr
 
 
 def test_vsimem_listtree_rmtree_unlink(naturalearth_lowres):
