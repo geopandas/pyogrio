@@ -90,7 +90,9 @@ def test_read_only_geometry_modres1(naturalearth_modres1, benchmark):
 
 @pytest.mark.benchmark(group="read-subset")
 def test_read_only_meta_modres1(naturalearth_modres1, benchmark):
-    benchmark(read, naturalearth_modres1, columns=[], read_geometry=False)
+    benchmark(
+        read, naturalearth_modres1, columns=[], read_geometry=False, return_fids=True
+    )
 
 
 @pytest.mark.benchmark(group="write-lowres")
