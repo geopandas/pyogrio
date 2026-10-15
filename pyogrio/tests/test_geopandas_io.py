@@ -2121,8 +2121,8 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         ),
         pytest.param(
             {"string_column": 10.5},
-            "must be an integer or a 2-item",
-            "must be an integer or a 2-item",
+            "must be a non-negative integer",
+            "must be a non-negative integer",
             id="float-width",
         ),
         pytest.param(
@@ -2140,7 +2140,7 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         pytest.param(
             {"float_column": (10, 2.5)},
             "must be a non-negative integer",
-            "With use_arrow, width is only supported for string columns",
+            "must be a non-negative integer",
             id="float-precision",
         ),
         pytest.param(
@@ -2152,7 +2152,7 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         pytest.param(
             {"float_column": (10, -1)},
             "must be a non-negative integer",
-            "With use_arrow, width is only supported for string columns",
+            "must be a non-negative integer",
             id="negative-precision",
         ),
         pytest.param(
@@ -2188,18 +2188,25 @@ def test_write_dataframe_column_widths_errors(
         )
 
 
+@pytest.mark.parametrize("ext, expected_width", [(".gpkg", 0), (".shp", 24)])
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_column_widths_zero_is_ignored(
-    tmp_path, naturalearth_lowres, use_arrow
+    tmp_path, naturalearth_lowres, use_arrow, ext, expected_width
 ):
     input_gdf = read_dataframe(naturalearth_lowres)
 
+    test_path = tmp_path / f"test{ext}"
     write_dataframe(
-        input_gdf,
-        tmp_path / "test.gpkg",
-        column_widths={"gdp_md_est": 0},
-        use_arrow=use_arrow,
+        input_gdf, test_path, column_widths={"gdp_md_est": 0}, use_arrow=use_arrow
     )
+
+    # Check result
+    result_gdf = read_dataframe(test_path)
+    assert_geodataframe_equal(result_gdf, input_gdf)
+
+    info = read_info(test_path)
+    gdp_md_est_index = np.where(info["fields"] == "gdp_md_est")[0][0]
+    assert info["field_widths"][gdp_md_est_index] == expected_width
 
 
 @pytest.mark.filterwarnings("ignore:.*No SRS set on layer.*")

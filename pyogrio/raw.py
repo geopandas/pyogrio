@@ -38,6 +38,21 @@ DRIVERS_NO_MIXED_DIMENSIONS = {
 
 
 def _validate_field_width_values(field_widths, field_precisions, fields):
+    if field_precisions is not None and field_widths is None:
+        raise ValueError("field_precisions provided but field_widths is None")
+    if field_widths is not None and fields is None:
+        raise ValueError("field_widths provided but fields is None")
+    if field_widths is not None and len(field_widths) != len(fields):
+        raise ValueError(
+            f"Length of field_widths ({len(field_widths)}) does not match "
+            f"length of fields ({len(fields)})"
+        )
+    if field_precisions is not None and len(field_precisions) != len(fields):
+        raise ValueError(
+            f"Length of field_precisions ({len(field_precisions)}) does not match "
+            f"length of fields ({len(fields)})"
+        )
+
     for value_type, values in (
         ("width", field_widths),
         ("precision", field_precisions),
@@ -49,9 +64,7 @@ def _validate_field_width_values(field_widths, field_precisions, fields):
             if value is None:
                 continue
 
-            field_name = (
-                fields[index] if fields is not None and index < len(fields) else index
-            )
+            field_name = fields[index]
             if isinstance(value, bool) or not isinstance(value, Integral) or value < 0:
                 raise ValueError(
                     f"Field {field_name!r} {value_type} must be a non-negative "
@@ -195,10 +208,10 @@ def read(
             "crs": "<crs>",
             "fields": <ndarray of field names>,
             "dtypes": <ndarray of numpy dtypes corresponding to fields>,
-            "field_widths": <ndarray of field widths>,
-            "field_precisions": <ndarray of field precisions>,
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
+            "field_widths": <ndarray of field widths, 0 means no width specified>,
+            "field_precisions": <ndarray of field precisions>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>",
         }
@@ -278,10 +291,10 @@ def read_arrow(
             "crs": "<crs>",
             "fields": <ndarray of field names>,
             "dtypes": <ndarray of numpy dtypes corresponding to fields>,
-            "field_widths": <ndarray of field widths>,
-            "field_precisions": <ndarray of field precisions>,
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
+            "field_widths": <ndarray of field widths>,
+            "field_precisions": <ndarray of field precisions>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",

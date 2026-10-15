@@ -300,10 +300,10 @@ def read_info(
                 "crs": "<crs>",
                 "fields": <ndarray of field names>,
                 "dtypes": <ndarray of field dtypes>,
-                "field_widths": <ndarray of field widths>,
-                "field_precisions": <ndarray of field precisions>,
                 "ogr_types": <ndarray of OGR field types>,
                 "ogr_subtypes": <ndarray of OGR field subtypes>,
+                "field_widths": <ndarray of field widths, 0 means no width specified>,
+                "field_precisions": <ndarray of field precisions>,
                 "encoding": "<encoding>",
                 "fid_column": "<fid column name or "">",
                 "geometry_name": "<geometry column name or "">",
@@ -311,9 +311,9 @@ def read_info(
                 "features": <feature count or -1>,
                 "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
-                "capabilities": "<dict of driver capabilities>",
-                "dataset_metadata": "<dict of dataset metadata or None>",
-                "layer_metadata": "<dict of layer metadata or None>"
+                "capabilities": <dict of driver capabilities>,
+                "dataset_metadata": <dict of dataset metadata or None>,
+                "layer_metadata": <dict of layer metadata or None>
             }
 
     """

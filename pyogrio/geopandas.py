@@ -22,7 +22,6 @@ from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
     _get_write_path_driver,
-    _validate_field_width_values,
     read,
     read_arrow,
     write,
@@ -627,11 +626,22 @@ def write_dataframe(
     layer_options : dict, optional
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
-    column_widths : dict or None, optional (default: None)
-        Passes the maximum width for each column listed to OGR. Actual support
-        depends on the driver. For floating point columns, the value should be
-        a tuple of (width, precision) instead of a single integer.
-        With `use_arrow`, only string columns are supported.
+    column_widths : dict, optional (default: None)
+        Passes the maximum width for each column listed to OGR.
+
+          - For strings columns, the value should be an integer specifying the maximum
+            number of characters.
+          - For integer columns, the value should be an integer specifying the maximum
+            number of digits.
+          - For floating point columns, the value should be a tuple of
+            (width, precision). The width here is the total number of digits, both to
+            the left and right of the decimal point, and the precision is the number of
+            digits to the right of the decimal point. For e.g. shapefiles the width
+            should include the space for the decimal point and the sign as well.
+
+        Actual support and behaviour depends on the driver.
+        If ``use_arrow=False``, numeric and string columns are supported. If
+        ``use_arrow=True``, only string columns are supported.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -692,14 +702,24 @@ def write_dataframe(
 
         for name, width in column_widths.items():
             if isinstance(width, tuple):
-                is_valid_width = len(width) == 2
+                is_valid_width = len(width) == 2 and all(
+                    isinstance(i, (int, np.integer))
+                    and not isinstance(i, (bool, np.bool_))
+                    and i >= 0
+                    for i in width
+                )
             else:
-                is_valid_width = isinstance(width, (int, np.integer))
+                is_valid_width = (
+                    isinstance(width, (int, np.integer))
+                    and not isinstance(width, (bool, np.bool_))
+                    and width >= 0
+                )
 
             if not is_valid_width:
                 raise ValueError(
-                    f"column_widths for column '{name}' must be an integer or a "
-                    f"2-item (width, precision) tuple, not {width}"
+                    f"column_widths for column '{name}' must be a non-negative "
+                    "integer or 2-item (width, precision) tuple of non-negative "
+                    f"integers, not {width}"
                 )
 
     # Determine geometry_type and/or promote_to_multi
@@ -781,19 +801,6 @@ def write_dataframe(
 
         from pyogrio.raw import write_arrow
 
-        if column_widths is not None:
-            arrow_fields = [name for name in df.columns if name != geometry_column]
-            arrow_widths = []
-            for name in arrow_fields:
-                width = column_widths.get(name)
-                if isinstance(width, tuple):
-                    raise ValueError(
-                        "With use_arrow, width is only supported for string columns, "
-                        f"so tuple widths are not supported (column: '{name}')"
-                    )
-                arrow_widths.append(width)
-            _validate_field_width_values(arrow_widths, None, arrow_fields)
-
         df = df.copy(deep=False)
 
         if geometry_column is not None:
@@ -839,6 +846,12 @@ def write_dataframe(
 
             width = column_widths.get(name, None) if column_widths is not None else None
 
+            if isinstance(width, tuple):
+                raise ValueError(
+                    "With use_arrow, width is only supported for string columns, "
+                    f"so tuple widths are not supported (column: '{name}')"
+                )
+
             if isinstance(dtype, pd.StringDtype):
                 if width is not None and width > 0:
                     string_widths[name] = width
@@ -878,22 +891,13 @@ def write_dataframe(
 
         table = pa.Table.from_pandas(df, preserve_index=False)
 
-        # Add metadata to datetime columns so GDAL knows they are datetimes.
-        table = _add_column_metadata(
-            table,
-            column_metadata={
-                col: {"GDAL:OGR:type": "DateTime"} for col in datetime_cols
-            },
-        )
-
-        # Add column width metadata to the table so GDAL knows the widths of the fields.
-        table = _add_column_metadata(
-            table,
-            column_metadata={
-                col: {"GDAL:OGR:width": str(width)}
-                for col, width in string_widths.items()
-            },
-        )
+        # Add metadata to columns to pass on to GDAL.
+        column_metadata = {}
+        for col in datetime_cols:
+            column_metadata[col] = {"GDAL:OGR:type": "DateTime"}
+        for col, width in string_widths.items():
+            column_metadata[col] = {"GDAL:OGR:width": str(width)}
+        table = _add_column_metadata(table, column_metadata=column_metadata)
 
         # The arrow null type is not supported by GDAL
         for field_index, field in enumerate(table.schema):

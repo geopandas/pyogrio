@@ -751,7 +751,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     Returns
     -------
-    ndarray(n, 5)
+    ndarray(n, 7)
         array of index, ogr type, name, numpy type, ogr subtype, field width,
         field precision
     """
@@ -1842,10 +1842,10 @@ def ogr_read(
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
-            "field_widths": fields[:, 5],
-            "field_precisions": fields[:, 6],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths": fields[:, 5],
+            "field_precisions": fields[:, 6],
             "geometry_type": geometry_type,
         }
 
@@ -2198,10 +2198,10 @@ def ogr_open_arrow(
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
-            "field_widths": fields[:, 5],
-            "field_precisions": fields[:, 6],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths": fields[:, 5],
+            "field_precisions": fields[:, 6],
             "geometry_type": geometry_type,
             "geometry_name": geometry_name,
             "fid_column": fid_column,
@@ -2363,10 +2363,10 @@ def ogr_read_info(
             "encoding": encoding,
             "fields": fields[:, 2],
             "dtypes": fields[:, 3],
-            "field_widths":  fields[:, 5],
-            "field_precisions": fields[:, 6],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths":  fields[:, 5],
+            "field_precisions": fields[:, 6],
             "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
             "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
             "geometry_type": get_geometry_type(ogr_layer),
@@ -2634,7 +2634,7 @@ cdef infer_field_types(list dtypes):
     Returns
     -------
     ndarray (n, 4)
-        Array with inferred OGR field types, subtypes, width, and precision
+        Array with inferred OGR field types, subtypes, width and precision
         for each dtype.
 
     """
@@ -3022,8 +3022,14 @@ def ogr_write(
         if layer_created:
             for i in range(num_fields):
                 field_ogr_type, field_subtype, width, _precision = field_types[i]
-                field_width = field_widths[i] if field_widths is not None else width
                 field_precision = field_precisions[i] if field_precisions is not None else None  # noqa: E501
+                field_width = (
+                    field_widths[i]
+                    if field_widths is not None
+                    and field_widths[i] is not None
+                    and field_widths[i] > 0
+                    else width
+                )
 
                 name_b = fields[i].encode(encoding)
                 try:
