@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.14.0 (????-??-??)
+
+### Improvements
+
+-   Add support to specify the width and precision of columns when writing files (#701)
+
 ## 0.13.0 (2026-06-26)
 
 ### Improvements

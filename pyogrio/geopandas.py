@@ -541,6 +541,7 @@ def write_dataframe(
     metadata=None,
     dataset_options=None,
     layer_options=None,
+    column_widths=None,
     **kwargs,
 ):
     """Write GeoPandas GeoDataFrame to an OGR file format.
@@ -625,6 +626,22 @@ def write_dataframe(
     layer_options : dict, optional
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
+    column_widths : dict, optional (default: None)
+        Passes the maximum width for each column listed to OGR.
+
+          - For strings columns, the value should be an integer specifying the maximum
+            number of characters.
+          - For integer columns, the value should be an integer specifying the maximum
+            number of digits.
+          - For floating point columns, the value should be a tuple of
+            (width, precision). The width here is the total number of digits, both to
+            the left and right of the decimal point, and the precision is the number of
+            digits to the right of the decimal point. For e.g. shapefiles the width
+            should include the space for the decimal point and the sign as well.
+
+        Actual support and behaviour depends on the driver.
+        If ``use_arrow=False``, numeric and string columns are supported. If
+        ``use_arrow=True``, only string columns are supported.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -675,6 +692,35 @@ def write_dataframe(
     else:
         geometry_column = None
         geometry = None
+
+    if column_widths is not None:
+        unknown_columns = [name for name in column_widths if name not in df.columns]
+        if unknown_columns:
+            raise ValueError(
+                f"column_widths contains columns not found in 'df': {unknown_columns}"
+            )
+
+        for name, width in column_widths.items():
+            if isinstance(width, tuple):
+                is_valid_width = len(width) == 2 and all(
+                    isinstance(i, (int, np.integer))
+                    and not isinstance(i, (bool, np.bool_))
+                    and i >= 0
+                    for i in width
+                )
+            else:
+                is_valid_width = (
+                    isinstance(width, (int, np.integer))
+                    and not isinstance(width, (bool, np.bool_))
+                    and width >= 0
+                )
+
+            if not is_valid_width:
+                raise ValueError(
+                    f"column_widths for column '{name}' must be a non-negative "
+                    "integer or 2-item (width, precision) tuple of non-negative "
+                    f"integers, not {width}"
+                )
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_column is not None:
@@ -793,13 +839,29 @@ def write_dataframe(
         # Also pass a list of these columns on to GDAL so it can still treat them as
         # datetime columns when writing the dataset.
         datetime_cols = []
+        string_widths = {}
         for name, dtype in df.dtypes.items():
             if geometry_column is not None and name == geometry_column:
+                continue
+
+            width = column_widths.get(name, None) if column_widths is not None else None
+
+            if isinstance(width, tuple):
+                raise ValueError(
+                    "With use_arrow, width is only supported for string columns, "
+                    f"so tuple widths are not supported (column: '{name}')"
+                )
+
+            if isinstance(dtype, pd.StringDtype):
+                if width is not None and width > 0:
+                    string_widths[name] = width
                 continue
             if dtype == "object":
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
                 if inferred_dtype == "string":
                     # The column already contains strings, so no need to convert.
+                    if width is not None and width > 0:
+                        string_widths[name] = width
                     continue
                 elif inferred_dtype == "datetime":
                     # The arrow timestamp type doesn't support mixed time zone offsets,
@@ -821,15 +883,21 @@ def write_dataframe(
                 df[name] = df[name].astype("string")
                 datetime_cols.append(name)
 
+            if width is not None and width > 0:
+                raise ValueError(
+                    "With use_arrow, width is only supported for string columns, "
+                    f"not for column '{name}'"
+                )
+
         table = pa.Table.from_pandas(df, preserve_index=False)
 
-        # Add metadata to datetime columns so GDAL knows they are datetimes.
-        table = _add_column_metadata(
-            table,
-            column_metadata={
-                col: {"GDAL:OGR:type": "DateTime"} for col in datetime_cols
-            },
-        )
+        # Add metadata to columns to pass on to GDAL.
+        column_metadata = {}
+        for col in datetime_cols:
+            column_metadata[col] = {"GDAL:OGR:type": "DateTime"}
+        for col, width in string_widths.items():
+            column_metadata[col] = {"GDAL:OGR:width": str(width)}
+        table = _add_column_metadata(table, column_metadata=column_metadata)
 
         # The arrow null type is not supported by GDAL
         for field_index, field in enumerate(table.schema):
@@ -897,10 +965,26 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    field_widths = []
+    field_precisions = []
     # dict[str, np.array(int)] special case for dt-tz fields
     gdal_tz_offsets = {}
     for name in fields:
         col = df[name]
+
+        # Determine the column width and precision for the current field, if specified.
+        column_width = column_widths.get(name) if column_widths is not None else None
+        if column_width is not None:
+            if isinstance(column_width, tuple):
+                field_widths.append(column_width[0])
+                field_precisions.append(column_width[1])
+            else:
+                field_widths.append(column_width)
+                field_precisions.append(None)
+        else:
+            field_widths.append(None)
+            field_precisions.append(None)
+
         values = None
 
         if isinstance(col.dtype, pd.DatetimeTZDtype):
@@ -953,6 +1037,8 @@ def write_dataframe(
         field_data=field_data,
         field_mask=field_mask,
         fields=fields,
+        field_widths=field_widths,
+        field_precisions=field_precisions,
         crs=crs,
         geometry_type=geometry_type,
         encoding=encoding,

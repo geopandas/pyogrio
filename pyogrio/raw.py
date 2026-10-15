@@ -2,6 +2,7 @@
 
 import warnings
 from io import BytesIO
+from numbers import Integral
 from pathlib import Path
 
 from pyogrio._compat import HAS_ARROW_WRITE_API, HAS_PYARROW
@@ -34,6 +35,41 @@ DRIVERS_NO_MIXED_SINGLE_MULTI = {
 DRIVERS_NO_MIXED_DIMENSIONS = {
     "FlatGeobuf",
 }
+
+
+def _validate_field_width_values(field_widths, field_precisions, fields):
+    if field_precisions is not None and field_widths is None:
+        raise ValueError("field_precisions provided but field_widths is None")
+    if field_widths is not None and fields is None:
+        raise ValueError("field_widths provided but fields is None")
+    if field_widths is not None and len(field_widths) != len(fields):
+        raise ValueError(
+            f"Length of field_widths ({len(field_widths)}) does not match "
+            f"length of fields ({len(fields)})"
+        )
+    if field_precisions is not None and len(field_precisions) != len(fields):
+        raise ValueError(
+            f"Length of field_precisions ({len(field_precisions)}) does not match "
+            f"length of fields ({len(fields)})"
+        )
+
+    for value_type, values in (
+        ("width", field_widths),
+        ("precision", field_precisions),
+    ):
+        if values is None:
+            continue
+
+        for index, value in enumerate(values):
+            if value is None:
+                continue
+
+            field_name = fields[index]
+            if isinstance(value, bool) or not isinstance(value, Integral) or value < 0:
+                raise ValueError(
+                    f"Field {field_name!r} {value_type} must be a non-negative "
+                    f"integer, not {value!r}"
+                )
 
 
 def read(
@@ -174,6 +210,8 @@ def read(
             "dtypes": <ndarray of numpy dtypes corresponding to fields>,
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
+            "field_widths": <ndarray of field widths, 0 means no width specified>,
+            "field_precisions": <ndarray of field precisions>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>",
         }
@@ -255,6 +293,8 @@ def read_arrow(
             "dtypes": <ndarray of numpy dtypes corresponding to fields>,
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
+            "field_widths": <ndarray of field widths>,
+            "field_precisions": <ndarray of field precisions>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
@@ -598,6 +638,8 @@ def write(
     field_data,
     fields,
     field_mask=None,
+    field_widths=None,
+    field_precisions=None,
     layer=None,
     driver=None,
     # derived from meta if roundtrip
@@ -634,6 +676,12 @@ def write(
         contains mask arrays indicating null values of the field at the same
         position in the outer list, or None to indicate field does not have
         a mask array
+    field_widths : list-like or None, optional (default: None)
+        contains the widths of the fields in the same order as fields, or None if
+        field widths are not specified. Values must be non-negative integers.
+    field_precisions : list-like or None, optional (default: None)
+        contains the precisions of the fields in the same order as fields, or None if
+        field precisions are not specified. Values must be non-negative integers.
     layer : str, optional (default: None)
         layer name to create.  If writing to memory and layer name is not
         provided, it layer name will be set to a UUID4 value.
@@ -705,6 +753,11 @@ def write(
     kwargs.pop("ogr_types", None)
     kwargs.pop("ogr_subtypes", None)
 
+    fields = list(fields) if fields is not None else None
+    field_widths = list(field_widths) if field_widths is not None else None
+    field_precisions = list(field_precisions) if field_precisions is not None else None
+    _validate_field_width_values(field_widths, field_precisions, fields)
+
     path, driver = _get_write_path_driver(path, driver, append=append)
 
     dataset_metadata, layer_metadata = _validate_metadata(
@@ -738,7 +791,9 @@ def write(
         geometry_type=geometry_type,
         field_data=list(field_data) if field_data is not None else None,
         field_mask=list(field_mask) if field_mask is not None else None,
-        fields=list(fields) if fields is not None else None,
+        fields=fields,
+        field_widths=field_widths,
+        field_precisions=field_precisions,
         crs=crs,
         encoding=encoding,
         promote_to_multi=promote_to_multi,
