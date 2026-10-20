@@ -626,6 +626,46 @@ def test_write_no_geom_no_fields():
         write("test.gpkg", geometry=None, field_data=None, fields=None)
 
 
+@requires_shapely
+@pytest.mark.parametrize(
+    "wkt,expected",
+    [
+        ("TIN Z (((0 0 0,1 0 0,0 1 0,0 0 0)),((1 0 0,1 1 0,0 1 0,1 0 0)))", 2),
+        (
+            (
+                "POLYHEDRALSURFACE Z (((0 0 0,0 1 0,1 1 0,0 0 0)),"
+                "((0 0 0,1 0 1,0 0 1,0 0 0)))"
+            ),
+            2,
+        ),
+        ("TRIANGLE Z ((0 0 0,1 0 0,0 1 0,0 0 0))", 1),
+        (
+            (
+                "GEOMETRYCOLLECTION Z "
+                "(TIN Z (((0 0 0,1 0 0,0 1 0,0 0 0))),POINT Z (5 5 5))"
+            ),
+            1,
+        ),
+    ],
+)
+def test_read_polyhedral_surface_tin_triangle(tmp_path, wkt, expected):
+    """PolyhedralSurface, TIN and Triangle, which GEOS does not support, are read
+    as MultiPolygon and Polygon, also within a GeometryCollection (#166)."""
+    filename = tmp_path / "test.csv"
+    filename.write_text(f'id,WKT\n1,"{wkt}"\n')
+
+    _, _, geometry, _ = read(
+        filename, GEOM_POSSIBLE_NAMES="WKT", KEEP_GEOM_COLUMNS="NO"
+    )
+
+    polygons = shapely.get_parts(shapely.from_wkb(geometry[0]))
+    polygons = polygons[shapely.get_type_id(polygons) != 0]  # the collection's point
+    polygons = shapely.get_parts(polygons)  # each MultiPolygon's polygons
+    assert len(polygons) == expected
+    assert shapely.get_type_id(polygons).tolist() == [3] * expected
+    assert shapely.has_z(polygons).all()
+
+
 @pytest.mark.parametrize(
     "write_int64",
     [

@@ -352,6 +352,9 @@ cdef extern from "ogr_api.h":
     void            OGR_Fld_SetSubType(OGRFieldDefnH fielddefn, OGRFieldSubType subtype)
 
     OGRGeometryH        OGR_G_CreateGeometry(int wkbtypecode)
+    OGRErr              OGR_G_AddGeometryDirectly(OGRGeometryH geometry,
+                                                  OGRGeometryH part)
+    OGRGeometryH        OGR_G_Clone(OGRGeometryH geometry)
     OGRErr              OGR_G_CreateFromWkb(const void *bytes,
                                             OGRSpatialReferenceH srs,
                                             OGRGeometryH *geometry,
@@ -361,6 +364,8 @@ cdef extern from "ogr_api.h":
                                           int endianness,
                                           unsigned char *buffer)
     void                OGR_G_GetEnvelope(OGRGeometryH geometry, OGREnvelope* envelope)
+    int                 OGR_G_GetGeometryCount(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_GetGeometryRef(OGRGeometryH geometry, int i)
     OGRwkbGeometryType  OGR_G_GetGeometryType(OGRGeometryH)
     OGRGeometryH        OGR_G_GetLinearGeometry(OGRGeometryH hGeom,
                                                 double dfMaxAngleStepSizeDegrees,
@@ -376,7 +381,9 @@ cdef extern from "ogr_api.h":
     OGRGeometryH        OGR_G_ForceToMultiPoint(OGRGeometryH geometry)
     OGRGeometryH        OGR_G_ForceToMultiLineString(OGRGeometryH geometry)
     OGRGeometryH        OGR_G_ForceToMultiPolygon(OGRGeometryH geometry)
+    OGRGeometryH        OGR_G_ForceToPolygon(OGRGeometryH geometry)
 
+    OGRwkbGeometryType  OGR_GT_Flatten(OGRwkbGeometryType eType)
     int                 OGR_GT_HasM(OGRwkbGeometryType eType)
     int                 OGR_GT_HasZ(OGRwkbGeometryType eType)
     int                 OGR_GT_IsNonLinear(OGRwkbGeometryType eType)
