@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 0.14.0 (yyyy-mm-dd)
+
+### Bug fixes
+
+-   Fix reading layers declared as `3D Unknown`, `Measured Unknown` or `3D Measured Unknown`,
+    such as FileGDB MultiPatch layers, which raised "Geometry type is not supported";
+    they are read as `Unknown Z` or `Unknown`, measured values dropped as for other
+    measured types (#702).
+
 ## 0.13.0 (2026-06-26)
 
 ### Improvements

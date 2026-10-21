@@ -626,6 +626,44 @@ def test_write_no_geom_no_fields():
         write("test.gpkg", geometry=None, field_data=None, fields=None)
 
 
+@requires_shapely
+@pytest.mark.parametrize(
+    "geometry_type,wkt,expected",
+    [
+        ("Unknown Z", "POINT Z (1 2 3)", "Unknown Z"),
+        ("Measured Unknown", "POINT M (1 2 4)", "Unknown"),
+        ("Measured 3D Unknown", "POINT ZM (1 2 3 4)", "Unknown Z"),
+    ],
+)
+def test_read_unknown_z_m(tmp_path, geometry_type, wkt, expected):
+    """Layers that may hold any geometry with Z or M, as GDAL declares FileGDB
+    MultiPatch layers, can be read; M is dropped, as for other measured types."""
+    filename = tmp_path / "test.gpkg"
+    geometry = np.array([shapely.to_wkb(shapely.from_wkt(wkt), flavor="iso")])
+    write(
+        filename,
+        geometry,
+        field_data=[],
+        fields=[],
+        driver="GPKG",
+        geometry_type=geometry_type,
+        crs="EPSG:4326",
+    )
+
+    with contextlib.ExitStack() as stack:
+        if "Measured" in geometry_type:
+            stack.enter_context(
+                pytest.warns(
+                    UserWarning, match=re.escape("Measured (M) geometry types")
+                )
+            )
+        assert read_info(filename)["geometry_type"] == expected
+        meta, _, geometry, _ = read(filename)
+
+    assert meta["geometry_type"] == expected
+    assert shapely.from_wkb(geometry[0]).has_z == ("Z" in expected)
+
+
 @pytest.mark.parametrize(
     "write_int64",
     [
