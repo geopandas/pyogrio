@@ -751,8 +751,9 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     Returns
     -------
-    ndarray(n, 5)
-        array of index, ogr type, name, numpy type, ogr subtype
+    ndarray(n, 7)
+        array of index, ogr type, name, numpy type, ogr subtype, field width,
+        field precision
     """
     cdef int i
     cdef int field_count
@@ -773,7 +774,7 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
 
     field_count = OGR_FD_GetFieldCount(ogr_featuredef)
 
-    fields = np.empty(shape=(field_count, 5), dtype=object)
+    fields = np.empty(shape=(field_count, 7), dtype=object)
     fields_view = fields[:, :]
 
     skipped_fields = False
@@ -811,6 +812,8 @@ cdef get_fields(OGRLayerH ogr_layer, str encoding, use_arrow=False):
         fields_view[i, 2] = field_name
         fields_view[i, 3] = np_type
         fields_view[i, 4] = field_subtype
+        fields_view[i, 5] = OGR_Fld_GetWidth(ogr_fielddef)
+        fields_view[i, 6] = OGR_Fld_GetPrecision(ogr_fielddef)
 
     if skipped_fields:
         # filter out skipped fields
@@ -1841,6 +1844,8 @@ def ogr_read(
             "dtypes": fields[:, 3],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths": fields[:, 5],
+            "field_precisions": fields[:, 6],
             "geometry_type": geometry_type,
         }
 
@@ -2195,6 +2200,8 @@ def ogr_open_arrow(
             "dtypes": fields[:, 3],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths": fields[:, 5],
+            "field_precisions": fields[:, 6],
             "geometry_type": geometry_type,
             "geometry_name": geometry_name,
             "fid_column": fid_column,
@@ -2358,6 +2365,8 @@ def ogr_read_info(
             "dtypes": fields[:, 3],
             "ogr_types": ogr_types,
             "ogr_subtypes": ogr_subtypes,
+            "field_widths":  fields[:, 5],
+            "field_precisions": fields[:, 6],
             "fid_column": get_string(OGR_L_GetFIDColumn(ogr_layer)),
             "geometry_name": get_string(OGR_L_GetGeometryColumn(ogr_layer)),
             "geometry_type": get_geometry_type(ogr_layer),
@@ -2625,7 +2634,7 @@ cdef infer_field_types(list dtypes):
     Returns
     -------
     ndarray (n, 4)
-        Array with inferred OGR field types, subtypes, width, and precision
+        Array with inferred OGR field types, subtypes, width and precision
         for each dtype.
 
     """
@@ -2906,6 +2915,8 @@ def ogr_write(
     list fields,
     list field_data,
     list field_mask,
+    list field_widths,
+    list field_precisions,
     str crs,
     str geometry_type,
     str encoding,
@@ -3011,6 +3022,14 @@ def ogr_write(
         if layer_created:
             for i in range(num_fields):
                 field_ogr_type, field_subtype, width, _precision = field_types[i]
+                field_precision = field_precisions[i] if field_precisions is not None else None  # noqa: E501
+                field_width = (
+                    field_widths[i]
+                    if field_widths is not None
+                    and field_widths[i] is not None
+                    and field_widths[i] > 0
+                    else width
+                )
 
                 name_b = fields[i].encode(encoding)
                 try:
@@ -3020,13 +3039,30 @@ def ogr_write(
                     if field_subtype != OFSTNone:
                         OGR_Fld_SetSubType(ogr_fielddef, field_subtype)
 
-                    if width:
-                        OGR_Fld_SetWidth(ogr_fielddef, width)
+                    if field_width:
+                        OGR_Fld_SetWidth(ogr_fielddef, field_width)
 
-                    # TODO: set precision
+                        # Precision should (only) be set for OFTReal fields
+                        if field_ogr_type in (OFTReal, OFTRealList):
+                            if field_precision is not None:
+                                OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
+                            else:
+                                raise ValueError(
+                                    f"Field '{fields[i]}' of type "
+                                    f"{FIELD_TYPE_NAMES[field_ogr_type]} "
+                                    "requires a precision if field width is set"
+                                ) from None
+                        elif field_precision is not None and field_precision > 0:
+                            raise ValueError(
+                                f"Field '{fields[i]}' of type "
+                                f"{FIELD_TYPE_NAMES[field_ogr_type]} should not have "
+                                "a precision > 0"
+                            ) from None
 
                     check_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
+                except ValueError as ex:
+                    raise
                 except Exception:
                     raise FieldError(
                         f"Error adding field '{fields[i]}' to layer"

@@ -470,6 +470,148 @@ def test_write_shp(tmp_path, naturalearth_lowres, encoding):
         assert result_encoding == expected_encoding
 
 
+@pytest.mark.parametrize(
+    "field_widths, field_precisions",
+    [
+        ([10.5], None),
+        ([True], None),
+        ([np.bool_(True)], None),
+        ([-1], None),
+        ([10], [2.5]),
+        ([10], [True]),
+        ([10], [-1]),
+    ],
+)
+def test_write_invalid_field_width_values(tmp_path, field_widths, field_precisions):
+    with pytest.raises(ValueError, match="non-negative integer"):
+        write(
+            tmp_path / "unused.gpkg",
+            geometry=None,
+            field_data=None,
+            fields=["field"],
+            field_widths=field_widths,
+            field_precisions=field_precisions,
+        )
+
+
+@pytest.mark.parametrize(
+    "field_widths, field_precisions, fields, error_message",
+    [
+        (None, [2], ["field"], "field_precisions provided but field_widths is None"),
+        ([10], None, None, "field_widths provided but fields is None"),
+        ([10, 20], None, ["field"], "Length of field_widths"),
+        ([10], [2, 4], ["field"], "Length of field_precisions"),
+    ],
+)
+def test_write_invalid_field_width_lengths(
+    tmp_path, field_widths, field_precisions, fields, error_message
+):
+    with pytest.raises(ValueError, match=error_message):
+        write(
+            tmp_path / "unused.gpkg",
+            geometry=None,
+            field_data=None,
+            fields=fields,
+            field_widths=field_widths,
+            field_precisions=field_precisions,
+        )
+
+
+@pytest.mark.parametrize(
+    "ext, expected_width", [(".gpkg", 0), (".geojson", 0), (".shp", 10)]
+)
+def test_write_integer_field_width(tmp_path, ext, expected_width):
+    file_path = tmp_path / f"test{ext}"
+    write(
+        file_path,
+        geometry=np.array(
+            [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+        ),
+        geometry_type="Point",
+        field_data=[np.array([1], dtype="int32")],
+        fields=["field"],
+        field_widths=[np.int64(10)],
+    )
+
+    assert file_path.exists()
+    meta, _fids, _geometry, _field_data = read(file_path)
+
+    assert meta["fields"].shape == (1,)
+    assert meta["field_widths"] == np.array([expected_width])
+    assert meta["field_precisions"] == np.array([0])
+
+
+@pytest.mark.parametrize(
+    "ext, value, width, precision, exp_dtype, exp_ogr_type, exp_width, exp_precision, "
+    "exp_value",
+    [
+        (".fgb", 123456.123456, 12, 6, "float64", "OFTReal", 12, 6, 123456.123456),
+        (".fgb", 123456.123456, 12, 5, "float64", "OFTReal", 12, 5, 123456.123456),
+        (".fgb", -123456.123456, 12, 6, "float64", "OFTReal", 12, 6, -123456.123456),
+        (".geojson", 123456.123456, 12, 6, "float64", "OFTReal", 0, 0, 123456.123456),
+        (".gpkg", 123456.123456, 12, 6, "float64", "OFTReal", 0, 0, 123456.123456),
+        (".shp", 123456.123456, 12, 6, "float64", "OFTReal", 12, 6, 123456.12345),
+        (".shp", 123456.123456, 13, 6, "float64", "OFTReal", 13, 6, 123456.123456),
+        (".shp", -123456.123456, 13, 6, "float64", "OFTReal", 13, 6, -123456.12345),
+        (".shp", -123456.123456, 14, 6, "float64", "OFTReal", 14, 6, -123456.123456),
+        (".shp", 123456.123456, 13, 5, "float64", "OFTReal", 13, 5, 123456.12346),
+        (".shp", 123456.123456, 13, 2, "float64", "OFTReal", 13, 2, 123456.12),
+        (".shp", 123456.123456, 13, 1, "float64", "OFTReal", 13, 1, 123456.1),
+        (".shp", 123456.123456, 19, 0, "float64", "OFTReal", 19, 0, 123456.0),
+        (".shp", 123456.123456, 18, 0, "int64", "OFTInteger64", 18, 0, 123456),
+        (".shp", 123456.123456, 3, 0, "int32", "OFTInteger", 3, 0, 123),
+        (".shp", 123456.123456, 3, 2, "float64", "OFTReal", 3, 2, 123),
+    ],
+)
+def test_write_float_field_width_precision(
+    tmp_path,
+    ext,
+    value,
+    width,
+    precision,
+    exp_dtype,
+    exp_ogr_type,
+    exp_width,
+    exp_precision,
+    exp_value,
+):
+    """Test writing float fields with specific width and precision.
+
+    For shapefiles, the field width and precision are respected, but there are some
+    things to note:
+
+      - the field width includes the decimal point and all digits before and after it.
+      - if the precision is 0, the field is written as an integer field up to a width of
+        18, then it becomes a float field to avoid possible overflows.
+      - if the width is too small to accommodate the all data, the value is truncated
+      - if the precision is too small to accommodate all decimal places, the value is
+        rounded.
+    """
+    file_path = tmp_path / f"test{ext}"
+    write(
+        file_path,
+        geometry=np.array(
+            [bytes.fromhex("010100000000000000000000000000000000000000")], dtype=object
+        ),
+        geometry_type="Point",
+        field_data=[np.array([value], dtype="float64")],
+        fields=["field"],
+        field_widths=[np.int64(width)],
+        field_precisions=[np.int64(precision)],
+        crs="EPSG:4326",
+    )
+
+    assert file_path.exists()
+    meta, _fids, _geometry, field_data = read(file_path)
+
+    assert meta["fields"].shape == (1,)
+    assert meta["field_widths"] == np.array([exp_width])
+    assert meta["field_precisions"] == np.array([exp_precision])
+    assert field_data[0].dtype == exp_dtype
+    assert meta["ogr_types"][0] == exp_ogr_type
+    assert field_data[0][0] == exp_value
+
+
 def test_write_gpkg(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     meta.update({"geometry_type": "MultiPolygon"})
@@ -523,6 +665,8 @@ def test_write_no_fields(tmp_path, naturalearth_lowres):
     meta, _, geometry, field_data = read(naturalearth_lowres)
     field_data = None
     meta["fields"] = None
+    meta["field_widths"] = None
+    meta["field_precisions"] = None
     # naturalearth_lowres actually contains MultiPolygons. A shapefile doesn't make the
     # distinction, so the metadata just reports Polygon. GPKG does, so override here to
     # avoid GDAL warnings.
@@ -901,6 +1045,84 @@ def test_read_write_data_types_numeric(tmp_path, ext):
         result = read(filename)[3][0]
         assert np.array_equal(result, np.array([1, 2, 3]))
         assert result.dtype == result_dtype
+
+
+@pytest.mark.parametrize(
+    "field_data, expected, expected_widths",
+    [
+        (
+            np.array(["a", "bc"], dtype="U2"),
+            ["a", "bc"],
+            {".shp": 2, ".gpkg": 2, ".fgb": 2, ".geojson": 0},
+        ),
+        (
+            np.array(["a", "bc"], dtype="U10"),
+            ["a", "bc"],
+            {".shp": 10, ".gpkg": 10, ".fgb": 10, ".geojson": 0},
+        ),
+        (
+            np.array([b"a", b"bc"], dtype="S2"),
+            ["b'a'", "b'bc'"],
+            {".shp": 80, ".gpkg": 0, ".fgb": 0, ".geojson": 0},
+        ),
+    ],
+)
+@pytest.mark.parametrize("ext", [".shp", ".gpkg", ".fgb", ".geojson"])
+def test_read_write_data_types_string(
+    tmp_path, field_data, expected, expected_widths, ext
+):
+    """Test reading and writing string data types.
+
+    If the string data type has a fixed width, this width will be used to set the field
+    width in the output file.
+    This can be overruled by specifying a different field width using the `field_widths`
+    parameter.
+    """
+    filename = tmp_path / f"test{ext}"
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    write(filename, geometry, [field_data], ["col"], geometry_type="Point")
+
+    result = read(filename)[3][0]
+    assert result.tolist() == expected
+    assert read_info(filename)["field_widths"].tolist() == [expected_widths[ext]]
+
+
+@pytest.mark.parametrize(
+    "field_data, field_widths, expected_width",
+    [
+        (np.array(["a", "bc"], dtype="U2"), None, 2),
+        (np.array(["a", "bc"], dtype="U2"), [5], 5),
+        (np.array(["a", "bc"], dtype="U2"), [0], 2),
+    ],
+)
+def test_read_write_data_types_string_explicit_width(
+    tmp_path, field_data, field_widths, expected_width
+):
+    """Test reading and writing string data types with explicit field widths.
+
+    If `field_widths` is specified and the value isn't 0, it will override the default
+    width inferred from the string data type.
+    """
+    filename = tmp_path / "test.shp"
+    geometry = np.array(
+        [bytes.fromhex("010100000000000000000000000000000000000000")] * 2,
+        dtype=object,
+    )
+    write(
+        filename,
+        geometry,
+        [field_data],
+        ["col"],
+        geometry_type="Point",
+        field_widths=field_widths,
+    )
+
+    result = read(filename)[3][0]
+    assert result.tolist() == field_data.tolist()
+    assert read_info(filename)["field_widths"].tolist() == [expected_width]
 
 
 def test_read_write_datetime(tmp_path):
