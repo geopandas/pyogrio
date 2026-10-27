@@ -15,6 +15,8 @@ on:
       - "setup.py"
   workflow_dispatch:
 
+permissions: {}
+
 # cancel running jobs on new commit to PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -28,6 +30,8 @@ jobs:
   build-sdist:
     name: Build pyogrio sdist
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout source
@@ -58,6 +62,8 @@ jobs:
     name: Test sdist
     needs: [build-sdist]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     container:
       image: "ghcr.io/osgeo/gdal:ubuntu-small-3.12.4"
 
@@ -101,6 +107,8 @@ jobs:
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -163,6 +171,8 @@ jobs:
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -266,6 +276,8 @@ jobs:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     needs: [build-wheels-linux, build-wheels-mac-win]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
