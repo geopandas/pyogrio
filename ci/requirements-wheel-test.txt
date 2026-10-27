@@ -1,9 +1,9 @@
 pytest
-# dependencies of geopandas (installed separately with --no-deps to avoid fiona)
+# dependencies of geopandas (installed separately with --no-deps to avoid pyogrio)
 pandas
 pyproj
 shapely>=2 ; python_version < '3.15'
-shapely==2.2.0rc1 ; python_version >= '3.15'
+shapely==2.2.0 ; python_version >= '3.15'
 packaging
 # optional test dependencies
-pyarrow ; python_version < '3.15'
+pyarrow
