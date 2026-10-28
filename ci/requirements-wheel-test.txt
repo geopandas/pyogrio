@@ -2,8 +2,7 @@ pytest
 # dependencies of geopandas (installed separately with --no-deps to avoid pyogrio)
 pandas
 pyproj
-# Shapely does not currently publish stable Windows ARM64 wheels.
-shapely>=2; sys_platform != "win32" or platform_machine != "ARM64"
+shapely>=2
 packaging
 # optional test dependencies
 # PyArrow does not currently publish Windows ARM64 wheels.
