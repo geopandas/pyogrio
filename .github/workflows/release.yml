@@ -277,12 +277,10 @@ jobs:
             "macos-latest",
           ]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
-        # setup-python only provides native Windows ARM64 interpreters for 3.12+.
+        # setup-python only provides native Windows ARM64 interpreters for 3.11+.
         exclude:
           - os: "windows-11-arm"
             python-version: "3.10"
-          - os: "windows-11-arm"
-            python-version: "3.11"
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
