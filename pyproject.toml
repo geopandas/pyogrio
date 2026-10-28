@@ -95,11 +95,6 @@ markers = [
     "requires_arrow_write_api: marks tests that require the Arrow write API",
 ]
 
-# Some filters that apply to warnings that can be ignored for any test.
-filterwarnings = [
-    #"error",
-]
-
 [tool.versioneer]
 VCS = "git"
 style = "pep440"

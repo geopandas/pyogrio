@@ -80,6 +80,24 @@ requires_gdal_geos = pytest.mark.skipif(
 
 requires_shapely = pytest.mark.skipif(not HAS_SHAPELY, reason="Shapely >= 2.0 required")
 
+# Ignore warnings related to missing pyproj
+pytest.importorskip("geopandas")
+if not HAS_PYPROJ:
+    pytestmark = [
+        pytest.mark.filterwarnings(
+            "ignore:Cannot set the CRS, falling back to None. The CRS support "
+            "requires the 'pyproj' package, but it is not installed or does not "
+            "import correctly"
+        ),
+        pytest.mark.filterwarnings(
+            "ignore:'crs' was not provided.  The output dataset will not have "
+            "projection information"
+        ),
+        pytest.mark.filterwarnings(
+            "ignore:No SRS set on layer. Assuming it is long/lat on WGS84 ellipsoid"
+        ),
+    ]
+
 
 def prepare_testfile(testfile_path, dst_dir, ext):
     if ext == ".gpkg.zip" and not GDAL_GE_37:

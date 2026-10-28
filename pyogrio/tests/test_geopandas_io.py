@@ -79,24 +79,6 @@ except ImportError:
     pass
 
 
-pytest.importorskip("geopandas")
-if not HAS_PYPROJ:
-    # Ignore warnings related to missing pyproj
-    pytestmark = [
-        pytest.mark.filterwarnings(
-            "ignore:Cannot set the CRS, falling back to None. The CRS support "
-            "requires the 'pyproj' package, but it is not installed or does not "
-            "import correctly"
-        ),
-        pytest.mark.filterwarnings(
-            "ignore:'crs' was not provided.  The output dataset will not have "
-            "projection information"
-        ),
-        pytest.mark.filterwarnings(
-            "ignore:No SRS set on layer. Assuming it is long/lat on WGS84 ellipsoid"
-        ),
-    ]
-
 NE_KWARGS = dict()
 if __gdal_version__ >= (3, 14):
     DRIVERS_NO_MIXED_SINGLE_MULTI = DRIVERS_NO_MIXED_SINGLE_MULTI.union(
@@ -2976,7 +2958,7 @@ def test_write_geometry_z_types_auto(
 
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl" and HAS_PYPROJ:
-        result_gdf.set_crs("EPSG:4326", inplace=True, allow_override=True)
+        result_gdf.crs = "EPSG:4326"
 
     assert_geodataframe_equal(gdf, result_gdf)
 
