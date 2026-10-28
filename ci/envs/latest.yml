@@ -7,6 +7,7 @@ dependencies:
   - libgdal-arrow-parquet
   - shapely>=2
   - geopandas-base
+  - pyproj
   - pyarrow-core
   - pytest
   - pytest-cov
