@@ -6,6 +6,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pyogrio
 import pyogrio.raw
 from pyogrio._compat import HAS_PYPROJ
+from pyogrio.tests.conftest import PROJ_WARNINGS
 from pyogrio.util import get_vsi_path_or_buffer, vsi_path
 
 import pytest
@@ -16,6 +17,11 @@ try:
     has_geopandas = True
 except ImportError:
     has_geopandas = False
+
+
+pytest.importorskip("geopandas")
+if not HAS_PYPROJ:
+    pytestmark = PROJ_WARNINGS
 
 
 @contextlib.contextmanager

@@ -45,6 +45,7 @@ from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
     GDAL_HAS_PARQUET_DRIVER,
+    PROJ_WARNINGS,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -78,6 +79,11 @@ try:
 
 except ImportError:
     pass
+
+
+pytest.importorskip("geopandas")
+if not HAS_PYPROJ:
+    pytestmark = PROJ_WARNINGS
 
 
 NE_KWARGS = dict()
