@@ -1,7 +1,7 @@
 set(VERSION 1.2.5.2)
 
 vcpkg_download_distfile(ARCHIVE_FILE
-    URLS "http://zlib.net/fossils/zlib-1.2.5.2.tar.gz"
+    URLS "https://zlib.net/fossils/zlib-1.2.5.2.tar.gz"
     FILENAME "zlib-1.2.5.2.tar.gz"
     SHA512 d4bd29ebfd5642253cecb9b8364ee6de87442d192229a9080cc306b819745e80c0791bd0a8abefd0c5e11c958bc85485d5d5d051b4770e45f6f479f3bb16e867
 )

@@ -150,7 +150,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.2.1
+        uses: pypa/cibuildwheel@v4.3.4
 
       - uses: actions/upload-artifact@v7
         with:
@@ -181,6 +181,12 @@ jobs:
             triplet: "x64-windows-dynamic-release"
             arch: AMD64
             # windows requires windows-specific paths
+            vcpkg_cache: "c:\\vcpkg\\installed"
+            vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
+
+          - os: "windows-11-arm"
+            triplet: "arm64-windows-dynamic-release"
+            arch: ARM64
             vcpkg_cache: "c:\\vcpkg\\installed"
             vcpkg_logs: "c:\\vcpkg\\buildtrees\\**\\*.log"
 
@@ -218,7 +224,7 @@ jobs:
           git pull
           git checkout ${{ env.VCPKG_GDAL_COMMIT }}
           # TMP the installed runner on the image is newer and complains about
-          # the no-longer-supported schema of of vcpkg-tools.json in the checkout 
+          # the no-longer-supported schema of vcpkg-tools.json in the checkout
           if [ "$RUNNER_OS" = "Windows" ]; then
               ./bootstrap-vcpkg.bat -disableMetrics
           else
@@ -241,7 +247,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v4.2.1
+        uses: pypa/cibuildwheel@v4.3.4
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -266,10 +272,17 @@ jobs:
             "ubuntu-22.04",
             "ubuntu-24.04-arm",
             "windows-latest",
+            "windows-11-arm",
             "macos-15-intel",
             "macos-latest",
           ]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"]
+        # setup-python only provides native Windows ARM64 interpreters for 3.12+.
+        exclude:
+          - os: "windows-11-arm"
+            python-version: "3.10"
+          - os: "windows-11-arm"
+            python-version: "3.11"
         include:
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
@@ -281,6 +294,8 @@ jobs:
             artifact: pyogrio-wheel-linux-manylinux_2_28_aarch64
           - os: "windows-latest"
             artifact: pyogrio-wheel-x64-windows-dynamic-release
+          - os: "windows-11-arm"
+            artifact: pyogrio-wheel-arm64-windows-dynamic-release
           - os: "macos-15-intel"
             artifact: pyogrio-wheel-x64-osx-dynamic-release
           - os: "macos-latest"
