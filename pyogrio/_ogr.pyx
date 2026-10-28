@@ -340,7 +340,7 @@ def ogr_list_drivers_details():
 
 
 cdef void set_proj_search_path(str path):
-    """Set PROJ library data file search path for use in GDAL."""
+    """Set PROJ data file search path for use in GDAL."""
     cdef char **paths = NULL
     cdef const char *path_c = NULL
     path_b = path.encode("utf-8")
@@ -375,7 +375,7 @@ def get_gdal_data_path():
 
 
 def has_proj_data():
-    """Verify that PROJ library data files are correctly found.
+    """Verify that PROJ data files are correctly found.
 
     Returns
     -------
@@ -444,7 +444,7 @@ def init_gdal_data():
 def init_proj_data():
     """Set Proj search directories in the following precedence:
     - wheel copy of proj_data
-    - default detection by PROJ, including PROJ_LIB (detected automatically by PROJ)
+    - default detection by PROJ, including PROJ_DATA (detected automatically by PROJ)
     - search other well-known paths under sys.prefix
 
     Adapted from Fiona (env.py, _env.pyx).
@@ -461,7 +461,7 @@ def init_proj_data():
             )
         return
 
-    # PROJ correctly found data files from PROJ_LIB or compiled-in paths
+    # PROJ correctly found data files from PROJ_DATA or compiled-in paths
     if has_proj_data():
         return
 
@@ -477,7 +477,7 @@ def init_proj_data():
         return
 
     warnings.warn(
-            "Could not detect PROJ data files. Set PROJ_LIB environment variable to "
+            "Could not detect PROJ data files. Set PROJ_DATA environment variable to "
             "the correct path.", RuntimeWarning)
 
 

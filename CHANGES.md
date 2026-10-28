@@ -1,19 +1,28 @@
 # CHANGELOG
 
-## 0.13.0 (????-??-??)
+## 0.14.0 (yyyy-mm-dd)
+
+### Packaging
+
+-   The macOS and Linux wheels no longer export the symbols of the libraries
+    linked into GDAL, which could clash with other copies loaded in the same
+    process: on macOS, with pyogrio imported before rasterio, writing a
+    LERC-compressed GeoTIFF with rasterio aborted (#705).
+
+## 0.13.0 (2026-06-26)
 
 ### Improvements
 
 -   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
 -   Add `list_drivers_details()` function to list the available drivers with more
     detailed properties like the long driver names, whether read/append/write is
-    supported by the driver,... (#656).
+    supported by the driver, the help topic URL, etc (#656).
 -   Add whether append is supported in `list_drivers` (#559)
 -   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi cache
     associated with /vsicurl/ (and related file systems) (#605).
 -   Improve performance of `read_dataframe` (especially if a filter is used)
     and `write_dataframe` without Arrow (#577, #674).
--   Unlock the gil during GDAL functions that can take significant time to improve
+-   Unlock the GIL during GDAL functions that can take significant time to improve
     performance when multithreading (#572).
 
 ### Bug fixes

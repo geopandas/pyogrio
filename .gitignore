@@ -35,5 +35,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.lock
 
 .ruff_cache
