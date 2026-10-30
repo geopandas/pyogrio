@@ -80,11 +80,10 @@ try:
 except ImportError:
     pass
 
-
 pytest.importorskip("geopandas")
+
 if not HAS_PYPROJ:
     pytestmark = PROJ_WARNINGS
-
 
 NE_KWARGS = dict()
 if __gdal_version__ >= (3, 14):

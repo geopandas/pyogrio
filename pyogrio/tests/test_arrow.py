@@ -26,6 +26,7 @@ from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVER_EXT,
     DRIVERS,
+    PROJ_WARNINGS,
     requires_arrow_write_api,
     requires_pyarrow_api,
 )
@@ -42,20 +43,11 @@ except ImportError:
     pass
 
 # skip all tests in this file if Arrow API or GeoPandas are unavailable
-pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
 pa = pytest.importorskip("pyarrow")
 
-
 if not HAS_PYPROJ:
-    # Ignore warnings related to missing pyproj
-    pytestmark = [
-        pytest.mark.filterwarnings(
-            "ignore:Cannot set the CRS, falling back to None. The CRS support "
-            "requires the 'pyproj' package, but it is not installed or does not "
-            "import correctly"
-        ),
-    ]
+    pytestmark = PROJ_WARNINGS
 
 
 def test_read_arrow(naturalearth_lowres_all_ext):

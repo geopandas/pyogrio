@@ -18,8 +18,6 @@ try:
 except ImportError:
     has_geopandas = False
 
-
-pytest.importorskip("geopandas")
 if not HAS_PYPROJ:
     pytestmark = PROJ_WARNINGS
 
