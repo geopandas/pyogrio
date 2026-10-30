@@ -1,5 +1,5 @@
 pytest
-# dependencies of geopandas (installed separately with --no-deps to avoid fiona)
+# dependencies of geopandas (installed separately with --no-deps to avoid pyogrio)
 pandas
 pyproj
 shapely>=2

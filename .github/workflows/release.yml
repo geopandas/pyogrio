@@ -276,7 +276,7 @@ jobs:
             "macos-15-intel",
             "macos-latest",
           ]
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t", "3.15", "3.15t"]
         # setup-python only provides native Windows ARM64 interpreters for 3.11+.
         exclude:
           - os: "windows-11-arm"
@@ -343,13 +343,8 @@ jobs:
         run: |
           uv pip install -r ci/requirements-wheel-test.txt
           uv pip install --no-cache --pre --no-index --find-links wheelhouse pyogrio
-          # TMP avoid installing nightly pandas given pandas <-> geopandas compatibility issues
-          # if [ ${{ matrix.python-version }} == "3.14t" ]; then
-          #   uv pip install --pre --upgrade --extra-index-url https://pypi.anaconda.org/scientific-python-nightly-wheels/simple pandas
-          # fi
-          if [ ${{ matrix.python-version }} != "3.14t" ]; then
-              uv pip install --no-deps geopandas
-          fi
+          # install geopandas afterwards because it depends on pyogrio
+          uv pip install --no-deps geopandas
           uv pip list
 
       - name: Run tests
