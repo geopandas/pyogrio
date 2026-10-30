@@ -28,7 +28,6 @@ from pyogrio.tests.conftest import (
     DRIVERS,
     PROJ_WARNINGS,
     requires_arrow_write_api,
-    requires_pyarrow_api,
 )
 
 import pytest
