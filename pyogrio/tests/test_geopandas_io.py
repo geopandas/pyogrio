@@ -45,6 +45,7 @@ from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVERS,
     GDAL_HAS_PARQUET_DRIVER,
+    PROJ_WARNINGS,
     START_FID,
     requires_arrow_write_api,
     requires_gdal_geos,
@@ -79,9 +80,10 @@ try:
 except ImportError:
     pass
 
-
 pytest.importorskip("geopandas")
 
+if not HAS_PYPROJ:
+    pytestmark = PROJ_WARNINGS
 
 NE_KWARGS = dict()
 if __gdal_version__ >= (3, 14):
@@ -1031,11 +1033,14 @@ def test_write_read_datetime_tz_mixed_offsets(
         ],
     ],
 )
-@pytest.mark.requires_arrow_write_api
 @pytest.mark.skipif(
     not GDAL_GE_311,
     reason="before GDAL 3.11, datetimes weren't handled as well",
 )
+@pytest.mark.filterwarnings(
+    "ignore: Non-conformant content for record 1 in column dates"
+)
+@pytest.mark.requires_arrow_write_api
 def test_write_read_datetime_tz_offsets_None(tmp_path, dates, use_arrow):
     """Test writing a column with datetimes with and without time zone offsets."""
     df = gp.GeoDataFrame(
@@ -1251,7 +1256,6 @@ def test_write_read_datetime_utc(
         assert_geodataframe_equal(result, df)
 
 
-@pytest.mark.requires_arrow_write_api
 @pytest.mark.parametrize(
     "ext, use_arrow, expected_result",
     [
@@ -1265,6 +1269,8 @@ def test_write_read_datetime_utc(
         (".shp", True, "second_column_dropped"),
     ],
 )
+@pytest.mark.filterwarnings("ignore: Normalized/laundered field name")
+@pytest.mark.requires_arrow_write_api
 def test_write_read_column_names_casing(tmp_path, ext, use_arrow, expected_result):
     """Test writing and reading a file with column names that only differ in casing.
 
@@ -2965,7 +2971,7 @@ def test_write_geometry_z_types_auto(
     assert info["geometry_type"] == exp_geometry_type
 
     result_gdf = read_dataframe(filename)
-    if ext == ".geojsonl":
+    if ext == ".geojsonl" and HAS_PYPROJ:
         result_gdf.crs = "EPSG:4326"
 
     assert_geodataframe_equal(gdf, result_gdf)
