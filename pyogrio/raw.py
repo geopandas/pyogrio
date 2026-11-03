@@ -211,7 +211,7 @@ def read(
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "field_widths": <ndarray of field widths, 0 means no width specified>,
-            "field_precisions": <ndarray of field precisions>,
+            "field_precisions": <ndarray of field precisions, 0 means no precision specified>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry type>",
         }
@@ -232,7 +232,7 @@ def read(
 
         https://www.gaia-gis.it/gaia-sins/spatialite-sql-latest.html
 
-    """
+    """  # noqa: E501
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_read(
@@ -294,14 +294,14 @@ def read_arrow(
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
             "field_widths": <ndarray of field widths, 0 means no width specified>,
-            "field_precisions": <ndarray of field precisions>,
+            "field_precisions": <ndarray of field precisions, 0 means no precision specified>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",
             "geometry_name": "<name of geometry column in arrow table>",
             "fid_column": "<name of FID column in arrow table>"
         }
 
-    """
+    """  # noqa: E501
     if not HAS_PYARROW:
         raise RuntimeError(
             "pyarrow required to read using 'read_arrow'. You can use 'open_arrow' "
