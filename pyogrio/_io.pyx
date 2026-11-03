@@ -3611,7 +3611,8 @@ cdef create_fields_from_arrow_schema(
                 elif precision_value > 0:
                     raise ValueError(
                         f"Field '{get_string(child.name)}' of type "
-                        f"{FIELD_TYPE_NAMES[field_type]} should not have a precision > 0"
+                        f"{FIELD_TYPE_NAMES[field_type]} should not have a "
+                        "precision > 0"
                     ) from None
 
             if precision is not None:
