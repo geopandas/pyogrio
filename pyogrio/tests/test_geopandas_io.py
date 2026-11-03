@@ -2098,10 +2098,16 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
     assert result_info["field_widths"].tolist()[:-1] == expected_widths
     assert result_info["field_precisions"].tolist()[:-1] == expected_precisions
     if ext == ".gpkg":
-        assert result_info["ogr_types"][-1] == "OFTDateTime"
+        expected_datetime_type = "OFTDateTime"
+        if use_arrow and not GDAL_GE_311:
+            expected_datetime_type = "OFTString"
+        assert result_info["ogr_types"][-1] == expected_datetime_type
         assert result_info["field_widths"][-1] == 0
     else:
-        assert result_info["ogr_types"][-1] == "OFTString"
+        expected_datetime_type = "OFTString"
+        if not use_arrow and not GDAL_GE_311:
+            expected_datetime_type = "OFTDate"
+        assert result_info["ogr_types"][-1] == expected_datetime_type
         assert result_info["field_widths"][-1] > 0
     assert result_info["field_precisions"][-1] == 0
 
