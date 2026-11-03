@@ -872,8 +872,6 @@ def write_dataframe(
 
         # Add metadata to columns to pass on to GDAL.
         column_metadata = {}
-        for col in datetime_cols:
-            column_metadata[col] = {"GDAL:OGR:type": "DateTime"}
         if column_widths is not None:
             for col, width in column_widths.items():
                 if isinstance(width, tuple):
@@ -883,6 +881,10 @@ def write_dataframe(
                     }
                 elif width is not None and width > 0:
                     column_metadata[col] = {"GDAL:OGR:width": str(width)}
+        for col in datetime_cols:
+            # DateTime metadata overrides width/precision as GDAL ignores
+            # width/precision for DateTime columns anyway.
+            column_metadata[col] = {"GDAL:OGR:type": "DateTime"}
         table = _add_column_metadata(table, column_metadata=column_metadata)
 
         # The arrow null type is not supported by GDAL
