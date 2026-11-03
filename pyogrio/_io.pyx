@@ -3423,8 +3423,8 @@ def ogr_write_arrow(
             vsimem_rmtree_toplevel(path)
 
 
-cdef get_arrow_extension_metadata(const ArrowSchema* schema):
-    """Parse the metadata of the ArrowSchema and extract extension type metadata.
+cdef get_arrow_schema_metadata(const ArrowSchema* schema):
+    """Parse all metadata key/value pairs from an Arrow schema.
 
     For the exact layout of the bytes, see
     https://arrow.apache.org/docs/dev/format/CDataInterface.html#c.ArrowSchema.metadata
@@ -3436,23 +3436,21 @@ cdef get_arrow_extension_metadata(const ArrowSchema* schema):
 
     Returns
     -------
-    tuple(bytes or None, bytes or None)
-        A tuple with the extension name and extension metadata.
+    dict
+        The metadata key/value pairs, with byte keys and values.
 
     """
     cdef const char *metadata = schema.metadata
 
-    extension_name = None
-    extension_metadata = None
-
     if metadata == NULL:
-        return extension_name, extension_metadata
+        return {}
 
     # the number of metadata key/value pairs is stored
     # as an int32 value in the first 4 bytes
     n = int.from_bytes(metadata[:4], byteorder=sys.byteorder)
     pos = 4
 
+    result = {}
     for i in range(n):
         # for each metadata key/value pair, the first 4 bytes is the byte length
         # of the key as an int32, then follows the key (not null-terminated),
@@ -3470,15 +3468,9 @@ cdef get_arrow_extension_metadata(const ArrowSchema* schema):
         value = metadata[pos:pos+value_length]
         pos += value_length
 
-        if key == b"ARROW:extension:name":
-            extension_name = value
-        elif key == b"ARROW:extension:metadata":
-            extension_metadata = value
+        result[key] = value
 
-        if extension_name is not None and extension_metadata is not None:
-            break
-
-    return extension_name, extension_metadata
+    return result
 
 
 cdef is_arrow_geometry_field(const ArrowSchema* schema):
@@ -3500,7 +3492,8 @@ cdef is_arrow_geometry_field(const ArrowSchema* schema):
         True if it is a geometry field, False otherwise.
 
     """
-    name, _ = get_arrow_extension_metadata(schema)
+    metadata = get_arrow_schema_metadata(schema)
+    name = metadata.get(b"ARROW:extension:name")
     if name is not None:
         if name == b"geoarrow.wkb" or name == b"ogc.wkb":
             return True
@@ -3535,6 +3528,14 @@ cdef create_fields_from_arrow_schema(
     """
     IF CTE_GDAL_VERSION < (3, 8, 0):
         raise RuntimeError("Need GDAL>=3.8 for Arrow write support")
+
+    cdef OGRFeatureDefnH ogr_featuredef
+    cdef OGRFieldDefnH ogr_fielddef
+    cdef OGRFieldDefnH existing_fielddef
+    cdef int field_index
+    cdef int field_type
+    cdef int width_value
+    cdef int precision_value
 
     # Some formats store the FID explicitly in a real column, e.g. GPKG.
     # For those formats, OGR_L_GetFIDColumn will return the column name used
@@ -3579,3 +3580,59 @@ cdef create_fields_from_arrow_schema(
                 f"'{get_string(child.name)}' and type {get_string(child.format)}"
                 f"{gdal_msg}."
             )
+
+        # GDAL 3.13 doesn't interpret the "GDAL:OGR:precision" metadata yet,
+        # so we need to manually set the precision for the field if it is specified.
+        field_metadata = get_arrow_schema_metadata(child)
+        width = field_metadata.get(b"GDAL:OGR:width")
+        precision = field_metadata.get(b"GDAL:OGR:precision")
+        if width is not None or precision is not None:
+            ogr_featuredef = OGR_L_GetLayerDefn(destLayer)
+            field_index = OGR_FD_GetFieldIndex(ogr_featuredef, child.name)
+            if field_index < 0:
+                raise FieldError(
+                    f"Could not find field index for field '{get_string(child.name)}'"
+                )
+            existing_fielddef = check_pointer(
+                OGR_FD_GetFieldDefn(ogr_featuredef, field_index)
+            )
+            field_type = OGR_Fld_GetType(existing_fielddef)
+            width_value = int(width) if width is not None else 0
+            precision_value = int(precision) if precision is not None else 0
+
+            if width_value > 0:
+                if field_type in (OFTReal, OFTRealList):
+                    if precision is None:
+                        raise ValueError(
+                            f"Field '{get_string(child.name)}' of type "
+                            f"{FIELD_TYPE_NAMES[field_type]} requires a precision "
+                            "if field width is set"
+                        ) from None
+                elif precision_value > 0:
+                    raise ValueError(
+                        f"Field '{get_string(child.name)}' of type "
+                        f"{FIELD_TYPE_NAMES[field_type]} should not have a precision > 0"
+                    ) from None
+
+            if precision is not None:
+                ogr_fielddef = check_pointer(
+                    OGR_Fld_Create(
+                        child.name, <OGRFieldType>field_type
+                    )
+                )
+                try:
+                    OGR_Fld_SetWidth(
+                        ogr_fielddef, OGR_Fld_GetWidth(existing_fielddef)
+                    )
+                    OGR_Fld_SetPrecision(ogr_fielddef, precision_value)
+                    check_int(
+                        OGR_L_AlterFieldDefn(
+                            destLayer,
+                            field_index,
+                            ogr_fielddef,
+                            ALTER_WIDTH_PRECISION_FLAG,
+                        )
+                    )
+                finally:
+                    OGR_Fld_Destroy(ogr_fielddef)
+                    ogr_fielddef = NULL

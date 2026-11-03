@@ -839,29 +839,16 @@ def write_dataframe(
         # Also pass a list of these columns on to GDAL so it can still treat them as
         # datetime columns when writing the dataset.
         datetime_cols = []
-        string_widths = {}
         for name, dtype in df.dtypes.items():
             if geometry_column is not None and name == geometry_column:
                 continue
 
-            width = column_widths.get(name, None) if column_widths is not None else None
-
-            if isinstance(width, tuple):
-                raise ValueError(
-                    "With use_arrow, width is only supported for string columns, "
-                    f"so tuple widths are not supported (column: '{name}')"
-                )
-
             if isinstance(dtype, pd.StringDtype):
-                if width is not None and width > 0:
-                    string_widths[name] = width
                 continue
             if dtype == "object":
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
                 if inferred_dtype == "string":
                     # The column already contains strings, so no need to convert.
-                    if width is not None and width > 0:
-                        string_widths[name] = width
                     continue
                 elif inferred_dtype == "datetime":
                     # The arrow timestamp type doesn't support mixed time zone offsets,
@@ -883,20 +870,21 @@ def write_dataframe(
                 df[name] = df[name].astype("string")
                 datetime_cols.append(name)
 
-            if width is not None and width > 0:
-                raise ValueError(
-                    "With use_arrow, width is only supported for string columns, "
-                    f"not for column '{name}'"
-                )
-
         table = pa.Table.from_pandas(df, preserve_index=False)
 
         # Add metadata to columns to pass on to GDAL.
         column_metadata = {}
         for col in datetime_cols:
             column_metadata[col] = {"GDAL:OGR:type": "DateTime"}
-        for col, width in string_widths.items():
-            column_metadata[col] = {"GDAL:OGR:width": str(width)}
+        if column_widths is not None:
+            for col, width in column_widths.items():
+                if isinstance(width, tuple):
+                    column_metadata[col] = {
+                        "GDAL:OGR:width": str(width[0]),
+                        "GDAL:OGR:precision": str(width[1]),
+                    }
+                elif width is not None and width > 0:
+                    column_metadata[col] = {"GDAL:OGR:width": str(width)}
         table = _add_column_metadata(table, column_metadata=column_metadata)
 
         # The arrow null type is not supported by GDAL

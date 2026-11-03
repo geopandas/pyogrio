@@ -2070,11 +2070,6 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         "iso_a3": 100,
         "gdp_md_est": (14, 2),
     }
-    if use_arrow:
-        # For use_arrow, only string columns are supported for column widths.
-        del column_widths["pop_est"]
-        del column_widths["gdp_md_est"]
-
     output_path = tmp_path / f"test{ext}"
     write_dataframe(
         input_gdf,
@@ -2092,13 +2087,6 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         # In GeoPackage, numeric column widths and precisions are not applied.
         expected_widths[0] = expected_widths[4] = 0
         expected_precisions[4] = 0
-    elif use_arrow:
-        # For Arrow, only string columns are overridden, other types retain default
-        # widths and precisions.
-        expected_widths[0] = 18
-        expected_widths[4] = 24
-        expected_precisions[4] = 15
-
     assert result_info["field_widths"].tolist() == expected_widths
     assert result_info["field_precisions"].tolist() == expected_precisions
 
@@ -2108,73 +2096,58 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
 
 
 @pytest.mark.parametrize(
-    "column_widths, error_message, error_message_arrow",
+    "column_widths, error_message",
     [
         pytest.param(
-            {"float_column": 14},
-            "requires a precision if field width is set",
-            "With use_arrow, width is only supported for string columns",
-            id="real-without-precision",
-        ),
-        pytest.param(
-            {"string_column": (100, 2)},
-            "should not have a precision > 0",
-            "With use_arrow, width is only supported for string columns",
-            id="precision-on-string",
-        ),
-        pytest.param(
             {"missing_column": 14, "another_missing_column": 10},
-            "(?=.*missing_column)(?=.*another_missing_column)",
             "(?=.*missing_column)(?=.*another_missing_column)",
             id="unknown-column",
         ),
         pytest.param(
             {"string_column": 10.5},
             "must be a non-negative integer",
-            "must be a non-negative integer",
             id="float-width",
         ),
         pytest.param(
             {"string_column": True},
-            "must be a non-negative integer",
             "must be a non-negative integer",
             id="boolean-width",
         ),
         pytest.param(
             {"float_column": (10,)},
             re.escape("2-item (width, precision) tuple"),
-            re.escape("2-item (width, precision) tuple"),
             id="malformed-precision-tuple",
         ),
         pytest.param(
             {"float_column": (10, 2.5)},
-            "must be a non-negative integer",
             "must be a non-negative integer",
             id="float-precision",
         ),
         pytest.param(
             {"string_column": -1},
             "must be a non-negative integer",
-            "must be a non-negative integer",
             id="negative-width",
         ),
         pytest.param(
             {"float_column": (10, -1)},
             "must be a non-negative integer",
-            "must be a non-negative integer",
             id="negative-precision",
         ),
         pytest.param(
-            {"integer_column": 14},
-            None,
-            "With use_arrow, width is only supported for string columns",
-            id="integer-width",
+            {"float_column": 14},
+            "requires a precision if field width is set",
+            id="real-without-precision",
+        ),
+        pytest.param(
+            {"string_column": (100, 2)},
+            "should not have a precision > 0",
+            id="precision-on-string",
         ),
     ],
 )
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_column_widths_errors(
-    tmp_path, use_arrow, column_widths, error_message, error_message_arrow
+    tmp_path, use_arrow, column_widths, error_message
 ):
     df = pd.DataFrame(
         {
@@ -2185,13 +2158,7 @@ def test_write_dataframe_column_widths_errors(
     )
     output_path = tmp_path / "test.gpkg"
 
-    error_message = error_message_arrow if use_arrow else error_message
-    if error_message is not None:
-        with pytest.raises(ValueError, match=error_message):
-            write_dataframe(
-                df, output_path, column_widths=column_widths, use_arrow=use_arrow
-            )
-    else:
+    with pytest.raises(ValueError, match=error_message):
         write_dataframe(
             df, output_path, column_widths=column_widths, use_arrow=use_arrow
         )
