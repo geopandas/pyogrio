@@ -2936,6 +2936,7 @@ def ogr_write(
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
+    cdef OGRFieldDefnH existing_fielddef = NULL
     cdef const unsigned char *wkb_buffer = NULL
     cdef unsigned int wkbtype = 0
     cdef int supports_transactions = 0
@@ -3042,24 +3043,53 @@ def ogr_write(
                     if field_width:
                         OGR_Fld_SetWidth(ogr_fielddef, field_width)
 
-                        # Precision should (only) be set for OFTReal fields
-                        if field_ogr_type in (OFTReal, OFTRealList):
-                            if field_precision is not None:
-                                OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
-                            else:
-                                raise ValueError(
-                                    f"Field '{fields[i]}' of type "
-                                    f"{FIELD_TYPE_NAMES[field_ogr_type]} "
-                                    "requires a precision if field width is set"
-                                ) from None
-                        elif field_precision is not None and field_precision > 0:
+                    if field_ogr_type in (OFTReal, OFTRealList):
+                        if field_width and field_precision is None:
                             raise ValueError(
                                 f"Field '{fields[i]}' of type "
-                                f"{FIELD_TYPE_NAMES[field_ogr_type]} should not have "
-                                "a precision > 0"
+                                f"{FIELD_TYPE_NAMES[field_ogr_type]} "
+                                "requires a precision if field width is set"
                             ) from None
+                        if field_precision is not None:
+                            OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
+                    elif field_precision is not None and field_precision > 0:
+                        raise ValueError(
+                            f"Field '{fields[i]}' of type "
+                            f"{FIELD_TYPE_NAMES[field_ogr_type]} should not have "
+                            "a precision > 0"
+                        ) from None
 
                     check_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
+
+                    if not field_width and field_precision is not None:
+                        ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
+                        field_index = OGR_FD_GetFieldIndex(ogr_featuredef, name_b)
+                        if field_index < 0:
+                            raise FieldError(
+                                f"Could not find field index for field '{fields[i]}'"
+                            )
+                        existing_fielddef = check_pointer(
+                            OGR_FD_GetFieldDefn(ogr_featuredef, field_index)
+                        )
+                        ogr_fielddef = check_pointer(
+                            OGR_Fld_Create(name_b, field_ogr_type)
+                        )
+                        try:
+                            OGR_Fld_SetWidth(
+                                ogr_fielddef, OGR_Fld_GetWidth(existing_fielddef)
+                            )
+                            OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
+                            check_int(
+                                OGR_L_AlterFieldDefn(
+                                    ogr_layer,
+                                    field_index,
+                                    ogr_fielddef,
+                                    ALTER_WIDTH_PRECISION_FLAG,
+                                )
+                            )
+                        finally:
+                            OGR_Fld_Destroy(ogr_fielddef)
+                            ogr_fielddef = NULL
 
                 except ValueError as ex:
                     raise
@@ -3600,20 +3630,19 @@ cdef create_fields_from_arrow_schema(
             width_value = int(width) if width is not None else 0
             precision_value = int(precision) if precision is not None else 0
 
-            if width_value > 0:
-                if field_type in (OFTReal, OFTRealList):
-                    if precision is None:
-                        raise ValueError(
-                            f"Field '{get_string(child.name)}' of type "
-                            f"{FIELD_TYPE_NAMES[field_type]} requires a precision "
-                            "if field width is set"
-                        ) from None
-                elif precision_value > 0:
+            if field_type in (OFTReal, OFTRealList):
+                if width_value > 0 and precision is None:
                     raise ValueError(
                         f"Field '{get_string(child.name)}' of type "
-                        f"{FIELD_TYPE_NAMES[field_type]} should not have a "
-                        "precision > 0"
+                        f"{FIELD_TYPE_NAMES[field_type]} requires a precision "
+                        "if field width is set"
                     ) from None
+            elif precision_value > 0:
+                raise ValueError(
+                    f"Field '{get_string(child.name)}' of type "
+                    f"{FIELD_TYPE_NAMES[field_type]} should not have a "
+                    "precision > 0"
+                ) from None
 
             if precision is not None:
                 ogr_fielddef = check_pointer(

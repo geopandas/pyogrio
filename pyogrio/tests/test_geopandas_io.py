@@ -2062,6 +2062,12 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_arrow):
     input_gdf = read_dataframe(naturalearth_lowres)
+    input_gdf.insert(len(input_gdf.columns) - 1, "prec_only", 1.23)
+    datetime_values = pd.Series(
+        pd.date_range("2023-01-01", periods=len(input_gdf), tz="Europe/Brussels"),
+        index=input_gdf.index,
+    )
+    input_gdf.insert(len(input_gdf.columns) - 1, "dates", datetime_values)
 
     column_widths = {
         "pop_est": 14,
@@ -2069,6 +2075,8 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
         "name": 100,
         "iso_a3": 100,
         "gdp_md_est": (14, 2),
+        "prec_only": (0, 2),
+        "dates": 40,
     }
     output_path = tmp_path / f"test{ext}"
     write_dataframe(
@@ -2081,17 +2089,26 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
     # Check widths and precisions
     result_info = read_info(output_path)
 
-    expected_widths = [14, 100, 100, 100, 14]
-    expected_precisions = [0, 0, 0, 0, 2]
+    expected_widths = [14, 100, 100, 100, 14, 24]
+    expected_precisions = [0, 0, 0, 0, 2, 2]
     if ext == ".gpkg":
         # In GeoPackage, numeric column widths and precisions are not applied.
-        expected_widths[0] = expected_widths[4] = 0
-        expected_precisions[4] = 0
-    assert result_info["field_widths"].tolist() == expected_widths
-    assert result_info["field_precisions"].tolist() == expected_precisions
+        expected_widths[0] = expected_widths[4] = expected_widths[5] = 0
+        expected_precisions[4] = expected_precisions[5] = 0
+    assert result_info["field_widths"].tolist()[:-1] == expected_widths
+    assert result_info["field_precisions"].tolist()[:-1] == expected_precisions
+    if ext == ".gpkg":
+        assert result_info["ogr_types"][-1] == "OFTDateTime"
+        assert result_info["field_widths"][-1] == 0
+    else:
+        assert result_info["ogr_types"][-1] == "OFTString"
+        assert result_info["field_widths"][-1] > 0
+    assert result_info["field_precisions"][-1] == 0
 
     # Check data
     result_gdf = read_dataframe(output_path)
+    result_gdf = result_gdf.drop(columns=["dates"])
+    input_gdf = input_gdf.drop(columns=["dates"])
     assert_geodataframe_equal(result_gdf, input_gdf)
 
 
@@ -2142,6 +2159,11 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
             {"string_column": (100, 2)},
             "should not have a precision > 0",
             id="precision-on-string",
+        ),
+        pytest.param(
+            {"string_column": (0, 2)},
+            "should not have a precision > 0",
+            id="precision-only-on-string",
         ),
     ],
 )
