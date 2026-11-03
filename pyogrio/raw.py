@@ -293,7 +293,7 @@ def read_arrow(
             "dtypes": <ndarray of numpy dtypes corresponding to fields>,
             "ogr_types": <ndarray of OGR types corresponding to fields>,
             "ogr_subtypes": <ndarray of OGR subtypes corresponding to fields>,
-            "field_widths": <ndarray of field widths>,
+            "field_widths": <ndarray of field widths, 0 means no width specified>,
             "field_precisions": <ndarray of field precisions>,
             "encoding": "<encoding>",
             "geometry_type": "<geometry_type>",

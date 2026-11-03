@@ -629,15 +629,15 @@ def write_dataframe(
     column_widths : dict, optional (default: None)
         Passes the maximum width for each column listed to OGR.
 
-          - For strings columns, the value should be an integer specifying the maximum
-            number of characters.
-          - For integer columns, the value should be an integer specifying the maximum
-            number of digits.
-          - For floating point columns, the value should be a tuple of
-            (width, precision). The width here is the total number of digits, both to
-            the left and right of the decimal point, and the precision is the number of
-            digits to the right of the decimal point. For e.g. shapefiles the width
-            should include the space for the decimal point and the sign as well.
+        - For strings columns, the value should be an integer specifying the maximum
+          number of characters.
+        - For integer columns, the value should be an integer specifying the maximum
+          number of digits.
+        - For floating point columns, the value should be a tuple of
+          (width, precision). The width here is the total number of digits, both to
+          the left and right of the decimal point, and the precision is the number of
+          digits to the right of the decimal point. For e.g. shapefiles the width
+          should include the space for the decimal point and the sign as well.
 
         Actual support and behaviour depends on the driver.
         If ``use_arrow=False``, numeric and string columns are supported. If
