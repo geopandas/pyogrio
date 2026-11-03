@@ -1567,7 +1567,7 @@ cdef get_bounds(OGRLayerH ogr_layer, int skip_features, int num_features):
     i = 0
     while True:
         try:
-            if num_features > 0 and i == num_features:
+            if i == num_features:
                 break
 
             try:
