@@ -303,7 +303,7 @@ def read_info(
                 "ogr_types": <ndarray of OGR field types>,
                 "ogr_subtypes": <ndarray of OGR field subtypes>,
                 "field_widths": <ndarray of field widths, 0 means no width specified>,
-                "field_precisions": <ndarray of field precisions, 0 means no precision specified>,
+                "field_precisions": <ndarray of field precisions>,
                 "encoding": "<encoding>",
                 "fid_column": "<fid column name or "">",
                 "geometry_name": "<geometry column name or "">",
@@ -316,7 +316,7 @@ def read_info(
                 "layer_metadata": <dict of layer metadata or None>
             }
 
-    """  # noqa: E501
+    """
     dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
 
     return ogr_read_info(
