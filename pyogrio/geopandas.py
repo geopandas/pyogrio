@@ -636,10 +636,10 @@ def write_dataframe(
         - For floating point columns, the value should be a tuple of
           (width, precision). The width here is the total number of digits, both to
           the left and right of the decimal point, and the precision is the number of
-          digits to the right of the decimal point. For e.g. shapefiles, the width
-          should include the space for the decimal point and the sign as well.
+          digits to the right of the decimal point.
 
-        Actual support and behaviour depends on the driver.
+        Actual support and behaviour depends on the driver, some examples are listed
+        in the Notes section below.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -661,6 +661,14 @@ def write_dataframe(
     Object dtype columns containing `datetime` or `pandas.Timestamp` objects will
     also be written as datetime fields, preserving time zone information where possible.
 
+    The behaviour of column widths and precisions depends on the driver used for
+    writing:
+
+    - GeoPackage: stores widths and precisions, but doesn't enforce them.
+    - Shapefile: for integer and string columns, the width is expanded to fit the
+      values. For floating point columns, the specified width should include the space
+      for the decimal point and the sign as well, and is enforce by truncating the
+      values. The precision is enforced by rounding the values.
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 
