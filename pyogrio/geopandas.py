@@ -636,12 +636,10 @@ def write_dataframe(
         - For floating point columns, the value should be a tuple of
           (width, precision). The width here is the total number of digits, both to
           the left and right of the decimal point, and the precision is the number of
-          digits to the right of the decimal point. For e.g. shapefiles the width
+          digits to the right of the decimal point. For e.g. shapefiles, the width
           should include the space for the decimal point and the sign as well.
 
         Actual support and behaviour depends on the driver.
-        If ``use_arrow=False``, numeric and string columns are supported. If
-        ``use_arrow=True``, only string columns are supported.
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
