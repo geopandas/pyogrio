@@ -2060,23 +2060,46 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
 
 @pytest.mark.parametrize("ext", [".shp", ".gpkg"])
 @pytest.mark.requires_arrow_write_api
-def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_arrow):
-    input_gdf = read_dataframe(naturalearth_lowres)
-    input_gdf.insert(len(input_gdf.columns) - 1, "prec_only", 1.23)
-    datetime_values = pd.Series(
-        pd.date_range("2023-01-01", periods=len(input_gdf), tz="Europe/Brussels"),
-        index=input_gdf.index,
+def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
+    """Test writing DataFrames with column widths/precisions specified.
+
+    Behaviour differs largely between drivers:
+
+    - GeoPackage: stores widths and precisions, but doesn't enforce them.
+    - Shapefile: for integer and string columns, expands the width to fit the values.
+      For floating point columns, the specified width is enforce by truncating the
+      values, the precision is enforced by rounding the values.
+    """
+    input_gdf = gp.GeoDataFrame(
+        {
+            "int64_col": np.array([1], dtype="int64"),
+            "int_over": np.array([12345], dtype="int64"),
+            "str_a": ["Europe"],
+            "str_b": ["Test"],
+            "str_c": ["TST"],
+            "str_over": ["long value"],
+            "float_wp": np.array([1.23], dtype="float64"),
+            "float_def": np.array([1.23], dtype="float64"),
+            "float_prec": np.array([1.23], dtype="float64"),
+            "float_p0": np.array([1.0], dtype="float64"),
+            "datetime": pd.date_range("2023-01-01", periods=1, tz="Europe/Brussels"),
+            "geometry": [Point(0, 0)],
+        },
+        geometry="geometry",
+        crs="EPSG:4326",
     )
-    input_gdf.insert(len(input_gdf.columns) - 1, "dates", datetime_values)
 
     column_widths = {
-        "pop_est": 14,
-        "continent": np.int64(100),
-        "name": 100,
-        "iso_a3": 100,
-        "gdp_md_est": (14, 2),
-        "prec_only": (0, 2),
-        "dates": 40,
+        "int64_col": 14,
+        "int_over": 2,
+        "str_a": np.int64(100),
+        "str_b": 100,
+        "str_c": 100,
+        "str_over": 3,
+        "float_wp": (14, 2),
+        "float_prec": (0, 2),
+        "float_p0": (19, 0),
+        "datetime": 40,
     }
     output_path = tmp_path / f"test{ext}"
     write_dataframe(
@@ -2089,12 +2112,14 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
     # Check widths and precisions
     result_info = read_info(output_path)
 
-    expected_widths = [14, 100, 100, 100, 14, 24]
-    expected_precisions = [0, 0, 0, 0, 2, 2]
+    expected_widths = [14, 5, 100, 100, 100, 10, 14, 24, 24, 19]
+    expected_precisions = [0, 0, 0, 0, 0, 0, 2, 15, 2, 0]
     if ext == ".gpkg":
-        # In GeoPackage, numeric column widths and precisions are not applied.
-        expected_widths[0] = expected_widths[4] = expected_widths[5] = 0
-        expected_precisions[4] = expected_precisions[5] = 0
+        # GeoPackage reports string widths but not numeric widths or precisions.
+        expected_widths[0] = expected_widths[1] = expected_widths[6] = 0
+        expected_widths[5] = 3
+        expected_widths[7:] = [0, 0, 0]
+        expected_precisions[6:] = [0, 0, 0, 0]
     assert result_info["field_widths"].tolist()[:-1] == expected_widths
     assert result_info["field_precisions"].tolist()[:-1] == expected_precisions
     if ext == ".gpkg":
@@ -2113,9 +2138,11 @@ def test_write_dataframe_column_widths(tmp_path, naturalearth_lowres, ext, use_a
 
     # Check data
     result_gdf = read_dataframe(output_path)
-    result_gdf = result_gdf.drop(columns=["dates"])
-    input_gdf = input_gdf.drop(columns=["dates"])
-    assert_geodataframe_equal(result_gdf, input_gdf)
+    result_gdf = result_gdf.drop(columns=["datetime"])
+    expected_gdf = input_gdf.drop(columns=["datetime"]).copy()
+    if ext == ".shp":
+        expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
+    assert_geodataframe_equal(result_gdf, expected_gdf)
 
 
 @pytest.mark.parametrize(
