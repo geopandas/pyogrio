@@ -32,6 +32,7 @@ from pyogrio._compat import (
     PANDAS_GE_22,
     PANDAS_GE_23,
     PANDAS_GE_30,
+    PANDAS_GE_31,
     SHAPELY_GE_21,
 )
 from pyogrio.errors import DataLayerError, DataSourceError, FeatureError, GeometryError
@@ -1133,13 +1134,17 @@ def test_write_read_datetime_tz_objects(
 
         # Subtract 5 hours from the expected datetimes to match the wrong result.
         if datetime_as_string:
-            exp_df["dates"] = pd.Series(
-                [
+            if PANDAS_GE_31:
+                strings = [
+                    "2020-01-01T04:00:00.123-05:00",
+                    "2020-01-01T05:00:00.000-05:00",
+                ]
+            else:
+                strings = [
                     "2020-01-01T04:00:00.123000-05:00",
                     "2020-01-01T05:00:00-05:00",
-                    np.nan,
                 ]
-            )
+            exp_df["dates"] = pd.Series(strings + [np.nan])
         else:
             exp_df["dates"] = exp_df.dates - pd.Timedelta(hours=5)
             if PANDAS_GE_20:
@@ -1162,13 +1167,17 @@ def test_write_read_datetime_tz_objects(
         assert is_string_dtype(result.dates.dtype)
         if use_arrow and __gdal_version__ < (3, 11, 0):
             # With GDAL < 3.11 with arrow, datetime columns are written as string type
-            exp_df["dates"] = pd.Series(
-                [
+            if PANDAS_GE_31:
+                strings = [
+                    "2020-01-01T09:00:00.123-05:00",
+                    "2020-01-01T10:00:00.000-05:00",
+                ]
+            else:
+                strings = [
                     "2020-01-01T09:00:00.123000-05:00",
                     "2020-01-01T10:00:00-05:00",
-                    np.nan,
                 ]
-            )
+            exp_df["dates"] = pd.Series(strings + [np.nan])
         else:
             exp_df["dates"] = pd.Series(
                 ["2020-01-01T09:00:00.123-05:00", "2020-01-01T10:00:00-05:00", np.nan]

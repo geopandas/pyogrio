@@ -42,7 +42,8 @@ PANDAS_GE_15 = pandas is not None and Version(pandas.__version__) >= Version("1.
 PANDAS_GE_20 = pandas is not None and Version(pandas.__version__) >= Version("2.0.0")
 PANDAS_GE_22 = pandas is not None and Version(pandas.__version__) >= Version("2.2.0")
 PANDAS_GE_23 = pandas is not None and Version(pandas.__version__) >= Version("2.3.0")
-PANDAS_GE_30 = pandas is not None and Version(pandas.__version__) >= Version("3.0.0dev")
+PANDAS_GE_30 = pandas is not None and Version(pandas.__version__) >= Version("3.0.0")
+PANDAS_GE_31 = pandas is not None and Version(pandas.__version__) >= Version("3.1.0")
 
 GDAL_GE_37 = __gdal_version__ >= (3, 7, 0)
 GDAL_GE_38 = __gdal_version__ >= (3, 8, 0)
