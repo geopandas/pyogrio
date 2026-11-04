@@ -3644,7 +3644,7 @@ cdef create_fields_from_arrow_schema(
                     "precision > 0"
                 ) from None
 
-            # Only set the precision if it is specified and different from the current 
+            # Only set the precision if it is specified and different from the current
             # value, as GDAL versions > 3.13 might set precision already correctly.
             if (
                 precision is not None
