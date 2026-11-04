@@ -3644,7 +3644,12 @@ cdef create_fields_from_arrow_schema(
                     "precision > 0"
                 ) from None
 
-            if precision is not None:
+            # Only set the precision if it is specified and different from the current 
+            # value, as GDAL versions > 3.13 might set precision already correctly.
+            if (
+                precision is not None
+                and OGR_Fld_GetPrecision(existing_fielddef) != precision_value
+            ):
                 ogr_fielddef = check_pointer(
                     OGR_Fld_Create(
                         child.name, <OGRFieldType>field_type
@@ -3663,6 +3668,11 @@ cdef create_fields_from_arrow_schema(
                             ALTER_WIDTH_PRECISION_FLAG,
                         )
                     )
+                except CPLE_NotSupportedError as exc:
+                    raise FieldError(
+                        f"Cannot set precision for field '{get_string(child.name)}': "
+                        "the output layer does not support altering field definitions"
+                    ) from exc
                 finally:
                     OGR_Fld_Destroy(ogr_fielddef)
                     ogr_fielddef = NULL

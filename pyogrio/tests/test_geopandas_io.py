@@ -39,6 +39,7 @@ from pyogrio.errors import (
     DataLayerError,
     DataSourceError,
     FeatureError,
+    FieldError,
     GeometryError,
 )
 from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
@@ -2225,6 +2226,24 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     # `check_exact=True` is necessary to validate the differences in float
     # rounding/truncation
     pd.testing.assert_frame_equal(result_gdf, expected_gdf, check_exact=True)
+
+
+@requires_arrow_write_api
+def test_write_dataframe_fgb_arrow_float_precision(tmp_path):
+    gdf = gp.GeoDataFrame(
+        {"float_column": [1.234], "geometry": [Point(0, 0)]}, crs="EPSG:4326"
+    )
+    output_path = tmp_path / "test.fgb"
+
+    with pytest.raises(
+        FieldError, match="Cannot set precision for field 'float_column'"
+    ):
+        write_dataframe(
+            gdf,
+            output_path,
+            column_widths={"float_column": (10, 2)},
+            use_arrow=True,
+        )
 
 
 @pytest.mark.parametrize(
