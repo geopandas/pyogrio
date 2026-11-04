@@ -664,11 +664,14 @@ def write_dataframe(
     The behaviour of column widths and precisions depends on the driver used for
     writing:
 
-    - GeoPackage: stores widths and precisions, but doesn't enforce them.
-    - Shapefile: for integer and string columns, the width is expanded to fit the
+    - GeoPackage: stores widths and precisions without enforcing them.
+    - Shapefile: for integer and string columns, the width is enlarged to fit the
       values. For floating point columns, the specified width should include the space
-      for the decimal point and the sign as well, and is enforce by truncating the
+      for the decimal point and the sign as well, and it is enforced by truncating the
       values. The precision is enforced by rounding the values.
+    - GeoJSON and GeoJSONSeq: don't store nor enforce widths or precisions.
+    - FlatGeobuf: stores widths and precisions without enforcing them.
+      Precision is ignored.
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 
@@ -684,6 +687,11 @@ def write_dataframe(
     if use_arrow is None:
         use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
     path, driver = _get_write_path_driver(path, driver, append=append)
+
+    # Columns widths/precisions don't have any effect for these drivers, but if present
+    # lead to some errors in some cases, so just set them to None for these drivers.
+    if driver in ("GeoJSON", "GeoJSONSeq"):
+        column_widths = None
 
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
