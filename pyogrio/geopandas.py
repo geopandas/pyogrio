@@ -640,6 +640,7 @@ def write_dataframe(
 
         Actual support and behaviour depends on the driver, some examples are listed
         in the Notes section below.
+        .. versionadded:: 0.14.0
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -670,7 +671,9 @@ def write_dataframe(
       for the decimal point and the sign as well, and it is enforced by truncating the
       values. The precision is enforced by rounding the values.
     - GeoJSON and GeoJSONSeq: don't store nor enforce widths or precisions.
-    - FlatGeobuf: stores widths and precisions without enforcing them.
+    - FlatGeobuf: stores widths and precisions without enforcing them. With
+      ``use_arrow=True``, specifying width and precision for float columns is not
+      supported at the time of writing (GDAL <= 3.13).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 

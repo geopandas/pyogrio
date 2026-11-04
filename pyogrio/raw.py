@@ -679,9 +679,11 @@ def write(
     field_widths : list-like or None, optional (default: None)
         contains the widths of the fields in the same order as fields, or None if
         field widths are not specified. Values must be non-negative integers.
+        .. versionadded:: 0.14.0
     field_precisions : list-like or None, optional (default: None)
         contains the precisions of the fields in the same order as fields, or None if
         field precisions are not specified. Values must be non-negative integers.
+        .. versionadded:: 0.14.0
     layer : str, optional (default: None)
         layer name to create.  If writing to memory and layer name is not
         provided, it layer name will be set to a UUID4 value.
