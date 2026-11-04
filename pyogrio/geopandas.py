@@ -640,7 +640,9 @@ def write_dataframe(
 
         Actual support and behaviour depends on the driver, some examples are listed
         in the Notes section below.
+
         .. versionadded:: 0.14.0
+
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords

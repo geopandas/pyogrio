@@ -56,6 +56,7 @@ def list_drivers(read=False, write=False, append=False) -> dict[str, str]:
         If True, will only return drivers that are known to support write capabilities.
     append: bool, optional (default: False)
         If True, will only return drivers that are known to support append capabilities.
+
         .. versionadded:: 0.13.0
 
     Returns
