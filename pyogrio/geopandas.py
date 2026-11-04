@@ -671,7 +671,6 @@ def write_dataframe(
       values. The precision is enforced by rounding the values.
     - GeoJSON and GeoJSONSeq: don't store nor enforce widths or precisions.
     - FlatGeobuf: stores widths and precisions without enforcing them.
-      Precision is ignored.
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 

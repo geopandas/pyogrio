@@ -2082,7 +2082,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     - Shapefile: for integer and string columns, the width is enlarged to fit the
       values. For floating point columns, the specified width is enforced by truncating
       the values, the precision is enforced by rounding the values.
-    - FlatGeobuf: stores integer and string widths without enforcing them. Arrow
+    - FlatGeobuf: stores widths and precisions without enforcing them. Arrow
       writes do not support float width/precision alterations.
     - GeoJSON and GeoJSONL: don't store nor enforce widths or precisions.
     """
@@ -2098,16 +2098,16 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
             "float_wp1": np.array([123456.123456], dtype="float64"),
             "float_wp2": np.array([123456.123456], dtype="float64"),
             "float_wp3": np.array([123456.123456], dtype="float64"),
-            "float_prec": np.array([1.23], dtype="float64"),
-            "float_p0": np.array([1.0], dtype="float64"),
-            "float_def": np.array([1.23], dtype="float64"),
+            "float_prec": np.array([123456.123456], dtype="float64"),
+            "float_p0": np.array([123456.123456], dtype="float64"),
+            "float_def": np.array([123456.123456], dtype="float64"),
             "geometry": [Point(0, 0)],
         },
         geometry="geometry",
         crs="EPSG:4326",
     )
 
-    # Prepare column width + default expected after write + read
+    # Prepare column widths to use
     column_widths = {
         "datetime": 40,
         "int64_col": 14,
@@ -2122,6 +2122,8 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         "float_prec": (0, 2),
         "float_p0": (19, 0),
     }
+
+    # Prepare expected widths, precisions and data based on column_widths
     expected_widths = {
         name: width[0] if isinstance(width, tuple) else width
         for name, width in column_widths.items()
@@ -2133,14 +2135,59 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     }
     expected_precisions["float_def"] = 0
 
-    if ext == ".fgb":
-        # FlatGeobuf driver doesn't support only a precision without width
-        del column_widths["float_prec"]
+    expected_gdf = input_gdf.copy()
+    expected_datetime_type = "OFTDateTime"
+
+    if ext == ".shp":
+        # String and integer widths expand to fit values; real fields get defaults.
+        expected_widths["datetime"] = 29 if use_arrow or GDAL_GE_311 else 10
+        expected_widths["int_over"] = 5
+        expected_widths["str_over"] = 10
+        expected_widths["float_prec"] = 24
+        expected_widths["float_def"] = 24
+        expected_precisions["float_def"] = 15
+
+        expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
+        expected_gdf["float_wp2"] = expected_gdf["float_wp2"].round(4)
+        expected_gdf["float_wp3"] = 12345.0
+        expected_gdf["float_prec"] = expected_gdf["float_prec"].round(2)
+        expected_gdf["float_p0"] = expected_gdf["float_p0"].round(0)
+
+        expected_datetime_type = "OFTString"
+        if not use_arrow and not GDAL_GE_311:
+            expected_datetime_type = "OFTDate"
+    elif ext == ".gpkg":
+        # GeoPackage stores string widths but not numeric widths or precisions.
+        for field in input_gdf.select_dtypes(include="number").columns:
+            expected_widths[field] = 0
+            expected_precisions[field] = 0
+        expected_widths["datetime"] = 0
+    elif ext in (".geojson", ".geojsonl"):
+        # GeoJSON and GeoJSONSeq don't store widths or precisions.
+        for field in expected_widths:
+            expected_widths[field] = 0
+            expected_precisions[field] = 0
+
+        expected_gdf["int64_col"] = expected_gdf["int64_col"].astype("int32")
+        expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
+    elif ext == ".fgb":
+        # FlatGeobuf driver gives an error if a precision is specified without width,
+        # so skip that test by removing the column_width
+        expected_widths["float_prec"] = 0
+        expected_precisions["float_prec"] = 0
+        column_widths.pop("float_prec")
+
         if use_arrow:
+            expected_widths["datetime"] = 0
             # FlatGeobuf driver doesn't support OGR_L_AlterFieldDefn, so with arrow,
             # precision cannot be set.
-            for name in ("float_wp1", "float_wp2", "float_wp3", "float_p0"):
-                del column_widths[name]
+            for field in input_gdf.select_dtypes(include="floating").columns:
+                expected_widths[field] = 0
+                expected_precisions[field] = 0
+                column_widths.pop(field, None)
+
+    if use_arrow and not GDAL_GE_311:
+        expected_datetime_type = "OFTString"
 
     # Test
     output_path = tmp_path / f"test{ext}"
@@ -2151,84 +2198,27 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         use_arrow=use_arrow,
     )
 
-    # Prepare expected widths and precisions per file type
-    if ext == ".shp":
-        # String and integer widths expand to fit values; real fields get defaults.
-        expected_widths["int_over"] = 5
-        expected_widths["str_over"] = 10
-        expected_widths["float_prec"] = 24
-        expected_widths["float_def"] = 24
-        expected_precisions["float_def"] = 15
-    elif ext == ".gpkg":
-        # GeoPackage stores string widths but not numeric widths or precisions.
-        for field in input_gdf.select_dtypes(include="number").columns:
-            expected_widths[field] = 0
-            expected_precisions[field] = 0
-    elif ext in (".geojson", ".geojsonl"):
-        # GeoJSON and GeoJSONSeq don't store widths or precisions.
-        for field in expected_widths:
-            expected_widths[field] = 0
-            expected_precisions[field] = 0
-    elif ext == ".fgb":
-        expected_precisions["float_prec"] = 0
-        if use_arrow:
-            for field in input_gdf.select_dtypes(include="floating").columns:
-                expected_widths[field] = 0
-                expected_precisions[field] = 0
-
-    # Validate result with expected widths and precisions.
+    # Validate result with expected widths, precisions and datetime data type.
     result_info = read_info(output_path)
     fields = result_info["fields"].tolist()
     for index, field in enumerate(fields):
-        if field == "datetime":
-            continue
         assert result_info["field_widths"][index] == expected_widths[field]
         assert result_info["field_precisions"][index] == expected_precisions[field]
+        if field == "datetime":
+            # Validate datetime type explicitly to make sure that specifying width
+            # doesn't overrule datetime detection.
+            assert result_info["ogr_types"][index] == expected_datetime_type
 
-    # Check datetime field type and width
-    datetime_index = fields.index("datetime")
-    if ext == ".gpkg":
-        expected_datetime_type = "OFTDateTime"
-        if use_arrow and not GDAL_GE_311:
-            expected_datetime_type = "OFTString"
-        assert result_info["ogr_types"][datetime_index] == expected_datetime_type
-        assert result_info["field_widths"][datetime_index] == 0
-    elif ext == ".shp":
-        expected_datetime_type = "OFTString"
-        if not use_arrow and not GDAL_GE_311:
-            expected_datetime_type = "OFTDate"
-        assert result_info["ogr_types"][datetime_index] == expected_datetime_type
-        assert result_info["field_widths"][datetime_index] > 0
-    elif ext == ".fgb":
-        assert result_info["field_widths"][datetime_index] == (0 if use_arrow else 40)
-    else:
-        assert result_info["field_widths"][datetime_index] == 0
-    assert result_info["field_precisions"][datetime_index] == 0
-
-    # Check data
+    # Validate data
     result_gdf = read_dataframe(output_path)
-    result_gdf = result_gdf.drop(columns=["datetime"])
-    expected_gdf = input_gdf.drop(columns=["datetime"]).copy()
-    if ext == ".shp":
-        expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
-    elif ext in (".geojson", ".geojsonl"):
-        expected_gdf["int64_col"] = expected_gdf["int64_col"].astype("int32")
-        expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
 
-    expected_float_gdf = expected_gdf.select_dtypes(include="floating").copy()
-    if ext == ".shp":
-        expected_float_gdf["float_wp2"] = expected_float_gdf["float_wp2"].round(4)
-        expected_float_gdf["float_wp3"] = 12345.0
-    float_columns = expected_float_gdf.columns
-    pd.testing.assert_frame_equal(
-        result_gdf[float_columns], expected_float_gdf, check_exact=True
-    )
-    non_float_columns = [
-        column for column in expected_gdf.columns if column not in float_columns
-    ]
-    assert_geodataframe_equal(
-        result_gdf[non_float_columns], expected_gdf[non_float_columns]
-    )
+    # No added value to check the (complicated) datetime values in this test
+    result_gdf = result_gdf.drop(columns=["datetime"])
+    expected_gdf = expected_gdf.drop(columns=["datetime"])
+
+    # `check_exact=True` is necessary to validate the differences in float
+    # rounding/truncation
+    pd.testing.assert_frame_equal(result_gdf, expected_gdf, check_exact=True)
 
 
 @pytest.mark.parametrize(
