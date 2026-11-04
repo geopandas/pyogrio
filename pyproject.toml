@@ -87,6 +87,14 @@ repair-wheel-command = "delvewheel repair --add-path %VCPKG_INSTALL%/bin -w {des
 [tool.cython-lint]
 ignore = ["E265", "E222"]
 
+[tool.pytest]
+testpaths = ["pyogrio/tests"]
+
+markers = [
+    "network: marks tests that require a network connection",
+    "requires_arrow_write_api: marks tests that require the Arrow write API",
+]
+
 [tool.versioneer]
 VCS = "git"
 style = "pep440"
