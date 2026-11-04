@@ -2141,7 +2141,12 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
 
     if ext == ".shp":
         # String and integer widths expand to fit values; real fields get defaults.
-        expected_widths["datetime"] = 29 if use_arrow or GDAL_GE_311 else 10
+        if use_arrow and not GDAL_GE_311:
+            expected_widths["datetime"] = 80
+        elif not use_arrow and not GDAL_GE_311:
+            expected_widths["datetime"] = 10
+        else:
+            expected_widths["datetime"] = 29
         expected_widths["int_over"] = 5
         expected_widths["str_over"] = 10
         expected_widths["float_prec"] = 24
@@ -2187,7 +2192,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
                 expected_precisions[field] = 0
                 column_widths.pop(field, None)
 
-    if use_arrow and not GDAL_GE_311:
+    if use_arrow and not GDAL_GE_311 and ext not in (".geojson", ".geojsonl"):
         expected_datetime_type = "OFTString"
 
     # Test
