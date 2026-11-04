@@ -2083,7 +2083,8 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
       values. For floating point columns, the specified width is enforced by truncating
       the values, the precision is enforced by rounding the values.
     - FlatGeobuf: stores widths and precisions without enforcing them. Arrow
-      writes do not support float width/precision alterations.
+      writes do not support float width/precision alterations which is needed to set
+      float precisions (in GDAL 3.13), so float width/precision cannot be set.
     - GeoJSON and GeoJSONL: don't store nor enforce widths or precisions.
     """
     input_gdf = gp.GeoDataFrame(
