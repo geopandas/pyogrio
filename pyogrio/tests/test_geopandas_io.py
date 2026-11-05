@@ -2059,7 +2059,7 @@ def test_write_dataframe(tmp_path, naturalearth_lowres, ext, use_arrow):
     )
 
 
-@pytest.mark.parametrize("ext", ALL_EXTS)
+@pytest.mark.parametrize("ext", ALL_EXTS + [".gml", ".parquet"])
 @pytest.mark.requires_arrow_write_api
 @pytest.mark.filterwarnings(
     "ignore:Value of field 'str_over' has 10 characters, whereas "
@@ -2088,6 +2088,11 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
       float precisions (in GDAL 3.13), so float width/precision cannot be set.
     - GeoJSON and GeoJSONL: don't store nor enforce widths or precisions.
     """
+    if ext == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+
     input_gdf = gp.GeoDataFrame(
         {
             "datetime": pd.date_range("2023-01-01", periods=1, tz="Europe/Brussels"),
@@ -2097,12 +2102,11 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
             "str_b": ["Test"],
             "str_c": ["TST"],
             "str_over": ["long value"],
-            "float_wp1": np.array([123456.123456], dtype="float64"),
-            "float_wp2": np.array([123456.123456], dtype="float64"),
-            "float_wp3": np.array([123456.123456], dtype="float64"),
-            "float_prec": np.array([123456.123456], dtype="float64"),
-            "float_p0": np.array([123456.123456], dtype="float64"),
-            "float_def": np.array([123456.123456], dtype="float64"),
+            "flt_w14p7": np.array([123456.123456], dtype="float64"),
+            "flt_w14p4": np.array([123456.123456], dtype="float64"),
+            "flt_w5p5": np.array([123456.123456], dtype="float64"),
+            "flt_w14p0": np.array([123456.123456], dtype="float64"),
+            "flt_def": np.array([123456.123456], dtype="float64"),
             "geometry": [Point(0, 0)],
         },
         geometry="geometry",
@@ -2118,11 +2122,10 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         "str_b": 100,
         "str_c": 100,
         "str_over": 3,
-        "float_wp1": (14, 7),
-        "float_wp2": (14, 4),
-        "float_wp3": (5, 5),
-        "float_prec": (0, 2),
-        "float_p0": (19, 0),
+        "flt_w14p7": (14, 7),
+        "flt_w14p4": (14, 4),
+        "flt_w5p5": (5, 5),
+        "flt_w14p0": (14, 0),
     }
 
     # Prepare expected widths, precisions and data based on column_widths
@@ -2130,39 +2133,75 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         name: width[0] if isinstance(width, tuple) else width
         for name, width in column_widths.items()
     }
-    expected_widths["float_def"] = 0
+    expected_widths["flt_def"] = 0
     expected_precisions = {
         name: width[1] if isinstance(width, tuple) else 0
         for name, width in column_widths.items()
     }
-    expected_precisions["float_def"] = 0
+    expected_precisions["flt_def"] = 0
 
     expected_gdf = input_gdf.copy()
     expected_datetime_type = "OFTDateTime"
 
     if ext == ".shp":
-        # String and integer widths expand to fit values; real fields get defaults.
         if use_arrow and not GDAL_GE_311:
             expected_widths["datetime"] = 80
         elif not use_arrow and not GDAL_GE_311:
             expected_widths["datetime"] = 10
         else:
             expected_widths["datetime"] = 29
+
+        # String and integer widths expand to fit values
         expected_widths["int_over"] = 5
         expected_widths["str_over"] = 10
-        expected_widths["float_prec"] = 24
-        expected_widths["float_def"] = 24
-        expected_precisions["float_def"] = 15
+        # Float fields get defaults
+        expected_widths["flt_def"] = 24
+        expected_precisions["flt_def"] = 15
 
         expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
-        expected_gdf["float_wp2"] = expected_gdf["float_wp2"].round(4)
-        expected_gdf["float_wp3"] = 12345.0
-        expected_gdf["float_prec"] = expected_gdf["float_prec"].round(2)
-        expected_gdf["float_p0"] = expected_gdf["float_p0"].round(0)
+        expected_gdf["flt_w14p4"] = expected_gdf["flt_w14p4"].round(4)
+        expected_gdf["flt_w5p5"] = 12345.0
+        expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].astype("int64")
 
         expected_datetime_type = "OFTString"
         if not use_arrow and not GDAL_GE_311:
             expected_datetime_type = "OFTDate"
+    elif ext == ".parquet":
+        if use_arrow:
+            # It looks like the Parquet driver just drops all columns where a width
+            # specification is provided via the arrow table metadata.
+            # So, we remove all width and precision specifications for now.
+            # Issue opened: https://github.com/OSGeo/gdal/issues/5631
+            """
+            for field in expected_widths:
+                expected_widths[field] = 0
+                expected_precisions[field] = 0
+            column_widths = {}
+            expected_datetime_type = "OFTString"
+            """
+        else:
+            expected_gdf["flt_w14p4"] = expected_gdf["flt_w14p4"].round(4)
+            expected_gdf["flt_w5p5"] = np.nan
+            # expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].round(0)
+
+    elif ext == ".gml":
+        # GML driver gives an error if string values are too long
+        column_widths["str_over"] = 10
+        expected_widths["str_over"] = 10
+
+        expected_widths["datetime"] = 0
+
+        if use_arrow:
+            # GML driver doesn't support OGR_L_AlterFieldDefn, so with arrow,
+            # precision cannot be set.
+            for field in input_gdf.select_dtypes(include="floating").columns:
+                expected_widths[field] = 0
+                expected_precisions[field] = 0
+                column_widths.pop(field, None)
+        else:
+            expected_gdf["flt_w14p4"] = expected_gdf["flt_w14p4"].round(4)
+            expected_gdf["flt_w5p5"] = expected_gdf["flt_w5p5"].round(5)
+            expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].round(0)
     elif ext == ".gpkg":
         # GeoPackage stores string widths but not numeric widths or precisions.
         for field in input_gdf.select_dtypes(include="number").columns:
@@ -2178,12 +2217,6 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         expected_gdf["int64_col"] = expected_gdf["int64_col"].astype("int32")
         expected_gdf["int_over"] = expected_gdf["int_over"].astype("int32")
     elif ext == ".fgb":
-        # FlatGeobuf driver gives an error if a precision is specified without width,
-        # so skip that test by removing the column_width
-        expected_widths["float_prec"] = 0
-        expected_precisions["float_prec"] = 0
-        column_widths.pop("float_prec")
-
         if use_arrow:
             expected_widths["datetime"] = 0
             # FlatGeobuf driver doesn't support OGR_L_AlterFieldDefn, so with arrow,
@@ -2209,8 +2242,16 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     result_info = read_info(output_path)
     fields = result_info["fields"].tolist()
     for index, field in enumerate(fields):
-        assert result_info["field_widths"][index] == expected_widths[field]
-        assert result_info["field_precisions"][index] == expected_precisions[field]
+        if field == "gml_id":
+            continue
+        assert result_info["field_widths"][index] == expected_widths[field], (
+            f"{field=}: expected {expected_widths[field]}, "
+            f"got {result_info['field_widths'][index]}"
+        )
+        assert result_info["field_precisions"][index] == expected_precisions[field], (
+            f"{field=}: expected {expected_precisions[field]}, "
+            f"got {result_info['field_precisions'][index]}"
+        )
         if field == "datetime":
             # Validate datetime type explicitly to make sure that specifying width
             # doesn't overrule datetime detection.
@@ -2222,6 +2263,8 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     # No added value to check the (complicated) datetime values in this test
     result_gdf = result_gdf.drop(columns=["datetime"])
     expected_gdf = expected_gdf.drop(columns=["datetime"])
+    if ext == ".gml":
+        result_gdf = result_gdf.drop(columns=["gml_id"])
 
     # `check_exact=True` is necessary to validate the differences in float
     # rounding/truncation

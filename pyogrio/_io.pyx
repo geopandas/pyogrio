@@ -3061,36 +3061,6 @@ def ogr_write(
 
                     check_int(OGR_L_CreateField(ogr_layer, ogr_fielddef, 1))
 
-                    if not field_width and field_precision is not None:
-                        ogr_featuredef = OGR_L_GetLayerDefn(ogr_layer)
-                        field_index = OGR_FD_GetFieldIndex(ogr_featuredef, name_b)
-                        if field_index < 0:
-                            raise FieldError(
-                                f"Could not find field index for field '{fields[i]}'"
-                            )
-                        existing_fielddef = check_pointer(
-                            OGR_FD_GetFieldDefn(ogr_featuredef, field_index)
-                        )
-                        ogr_fielddef = check_pointer(
-                            OGR_Fld_Create(name_b, field_ogr_type)
-                        )
-                        try:
-                            OGR_Fld_SetWidth(
-                                ogr_fielddef, OGR_Fld_GetWidth(existing_fielddef)
-                            )
-                            OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
-                            check_int(
-                                OGR_L_AlterFieldDefn(
-                                    ogr_layer,
-                                    field_index,
-                                    ogr_fielddef,
-                                    ALTER_WIDTH_PRECISION_FLAG,
-                                )
-                            )
-                        finally:
-                            OGR_Fld_Destroy(ogr_fielddef)
-                            ogr_fielddef = NULL
-
                 except ValueError as ex:
                     raise
                 except Exception:
