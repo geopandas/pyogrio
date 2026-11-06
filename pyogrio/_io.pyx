@@ -2936,7 +2936,6 @@ def ogr_write(
     cdef OGRGeometryH ogr_geometry = NULL
     cdef OGRFeatureDefnH ogr_featuredef = NULL
     cdef OGRFieldDefnH ogr_fielddef = NULL
-    cdef OGRFieldDefnH existing_fielddef = NULL
     cdef const unsigned char *wkb_buffer = NULL
     cdef unsigned int wkbtype = 0
     cdef int supports_transactions = 0
@@ -3056,7 +3055,7 @@ def ogr_write(
                                     f"Field '{fields[i]}' of type "
                                     f"{FIELD_TYPE_NAMES[field_ogr_type]} "
                                     "requires a width > 0"
-                            ) from None
+                                ) from None
                             OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
 
                     elif field_precision is not None and field_precision > 0:

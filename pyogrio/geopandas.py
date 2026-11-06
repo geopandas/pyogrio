@@ -892,7 +892,6 @@ def write_dataframe(
                 df[name] = df[name].astype("string")
                 datetime_cols.append(name)
 
-        
         table = pa.Table.from_pandas(df, preserve_index=False)
 
         # Handle column_widths.
