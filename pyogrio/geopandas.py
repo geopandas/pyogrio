@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from pyogrio._compat import (
+    GDAL_GE_310,
     HAS_GEOPANDAS,
     HAS_PYARROW,
     PANDAS_GE_15,
@@ -1160,9 +1161,11 @@ def _apply_width_to_column(table, column: str, width: int | tuple[int, int]):
     is_numeric = pa.types.is_floating(field.type) or pa.types.is_decimal(field.type)
 
     def get_decimal_type(width, precision):
-        if width <= 9 and hasattr(pa, "decimal32"):
+        """Get the smallest suitable decimal type for the given width and precision."""
+        # Smaller decimal types are only supported if GDAL >= 3.10
+        if GDAL_GE_310 and width <= 9 and hasattr(pa, "decimal32"):
             return pa.decimal32(width, precision)
-        if width <= 18 and hasattr(pa, "decimal64"):
+        if GDAL_GE_310 and width <= 18 and hasattr(pa, "decimal64"):
             return pa.decimal64(width, precision)
         if width <= 38:
             return pa.decimal128(width, precision)

@@ -22,6 +22,7 @@ from pyogrio import (
 )
 from pyogrio._compat import (
     GDAL_GE_37,
+    GDAL_GE_310,
     GDAL_GE_311,
     GDAL_GE_312,
     GDAL_GE_314,
@@ -2283,17 +2284,37 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     "width, decimal_type",
     [(9, "decimal32"), (10, "decimal64"), (19, "decimal128"), (39, "decimal256")],
 )
+@requires_arrow_write_api
 @requires_pyarrow_api
-def test_apply_width_to_column_uses_smallest_decimal_type(width, decimal_type):
+def test_write_dataframe_column_widths_parquet_smallest_decimal(
+    tmp_path, width, decimal_type
+):
+    """Test if writing to parquet leads to the use of the smallest decimal needed."""
+    if not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip("Skipping test as the GDAL Parquet driver is not available")
+
     import pyarrow as pa
 
-    from pyogrio.geopandas import _apply_width_to_column
+    from pyogrio.raw import read_arrow
 
-    table = pa.table({"value": [1.25]})
-    result = _apply_width_to_column(table, "value", (width, 2))
+    if not GDAL_GE_310:
+        # For GDAL versions < 3.10, only decimal128 is supported for Parquet.
+        decimal_type = "decimal128"
 
     decimal_factory = getattr(pa, decimal_type, pa.decimal128)
-    assert result.schema.field("value").type == decimal_factory(width, 2)
+    expected_type = decimal_factory(width, 2)
+
+    output_path = tmp_path / "test.parquet"
+    write_dataframe(
+        pd.DataFrame({"value": [1.25]}),
+        output_path,
+        column_widths={"value": (width, 2)},
+        use_arrow=True,
+    )
+    assert output_path.exists()
+
+    _, result = read_arrow(output_path)
+    assert result.schema.field("value").type == expected_type
 
 
 @requires_arrow_write_api
