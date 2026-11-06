@@ -1188,19 +1188,6 @@ def _apply_width_to_column(table, column: str, width: int | tuple[int, int]):
             f"Field '{column}' of type OFTReal requires a precision "
             "if field width is set"
         ) from None
-    elif pa.types.is_integer(field.type) and width and not precision:
-        # Cast through a wide decimal so Arrow validates the actual values rather
-        # than requiring precision for the full source integer type.
-        decimal_type = get_decimal_type(width, 0)
-        try:
-            column_values = table.column(field_index).cast(pa.decimal128(38, 0))
-            table = table.set_column(
-                field_index,
-                field.with_type(decimal_type),
-                column_values.cast(decimal_type),
-            )
-        except Exception as ex:
-            raise ValueError(f"Failed to apply width to field '{column}': {ex}") from ex
     elif precision is not None and precision > 0:
         raise ValueError(f"Field '{column}' should not have a precision > 0") from None
     elif pa.types.is_string(field.type) or pa.types.is_large_string(field.type):

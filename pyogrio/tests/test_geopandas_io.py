@@ -2180,7 +2180,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
             del column_widths["int_over"]
             expected_widths["int_over"] = 0
             expected_precisions["int_over"] = 0
-            expected_gdf["int64_col"] = expected_gdf["int64_col"].astype("float64")
+            expected_widths["int64_col"] = 0
 
             expected_widths["datetime"] = 0
             expected_datetime_type = "OFTString"
@@ -2298,8 +2298,9 @@ def test_write_dataframe_column_widths_parquet_smallest_decimal(
     from pyogrio.raw import read_arrow
 
     if not GDAL_GE_310:
-        # For GDAL versions < 3.10, only decimal128 is supported for Parquet.
-        decimal_type = "decimal128"
+        # For GDAL versions < 3.10, smaller decimal types are not supported.
+        if width <= 38:
+            decimal_type = "decimal128"
 
     decimal_factory = getattr(pa, decimal_type, pa.decimal128)
     expected_type = decimal_factory(width, 2)
