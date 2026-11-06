@@ -2287,7 +2287,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
 @requires_arrow_write_api
 @requires_pyarrow_api
 def test_write_dataframe_column_widths_parquet_smallest_decimal(
-    tmp_path, width, decimal_type
+    tmp_path, width, decimal_type, use_arrow
 ):
     """Test if writing to parquet leads to the use of the smallest decimal needed."""
     if not GDAL_HAS_PARQUET_DRIVER:
@@ -2297,8 +2297,9 @@ def test_write_dataframe_column_widths_parquet_smallest_decimal(
 
     from pyogrio.raw import read_arrow
 
-    if not GDAL_GE_310:
-        # For GDAL versions < 3.10, smaller decimal types are not supported.
+    if not GDAL_GE_310 or not use_arrow:
+        # For GDAL versions < 3.10, or if not using Arrow, smaller decimal types are not
+        # supported/used.
         if width <= 38:
             decimal_type = "decimal128"
 
@@ -2310,7 +2311,7 @@ def test_write_dataframe_column_widths_parquet_smallest_decimal(
         pd.DataFrame({"value": [1.25]}),
         output_path,
         column_widths={"value": (width, 2)},
-        use_arrow=True,
+        use_arrow=use_arrow,
     )
     assert output_path.exists()
 
