@@ -2096,7 +2096,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     input_gdf = gp.GeoDataFrame(
         {
             "datetime": pd.date_range("2023-01-01", periods=1, tz="Europe/Brussels"),
-            "int64_col": np.array([1], dtype="int64"),
+            "int64_col": np.array([12345], dtype="int64"),
             "int_over": np.array([12345], dtype="int64"),
             "str_a": ["Europe"],
             "str_b": ["Test"],
@@ -2167,23 +2167,31 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         if not use_arrow and not GDAL_GE_311:
             expected_datetime_type = "OFTDate"
     elif ext == ".parquet":
+        expected_gdf["flt_w14p4"] = expected_gdf["flt_w14p4"].round(4)
+
         if use_arrow:
-            # It looks like the Parquet driver just drops all columns where a width
-            # specification is provided via the arrow table metadata.
-            # So, we remove all width and precision specifications for now.
-            # Issue opened: https://github.com/OSGeo/gdal/issues/5631
-            """
-            for field in expected_widths:
+            # The cast to w5p5 gives an overflow error
+            del column_widths["flt_w5p5"]
+            expected_widths["flt_w5p5"] = 0
+            expected_precisions["flt_w5p5"] = 0
+
+            # The cast to width 2 gives an overflow error
+            del column_widths["int_over"]
+            expected_widths["int_over"] = 0
+            expected_precisions["int_over"] = 0
+            expected_gdf["int64_col"] = expected_gdf["int64_col"].astype("float64")
+
+            expected_widths["datetime"] = 0
+            expected_datetime_type = "OFTString"
+            for field in [f for f in expected_widths if f.startswith("str_")]:
                 expected_widths[field] = 0
                 expected_precisions[field] = 0
-            column_widths = {}
-            expected_datetime_type = "OFTString"
-            """
-        else:
-            expected_gdf["flt_w14p4"] = expected_gdf["flt_w14p4"].round(4)
-            expected_gdf["flt_w5p5"] = np.nan
-            # expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].round(0)
 
+            expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].round(0)
+        else:
+            expected_gdf["flt_w5p5"] = np.nan
+
+            # expected_gdf["flt_w14p0"] = expected_gdf["flt_w14p0"].round(0)
     elif ext == ".gml":
         # GML driver gives an error if string values are too long
         column_widths["str_over"] = 10
@@ -2194,7 +2202,7 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
         if use_arrow:
             # GML driver doesn't support OGR_L_AlterFieldDefn, so with arrow,
             # precision cannot be set.
-            for field in input_gdf.select_dtypes(include="floating").columns:
+            for field in [f for f in expected_widths if f.startswith("flt_")]:
                 expected_widths[field] = 0
                 expected_precisions[field] = 0
                 column_widths.pop(field, None)
@@ -2271,6 +2279,23 @@ def test_write_dataframe_column_widths(tmp_path, ext, use_arrow):
     pd.testing.assert_frame_equal(result_gdf, expected_gdf, check_exact=True)
 
 
+@pytest.mark.parametrize(
+    "width, decimal_type",
+    [(9, "decimal32"), (10, "decimal64"), (19, "decimal128"), (39, "decimal256")],
+)
+@requires_pyarrow_api
+def test_apply_width_to_column_uses_smallest_decimal_type(width, decimal_type):
+    import pyarrow as pa
+
+    from pyogrio.geopandas import _apply_width_to_column
+
+    table = pa.table({"value": [1.25]})
+    result = _apply_width_to_column(table, "value", (width, 2))
+
+    decimal_factory = getattr(pa, decimal_type, pa.decimal128)
+    assert result.schema.field("value").type == decimal_factory(width, 2)
+
+
 @requires_arrow_write_api
 def test_write_dataframe_fgb_arrow_float_precision(tmp_path):
     gdf = gp.GeoDataFrame(
@@ -2293,69 +2318,75 @@ def test_write_dataframe_fgb_arrow_float_precision(tmp_path):
     "column_widths, error_message",
     [
         pytest.param(
-            {"missing_column": 14, "another_missing_column": 10},
-            "(?=.*missing_column)(?=.*another_missing_column)",
+            {"missing1": 14, "missing2": 10},
+            "(?=.*missing1)(?=.*missing2)",
             id="unknown-column",
         ),
         pytest.param(
-            {"string_column": 10.5},
+            {"str_col": 10.5},
             "must be a non-negative integer",
             id="float-width",
         ),
         pytest.param(
-            {"string_column": True},
+            {"str_col": True},
             "must be a non-negative integer",
             id="boolean-width",
         ),
         pytest.param(
-            {"float_column": (10,)},
+            {"flt_col": (10,)},
             re.escape("2-item (width, precision) tuple"),
             id="malformed-precision-tuple",
         ),
         pytest.param(
-            {"float_column": (10, 2.5)},
+            {"flt_col": (10, 2.5)},
             "must be a non-negative integer",
             id="float-precision",
         ),
         pytest.param(
-            {"string_column": -1},
+            {"str_col": -1},
             "must be a non-negative integer",
             id="negative-width",
         ),
         pytest.param(
-            {"float_column": (10, -1)},
+            {"flt_col": (10, -1)},
             "must be a non-negative integer",
             id="negative-precision",
         ),
         pytest.param(
-            {"float_column": 14},
+            {"flt_col": 14},
             "requires a precision if field width is set",
             id="real-without-precision",
         ),
         pytest.param(
-            {"string_column": (100, 2)},
+            {"str_col": (100, 2)},
             "should not have a precision > 0",
             id="precision-on-string",
         ),
         pytest.param(
-            {"string_column": (0, 2)},
-            "should not have a precision > 0",
-            id="precision-only-on-string",
+            {"flt_col": (0, 2)},
+            re.escape("width > 0 and precision >= 0, not (0, 2)"),
+            id="real-with-0-width",
         ),
     ],
 )
+@pytest.mark.parametrize("ext", [".gpkg", ".shp", ".parquet"])
 @pytest.mark.requires_arrow_write_api
 def test_write_dataframe_column_widths_errors(
-    tmp_path, use_arrow, column_widths, error_message
+    tmp_path, ext, use_arrow, column_widths, error_message
 ):
+    if ext == ".parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip(
+            "Skipping test for parquet as the GDAL Parquet driver is not available"
+        )
+
     df = pd.DataFrame(
         {
-            "float_column": [1.0],
-            "string_column": ["Europe"],
-            "integer_column": np.array([1], dtype=np.int64),
+            "flt_col": [1.0],
+            "str_col": ["Europe"],
+            "int_col": np.array([1], dtype=np.int64),
         }
     )
-    output_path = tmp_path / "test.gpkg"
+    output_path = tmp_path / f"test{ext}"
 
     with pytest.raises(ValueError, match=error_message):
         write_dataframe(

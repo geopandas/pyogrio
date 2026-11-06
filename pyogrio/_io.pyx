@@ -3051,7 +3051,14 @@ def ogr_write(
                                 "requires a precision if field width is set"
                             ) from None
                         if field_precision is not None:
+                            if field_width == 0:
+                                raise ValueError(
+                                    f"Field '{fields[i]}' of type "
+                                    f"{FIELD_TYPE_NAMES[field_ogr_type]} "
+                                    "requires a width > 0"
+                            ) from None
                             OGR_Fld_SetPrecision(ogr_fielddef, field_precision)
+
                     elif field_precision is not None and field_precision > 0:
                         raise ValueError(
                             f"Field '{fields[i]}' of type "
@@ -3590,9 +3597,10 @@ cdef create_fields_from_arrow_schema(
             ogr_featuredef = OGR_L_GetLayerDefn(destLayer)
             field_index = OGR_FD_GetFieldIndex(ogr_featuredef, child.name)
             if field_index < 0:
-                raise FieldError(
-                    f"Could not find field index for field '{get_string(child.name)}'"
-                )
+                # For arrow-based drivers, it is normal that the fields cannot be found
+                # like this, but the precision has already been treated otherwise for
+                # those, so we can just continue
+                continue
             existing_fielddef = check_pointer(
                 OGR_FD_GetFieldDefn(ogr_featuredef, field_index)
             )
