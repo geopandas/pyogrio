@@ -56,6 +56,7 @@ def list_drivers(read=False, write=False, append=False) -> dict[str, str]:
         If True, will only return drivers that are known to support write capabilities.
     append: bool, optional (default: False)
         If True, will only return drivers that are known to support append capabilities.
+
         .. versionadded:: 0.13.0
 
     Returns
@@ -302,6 +303,8 @@ def read_info(
                 "dtypes": <ndarray of field dtypes>,
                 "ogr_types": <ndarray of OGR field types>,
                 "ogr_subtypes": <ndarray of OGR field subtypes>,
+                "field_widths": <ndarray of field widths, 0 means no width specified>,
+                "field_precisions": <ndarray of field precisions>,
                 "encoding": "<encoding>",
                 "fid_column": "<fid column name or "">",
                 "geometry_name": "<geometry column name or "">",
@@ -309,9 +312,9 @@ def read_info(
                 "features": <feature count or -1>,
                 "total_bounds": <tuple with total bounds or None>,
                 "driver": "<driver>",
-                "capabilities": "<dict of driver capabilities>"
-                "dataset_metadata": "<dict of dataset metadata or None>"
-                "layer_metadata": "<dict of layer metadata or None>"
+                "capabilities": <dict of driver capabilities>,
+                "dataset_metadata": <dict of dataset metadata or None>,
+                "layer_metadata": <dict of layer metadata or None>
             }
 
     """

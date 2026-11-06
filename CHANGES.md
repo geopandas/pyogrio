@@ -2,6 +2,10 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Add support to specify the width and precision of columns when writing files (#701).
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries
@@ -13,13 +17,14 @@
 
 ### Improvements
 
--   Support reading Time type columns by default (was already supported with `use_arrow=False`) (#617).
+-   Support reading Time type columns by default (was already supported with
+    `use_arrow=False`) (#617).
 -   Add `list_drivers_details()` function to list the available drivers with more
     detailed properties like the long driver names, whether read/append/write is
     supported by the driver, the help topic URL, etc (#656).
 -   Add whether append is supported in `list_drivers` (#559)
--   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi cache
-    associated with /vsicurl/ (and related file systems) (#605).
+-   Add `vsi_curl_clear_cache()` function to allow users to clear the local GDAL vsi
+    cache associated with /vsicurl/ (and related file systems) (#605).
 -   Improve performance of `read_dataframe` (especially if a filter is used)
     and `write_dataframe` without Arrow (#577, #674).
 -   Unlock the GIL during GDAL functions that can take significant time to improve
@@ -45,8 +50,8 @@
 ### Bug fixes
 
 -   Fix regression in reading date columns (#616).
--   Fix regression in `read_dataframe` when `use_arrow=True` and `columns` is used to filter
-    out columns of some specific types (#611).
+-   Fix regression in `read_dataframe` when `use_arrow=True` and `columns` is used to
+    filter out columns of some specific types (#611).
 
 ## 0.12.0 (2025-11-26)
 

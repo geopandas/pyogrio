@@ -552,6 +552,8 @@ def test_read_info(naturalearth_lowres):
     assert meta["capabilities"]["fast_total_bounds"] is True
 
     if naturalearth_lowres.name.endswith((".gpkg", ".gpkg.zip")):
+        assert meta["field_widths"].tolist() == [0, 80, 80, 80, 0]
+        assert meta["field_precisions"].tolist() == [0, 0, 0, 0, 0]
         assert meta["fid_column"] == "fid"
         assert meta["geometry_name"] == "geom"
         assert meta["geometry_type"] == "MultiPolygon"
@@ -560,6 +562,8 @@ def test_read_info(naturalearth_lowres):
             # this capability is only True for GPKG if GDAL >= 3.8
             assert meta["capabilities"]["fast_set_next_by_index"] is True
     elif naturalearth_lowres.name.endswith((".shp", ".shp.zip")):
+        assert meta["field_widths"].tolist() == [10, 80, 80, 80, 24]
+        assert meta["field_precisions"].tolist() == [0, 0, 0, 0, 15]
         # fid_column == "" for formats where fid is not physically stored
         assert meta["fid_column"] == ""
         # geometry_name == "" for formats where geometry column name cannot be
