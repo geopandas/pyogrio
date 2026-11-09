@@ -2405,13 +2405,15 @@ def ogr_read_info(
     return meta
 
 
-def ogr_list_layers(object path_or_buffer):
+def ogr_list_layers(object path_or_buffer, dataset_kwargs):
     """List the layers in the dataset.
 
     Parameters
     ----------
     path_or_buffer : str or bytes
         The path to the dataset, or a bytes buffer containing the dataset.
+    dataset_kwargs : dict
+        Normalized driver-specific dataset open options.
 
     Returns
     -------
@@ -2420,16 +2422,22 @@ def ogr_list_layers(object path_or_buffer):
 
     """
     cdef bint use_tmp_vsimem = isinstance(path_or_buffer, bytes)
+    cdef char **dataset_options = NULL
     cdef OGRDataSourceH ogr_dataset = NULL
 
     try:
         path = (
             read_buffer_to_vsimem(path_or_buffer) if use_tmp_vsimem else path_or_buffer
         )
-        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, NULL)
+        dataset_options = dict_to_options(dataset_kwargs)
+        ogr_dataset = ogr_open(path.encode("UTF-8"), 0, dataset_options)
         layers = get_layer_names(ogr_dataset)
 
     finally:
+        if dataset_options != NULL:
+            CSLDestroy(dataset_options)
+            dataset_options = NULL
+
         if ogr_dataset != NULL:
             GDALClose(ogr_dataset)
             ogr_dataset = NULL

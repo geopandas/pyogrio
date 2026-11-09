@@ -149,7 +149,7 @@ def detect_write_driver(path):
     return drivers[0]
 
 
-def list_layers(path_or_buffer, /):
+def list_layers(path_or_buffer, /, **kwargs):
     """List layers available in an OGR data source.
 
     NOTE: includes both spatial and nonspatial layers.
@@ -158,6 +158,10 @@ def list_layers(path_or_buffer, /):
     ----------
     path_or_buffer : str, pathlib.Path, bytes, or file-like
         A dataset path or URI, raw buffer, or file-like object with a read method.
+    **kwargs
+        Additional driver-specific dataset open options passed to OGR. Invalid
+        options will trigger a warning. For example, pass ``LIST_ALL_TABLES="YES"``
+        to include unregistered tables in a GeoPackage.
 
     Returns
     -------
@@ -166,7 +170,11 @@ def list_layers(path_or_buffer, /):
         Note: geometry is `None` for nonspatial layers.
 
     """
-    return ogr_list_layers(get_vsi_path_or_buffer(path_or_buffer))
+    dataset_kwargs = _preprocess_options_key_value(kwargs) if kwargs else {}
+
+    return ogr_list_layers(
+        get_vsi_path_or_buffer(path_or_buffer), dataset_kwargs=dataset_kwargs
+    )
 
 
 def read_bounds(

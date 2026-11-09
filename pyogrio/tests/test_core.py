@@ -1,5 +1,7 @@
 import re
+import sqlite3
 import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 import numpy as np
@@ -338,6 +340,111 @@ def test_list_layers_filelike(geojson_filelike):
 
     assert layers.shape == (1, 2)
     assert layers[0, 0] == "test"
+
+
+@pytest.fixture()
+def list_layers_open_options_gpkg(tmp_path):
+    path = tmp_path / "tést.gpkg"
+    write(
+        path,
+        geometry=np.array(
+            [bytes.fromhex("0101000000000000000000F03F0000000000000040")],
+            dtype=object,
+        ),
+        field_data=[np.array(["point"])],
+        fields=["name"],
+        layer="points",
+        geometry_type="Point",
+        crs="EPSG:4326",
+    )
+    write(
+        path,
+        geometry=None,
+        field_data=[np.array(["attribute"])],
+        fields=["name"],
+        layer="attributes",
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute("CREATE TABLE unregistered (value TEXT)")
+        connection.execute("INSERT INTO unregistered VALUES ('hello')")
+        assert connection.execute(
+            "SELECT table_name, data_type FROM gpkg_contents ORDER BY table_name"
+        ).fetchall() == [("attributes", "attributes"), ("points", "features")]
+        assert connection.execute("SELECT * FROM unregistered").fetchall() == [
+            ("hello",)
+        ]
+    return path
+
+
+@pytest.mark.parametrize("input_type", ["path", "str", "bytes", "filelike"])
+@pytest.mark.parametrize(
+    "kwargs,include_unregistered",
+    [
+        ({}, False),
+        ({"LIST_ALL_TABLES": "YES"}, True),
+        ({"list_all_tables": "yes"}, True),
+        ({"LIST_ALL_TABLES": "NO"}, False),
+        ({"list_all_tables": "no"}, False),
+        ({"LIST_ALL_TABLES": None}, False),
+    ],
+)
+def test_list_layers_dataset_kwargs(
+    list_layers_open_options_gpkg, input_type, kwargs, include_unregistered
+):
+    path = list_layers_open_options_gpkg
+    if input_type == "str":
+        source = str(path)
+    elif input_type == "bytes":
+        source = path.read_bytes()
+    elif input_type == "filelike":
+        source = BytesIO(path.read_bytes())
+    else:
+        source = path
+    before = vsi_listtree("/vsimem/")
+    expected = [["points", "Point"], ["attributes", None]]
+    if include_unregistered:
+        expected.append(["unregistered", None])
+    assert list_layers(source, **kwargs).tolist() == expected
+    assert vsi_listtree("/vsimem/") == before
+    if input_type == "filelike":
+        assert not source.closed
+        assert source.tell() == 0
+
+    if include_unregistered:
+        info = read_info(path, layer="unregistered", **kwargs)
+        assert info["geometry_type"] is None
+        assert info["features"] == 1
+    else:
+        with pytest.raises(DataLayerError):
+            read_info(path, layer="unregistered", LIST_ALL_TABLES="NO")
+
+
+def test_list_layers_invalid_dataset_kwargs(list_layers_open_options_gpkg):
+    before = vsi_listtree("/vsimem/")
+    with pytest.warns(RuntimeWarning, match="does not support open option INVALID"):
+        result = list_layers(list_layers_open_options_gpkg.read_bytes(), INVALID="YES")
+    assert result.tolist() == [["points", "Point"], ["attributes", None]]
+    assert vsi_listtree("/vsimem/") == before
+
+
+@pytest.mark.parametrize("filelike", [False, True])
+def test_list_layers_dataset_kwargs_error_cleanup(filelike):
+    source = b"not a vector dataset"
+    if filelike:
+        source = BytesIO(source)
+    before = vsi_listtree("/vsimem/")
+    with pytest.raises(DataSourceError):
+        list_layers(source, LIST_ALL_TABLES="YES")
+    assert vsi_listtree("/vsimem/") == before
+
+
+def test_list_layers_boolean_dataset_kwargs(nested_geojson_file):
+    # A real boolean option uses the same common ON/OFF normalization as read_info.
+    # LIST_ALL_TABLES itself is a string-select option and expects YES/NO strings.
+    assert array_equal(
+        list_layers(nested_geojson_file, flatten_nested_attributes=True),
+        list_layers(nested_geojson_file),
+    )
 
 
 @pytest.mark.parametrize(

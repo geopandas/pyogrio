@@ -2,6 +2,11 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Support driver-specific dataset open options in `list_layers`, such as
+    `LIST_ALL_TABLES="YES"` for GeoPackage (#377).
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries
