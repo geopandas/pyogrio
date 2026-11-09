@@ -4,9 +4,10 @@ Ported from fiona::_err.pyx
 """
 
 import contextlib
-import warnings
 from contextvars import ContextVar
 from itertools import zip_longest
+
+from pyogrio._warnings import warn
 
 from pyogrio._ogr cimport (
     CE_Warning, CE_Failure, CE_Fatal, CPLErrorReset,
@@ -294,7 +295,7 @@ cdef void error_handler(
 
     if err_class == CE_Warning:
         with gil:
-            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
+            warn(clean_error_message(err_msg))
         return
 
     # Fall back to the default handler for non-failure messages since
@@ -436,7 +437,7 @@ cdef void stacking_error_handler(
 
     if err_class == CE_Warning:
         with gil:
-            warnings.warn(clean_error_message(err_msg), RuntimeWarning)
+            warn(clean_error_message(err_msg))
         return
 
     # Fall back to the default handler for non-failure messages since

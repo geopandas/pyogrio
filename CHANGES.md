@@ -2,6 +2,11 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Improvements
+
+- Attribute GDAL warnings to the Python caller outside pyogrio, including calls
+  through higher-level wrappers (#627).
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries
