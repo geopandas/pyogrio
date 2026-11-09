@@ -2,6 +2,10 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Bug fixes
+
+-   Fix replacing an existing Parquet file when writing without append (#722).
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries

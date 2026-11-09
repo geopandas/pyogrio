@@ -2749,11 +2749,13 @@ cdef create_ogr_dataset_layer(
         if not layer:
             layer = os.path.splitext(os.path.split(path)[1])[0]
 
-    # if shapefile, GeoJSON, or FlatGeobuf, always delete first
+    # if shapefile, GeoJSON, FlatGeobuf, or Parquet, always delete first
     # for other types, check if we can create layers
     # GPKG might be the only multi-layer writeable type.  TODO: check this
     if (
-        driver in ("ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "FlatGeobuf")
+        driver in (
+            "ESRI Shapefile", "GeoJSON", "GeoJSONSeq", "FlatGeobuf", "Parquet"
+        )
         and path_exists
     ):
         if not append:

@@ -3731,3 +3731,92 @@ def test_parquet_driver(tmp_path, use_arrow):
     write_dataframe(gdf, output_path, use_arrow=use_arrow)
     result = read_dataframe(output_path, use_arrow=use_arrow)
     assert_geodataframe_equal(result, gdf)
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.parametrize(
+    "driver, extension",
+    [
+        ("Parquet", ".parquet"),
+        ("GeoJSON", ".geojson"),
+        ("ESRI Shapefile", ".shp"),
+        ("FlatGeobuf", ".fgb"),
+    ],
+)
+@pytest.mark.parametrize("layer", [None, "replacement"])
+def test_write_dataframe_replace_single_layer(
+    tmp_path, use_arrow, driver, extension, layer
+):
+    if driver == "Parquet" and not GDAL_HAS_PARQUET_DRIVER:
+        pytest.skip("Parquet driver is not available")
+
+    original = gp.GeoDataFrame(
+        {"old_col": [1, 2, 3]},
+        geometry=[Point(0, 0), Point(1, 1), Point(2, 2)],
+        crs="EPSG:4326",
+    )
+    replacement = gp.GeoDataFrame(
+        {"new_col": [2**40, 2**41]},
+        geometry=[Point(500, 600), Point(700, 800)],
+        crs="EPSG:3857",
+    )
+    path = tmp_path / f"replace{extension}"
+    options = {"spatial_index": False} if driver == "FlatGeobuf" else {}
+    write_dataframe(
+        original,
+        path,
+        layer="original" if layer is not None else None,
+        driver=driver,
+        use_arrow=use_arrow,
+        **options,
+    )
+    write_dataframe(
+        replacement, path, layer=layer, driver=driver, use_arrow=use_arrow, **options
+    )
+    result = read_dataframe(path, use_arrow=use_arrow)
+    assert_geodataframe_equal(result, replacement)
+
+
+@pytest.mark.requires_arrow_write_api
+@pytest.mark.skipif(
+    not GDAL_HAS_PARQUET_DRIVER, reason="Parquet driver is not available"
+)
+def test_write_dataframe_parquet_append(tmp_path, use_arrow):
+    original = gp.GeoDataFrame(
+        {"col": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326"
+    )
+    addition = gp.GeoDataFrame({"col": [3]}, geometry=[Point(2, 2)], crs=original.crs)
+    path = tmp_path / "append.parquet"
+    write_dataframe(original, path, use_arrow=use_arrow)
+    if GDAL_GE_312:
+        write_dataframe(addition, path, append=True, use_arrow=use_arrow)
+        expected = pd.concat([original, addition], ignore_index=True)
+    else:
+        # Earlier Parquet drivers cannot open an existing file for update.
+        before = path.read_bytes()
+        with pytest.raises(DataSourceError):
+            write_dataframe(addition, path, append=True, use_arrow=use_arrow)
+        assert path.read_bytes() == before
+        expected = original
+    assert_geodataframe_equal(read_dataframe(path, use_arrow=use_arrow), expected)
+
+
+@pytest.mark.requires_arrow_write_api
+def test_write_dataframe_replace_gpkg_preserves_other_layers(tmp_path, use_arrow):
+    keep = gp.GeoDataFrame(
+        {"col": [1, 2]}, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:4326"
+    )
+    replacement = gp.GeoDataFrame(
+        {"new_col": [30]}, geometry=[Point(3, 4)], crs=keep.crs
+    )
+    path = tmp_path / "layers.gpkg"
+    write_dataframe(keep, path, layer="keep", use_arrow=use_arrow)
+    write_dataframe(keep, path, layer="replace", use_arrow=use_arrow)
+    write_dataframe(replacement, path, layer="replace", use_arrow=use_arrow)
+    assert set(list_layers(path)[:, 0]) == {"keep", "replace"}
+    assert_geodataframe_equal(
+        read_dataframe(path, layer="keep", use_arrow=use_arrow), keep
+    )
+    assert_geodataframe_equal(
+        read_dataframe(path, layer="replace", use_arrow=use_arrow), replacement
+    )
