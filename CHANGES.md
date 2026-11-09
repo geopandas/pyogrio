@@ -2,6 +2,11 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Improvements
+
+-   Warn when `read_dataframe` overwrites a nongeometry attribute named `geometry`
+    with the geometry column (#199).
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries

@@ -40,6 +40,8 @@ from pyogrio.geopandas import PANDAS_GE_20, read_dataframe, write_dataframe
 from pyogrio.raw import (
     DRIVERS_NO_MIXED_DIMENSIONS,
     DRIVERS_NO_MIXED_SINGLE_MULTI,
+    read,
+    read_arrow,
 )
 from pyogrio.tests.conftest import (
     ALL_EXTS,
@@ -128,6 +130,104 @@ def use_arrow_context():
         os.environ["PYOGRIO_USE_ARROW"] = original
     else:
         del os.environ["PYOGRIO_USE_ARROW"]
+
+
+@pytest.fixture(params=[("GeoJSON", ".geojson"), ("GPKG", ".gpkg")])
+def geometry_attribute_file(request, tmp_path):
+    driver, suffix = request.param
+    frame = gp.GeoDataFrame(
+        {
+            "geometry": ["first", "second"],
+            "value": [1, 2],
+            "shape": [Point(1, 2), Point(3, 4)],
+        },
+        geometry="shape",
+        crs="EPSG:4326",
+    )
+    path = tmp_path / f"geometry_attribute{suffix}"
+    write_dataframe(frame, path, driver=driver)
+    return path, frame, driver
+
+
+def test_read_geometry_attribute_warning(geometry_attribute_file, use_arrow):
+    path, frame, _ = geometry_attribute_file
+    if use_arrow:
+        _, table = read_arrow(path)
+        assert table["geometry"].to_pylist() == ["first", "second"]
+    else:
+        meta, _, _, values = read(path)
+        assert values[meta["fields"].tolist().index("geometry")].tolist() == [
+            "first",
+            "second",
+        ]
+
+    message = "attribute named 'geometry' is being overwritten"
+    with pytest.warns(UserWarning, match=message) as records:
+        result = read_dataframe(path, use_arrow=use_arrow)
+
+    matching = [record for record in records if message in str(record.message)]
+    assert len(matching) == 1
+    assert matching[0].filename == __file__
+    assert result.columns.tolist() == ["geometry", "value"]
+    assert result.geometry.name == "geometry"
+    assert result.geometry.to_wkt().tolist() == ["POINT (1 2)", "POINT (3 4)"]
+    assert result.crs == frame.crs
+    assert result["value"].tolist() == [1, 2]
+
+
+@pytest.mark.parametrize(
+    "mode", ["read_geometry_false", "filtered", "only_geometry", "normal", "case"]
+)
+@pytest.mark.filterwarnings("error:An attribute named 'geometry'")
+def test_read_geometry_attribute_no_warning(
+    geometry_attribute_file, use_arrow, tmp_path, mode
+):
+    path, frame, driver = geometry_attribute_file
+    kwargs = {}
+    if mode == "read_geometry_false":
+        kwargs["read_geometry"] = False
+    elif mode == "filtered":
+        kwargs["columns"] = ["value"]
+    elif mode == "only_geometry":
+        kwargs["columns"] = []
+    else:
+        if mode == "normal":
+            frame = frame.drop(columns="geometry")
+        else:
+            frame = frame.rename(columns={"geometry": "Geometry"})
+        path = tmp_path / f"control{path.suffix}"
+        # An actual geometry field named geometry must not be mistaken for an
+        # attribute when the Arrow branch removes its WKB column.
+        options = {"GEOMETRY_NAME": "geometry"} if mode == "normal" else None
+        write_dataframe(
+            frame,
+            path,
+            driver=driver,
+            layer_options=options if driver == "GPKG" else None,
+        )
+
+    result = read_dataframe(path, use_arrow=use_arrow, **kwargs)
+    if mode == "read_geometry_false":
+        assert type(result) is pd.DataFrame
+        assert result["geometry"].tolist() == ["first", "second"]
+    else:
+        assert result.geometry.name == "geometry"
+        assert result.geometry.to_wkt().tolist() == ["POINT (1 2)", "POINT (3 4)"]
+        if mode == "case":
+            assert result["Geometry"].tolist() == ["first", "second"]
+        if mode == "only_geometry":
+            assert result.columns.tolist() == ["geometry"]
+
+
+@pytest.mark.filterwarnings("error:An attribute named 'geometry'")
+def test_read_geometry_attribute_nonspatial(tmp_path, use_arrow):
+    frame = pd.DataFrame({"geometry": ["first", "second"], "value": [1, 2]})
+    path = tmp_path / "attributes.gpkg"
+    write_dataframe(frame, path)
+    result = read_dataframe(path, use_arrow=use_arrow)
+    assert type(result) is pd.DataFrame
+    assert result["geometry"].tolist() == ["first", "second"]
+    assert result["value"].tolist() == [1, 2]
 
 
 def test_spatialite_available(test_gpkg_nulls):

@@ -486,7 +486,14 @@ def read_dataframe(
                 else:
                     # for example ArrowDtype will otherwise give numpy array with pd.NA
                     wkb_values = wkb_values.to_numpy(na_value=None)
-            df["geometry"] = shapely.from_wkb(wkb_values, on_invalid=on_invalid)
+            geometry = shapely.from_wkb(wkb_values, on_invalid=on_invalid)
+            if "geometry" in df.columns:
+                warnings.warn(
+                    "An attribute named 'geometry' is being overwritten "
+                    "by the geometry column.",
+                    stacklevel=2,
+                )
+            df["geometry"] = geometry
             if force_2d:
                 df["geometry"] = shapely.force_2d(df["geometry"])
             return gp.GeoDataFrame(df, geometry="geometry", crs=meta["crs"])
@@ -521,6 +528,13 @@ def read_dataframe(
         return df
 
     geometry = shapely.from_wkb(geometry, on_invalid=on_invalid)
+
+    if "geometry" in df.columns:
+        warnings.warn(
+            "An attribute named 'geometry' is being overwritten "
+            "by the geometry column.",
+            stacklevel=2,
+        )
 
     return gp.GeoDataFrame(df, geometry=geometry, crs=meta["crs"])
 
