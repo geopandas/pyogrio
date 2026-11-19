@@ -2,6 +2,11 @@
 
 ## 0.14.0 (yyyy-mm-dd)
 
+### Bug fixes
+
+-   Fix `read_bounds` raising a `FeatureError` instead of returning empty arrays when
+    `skip_features` is greater than or equal to the number of features.
+
 ### Packaging
 
 -   The macOS and Linux wheels no longer export the symbols of the libraries

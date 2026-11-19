@@ -401,6 +401,14 @@ def test_read_bounds_skip_features(naturalearth_lowres):
     assert fids[0] == 10
 
 
+@pytest.mark.parametrize("skip_features", [177, 200])
+def test_read_bounds_skip_features_out_of_bounds(naturalearth_lowres, skip_features):
+    # skipping all features in the layer returns empty arrays
+    fids, bounds = read_bounds(naturalearth_lowres, skip_features=skip_features)
+    assert fids.shape == (0,)
+    assert bounds.shape == (4, 0)
+
+
 def test_read_bounds_negative_skip_features(naturalearth_lowres):
     with pytest.raises(ValueError, match="'skip_features' must be >= 0"):
         read_bounds(naturalearth_lowres, skip_features=-1)
