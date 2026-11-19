@@ -9,6 +9,9 @@ from pyogrio.errors import DataSourceError
 MULTI_EXTENSIONS = (".gpkg.zip", ".shp.zip")
 
 
+DEF CTE_GDAL_VERSION = (CTE_GDAL_MAJOR, CTE_GDAL_MINOR, CTE_GDAL_PATCH)
+
+
 cdef get_string(const char *c_str, str encoding="UTF-8"):
     """Get Python string from a char *.
 
