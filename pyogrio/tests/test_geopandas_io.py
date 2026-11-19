@@ -1341,7 +1341,7 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
     )
     fids_expected = pd.Index([2, 3], name="fid")
     fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
-    assert_index_equal(df.index, fids_expected)
+    assert_index_equal(df.index, fids_expected, exact="equiv")
 
 
 def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):

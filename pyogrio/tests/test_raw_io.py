@@ -920,7 +920,7 @@ def test_read_write_datetime(tmp_path):
             dtype="datetime64[ns]",
         ),
         # Remark: a None value is automatically converted to np.datetime64("NaT")
-        np.array([np.datetime64("NaT"), None], dtype="datetime64[ms]"),
+        np.array(["NaT", None], dtype="datetime64[ms]"),
     ]
     fields = [
         "datetime64_d",
