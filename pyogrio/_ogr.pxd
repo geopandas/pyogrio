@@ -80,6 +80,8 @@ cdef extern from "cpl_vsi.h" nogil:
 
 
 cdef extern from "ogr_core.h":
+    int ALTER_WIDTH_PRECISION_FLAG
+
     ctypedef enum OGRErr:
         OGRERR_NONE  # success
         OGRERR_NOT_ENOUGH_DATA
@@ -386,6 +388,10 @@ cdef extern from "ogr_api.h":
     OGRErr              OGR_L_CreateField(OGRLayerH layer,
                                           OGRFieldDefnH fielddefn,
                                           int flexible)
+    OGRErr              OGR_L_AlterFieldDefn(OGRLayerH layer,
+                                             int field_index,
+                                             OGRFieldDefnH fielddefn,
+                                             int flags)
     const char*         OGR_L_GetName(OGRLayerH layer)
     const char*         OGR_L_GetFIDColumn(OGRLayerH layer)
     const char*         OGR_L_GetGeometryColumn(OGRLayerH layer)

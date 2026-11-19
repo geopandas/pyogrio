@@ -8,6 +8,7 @@ dependencies:
   - shapely>=2
   # Optional
   - geopandas-base
+  - libgdal-arrow-parquet
   - pyarrow
   - pyproj
   # Specific for dev

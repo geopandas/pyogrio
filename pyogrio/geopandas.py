@@ -8,6 +8,7 @@ from datetime import datetime
 import numpy as np
 
 from pyogrio._compat import (
+    GDAL_GE_310,
     HAS_GEOPANDAS,
     HAS_PYARROW,
     PANDAS_GE_15,
@@ -541,6 +542,7 @@ def write_dataframe(
     metadata=None,
     dataset_options=None,
     layer_options=None,
+    column_widths=None,
     **kwargs,
 ):
     """Write GeoPandas GeoDataFrame to an OGR file format.
@@ -625,6 +627,23 @@ def write_dataframe(
     layer_options : dict, optional
         Layer creation options (format specific) passed to OGR. Specify as
         a key-value dictionary.
+    column_widths : dict, optional (default: None)
+        Passes the maximum width for each column listed to OGR.
+
+        - For strings columns, the value should be an integer specifying the maximum
+          number of characters.
+        - For integer columns, the value should be an integer specifying the maximum
+          number of digits.
+        - For floating point columns, the value should be a tuple of
+          (width, precision). The width here is the total number of digits, both to
+          the left and right of the decimal point, and the precision is the number of
+          digits to the right of the decimal point.
+
+        Actual support and behaviour depends on the driver, some examples are listed
+        in the Notes section below.
+
+        .. versionadded:: 0.14.0
+
     **kwargs
         Additional driver-specific dataset or layer creation options passed
         to OGR. pyogrio will attempt to automatically pass those keywords
@@ -646,6 +665,18 @@ def write_dataframe(
     Object dtype columns containing `datetime` or `pandas.Timestamp` objects will
     also be written as datetime fields, preserving time zone information where possible.
 
+    The behaviour of column widths and precisions depends on the driver used for
+    writing:
+
+    - GeoPackage: stores widths and precisions without enforcing them.
+    - Shapefile: for integer and string columns, the width is enlarged to fit the
+      values. For floating point columns, the specified width should include the space
+      for the decimal point and the sign as well, and it is enforced by truncating the
+      values. The precision is enforced by rounding the values.
+    - GeoJSON and GeoJSONSeq: don't store nor enforce widths or precisions.
+    - FlatGeobuf: stores widths and precisions without enforcing them. With
+      ``use_arrow=True``, specifying width and precision for float columns is not
+      supported at the time of writing (GDAL <= 3.13).
     """
     # TODO: add examples to the docstring (e.g. OGR kwargs)
 
@@ -662,6 +693,11 @@ def write_dataframe(
         use_arrow = bool(int(os.environ.get("PYOGRIO_USE_ARROW", "0")))
     path, driver = _get_write_path_driver(path, driver, append=append)
 
+    # Columns widths/precisions don't have any effect for these drivers, but if present
+    # lead to some errors in some cases, so just set them to None for these drivers.
+    if driver in ("GeoJSON", "GeoJSONSeq"):
+        column_widths = None
+
     geometry_columns = df.columns[df.dtypes == "geometry"]
     if len(geometry_columns) > 1:
         raise ValueError(
@@ -675,6 +711,39 @@ def write_dataframe(
     else:
         geometry_column = None
         geometry = None
+
+    if column_widths is not None:
+        unknown_columns = [name for name in column_widths if name not in df.columns]
+        if unknown_columns:
+            raise ValueError(
+                f"column_widths contains columns not found in 'df': {unknown_columns}"
+            )
+
+        for name, width in column_widths.items():
+            if isinstance(width, tuple):
+                is_valid_width = (
+                    len(width) == 2
+                    and all(
+                        isinstance(i, (int, np.integer))
+                        and not isinstance(i, (bool, np.bool_))
+                        for i in width
+                    )
+                    and width[0] > 0
+                    and width[1] >= 0
+                )
+            else:
+                is_valid_width = (
+                    isinstance(width, (int, np.integer))
+                    and not isinstance(width, (bool, np.bool_))
+                    and width >= 0
+                )
+
+            if not is_valid_width:
+                raise ValueError(
+                    f"column_widths for column '{name}' must be a non-negative "
+                    f"integer or a 2-item (width, precision) tuple where width "
+                    f"> 0 and precision >= 0, not {width}"
+                )
 
     # Determine geometry_type and/or promote_to_multi
     if geometry_column is not None:
@@ -796,6 +865,9 @@ def write_dataframe(
         for name, dtype in df.dtypes.items():
             if geometry_column is not None and name == geometry_column:
                 continue
+
+            if isinstance(dtype, pd.StringDtype):
+                continue
             if dtype == "object":
                 inferred_dtype = pd.api.types.infer_dtype(df[name])
                 if inferred_dtype == "string":
@@ -823,13 +895,35 @@ def write_dataframe(
 
         table = pa.Table.from_pandas(df, preserve_index=False)
 
-        # Add metadata to datetime columns so GDAL knows they are datetimes.
-        table = _add_column_metadata(
-            table,
-            column_metadata={
-                col: {"GDAL:OGR:type": "DateTime"} for col in datetime_cols
-            },
-        )
+        # Handle column_widths.
+        # For most drivers, it is OK to set the column widths and precisions as
+        # column metadata on the table and GDAL will handle it further.
+        # For drivers that are natively arrow-based, we need to apply as much width
+        # conversions as possible to the arrow table because GDAL doesn't use the
+        # column metadata for those drivers. In addition, for GDAL's arrow-based drivers
+        # the workaround to set properties manually in create_fields_from_arrow_schema
+        # doesn't work either.
+        column_metadata = {}
+        is_arrow_driver = driver in ("Parquet", "Arrow")
+        if column_widths is not None:
+            for column, width in column_widths.items():
+                if is_arrow_driver:
+                    table = _apply_width_to_column(table, column, width)
+
+                if isinstance(width, tuple):
+                    column_metadata[column] = {
+                        "GDAL:OGR:width": str(width[0]),
+                        "GDAL:OGR:precision": str(width[1]),
+                    }
+                elif width is not None and width > 0:
+                    column_metadata[column] = {"GDAL:OGR:width": str(width)}
+
+        # Add DateTime metadata to columns to pass on to GDAL.
+        for column in datetime_cols:
+            # DateTime metadata overwrites width/precision which is fine as
+            # width/precision for DateTime columns isn't logical anyway.
+            column_metadata[column] = {"GDAL:OGR:type": "DateTime"}
+        table = _add_column_metadata(table, column_metadata=column_metadata)
 
         # The arrow null type is not supported by GDAL
         for field_index, field in enumerate(table.schema):
@@ -897,10 +991,26 @@ def write_dataframe(
     # TODO: may need to fill in pd.NA, etc
     field_data = []
     field_mask = []
+    field_widths = []
+    field_precisions = []
     # dict[str, np.array(int)] special case for dt-tz fields
     gdal_tz_offsets = {}
     for name in fields:
         col = df[name]
+
+        # Determine the column width and precision for the current field, if specified.
+        column_width = column_widths.get(name) if column_widths is not None else None
+        if column_width is not None:
+            if isinstance(column_width, tuple):
+                field_widths.append(column_width[0])
+                field_precisions.append(column_width[1])
+            else:
+                field_widths.append(column_width)
+                field_precisions.append(None)
+        else:
+            field_widths.append(None)
+            field_precisions.append(None)
+
         values = None
 
         if isinstance(col.dtype, pd.DatetimeTZDtype):
@@ -953,6 +1063,8 @@ def write_dataframe(
         field_data=field_data,
         field_mask=field_mask,
         fields=fields,
+        field_widths=field_widths,
+        field_precisions=field_precisions,
         crs=crs,
         geometry_type=geometry_type,
         encoding=encoding,
@@ -1012,5 +1124,74 @@ def _add_column_metadata(table, column_metadata: dict = {}):
 
     # Build new table with updated schema (shouldn't copy data)
     table = table.cast(schema)
+
+    return table
+
+
+def _apply_width_to_column(table, column: str, width: int | tuple[int, int]):
+    """Apply width and optionally precision to a column.
+
+    Parameters
+    ----------
+    table : pyarrow.Table
+        The table containing the column to cast.
+    column : str
+        The name of the column to cast.
+    width : int | tuple[int, int]
+        The width of the column, either as an integer for the total number of
+        digits/characters or a tuple of (width, precision).
+
+    Returns
+    -------
+    pyarrow.Table
+        The table with width information applied where supported.
+    """
+    import pyarrow as pa
+
+    if isinstance(width, tuple):
+        width, precision = width
+    else:
+        precision = None
+
+    if width == 0:
+        return table
+
+    field_index = table.schema.get_field_index(column)
+    field = table.schema.field(field_index)
+    is_numeric = pa.types.is_floating(field.type) or pa.types.is_decimal(field.type)
+
+    def get_decimal_type(width, precision):
+        """Get the smallest suitable decimal type for the given width and precision."""
+        # Smaller decimal types are only supported if GDAL >= 3.10
+        if GDAL_GE_310 and width <= 9 and hasattr(pa, "decimal32"):
+            return pa.decimal32(width, precision)
+        if GDAL_GE_310 and width <= 18 and hasattr(pa, "decimal64"):
+            return pa.decimal64(width, precision)
+        if width <= 38:
+            return pa.decimal128(width, precision)
+        return pa.decimal256(width, precision)
+
+    if is_numeric and precision is not None:
+        decimal_type = get_decimal_type(width, precision)
+        try:
+            table = table.set_column(
+                field_index,
+                field.with_type(decimal_type),
+                table.column(field_index).cast(decimal_type),
+            )
+        except Exception as ex:
+            raise ValueError(
+                f"Failed to apply width and precision to field '{column}': {ex}"
+            ) from ex
+    elif is_numeric:
+        raise ValueError(
+            f"Field '{column}' of type OFTReal requires a precision "
+            "if field width is set"
+        ) from None
+    elif precision is not None and precision > 0:
+        raise ValueError(f"Field '{column}' should not have a precision > 0") from None
+    elif pa.types.is_string(field.type) or pa.types.is_large_string(field.type):
+        # Arrow strings don't support a maximum length
+        pass
 
     return table
