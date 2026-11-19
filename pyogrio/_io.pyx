@@ -10,6 +10,8 @@ import os
 import shutil
 import sys
 import warnings
+
+DEF CTE_GDAL_VERSION = (CTE_GDAL_MAJOR, CTE_GDAL_MINOR, CTE_GDAL_PATCH)
 IF CTE_GDAL_VERSION < (3, 8, 0):
     from pathlib import Path
 

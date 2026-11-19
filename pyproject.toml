@@ -1,15 +1,17 @@
 [build-system]
 requires = [
     # keep in sync with a subset of [dependency-groups.build]
-    "setuptools>=77",
-    "Cython>=3.1",
+    "scikit-build-core",
+    "cython>=3.1",
+    "cython-cmake",
     "versioneer[toml]>=0.28,<0.30",
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyogrio"
-dynamic = ["version"]
+# dynamic = ["version"]
+version = "0.14.0.dev0"
 authors = [
     { name = "Brendan C. Ward", email = "bcward@astutespruce.com" },
     { name = "pyogrio contributors" },

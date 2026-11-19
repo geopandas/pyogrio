@@ -429,6 +429,7 @@ cdef extern from "ogr_api.h":
         OGRLayerH hLayer, ArrowArrayStream *out_stream, char** papszOptions
     ) nogil
 
+DEF CTE_GDAL_VERSION = (CTE_GDAL_MAJOR, CTE_GDAL_MINOR, CTE_GDAL_PATCH)
 IF CTE_GDAL_VERSION >= (3, 7, 0):
 
     cdef extern from "ogr_api.h":
