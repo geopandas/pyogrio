@@ -1101,7 +1101,7 @@ cdef process_fields(
                     data[i] = np.nan
 
             elif field_type in (OFTDate, OFTDateTime) and not datetime_as_string:
-                data[i] = np.datetime64("NaT")
+                data[i] = "NaT"
 
             else:
                 data[i] = None
@@ -1159,7 +1159,7 @@ cdef process_fields(
                 microsecond = round(ms * 1000) * 1000
 
                 if not success:
-                    data[i] = np.datetime64("NaT")
+                    data[i] = "NaT"
 
                 elif field_type == OFTDate:
                     data[i] = datetime.date(year, month, day).isoformat()

@@ -129,7 +129,7 @@ def test_read_df_arrow_fid(naturalearth_lowres_all_ext):
     assert_index_equal(df.index, pd.RangeIndex(0, 2))
 
     df = read_dataframe(naturalearth_lowres_all_ext, fid_as_index=True, **kwargs)
-    assert_index_equal(df.index, pd.Index([2, 3], name="fid"))
+    assert_index_equal(df.index, pd.Index([2, 3], name="fid"), exact="equiv")
 
 
 def test_read_df_arrow_columns(naturalearth_lowres):

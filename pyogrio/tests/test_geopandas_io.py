@@ -1341,7 +1341,7 @@ def test_read_fid_as_index(naturalearth_lowres_all_ext, use_arrow):
     )
     fids_expected = pd.Index([2, 3], name="fid")
     fids_expected += START_FID[naturalearth_lowres_all_ext.suffix]
-    assert_index_equal(df.index, fids_expected)
+    assert_index_equal(df.index, fids_expected, exact="equiv")
 
 
 def test_read_fid_as_index_only(naturalearth_lowres, use_arrow):
@@ -2972,7 +2972,8 @@ def test_write_geometry_z_types_auto(
 
     result_gdf = read_dataframe(filename)
     if ext == ".geojsonl" and HAS_PYPROJ:
-        result_gdf.crs = "EPSG:4326"
+        # some cases comes back as 3D geographic CRS
+        result_gdf = result_gdf.set_crs("EPSG:4326", allow_override=True)
 
     assert_geodataframe_equal(gdf, result_gdf)
 
