@@ -19,14 +19,15 @@ from pyogrio import (
     set_gdal_config_options,
     vsi_listtree,
 )
+from pyogrio._compat import HAS_PYPROJ
 from pyogrio.errors import DataLayerError, DataSourceError, FieldError
 from pyogrio.raw import open_arrow, read_arrow, write, write_arrow
 from pyogrio.tests.conftest import (
     ALL_EXTS,
     DRIVER_EXT,
     DRIVERS,
+    PROJ_WARNINGS,
     requires_arrow_write_api,
-    requires_pyarrow_api,
 )
 
 import pytest
@@ -41,9 +42,11 @@ except ImportError:
     pass
 
 # skip all tests in this file if Arrow API or GeoPandas are unavailable
-pytestmark = requires_pyarrow_api
 pytest.importorskip("geopandas")
 pa = pytest.importorskip("pyarrow")
+
+if not HAS_PYPROJ:
+    pytestmark = PROJ_WARNINGS
 
 
 def test_read_arrow(naturalearth_lowres_all_ext):
@@ -504,7 +507,8 @@ def test_write_geojson(tmp_path, naturalearth_lowres):
 
     assert filename.exists()
 
-    data = json.loads(open(filename).read())
+    with open(filename) as f:
+        data = json.load(f)
 
     assert data["type"] == "FeatureCollection"
     assert data["name"] == "test"
@@ -709,6 +713,7 @@ def test_write_append_unsupported(tmp_path, naturalearth_lowres, driver, ext):
         )
 
 
+@pytest.mark.filterwarnings("ignore:HTTP response code on .* 403")
 @requires_arrow_write_api
 def test_write_gdalclose_error(naturalearth_lowres):
     meta, table = read_arrow(naturalearth_lowres)
