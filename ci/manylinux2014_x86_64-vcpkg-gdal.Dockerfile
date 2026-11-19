@@ -37,12 +37,10 @@ RUN bootstrap-vcpkg.sh && \
     vcpkg integrate bash
 
 COPY ci/custom-triplets/x64-linux-dynamic-release.cmake opt/vcpkg/custom-triplets/x64-linux-dynamic-release.cmake
-COPY ci/vcpkg-custom-ports/ opt/vcpkg/custom-ports/
 COPY ci/vcpkg-manylinux2014.json opt/vcpkg/vcpkg.json
 
 ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/vcpkg/installed/x64-linux-dynamic-release/lib"
 RUN vcpkg install --overlay-triplets=opt/vcpkg/custom-triplets \
-    --overlay-ports=opt/vcpkg/custom-ports \
     --feature-flags="versions,manifests" \
     --x-manifest-root=opt/vcpkg \
     --x-install-root=opt/vcpkg/installed && \

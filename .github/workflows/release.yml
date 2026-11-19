@@ -15,6 +15,8 @@ on:
       - "setup.py"
   workflow_dispatch:
 
+permissions: {}
+
 # cancel running jobs on new commit to PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -28,12 +30,15 @@ jobs:
   build-sdist:
     name: Build pyogrio sdist
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -57,6 +62,8 @@ jobs:
     name: Test sdist
     needs: [build-sdist]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     container:
       image: "ghcr.io/osgeo/gdal:ubuntu-small-3.12.4"
 
@@ -100,6 +107,8 @@ jobs:
   build-wheels-linux:
     name: Build wheels on Linux
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -126,6 +135,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         id: buildx
@@ -150,7 +160,7 @@ jobs:
           BUILDKIT_PROGRESS: plain
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@b9e566a2b284570af229f6c2a33673410d0389a3 # v4.3.4
+        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -161,6 +171,8 @@ jobs:
   build-wheels-mac-win:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -195,6 +207,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Cache vcpkg
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -247,7 +260,7 @@ jobs:
           path: ${{ matrix.vcpkg_logs }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@b9e566a2b284570af229f6c2a33673410d0389a3 # v4.3.4
+        uses: pypa/cibuildwheel@f9b966cfadf4109556cadc5bb39ddb72d0ce664e # v4.3.5
         env:
           # CIBW needs to know triplet for the correct install path
           VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
@@ -263,12 +276,15 @@ jobs:
     name: Test wheels on ${{ matrix.os }} (Python ${{ matrix.python-version }})
     needs: [build-wheels-linux, build-wheels-mac-win]
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         os:
           [
             "ubuntu-latest",
+            "ubuntu-24.04",
             "ubuntu-22.04",
             "ubuntu-24.04-arm",
             "windows-latest",
@@ -282,7 +298,7 @@ jobs:
           - os: "windows-11-arm"
             python-version: "3.10"
         include:
-          - os: "ubuntu-latest"
+          - os: "ubuntu-24.04"
             artifact: pyogrio-wheel-linux-manylinux2014_x86_64
           - os: "ubuntu-latest"
             artifact: pyogrio-wheel-linux-manylinux_2_28_x86_64
@@ -305,6 +321,7 @@ jobs:
         with:
           sparse-checkout: ci/requirements-wheel-test.txt
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -313,7 +330,7 @@ jobs:
           allow-prereleases: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
       - name: Create virtual environment (Linux / MacOS)
         # use uv to create a virtual environment, then add it to environment
@@ -380,11 +397,10 @@ jobs:
 
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-        with:
-          name: Version ${{ github.ref_name }}
-          tag_name: ${{ github.ref }}
-          draft: false
-          prerelease: false
-          files: dist/*.tar.gz
-          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Version $GITHUB_REF_NAME" \
+            --draft \
+            dist/pyogrio-*.tar.gz
