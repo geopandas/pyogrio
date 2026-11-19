@@ -37,8 +37,13 @@ with GDALEnv():
 
     _init_gdal_data()
     _init_proj_data()
-    _register_drivers()
+    # register the error handler before registering drivers: GDALAllRegister()
+    # (called by _register_drivers) can itself emit warnings (e.g. via
+    # AutoSkipDrivers() when GDAL_SKIP names an unknown driver), and those
+    # warnings must go through our handler to be visible to Python's warnings
+    # system instead of being printed unsuppressibly to stderr. See #690.
     _register_error_handler()
+    _register_drivers()
 
     __gdal_version__ = get_gdal_version()
     __gdal_version_string__ = get_gdal_version_string()
