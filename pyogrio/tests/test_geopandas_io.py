@@ -2384,10 +2384,12 @@ def test_write_dataframe_gdal_options_unknown(tmp_path, naturalearth_lowres, use
 def _get_gpkg_table_names(path):
     import sqlite3
 
-    con = sqlite3.connect(path)
-    cursor = con.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    result = cursor.fetchall()
+    # Use contextlib.closing to ensure the connection is closed because without
+    # it it only ensures the transaction is properly closed.
+    with contextlib.closing(sqlite3.connect(path)) as con:
+        cursor = con.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        result = cursor.fetchall()
     return [res[0] for res in result]
 
 
